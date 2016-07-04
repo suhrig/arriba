@@ -1,0 +1,124 @@
+#ifndef _COMMON_H
+#define _COMMON_H 1
+
+#include <unordered_map>
+#include <string>
+#include <set>
+#include <tuple>
+#include <vector>
+
+using namespace std;
+
+const bool FORWARD = true;
+const bool REVERSE = false;
+typedef bool strand_t;
+
+typedef const string* filter_t;
+extern unordered_map<string,filter_t> FILTERS;
+
+typedef unsigned short int contig_t;
+typedef unordered_map<string,contig_t> contigs_t;
+typedef int position_t;
+
+typedef unsigned int gene_t;
+typedef set<gene_t> gene_set_t;
+
+struct alignment_t {
+	bool supplementary;
+	bool first_in_pair;
+	bool exonic;
+	strand_t strand;
+	contig_t contig;
+	position_t start;
+	position_t end;
+	unsigned short int preclipping;
+	unsigned short int postclipping;
+	string sequence;
+	gene_set_t genes;
+	alignment_t(): supplementary(false), first_in_pair(false), exonic(false) {};
+};
+const unsigned int MATE1 = 0;
+const unsigned int MATE2 = 1;
+const unsigned int SPLIT_READ = 1;
+const unsigned int SUPPLEMENTARY = 2;
+class mates_t: public vector<alignment_t> {
+	public:
+		string name;
+		set<filter_t> filters;
+};
+typedef unordered_map<string,mates_t> chimeric_alignments_t;
+
+const bool UPSTREAM = true;
+const bool DOWNSTREAM = false;
+typedef bool direction_t;
+struct fusion_t {
+	gene_t gene1, gene2;
+	contig_t contig1, contig2;
+	position_t breakpoint1, breakpoint2;
+	direction_t direction1, direction2;
+	bool exonic1, exonic2;
+	bool overlap_duplicate1, overlap_duplicate2;
+	bool spliced1, spliced2;
+	unsigned int split_reads1, split_reads2;
+	unsigned int discordant_mates;
+	position_t anchor_start1, anchor_start2;
+	vector<mates_t*> chimeric_alignments;
+	float evalue; // expected number of fusions with the given properties by random chance
+	set<filter_t> filters; // name of the filter(s) which discarded the fusion (empty means not discarded)
+	fusion_t(): split_reads1(0), split_reads2(0), discordant_mates(0), anchor_start1(0), anchor_start2(0) {}
+	unsigned int supporting_reads() const { return split_reads1 + split_reads2 + discordant_mates; }
+};
+typedef unordered_map< tuple<gene_t /*gene1*/, gene_t /*gene2*/, contig_t /*contig1*/, contig_t /*contig2*/, position_t /*breakpoint1*/, position_t /*breakpoint2*/, direction_t /*direction1*/, direction_t /*direction2*/>,fusion_t > fusions_t;
+
+namespace std{
+    namespace
+    {
+
+	// Code from boost
+	// Reciprocal of the golden ratio helps spread entropy
+	//     and handles duplicates.
+	// See Mike Seymour in magic-numbers-in-boosthash-combine:
+	//     http://stackoverflow.com/questions/4948780
+
+	template <class T>
+	inline void hash_combine(std::size_t& seed, T const& v)
+	{
+	    seed ^= std::hash<T>()(v) + 0x9e3779b9 + (seed<<6) + (seed>>2);
+	}
+
+	// Recursive template code derived from Matthieu M.
+	template <class Tuple, size_t Index = std::tuple_size<Tuple>::value - 1>
+	struct HashValueImpl
+	{
+	  static void apply(size_t& seed, Tuple const& tuple)
+	  {
+	    HashValueImpl<Tuple, Index-1>::apply(seed, tuple);
+	    hash_combine(seed, std::get<Index>(tuple));
+	  }
+	};
+
+	template <class Tuple>
+	struct HashValueImpl<Tuple,0>
+	{
+	  static void apply(size_t& seed, Tuple const& tuple)
+	  {
+	    hash_combine(seed, std::get<0>(tuple));
+	  }
+	};
+    }
+
+    template <typename ... TT>
+    struct hash<std::tuple<TT...>> 
+    {
+	size_t
+	operator()(std::tuple<TT...> const& tt) const
+	{					      
+	    size_t seed = 0;			     
+	    HashValueImpl<std::tuple<TT...> >::apply(seed, tt);    
+	    return seed;				 
+	}					      
+
+    };
+}
+
+#endif /* _COMMON_H */
