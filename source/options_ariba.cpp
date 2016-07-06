@@ -19,7 +19,7 @@ options_t get_default_options() {
 	options.evalue_cutoff = 0.4;
 	options.min_support = 2;
 	options.max_mismapper_fraction = 0.5;
-	options.min_anchor_length = 20;
+	options.min_anchor_length = 23;
 	options.homopolymer_length = 6;
 	options.min_read_through_distance = 10000;
 	options.print_supporting_reads = false;
