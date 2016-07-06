@@ -21,6 +21,7 @@
 #include "filter_promiscuous_genes.hpp"
 #include "filter_min_support.hpp"
 #include "recover_known_fusions.hpp"
+#include "recover_both_spliced.hpp"
 #include "filter_blacklisted_ranges.hpp"
 #include "filter_end_to_end.hpp"
 #include "filter_misspliced.hpp"
@@ -46,6 +47,7 @@ unordered_map<string,filter_t> FILTERS({
 	{"promiscuous_genes", NULL},
 	{"min_support", NULL},
 	{"known_fusions", NULL},
+	{"spliced", NULL},
 	{"blacklist", NULL},
 	{"end_to_end", NULL},
 	{"misspliced", NULL},
@@ -264,8 +266,14 @@ int main(int argc, char **argv) {
 
 	// this step must come right after the 'promiscuous_genes' and 'min_support' filters
 	if (!options.known_fusions_file.empty() && options.filters.at("known_fusions")) {
-		cout << "Searching for known fusions in '" << options.known_fusions_file << "'" << endl << flush;
+		cout << "Searching for known fusions in '" << options.known_fusions_file << "'" << flush;
 		cout << " (remaining=" << recover_known_fusions(fusions, options.known_fusions_file, genes, options.low_tumor_content) << ")" << endl;
+	}
+
+	// this step must come right after the 'promiscuous_genes' and 'min_support' filters
+	if (options.filters.at("spliced")) {
+		cout << "Searching for fusions with spliced split reads" << flush;
+		cout << " (remaining=" << recover_both_spliced(fusions, gene_annotation) << ")" << endl;
 	}
 
 	if (options.filters.at("end_to_end")) {

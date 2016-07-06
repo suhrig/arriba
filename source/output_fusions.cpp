@@ -17,7 +17,6 @@ using namespace std;
 // looking at which promoter likely drives transcription
 enum transcript_start_t { TRANSCRIPT_START_GENE1, TRANSCRIPT_START_GENE2, TRANSCRIPT_START_AMBIGUOUS };
 transcript_start_t get_start_of_transcript(const fusion_t& fusion, const annotation_t& gene_annotation) {
-
 //TODO inspect splice motifs in unclear cases
 	if (gene_annotation[fusion.gene1].is_dummy) { // if gene1 is a dummy gene, then gene2 has priority; otherwise gene1 has priority
 		// TODO this branch needs a make-over when we support strand-specific libraries
@@ -98,7 +97,6 @@ bool get_dna_sequence_by_region(const position_t breakpoint, const direction_t d
 }
 
 string get_fusion_transcript_sequence(const fusion_t& fusion, annotation_t& gene_annotation, annotation_index_t& exon_annotation_index, const unsigned int length, const transcript_start_t transcript_start) {
-
 
 	// we can only construct a fusion transcript, if we have split reads
 	if (fusion.split_reads1 + fusion.split_reads2 == 0) {

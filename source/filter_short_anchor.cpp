@@ -7,6 +7,7 @@ using namespace std;
 unsigned int filter_short_anchor(fusions_t& fusions, unsigned int min_length) {
 	unsigned int remaining = 0;
 	for (fusions_t::iterator i = fusions.begin(); i != fusions.end(); ++i) {
+
 		if (!i->second.filters.empty())
 			continue; // fusion has already been filtered
 
