@@ -18,7 +18,7 @@ options_t get_default_options() {
 		options.filters[i->first] = true;
 	options.evalue_cutoff = 0.4;
 	options.min_support = 2;
-	options.max_mismapper_fraction = 0.5;
+	options.max_mismapper_fraction = 0.8;
 	options.min_anchor_length = 23;
 	options.homopolymer_length = 6;
 	options.min_read_through_distance = 10000;
@@ -157,7 +157,7 @@ void print_usage(const string& error_message) {
 	                  "mate, unless both mates map to annotated genes. Default: " + to_string(default_options.min_read_through_distance))
 	     << wrap_help("-A MIN_ANCHOR_LENGTH", "Alignment artifacts are often characterized by "
 	                  "split reads coming from only gene and no discordant mates. Moreover, the split reads only "
-	                  "align to a short stretch in one of the genes (<=20bp). The 'short_anchor' "
+	                  "align to a short stretch in one of the genes. The 'short_anchor' "
 	                  "filter removes these fusions. This parameter sets the threshold in bp for "
 	                  "what the filter considers short. Default: " + to_string(default_options.min_anchor_length))
 	     << wrap_help("-K MAX_KMER_CONTENT", "The 'low_entropy' filter removes reads with "

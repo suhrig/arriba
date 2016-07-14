@@ -49,6 +49,8 @@ void print_usage(const string& error_message) {
 }
 
 options_t parse_arguments(int argc, char **argv) {
+
+//TODO add pipe-through parameter
 	options_t options = get_default_options();
 	istringstream disabled_filters;
 

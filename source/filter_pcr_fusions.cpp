@@ -18,6 +18,8 @@ using namespace std;
 
 
 
+
+
 unsigned int filter_pcr_fusions(fusions_t& fusions, const annotation_t& gene_annotation, const float max_pcr_fusion_score, const unsigned int max_exonic_breakpoints, const unsigned int max_partners_with_many_exonic_breakpoints, const unsigned int min_split_reads) {
 
 	vector<unsigned int> exonic_breakpoint_count(gene_annotation.size()); // count the number of fusions with exonic (non-spliced) breakpoints for each gene

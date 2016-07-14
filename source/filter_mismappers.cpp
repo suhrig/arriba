@@ -1,12 +1,10 @@
+#include <cmath>
+#include <set>
 #include <string>
 #include <unordered_map>
-#include <set>
 #include "common.hpp"
 #include "annotation.hpp"
 #include "filter_mismappers.hpp"
-
-//TODO remove
-#include <iostream>
 
 using namespace std;
 
@@ -141,31 +139,18 @@ unsigned int filter_mismappers(fusions_t& fusions, annotation_t& gene_annotation
 	}
 
 	// align discordnat mate / clipped segment in gene of origin
-	unsigned int remaining = 0;
 	for (fusions_t::iterator fusion = fusions.begin(); fusion != fusions.end(); ++fusion) {
 //TODO subtract mismappers from split_reads1 / split_reads2 / discordant mates
 		if (!fusion->second.filters.empty())
 			continue; // fusion has already been filtered
 
-		unsigned int mismappers = 0;
-		unsigned int support = fusion->second.supporting_reads();
 		for (auto i = fusion->second.chimeric_alignments.begin(); i != fusion->second.chimeric_alignments.end(); ++i) {
 
-			if (!(**i).filters.empty()) { // read has already been filtered
-
-				if (*(**i).filters.begin() == FILTERS.at("mismappers"))
-					mismappers++;
-				else
-					continue;
-
-			} else {
+			if ((**i).filters.empty()) { // read has not yet been filtered
 
 				if ((**i).size() == 2) { // discordant mates
 					if (align_both_strands((**i)[MATE1].sequence, kmer_indices, (**i)[MATE2].genes, gene_annotation, kmer_length, max_score, min_align_percent) ||
 					    align_both_strands((**i)[MATE2].sequence, kmer_indices, (**i)[MATE1].genes, gene_annotation, kmer_length, max_score, min_align_percent)) {
-if ((gene_annotation[fusion->second.gene1].name == "AC099850.1" || gene_annotation[fusion->second.gene1].name == "VMP1") && (gene_annotation[fusion->second.gene2].name == "AC099850.1" || gene_annotation[fusion->second.gene2].name == "VMP1"))
-	cerr << (**i).name << endl;
-						mismappers++;
 						(**i).filters.insert(FILTERS.at("mismappers"));
 					}
 
@@ -174,17 +159,11 @@ if ((gene_annotation[fusion->second.gene1].name == "AC099850.1" || gene_annotati
 					if (split_read.strand == FORWARD) {
 						if (align_both_strands(split_read.sequence.substr(0, split_read.preclipping), kmer_indices, split_read.genes, gene_annotation, kmer_length, max_score, min_align_percent) || // clipped segment aligns to donor
 						    align_both_strands((**i)[MATE1].sequence, kmer_indices, (**i)[SUPPLEMENTARY].genes, gene_annotation, kmer_length, max_score, min_align_percent)) { // non-spliced mate aligns to acceptor
-if ((gene_annotation[fusion->second.gene1].name == "AC099850.1" || gene_annotation[fusion->second.gene1].name == "VMP1") && (gene_annotation[fusion->second.gene2].name == "AC099850.1" || gene_annotation[fusion->second.gene2].name == "VMP1"))
-	cerr << (**i).name << endl;
-							mismappers++;
 							(**i).filters.insert(FILTERS.at("mismappers"));
 						}
 					} else { // split_read.strand == REVERSE
 						if (align_both_strands(split_read.sequence.substr(split_read.sequence.length() - split_read.postclipping), kmer_indices, split_read.genes, gene_annotation, kmer_length, max_score, min_align_percent) || // clipped segment aligns to donor
 						    align_both_strands((**i)[MATE1].sequence, kmer_indices, (**i)[SUPPLEMENTARY].genes, gene_annotation, kmer_length, max_score, min_align_percent)) { // non-spliced mate aligns to acceptor
-if ((gene_annotation[fusion->second.gene1].name == "AC099850.1" || gene_annotation[fusion->second.gene1].name == "VMP1") && (gene_annotation[fusion->second.gene2].name == "AC099850.1" || gene_annotation[fusion->second.gene2].name == "VMP1"))
-	cerr << (**i).name << endl;
-							mismappers++;
 							(**i).filters.insert(FILTERS.at("mismappers"));
 						}
 					}
@@ -192,16 +171,27 @@ if ((gene_annotation[fusion->second.gene1].name == "AC099850.1" || gene_annotati
 
 			}
 
-			// remove fusions with mostly mismappers
-			if (1.0 * mismappers / support >= max_mismapper_fraction) { // more than XX% of the supporting reads are mismappers
-				fusion->second.filters.insert(FILTERS.at("mismappers"));
-				goto next_fusion;
-			}
 		}
+	}
 
-		remaining++;
+	// discard all fusions with more than XX% mismappers
+	unsigned int remaining = 0;
+	for (fusions_t::iterator fusion = fusions.begin(); fusion != fusions.end(); ++fusion) {
 
-		next_fusion: NULL; // NULL is a dummy statement for the goto label
+		if (!fusion->second.filters.empty())
+			continue; // fusion has already been filtered
+
+		unsigned int mismappers = 0;
+		for (auto i = fusion->second.chimeric_alignments.begin(); i != fusion->second.chimeric_alignments.end(); ++i)
+			if ((**i).filters.find(FILTERS.at("mismappers")) != (**i).filters.end())
+				mismappers++;
+
+		// remove fusions with mostly mismappers
+		if (mismappers > 0 && mismappers >= floor(max_mismapper_fraction * fusion->second.supporting_reads()))
+			fusion->second.filters.insert(FILTERS.at("mismappers"));
+		else
+			remaining++;
+
 	}
 
 	return remaining;
