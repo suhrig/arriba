@@ -132,26 +132,29 @@ int main(int argc, char **argv) {
 	// load exon annotation
 	annotation_t exon_annotation;
 	read_annotation_bed(options.exon_annotation_file, exon_annotation, contigs);
-	annotation_index_t exon_annotation_index;
-	make_annotation_index(exon_annotation, exon_annotation_index, contigs);
 	// load gene annotation
 	annotation_t gene_annotation;
 	read_annotation_bed(options.gene_annotation_file, gene_annotation, contigs);
-	annotation_index_t gene_annotation_index;
-	make_annotation_index(gene_annotation, gene_annotation_index, contigs);
 
 	// translate exons to genes
 	unordered_map<string,gene_t> genes;
 	for (unsigned int i = 0; i < gene_annotation.size(); ++i)
 		genes[gene_annotation[i].name] = i;
-	for (annotation_index_t::iterator i = exon_annotation_index.begin(); i != exon_annotation_index.end(); ++i) {
-		for (contig_annotation_index_t::iterator j = i->begin(); j != i->end(); ++j) {
-			gene_set_t translated;
-			for (gene_set_t::iterator k = j->second.begin(); k != j->second.end(); ++k)
-				translated.insert(genes[exon_annotation[(*k)].name]);
-			j->second = translated;
+	for (annotation_t::iterator i = exon_annotation.begin(); i != exon_annotation.end(); ++i) {
+		auto gene = genes.find(i->name);
+		if (gene == genes.end()) {
+			cerr << "ERROR: exon belongs to unknown gene: " << i->name << endl;
+			exit(1);
+		} else {
+			i->id = gene->second;
 		}
 	}
+
+	// sort genes and exons by coordinate (make index)
+	annotation_index_t exon_annotation_index;
+	make_annotation_index(exon_annotation, exon_annotation_index, contigs);
+	annotation_index_t gene_annotation_index;
+	make_annotation_index(gene_annotation, gene_annotation_index, contigs);
 
 	// calculate sum of the lengths of all exons for each gene
 	// we will need this to normalize the number of events over the gene length
@@ -331,7 +334,7 @@ int main(int argc, char **argv) {
 	// this step must come near the end, because random BAM file accesses are slow
 	if (options.filters.at("non_expressed")) {
 		cout << "Filtering fusions with no expression in '" << options.rna_bam_file << "'" << flush;
-		cout << " (remaining=" << filter_nonexpressed(fusions, options.rna_bam_file, chimeric_alignments) << ")" << endl;
+		cout << " (remaining=" << filter_nonexpressed(fusions, options.rna_bam_file, chimeric_alignments, gene_annotation, exon_annotation) << ")" << endl;
 	}
 
 	// this step must come last, otherwise the effect of filters would be reversed
