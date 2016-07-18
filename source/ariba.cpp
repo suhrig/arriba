@@ -276,7 +276,7 @@ int main(int argc, char **argv) {
 	// this step must come right after the 'promiscuous_genes' and 'min_support' filters
 	if (options.filters.at("spliced")) {
 		cout << "Searching for fusions with spliced split reads" << flush;
-		cout << " (remaining=" << recover_both_spliced(fusions, gene_annotation) << ")" << endl;
+		cout << " (remaining=" << recover_both_spliced(fusions, gene_annotation, options.low_tumor_content) << ")" << endl;
 	}
 
 	if (options.filters.at("end_to_end")) {

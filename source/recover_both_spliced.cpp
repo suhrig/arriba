@@ -5,7 +5,7 @@
 
 using namespace std;
 
-unsigned int recover_both_spliced(fusions_t& fusions, const annotation_t& gene_annotation) {
+unsigned int recover_both_spliced(fusions_t& fusions, const annotation_t& gene_annotation, const bool low_tumor_content) {
 
 	// look for fusions with split reads where the split read and the clipped segment are both at exon boundaries
 	unsigned int remaining = 0;
