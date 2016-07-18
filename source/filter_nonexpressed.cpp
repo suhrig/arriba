@@ -4,9 +4,6 @@
 #include "annotation.hpp"
 #include "filter_nonexpressed.hpp"
 
-//TODO remove
-#include <iostream>
-
 using namespace std;
 
 bool region_has_non_chimeric_reads(BGZF* bam_file, bam_index_t* bam_index, const contig_t contig, const position_t start, const position_t end, direction_t direction, chimeric_alignments_t& chimeric_alignments, bool exonic) {
@@ -21,7 +18,7 @@ bool region_has_non_chimeric_reads(BGZF* bam_file, bam_index_t* bam_index, const
 				      // ignore reads which span OVER the given region due to splicing
 				      // we only count those that start or end near the breakpoint
 
-			    (direction == UPSTREAM   && !(bam_record->core.flag & BAM_FREVERSE) && bam_record->core.pos   >= start && bam_record->core.pos   <  end && bam_record->core.mpos			 >= start) ||
+			    (direction == UPSTREAM   && !(bam_record->core.flag & BAM_FREVERSE) && bam_record->core.pos   >= start && bam_record->core.pos   <  end && bam_record->core.mpos                         >= start) ||
 			    (direction == DOWNSTREAM &&  (bam_record->core.flag & BAM_FREVERSE) && bam_endpos(bam_record) >  start && bam_endpos(bam_record) <= end && bam_record->core.mpos+bam_record->core.l_qseq <= end  )) {
 			                                                                                                                                            // ^quick and dirty way of calculating the end of the mate
 				result = true;
@@ -37,8 +34,6 @@ bool region_has_non_chimeric_reads(BGZF* bam_file, bam_index_t* bam_index, const
 }
 
 unsigned int filter_nonexpressed(fusions_t& fusions, const string& bam_file_path, chimeric_alignments_t& chimeric_alignments, const annotation_t& gene_annotation, annotation_t& exon_annotation) {
-
-
 
 	// When the breakpoint is close to the start/end of a transcript, then
 	// there might not be any reads in the normal rna.bam file around the breakpoint
@@ -80,6 +75,12 @@ unsigned int filter_nonexpressed(fusions_t& fusions, const string& bam_file_path
 
 		if (!i->second.filters.empty())
 			continue; // fusion has already been filtered
+
+		if (!(i->second.split_reads1 + i->second.split_reads2 == 0 ||
+		      i->second.split_reads1 + i->second.discordant_mates == 0 ||
+		      i->second.split_reads2 + i->second.discordant_mates == 0 || // fusion has low support
+		      i->second.contig1 == i->second.contig2 && i->second.breakpoint2 - i->second.breakpoint1 < 400000 && i->second.direction1 == DOWNSTREAM && i->second.direction2 == UPSTREAM)) // fusion is read-through
+			continue; // only filter fusions with low support or read-through fusions
 
 		position_t start, end;
 		bool is_in_terminal_exon;
