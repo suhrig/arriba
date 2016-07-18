@@ -21,7 +21,7 @@ unsigned int recover_both_spliced(fusions_t& fusions, const annotation_t& gene_a
 			continue; // we won't recover fusions which were not discarded due to low support
 
 		if (i->second.spliced1 && i->second.spliced2 && // check if both sides are spliced
-		    i->second.supporting_reads() >= 2 && // require at least two reads or else the false positive rate sky-rockets
+		    (i->second.supporting_reads() >= 2 || low_tumor_content) && // require at least two reads or else the false positive rate sky-rockets
 		    (gene_annotation[i->second.gene1].strand == gene_annotation[i->second.gene2].strand && i->second.direction1 != i->second.direction2 ||
 		     gene_annotation[i->second.gene1].strand != gene_annotation[i->second.gene2].strand && i->second.direction1 == i->second.direction2)) { // make sure exons are joined in sensible orientation
 			i->second.filters.clear();
