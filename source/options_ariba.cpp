@@ -324,8 +324,8 @@ options_t parse_arguments(int argc, char **argv) {
 		print_usage("Missing mandatory option: -x");
 	if (options.gene_annotation_file.empty())
 		print_usage("Missing mandatory option: -g");
-	if (options.exon_annotation_file.empty())
-		print_usage("Missing mandatory option: -e");
+//	if (options.exon_annotation_file.empty())
+//		print_usage("Missing mandatory option: -e");
 	if (options.output_file.empty())
 		print_usage("Missing mandatory option: -o");
 	if (options.filters["mismappers"] && options.assembly_file.empty())

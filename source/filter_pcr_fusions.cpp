@@ -20,6 +20,7 @@ using namespace std;
 
 
 
+
 unsigned int filter_pcr_fusions(fusions_t& fusions, const annotation_t& gene_annotation, const float max_pcr_fusion_score, const unsigned int max_exonic_breakpoints, const unsigned int max_partners_with_many_exonic_breakpoints, const unsigned int min_split_reads) {
 
 	vector<unsigned int> exonic_breakpoint_count(gene_annotation.size()); // count the number of fusions with exonic (non-spliced) breakpoints for each gene
@@ -72,6 +73,8 @@ unsigned int filter_pcr_fusions(fusions_t& fusions, const annotation_t& gene_ann
 		if (!i->second.filters.empty())
 			continue; // fusion has already been filtered
 
+//TODO shouldn't this say !spliced1 OR !spliced2
+//TODO how about we don't care if it is spliced in the PCR amplified gene and only care about if it is spliced in the other gene?
 		if ((!i->second.spliced1 && !i->second.spliced2 || i->second.split_reads1 + i->second.split_reads2 <= min_split_reads || pcr_fusion_scores[i->second.gene1] >= max_pcr_fusion_score && pcr_fusion_scores[i->second.gene2] >= max_pcr_fusion_score) && // discard fusions, which are not spliced / have few reads / are between genes with high PCR fusion scores
 		    (i->second.exonic1 || i->second.exonic2) && // one of the breakpoints must be exonic (in theory, both should be, but there are too many exceptions)
 		    pcr_fusion_scores[i->second.gene1] + pcr_fusion_scores[i->second.gene2] >= max_pcr_fusion_score && // PCR fusion score must be above threshold

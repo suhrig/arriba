@@ -9,7 +9,7 @@
 
 using namespace std;
 
-unsigned int find_genomic_breakpoints(fusions_t& fusions, annotation_index_t& exon_annotation_index, annotation_t& gene_annotation) {
+unsigned int find_genomic_breakpoints(fusions_t& fusions, annotation_t& gene_annotation) {
 
 	typedef tuple<gene_t /*gene1*/, gene_t /*gene2*/, direction_t /*direction1*/, direction_t /*direction2*/> gene_pair_t;
 

@@ -1,10 +1,10 @@
 #ifndef _COMMON_H
 #define _COMMON_H 1
 
-#include <unordered_map>
 #include <string>
 #include <set>
 #include <tuple>
+#include <unordered_map>
 #include <vector>
 
 using namespace std;
@@ -22,6 +22,7 @@ typedef int position_t;
 
 typedef unsigned int gene_t;
 typedef set<gene_t> gene_set_t;
+typedef multiset<gene_t> gene_multiset_t;
 
 struct alignment_t {
 	bool supplementary;

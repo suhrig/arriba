@@ -27,17 +27,20 @@ struct annotation_record_t {
 	}
 };
 typedef vector<annotation_record_t> annotation_t;
-typedef map<position_t,gene_set_t> contig_annotation_index_t;
+typedef map<position_t,gene_multiset_t> contig_annotation_index_t;
 typedef vector<contig_annotation_index_t> annotation_index_t; //TODO make this a tuple<contig,position>
 
 string removeChr(string contig);
 string addChr(string contig);
 
-void read_annotation_bed(const string& filename, annotation_t& annotation, contigs_t& contigs);
+void read_annotation_gtf(const string& filename, annotation_t& gene_annotation, annotation_t& exon_annotation, contigs_t& contigs);
 
-void make_annotation_index(annotation_t annotation, annotation_index_t& annotation_index, const contigs_t& contigs);
+void make_annotation_index(const annotation_t& annotation, annotation_index_t& annotation_index, const contigs_t& contigs);
 
-void combine_annotations(gene_set_t& genes1, gene_set_t& genes2, gene_set_t& combined, bool make_union = true);
+void gene_multiset_to_set(gene_multiset_t gene_multiset, gene_set_t& gene_set);
+gene_set_t gene_multiset_to_set(gene_multiset_t gene_multiset);
+
+void combine_annotations(const gene_set_t& genes1, const gene_set_t& genes2, gene_set_t& combined, bool make_union = true);
 
 void get_annotation_by_coordinate(const contig_t contig, const position_t start, const position_t end, gene_set_t& gene_set, annotation_index_t& annotation_index);
 
@@ -49,6 +52,7 @@ void dna_to_reverse_complement(string& dna, string& reverse_complement);
 
 string dna_to_reverse_complement(string& dna);
 
-bool is_breakpoint_spliced(const gene_t gene, const direction_t direction, const contig_t contig, const position_t breakpoint, annotation_index_t& exon_annotation_index);
+bool is_breakpoint_spliced(const gene_t gene, const direction_t direction, const contig_t contig, const position_t breakpoint, const annotation_index_t& exon_annotation_index);
+
 
 #endif /*_ANNOTATION_H*/

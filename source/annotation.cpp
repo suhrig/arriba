@@ -1,11 +1,12 @@
+#include <algorithm>
+#include <cmath>
+#include <iostream>
 #include <map>
 #include <vector>
 #include <string>
 #include <sstream>
 #include <set>
-#include <algorithm>
 #include <unordered_map>
-#include <iostream>
 #include "annotation.hpp"
 #include "read_compressed_file.hpp"
 #include "htslib/faidx.h"
@@ -28,36 +29,57 @@ string addChr(string contig) {
 	return contig;
 }
 
-void read_annotation_bed(const string& filename, annotation_t& annotation, contigs_t& contigs) {
-	stringstream bed_file;
-	autodecompress_file(filename, bed_file);
+void read_annotation_gtf(const string& filename, annotation_t& gene_annotation, annotation_t& exon_annotation, contigs_t& contigs) {
+	stringstream gtf_file;
+	autodecompress_file(filename, gtf_file);
 	string line;
-	while (getline(bed_file, line)) {
+	while (getline(gtf_file, line)) {
 		if (!line.empty() && line[0] != '#') { // skip comment lines
 
 			istringstream iss(line);
 			annotation_record_t annotation_record;
-			string contig, strand, trash;
+			string contig, strand, feature, trash;
 
 			// parse line
-			iss >> contig >> annotation_record.start >> annotation_record.end >> annotation_record.name >> trash >> strand;
-			if (contig.empty() || annotation_record.name.empty() || strand.empty()) {
-				cerr << "WARNING: failed to parse line in BED file '" << filename << "': " << line << endl;
+			iss >> contig >> trash >> feature >> annotation_record.start >> annotation_record.end >> trash >> strand >> trash;
+			if (contig.empty() || feature.empty() || strand.empty()) {
+				cerr << "WARNING: failed to parse line in GTF file '" << filename << "': " << line << endl;
 				continue;
 			}
+			getline(iss, annotation_record.name);
+			size_t gene_name_start = annotation_record.name.find("gene_name \"");
+			if (gene_name_start != string::npos)
+				gene_name_start = annotation_record.name.find('"', gene_name_start);
+			if (gene_name_start == string::npos) {
+				cerr << "WARNING: failed to extract gene name from line in GTF file '" << filename << "': " << line << endl;
+				continue;
+			}
+			gene_name_start++;
+			size_t gene_name_end = annotation_record.name.find('"', gene_name_start);
+			if (gene_name_end == string::npos) {
+				cerr << "WARNING: failed to extract gene name from line in GTF file '" << filename << "': " << line << endl;
+				continue;
+			}
+			annotation_record.name = annotation_record.name.substr(gene_name_start, gene_name_end - gene_name_start);
 
 			contig = removeChr(contig);
-
 			if (contigs.find(contig) == contigs.end()) {
-				cerr << "WARNING: unknown contig in BED file '" << filename << "': " << contig << endl;
+				cerr << "WARNING: unknown contig in GTF file '" << filename << "': " << contig << endl;
+
 			} else {
 				annotation_record.contig = contigs[contig];
-				annotation_record.end--; // BED files are half open
-				annotation_record.id = annotation.size();
+				annotation_record.start--; // GTF files are one-based
+				annotation_record.end--; // GTF files are one-based
 				annotation_record.strand = (strand[0] == '+') ? FORWARD : REVERSE;
 				annotation_record.exonic_length = 0; // is calculated later
 				annotation_record.is_dummy = false;
-				annotation.push_back(annotation_record);
+				if (feature == "gene") {
+					annotation_record.id = gene_annotation.size();
+					gene_annotation.push_back(annotation_record);
+				} else if (feature == "exon" || feature == "UTR") {
+					annotation_record.id = exon_annotation.size();
+					exon_annotation.push_back(annotation_record);
+				}
 			}
 		}
 	}
@@ -72,67 +94,40 @@ void read_annotation_bed(const string& filename, annotation_t& annotation, conti
 // - chr1:10,000-11,999 gene1
 // - chr1:12,000-13,000 gene1+gene2
 // - chr1:13,001-20,000 gene1
-void make_annotation_index(annotation_t annotation, annotation_index_t& annotation_index, const contigs_t& contigs) {
-
+void make_annotation_index(const annotation_t& annotation, annotation_index_t& annotation_index, const contigs_t& contigs) {
 	annotation_index.resize(contigs.size()); // create a contig_annotation_index_t for each contig
+	for (annotation_t::const_iterator feature = annotation.begin(); feature != annotation.end(); ++feature) {
 
-	sort(annotation.rbegin(), annotation.rend()); // sort annotation by coordinate for traversal from end to beginning
+		contig_annotation_index_t::const_iterator overlapping_genes = annotation_index[feature->contig].lower_bound(feature->end);
+		if (overlapping_genes == annotation_index[feature->contig].end())
+			annotation_index[feature->contig][feature->end]; // this creates an empty gene set, if it does not exist yet
+		else
+			annotation_index[feature->contig][feature->end] = overlapping_genes->second;
 
-	contig_t current_contig = annotation[0].contig; // keeps track of the contig we are currently processing
-	position_t current_end = annotation[0].end; // keeps track of the end of the region we are currently processing
+		overlapping_genes = annotation_index[feature->contig].lower_bound(feature->start-1);
+		if (overlapping_genes == annotation_index[feature->contig].end())
+			annotation_index[feature->contig][feature->start-1]; // this creates an empty gene set, if it does not exist yet
+		else
+			annotation_index[feature->contig][feature->start-1] = overlapping_genes->second;
 
-	struct overlapping_gene_t {
-		gene_t gene;
-		position_t start;
-		// function to sort genes by start coordinate
-		inline bool operator < (const overlapping_gene_t& x) const {
-			return start < x.start;
-		}
-	};
-	vector<overlapping_gene_t> overlapping_genes; // keeps track of the genes overlapping the current region and their start coordinates
-
-	gene_set_t gene_set; // holds the gene_set_t that is going to be added to the annotation_index next
-
-	for (unsigned int i = 0; i <= annotation.size(); ++i) { // traverse genome from end to beginning
-		if (i != 0) { // skip first entry, because there is nothing to do yet
-
-			// sort overlapping_genes so that higher coordinates are at the end of the vector
-			// and can be removed by simply shrinking the vector
-			sort(overlapping_genes.begin(), overlapping_genes.end());
-
-			// for each combination of overlapping genes, add a gene_set_t to annotation_index
-			int j;
-			for (j = overlapping_genes.size()-1; j >= 0; j--) {
-				if (i == annotation.size() || overlapping_genes[j].start > annotation[i].end || current_contig != annotation[i].contig) {
-					if (j == overlapping_genes.size()-1 || overlapping_genes[j].start != overlapping_genes[j+1].start) {
-						// add new record to annotation_index
-						annotation_index[current_contig][current_end] = gene_set;
-						current_end = overlapping_genes[j].start-1;
-					}
-					gene_set.erase(overlapping_genes[j].gene);
-				} else break; // the end of overlapping_gene[j] has not been reached yet
-			}
-
-			// discard genes that we have passed
-			overlapping_genes.resize(j+1);
-		}
-
-		if (i < annotation.size()) { // in the last iteration, i == annotation.size(); this iteration is needed to process the last record
-			if (current_end != annotation[i].end || current_contig != annotation[i].contig) {
-				// add new record to annotation index
-				annotation_index[current_contig][current_end] = gene_set;
-				current_end = annotation[i].end;
-				current_contig = annotation[i].contig;
-			}
-			gene_set.insert(annotation[i].id);
-			overlapping_gene_t overlapping_gene = { annotation[i].id, annotation[i].start };
-			overlapping_genes.push_back(overlapping_gene);
-		}
+		// add the gene to all gene sets between start and end of the gene
+		for (contig_annotation_index_t::iterator i = annotation_index[feature->contig].lower_bound(feature->end); i->first >= feature->start; --i)
+			i->second.insert(feature->id);
 	}
-	annotation_index[current_contig][current_end] = gene_set; // this adds an empty gene set at the end
 }
 
-void combine_annotations(gene_set_t& genes1, gene_set_t& genes2, gene_set_t& combined, bool make_union) {
+void gene_multiset_to_set(gene_multiset_t gene_multiset, gene_set_t& gene_set) {
+	for (gene_multiset_t::iterator i = gene_multiset.begin(); i != gene_multiset.end(); i = gene_multiset.upper_bound(*i))
+		gene_set.insert(*i);
+}
+
+gene_set_t gene_multiset_to_set(gene_multiset_t gene_multiset) {
+	gene_set_t gene_set;
+	gene_multiset_to_set(gene_multiset, gene_set);
+	return gene_set;
+}
+
+void combine_annotations(const gene_set_t& genes1, const gene_set_t& genes2, gene_set_t& combined, bool make_union) {
 	// when the two ends of a read map to different genes, the mapping is ambiguous
 	// in this case, we try to resolve the ambiguity by taking the gene that both - start and end - overlap with
 	set_intersection(genes1.begin(), genes1.end(), genes2.begin(), genes2.end(), inserter(combined, combined.begin()));
@@ -142,16 +137,20 @@ void combine_annotations(gene_set_t& genes1, gene_set_t& genes2, gene_set_t& com
 
 void get_annotation_by_coordinate(const contig_t contig, const position_t start, const position_t end, gene_set_t& gene_set, annotation_index_t& annotation_index) {
 //TODO support strand-specific libraries
+//TODO make use of splicing
 	if (contig < annotation_index.size()) {
 		contig_annotation_index_t::iterator result_start = annotation_index[contig].lower_bound(start);
 		gene_set_t empty_set;
 		if (start == end) {
-			gene_set = (result_start != annotation_index[contig].end()) ? result_start->second : empty_set;
+			if (result_start != annotation_index[contig].end())
+				gene_multiset_to_set(result_start->second, gene_set);
+			else
+				gene_set = empty_set;
 		} else {
 			contig_annotation_index_t::iterator result_end = annotation_index[contig].lower_bound(end);
 			combine_annotations(
-				(result_start != annotation_index[contig].end()) ? result_start->second : empty_set,
-				(result_end != annotation_index[contig].end()) ? result_end->second : empty_set,
+				(result_start != annotation_index[contig].end()) ? gene_multiset_to_set(result_start->second) : empty_set,
+				(result_end != annotation_index[contig].end()) ? gene_multiset_to_set(result_end->second) : empty_set,
 				gene_set
 			);
 		}
@@ -240,15 +239,30 @@ string dna_to_reverse_complement(string& dna) {
 }
 
 // check if a breakpoint is near an annotated splice site
-bool is_breakpoint_spliced(const gene_t gene, const direction_t direction, const contig_t contig, const position_t breakpoint, annotation_index_t& exon_annotation_index) {
-	gene_set_t genes_before_breakpoint;
-	get_annotation_by_coordinate(contig, breakpoint-3, breakpoint-3, genes_before_breakpoint, exon_annotation_index);
-	gene_set_t genes_after_breakpoint;
-	get_annotation_by_coordinate(contig, breakpoint+3, breakpoint+3, genes_after_breakpoint, exon_annotation_index);
-	if (direction == UPSTREAM) {
-		return genes_before_breakpoint.find(gene) == genes_before_breakpoint.end() && genes_after_breakpoint.find(gene) != genes_after_breakpoint.end();
-	} else { // direction == DOWNSTREAM
-		return genes_before_breakpoint.find(gene) != genes_before_breakpoint.end() && genes_after_breakpoint.find(gene) == genes_after_breakpoint.end();
-	}
+bool is_breakpoint_spliced(const gene_t gene, const direction_t direction, const contig_t contig, const position_t breakpoint, const annotation_index_t& exon_annotation_index) {
+
+	const unsigned int max_splice_site_distance = 2;
+
+	// find overlapping exons
+	contig_annotation_index_t::const_iterator genes_at_breakpoint = exon_annotation_index[contig].lower_bound(breakpoint);
+	contig_annotation_index_t::const_iterator genes_before_breakpoint = genes_at_breakpoint;
+	if (genes_before_breakpoint != exon_annotation_index[contig].begin() && exon_annotation_index[contig].size() > 0)
+		--genes_before_breakpoint;
+
+	if (genes_before_breakpoint != exon_annotation_index[contig].end() && breakpoint - genes_before_breakpoint->first <= max_splice_site_distance &&
+	    (direction == UPSTREAM && genes_at_breakpoint != exon_annotation_index[contig].end() && genes_at_breakpoint->second.count(gene) > genes_before_breakpoint->second.count(gene) ||
+	     direction == DOWNSTREAM && (genes_at_breakpoint == exon_annotation_index[contig].end() && genes_before_breakpoint->second.count(gene) > 0 || genes_at_breakpoint != exon_annotation_index[contig].end() && genes_before_breakpoint->second.count(gene) > genes_at_breakpoint->second.count(gene))))
+		return true;
+
+	contig_annotation_index_t::const_iterator genes_after_breakpoint = genes_at_breakpoint;
+	if (genes_after_breakpoint != exon_annotation_index[contig].end())
+		++genes_after_breakpoint;
+
+	if (genes_at_breakpoint != exon_annotation_index[contig].end() && genes_at_breakpoint->first - breakpoint <= max_splice_site_distance &&
+	    (direction == UPSTREAM && genes_after_breakpoint != exon_annotation_index[contig].end() && genes_after_breakpoint->second.count(gene) > genes_at_breakpoint->second.count(gene) ||
+	     direction == DOWNSTREAM && (genes_after_breakpoint == exon_annotation_index[contig].end() && genes_at_breakpoint->second.count(gene) > 0 || genes_after_breakpoint != exon_annotation_index[contig].end() && genes_at_breakpoint->second.count(gene) > genes_after_breakpoint->second.count(gene))))
+		return true;
+
+	return false;
 }
 

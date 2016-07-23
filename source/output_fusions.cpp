@@ -172,7 +172,7 @@ string gene_to_name(const gene_t gene, const contig_t contig, const position_t b
 
 		// append upstream flanking genes with distances to gene name
 		if (index_hit1 != gene_annotation_index[contig].rend()) {
-			for (gene_set_t::iterator gene = index_hit1->second.begin(); gene != index_hit1->second.end(); ++gene) {
+			for (gene_set_t::iterator gene = index_hit1->second.begin(); gene != index_hit1->second.end(); gene = index_hit1->second.upper_bound(*gene)) {
 				if (!gene_annotation[*gene].is_dummy) {
 					if (!result.empty())
 						result += ",";
@@ -187,7 +187,7 @@ string gene_to_name(const gene_t gene, const contig_t contig, const position_t b
 
 		// append downstream flanking genes with distances to gene name
 		if (index_hit2 != gene_annotation_index[contig].end()) {
-			for (gene_set_t::iterator gene = index_hit2->second.begin(); gene != index_hit2->second.end(); ++gene) {
+			for (gene_set_t::iterator gene = index_hit2->second.begin(); gene != index_hit2->second.end(); gene = index_hit2->second.upper_bound(*gene)) {
 				if (!gene_annotation[*gene].is_dummy) {
 					if (!result.empty())
 						result += ",";

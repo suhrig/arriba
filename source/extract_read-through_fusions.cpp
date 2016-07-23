@@ -92,7 +92,8 @@ int main(int argc, char **argv) {
 
 	// read gene annotation
 	annotation_t gene_annotation;
-	read_annotation_bed(options.gene_annotation_file, gene_annotation, contigs);
+	annotation_t exon_annotation;
+	read_annotation_gtf(options.gene_annotation_file, gene_annotation, exon_annotation, contigs);
 	annotation_index_t gene_annotation_index;
 	make_annotation_index(gene_annotation, gene_annotation_index, contigs);
 

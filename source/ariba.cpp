@@ -128,13 +128,11 @@ int main(int argc, char **argv) {
 		cout << " (remaining=" << filter_duplicates(chimeric_alignments) << ")" << endl;
 	}
 
-	cout << "Annotating alignments using exons from '" << options.exon_annotation_file << "'" << endl << flush;
-	// load exon annotation
+	cout << "Annotating alignments using genes from '" << options.gene_annotation_file << "'" << endl << flush;
+	// load GTF file
 	annotation_t exon_annotation;
-	read_annotation_bed(options.exon_annotation_file, exon_annotation, contigs);
-	// load gene annotation
 	annotation_t gene_annotation;
-	read_annotation_bed(options.gene_annotation_file, gene_annotation, contigs);
+	read_annotation_gtf(options.gene_annotation_file, gene_annotation, exon_annotation, contigs);
 
 	// translate exons to genes
 	unordered_map<string,gene_t> genes;
@@ -156,10 +154,29 @@ int main(int argc, char **argv) {
 	annotation_index_t gene_annotation_index;
 	make_annotation_index(gene_annotation, gene_annotation_index, contigs);
 
+//TODO remove
+/*
+for (auto i = 0; i < exon_annotation_index.size(); ++i) {
+	for (auto k = exon_annotation_index[i].begin(); k != exon_annotation_index[i].end(); ++k) {
+		cerr << contigs_by_id[i] << ":" << k->first;
+		for (auto j = k->second.begin(); j != k->second.end(); ++j) {
+			cerr << " " << gene_annotation[*j].name;
+		}
+		cerr << endl << flush;
+	}
+}
+*/
+
 	// calculate sum of the lengths of all exons for each gene
 	// we will need this to normalize the number of events over the gene length
-	for (annotation_t::iterator i = exon_annotation.begin(); i != exon_annotation.end(); ++i)
-		gene_annotation[genes[i->name]].exonic_length += i->end - i->start;
+	for (annotation_index_t::iterator contig = exon_annotation_index.begin(); contig != exon_annotation_index.end(); ++contig) {
+		position_t region_start;
+		for (contig_annotation_index_t::iterator region = contig->begin(); region != contig->end(); ++region) {
+			for (gene_set_t::iterator overlapping_gene = region->second.begin(); overlapping_gene != region->second.end(); overlapping_gene = region->second.upper_bound(*overlapping_gene))
+				gene_annotation[*overlapping_gene].exonic_length += region->first - region_start;
+			region_start = region->first;
+		}
+	}
 
 	// first, try to annotate with exons
 	for (chimeric_alignments_t::iterator i = chimeric_alignments.begin(); i != chimeric_alignments.end(); ++i) {
@@ -169,7 +186,6 @@ int main(int argc, char **argv) {
 		}
 	}
 
-	cout << "Annotating alignments using genes from '" << options.gene_annotation_file << "'" << endl << flush;
 	// if the alignment does not map to an exon, try to map it to a gene
 	for (chimeric_alignments_t::iterator i = chimeric_alignments.begin(); i != chimeric_alignments.end(); ++i) {
 		for (mates_t::iterator j = i->second.begin(); j != i->second.end(); ++j) {
@@ -340,7 +356,7 @@ int main(int argc, char **argv) {
 	// this step must come last, otherwise the effect of filters would be reversed
 	if (options.filters.at("genomic_breakpoints")) {
 		cout << "Searching for genomic breakpoints" << flush;
-		cout << " (remaining=" << find_genomic_breakpoints(fusions, exon_annotation_index, gene_annotation) << ")" << endl;
+		cout << " (remaining=" << find_genomic_breakpoints(fusions, gene_annotation) << ")" << endl;
 	}
 
 	cout << "Writing fusions to file '" << options.output_file << "'" << endl;
