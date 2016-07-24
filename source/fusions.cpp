@@ -9,9 +9,6 @@
 #include "annotation.hpp"
 #include "fusions.hpp"
 
-//TODO remove
-#include <iostream>
-
 using namespace std;
 
 unsigned int find_fusions(chimeric_alignments_t& chimeric_alignments, fusions_t& fusions, annotation_index_t& exon_annotation_index) {
@@ -210,8 +207,6 @@ unsigned int find_fusions(chimeric_alignments_t& chimeric_alignments, fusions_t&
 				alignment_t* mate1 = &((*discordant_mate)->second[MATE1]); // introduce some aliases for cleaner code
 				alignment_t* mate2 = &((*discordant_mate)->second[MATE2]);
 
-//TODO remove
-//if ((*discordant_mate)->first == "SRR925703.7667226") cerr << i->second.breakpoint1 << " " << i->second.breakpoint2 << endl << flush;
 				// make sure mate1 points to the mate with the lower coordinate
 				// this ensures that the coordinate of the correct mate is compared against the coordinate of the breakpoint
 				if (mate1->contig > mate2->contig || (mate1->contig == mate2->contig && mate1->start > mate2->start))
