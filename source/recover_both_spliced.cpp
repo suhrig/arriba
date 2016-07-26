@@ -11,9 +11,6 @@ bool are_both_breakpoints_spliced(const fusion_t& fusion, const annotation_t& ge
 	    fusion.filters.find(FILTERS.at("min_support")) == fusion.filters.end())
 		return false; // we won't recover fusions which were not discarded due to low support
 
-	if (fusion.contig1 == fusion.contig2 && fusion.breakpoint2 - fusion.breakpoint1 < 400000 && fusion.direction1 == DOWNSTREAM && fusion.direction2 == UPSTREAM)
-		return false; // ignore read-through fusions
-
 	if (!fusion.spliced1 || !fusion.spliced2)
 		return false; // both sides must be spliced
 
