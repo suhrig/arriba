@@ -5,17 +5,32 @@
 
 using namespace std;
 
+bool are_both_breakpoints_spliced(const fusion_t& fusion, const annotation_t& gene_annotation) {
+	if (!fusion.filters.empty() &&
+	    fusion.filters.find(FILTERS.at("promiscuous_genes")) == fusion.filters.end() &&
+	    fusion.filters.find(FILTERS.at("min_support")) == fusion.filters.end())
+		return false; // we won't recover fusions which were not discarded due to low support
+
+	if (fusion.contig1 == fusion.contig2 && fusion.breakpoint2 - fusion.breakpoint1 < 400000 && fusion.direction1 == DOWNSTREAM && fusion.direction2 == UPSTREAM)
+		return false; // ignore read-through fusions
+
+	if (!fusion.spliced1 || !fusion.spliced2)
+		return false; // both sides must be spliced
+
+	if (gene_annotation[fusion.gene1].strand == gene_annotation[fusion.gene2].strand && fusion.direction1 == fusion.direction2 ||
+	    gene_annotation[fusion.gene1].strand != gene_annotation[fusion.gene2].strand && fusion.direction1 != fusion.direction2)
+		return false; // exons would be spliced in a nonsensical way
+
+	return true;
+}
+
 unsigned int recover_both_spliced(fusions_t& fusions, const annotation_t& gene_annotation, const bool low_tumor_content) {
 
 	// look for fusions with split reads where the split read and the clipped segment are both at exon boundaries
 	map< pair<gene_t,gene_t>, unsigned int > fusions_with_both_spliced;
-	for (fusions_t::iterator i = fusions.begin(); i != fusions.end(); ++i) {
-		if (i->second.spliced1 && i->second.spliced2 && // check if both sides are spliced
-		    (gene_annotation[i->second.gene1].strand == gene_annotation[i->second.gene2].strand && i->second.direction1 != i->second.direction2 ||
-		     gene_annotation[i->second.gene1].strand != gene_annotation[i->second.gene2].strand && i->second.direction1 == i->second.direction2)) { // make sure exons are joined in sensible orientation
+	for (fusions_t::iterator i = fusions.begin(); i != fusions.end(); ++i)
+		if (are_both_breakpoints_spliced(i->second, gene_annotation))
 			fusions_with_both_spliced[make_pair(i->second.gene1, i->second.gene2)] += i->second.supporting_reads();
-		}
-	}
 
 	unsigned int remaining = 0;
 	for (fusions_t::iterator i = fusions.begin(); i != fusions.end(); ++i) {
@@ -25,11 +40,7 @@ unsigned int recover_both_spliced(fusions_t& fusions, const annotation_t& gene_a
 			continue;
 		}
 
-		if (i->second.filters.find(FILTERS.at("promiscuous_genes")) == i->second.filters.end() &&
-		    i->second.filters.find(FILTERS.at("min_support")) == i->second.filters.end())
-			continue; // we won't recover fusions which were not discarded due to low support
-
-		if (!(i->second.contig1 == i->second.contig2 && i->second.breakpoint2 - i->second.breakpoint1 < 400000 && i->second.direction1 == DOWNSTREAM && i->second.direction2 == UPSTREAM) && // ignore read-through fusions
+		if (are_both_breakpoints_spliced(i->second, gene_annotation) &&
 		    fusions_with_both_spliced[make_pair(i->second.gene1, i->second.gene2)] >= 2 || low_tumor_content) { // require at least two reads or else the false positive rate sky-rockets
 			i->second.filters.clear();
 			remaining++;
