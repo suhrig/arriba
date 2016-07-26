@@ -34,11 +34,9 @@ void print_usage(const string& error_message) {
 	     << "The output file should be passed to ariba via the parameter -r." << endl
 	     << "For optimal performance extract_read-through_fusions should be run " << endl
 	     << "while STAR is running (see usage)." << endl << endl
-	     << "Usage: extract_read-through_fusions -g genes.bed -i rna.bam -o read_through.bam" << endl
-	     << "Usage: STAR --outStd BAM [...] | tee rna.bam | extract_read-through_fusions -g genes.bed > read_through.bam" << endl << endl
-	     << wrap_help("-g FILE", "BED file with gene annotation. The following columns are "
-	                  "required: (1) contig, (2) gene_start, (3) gene_end, "
-	                  "(4) gene_name, (5) ignored, (6) strand.")
+	     << "Usage: extract_read-through_fusions -g annotation.gtf -i rna.bam -o read_through.bam" << endl
+	     << "Usage: STAR --outStd BAM [...] | tee rna.bam | extract_read-through_fusions -g annotation.gtf > read_through.bam" << endl << endl
+	     << wrap_help("-g FILE", "GTF file with gene annotation. The file may be gzip compressed.")
 	     << wrap_help("-i FILE", "Input file in BAM format containing alignments from STAR. "
 	                  "The file need not be sorted. Default: " + default_options.input_bam_file)
 	     << wrap_help("-o FILE", "Output file in BAM format containing reads which support "
@@ -50,7 +48,6 @@ void print_usage(const string& error_message) {
 
 options_t parse_arguments(int argc, char **argv) {
 
-//TODO add pipe-through parameter
 	options_t options = get_default_options();
 	istringstream disabled_filters;
 
