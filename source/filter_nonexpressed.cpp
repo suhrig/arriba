@@ -76,11 +76,16 @@ unsigned int filter_nonexpressed(fusions_t& fusions, const string& bam_file_path
 		if (!i->second.filters.empty())
 			continue; // fusion has already been filtered
 
-		if (!(i->second.split_reads1 + i->second.split_reads2 == 0 ||
-		      i->second.split_reads1 + i->second.discordant_mates == 0 ||
-		      i->second.split_reads2 + i->second.discordant_mates == 0 || // fusion has low support
-		      i->second.contig1 == i->second.contig2 && i->second.breakpoint2 - i->second.breakpoint1 < 400000 && i->second.direction1 == DOWNSTREAM && i->second.direction2 == UPSTREAM)) // fusion is read-through
-			continue; // only filter fusions with low support or read-through fusions
+		if (!(i->second.contig1 == i->second.contig2 && i->second.breakpoint2 - i->second.breakpoint1 < 400000 && i->second.direction1 == DOWNSTREAM && i->second.direction2 == UPSTREAM)) { // fusion is not read-through
+
+			if (i->second.split_reads1 + i->second.split_reads2 != 0 &&
+			    i->second.split_reads1 + i->second.discordant_mates != 0 &&
+			    i->second.split_reads2 + i->second.discordant_mates != 0)
+				continue; // don't filter fusions with high support
+
+			if (i->second.spliced1 || i->second.spliced2)
+				continue; // don't filter spliced breakpoints (they are more credible)
+		}
 
 		position_t start, end;
 		bool is_in_terminal_exon;

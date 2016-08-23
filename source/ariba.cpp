@@ -22,6 +22,7 @@
 #include "filter_min_support.hpp"
 #include "recover_known_fusions.hpp"
 #include "recover_both_spliced.hpp"
+#include "recover_reciprocal_translocations.hpp"
 #include "filter_blacklisted_ranges.hpp"
 #include "filter_end_to_end.hpp"
 #include "filter_misspliced.hpp"
@@ -48,6 +49,7 @@ unordered_map<string,filter_t> FILTERS({
 	{"min_support", NULL},
 	{"known_fusions", NULL},
 	{"spliced", NULL},
+	{"reciprocal", NULL},
 	{"blacklist", NULL},
 	{"end_to_end", NULL},
 	{"misspliced", NULL},
@@ -293,6 +295,12 @@ for (auto i = 0; i < exon_annotation_index.size(); ++i) {
 	if (options.filters.at("spliced")) {
 		cout << "Searching for fusions with spliced split reads" << flush;
 		cout << " (remaining=" << recover_both_spliced(fusions, gene_annotation, options.low_tumor_content) << ")" << endl;
+	}
+
+	// this step must come right after the 'promiscuous_genes' and 'min_support' filters
+	if (options.filters.at("reciprocal")) {
+		cout << "Searching for reciprocal translocations" << flush;
+		cout << " (remaining=" << recover_reciprocal(fusions, gene_annotation) << ")" << endl;
 	}
 
 	if (options.filters.at("end_to_end")) {
