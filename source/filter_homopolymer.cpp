@@ -16,15 +16,15 @@ unsigned int filter_homopolymer(chimeric_alignments_t& chimeric_alignments, cons
 			// get sequences near breakpoint
 			string sequence = "";
 			if (i->second[SPLIT_READ].strand == FORWARD) {
-				if (i->second[SPLIT_READ].preclipping >= homopolymer_length)
-					sequence += i->second[SPLIT_READ].sequence.substr(i->second[SPLIT_READ].preclipping - homopolymer_length, homopolymer_length) + " ";
-				if (i->second[SPLIT_READ].sequence.length() - i->second[SPLIT_READ].preclipping >= homopolymer_length)
-					sequence += i->second[SPLIT_READ].sequence.substr(i->second[SPLIT_READ].preclipping, homopolymer_length) + " ";
+				if (i->second[SPLIT_READ].preclipping() >= homopolymer_length)
+					sequence += i->second[SPLIT_READ].sequence.substr(i->second[SPLIT_READ].preclipping() - homopolymer_length, homopolymer_length) + " ";
+				if (i->second[SPLIT_READ].sequence.length() - i->second[SPLIT_READ].preclipping() >= homopolymer_length)
+					sequence += i->second[SPLIT_READ].sequence.substr(i->second[SPLIT_READ].preclipping(), homopolymer_length) + " ";
 			} else { // i->second[SPLIT_READ].strand == REVERSE
-				if (i->second[SPLIT_READ].postclipping >= homopolymer_length)
-					sequence += i->second[SPLIT_READ].sequence.substr(i->second[SPLIT_READ].sequence.length() - i->second[SPLIT_READ].postclipping, homopolymer_length) + " ";
-				if (i->second[SPLIT_READ].sequence.length() - i->second[SPLIT_READ].postclipping >= homopolymer_length)
-					sequence += i->second[SPLIT_READ].sequence.substr(i->second[SPLIT_READ].sequence.length() - i->second[SPLIT_READ].postclipping - homopolymer_length, homopolymer_length) + " ";
+				if (i->second[SPLIT_READ].postclipping() >= homopolymer_length)
+					sequence += i->second[SPLIT_READ].sequence.substr(i->second[SPLIT_READ].sequence.length() - i->second[SPLIT_READ].postclipping(), homopolymer_length) + " ";
+				if (i->second[SPLIT_READ].sequence.length() - i->second[SPLIT_READ].postclipping() >= homopolymer_length)
+					sequence += i->second[SPLIT_READ].sequence.substr(i->second[SPLIT_READ].sequence.length() - i->second[SPLIT_READ].postclipping() - homopolymer_length, homopolymer_length) + " ";
 			}
 
 			// check for homopolymers

@@ -12,10 +12,10 @@ unsigned int filter_duplicates(chimeric_alignments_t& chimeric_alignments) {
 		if (!i->second.filters.empty())
 			continue; // read has already been filtered
 
-		tuple<position_t,position_t,position_t,position_t> mate_coordinates = make_tuple(i->second[MATE1].start - i->second[MATE1].preclipping,
-												 i->second[MATE1].end   + i->second[MATE1].postclipping,
-												 i->second[MATE2].start - i->second[MATE2].preclipping,
-												 i->second[MATE2].end   + i->second[MATE2].postclipping);
+		tuple<position_t,position_t,position_t,position_t> mate_coordinates = make_tuple(i->second[MATE1].start - i->second[MATE1].preclipping(),
+												 i->second[MATE1].end   + i->second[MATE1].postclipping(),
+												 i->second[MATE2].start - i->second[MATE2].preclipping(),
+												 i->second[MATE2].end   + i->second[MATE2].postclipping());
 		if (duplicate_count[mate_coordinates]++ > 0)
 			i->second.filters.insert(FILTERS.at("duplicates"));
 		else

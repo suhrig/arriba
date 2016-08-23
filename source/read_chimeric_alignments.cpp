@@ -41,8 +41,7 @@ unsigned int read_chimeric_alignments(const string& bam_file_path, chimeric_alig
 		alignment.contig = bam_record->core.tid;
 		alignment.start = bam_record->core.pos;
 		alignment.end = bam_endpos(bam_record);
-		alignment.preclipping = ((bam1_cigar(bam_record)[0] & BAM_CSOFT_CLIP) == BAM_CSOFT_CLIP || (bam1_cigar(bam_record)[0] & BAM_CHARD_CLIP) == BAM_CHARD_CLIP) ? bam1_cigar(bam_record)[0] >> 4 : 0;
-		alignment.postclipping = ((bam1_cigar(bam_record)[bam_record->core.n_cigar-1] & BAM_CSOFT_CLIP) == BAM_CSOFT_CLIP || (bam1_cigar(bam_record)[bam_record->core.n_cigar-1] & BAM_CHARD_CLIP) == BAM_CHARD_CLIP) ? bam1_cigar(bam_record)[bam_record->core.n_cigar-1] >> 4 : 0;
+		alignment.cigar = bam_record;
 		if (!alignment.supplementary) {
 			char sequence[bam_record->core.l_qseq+1];
 			sequence[bam_record->core.l_qseq] = '\0';

@@ -6,6 +6,7 @@
 #include <tuple>
 #include <unordered_map>
 #include <vector>
+#include "sam.h"
 
 using namespace std;
 
@@ -24,6 +25,13 @@ typedef unsigned int gene_t;
 typedef set<gene_t> gene_set_t;
 typedef multiset<gene_t> gene_multiset_t;
 
+class cigar_t: public vector<uint32_t> {
+	public:
+		uint32_t operation(unsigned int index) { return this->at(index) & 15; }; // select lower 4 bits to get the operation of the CIGAR element
+		uint32_t op_length(unsigned int index) { return this->at(index) >> 4; }; // remove lower 4 bits to get the length of the CIGAR element
+		cigar_t operator=(const bam1_t* bam_record) { for (int i = 0; i < bam_record->core.n_cigar; ++i) { this->push_back(bam1_cigar(bam_record)[i]); }; return *this; };
+};
+
 struct alignment_t {
 	bool supplementary;
 	bool first_in_pair;
@@ -32,11 +40,12 @@ struct alignment_t {
 	contig_t contig;
 	position_t start;
 	position_t end;
-	unsigned short int preclipping;
-	unsigned short int postclipping;
 	string sequence;
 	gene_set_t genes;
+	cigar_t cigar;
 	alignment_t(): supplementary(false), first_in_pair(false), exonic(false) {};
+	unsigned int preclipping() { return (cigar.operation(0) & (BAM_CSOFT_CLIP | BAM_CHARD_CLIP)) ? cigar.op_length(0) : 0; };
+	unsigned int postclipping() { return (cigar.operation(cigar.size()-1) & (BAM_CSOFT_CLIP | BAM_CHARD_CLIP)) ? cigar.op_length(cigar.size()-1) : 0; };
 };
 const unsigned int MATE1 = 0;
 const unsigned int MATE2 = 1;
