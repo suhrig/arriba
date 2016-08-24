@@ -77,7 +77,6 @@ struct fusion_t {
 	set<filter_t> filters; // name of the filter(s) which discarded the fusion (empty means not discarded)
 	fusion_t(): split_reads1(0), split_reads2(0), discordant_mates(0), anchor_start1(0), anchor_start2(0) {}
 	unsigned int supporting_reads() const { return split_reads1 + split_reads2 + discordant_mates; }
-	string debug;
 };
 typedef unordered_map< tuple<gene_t /*gene1*/, gene_t /*gene2*/, contig_t /*contig1*/, contig_t /*contig2*/, position_t /*breakpoint1*/, position_t /*breakpoint2*/, direction_t /*direction1*/, direction_t /*direction2*/>,fusion_t > fusions_t;
 

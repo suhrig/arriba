@@ -189,8 +189,8 @@ unsigned int find_fusions(chimeric_alignments_t& chimeric_alignments, fusions_t&
 	}
 
 	// for each fusion, count the supporting discordant mates
-
-
+//TODO count spliced split reads like discordant mates
+	unsigned int subsampled_fusions = 0;
 	for (fusions_t::iterator i = fusions.begin(); i != fusions.end(); ++i) {
 
 		if (!i->second.filters.empty())
@@ -201,7 +201,6 @@ unsigned int find_fusions(chimeric_alignments_t& chimeric_alignments, fusions_t&
 		if (discordant_mates != discordant_mates_by_gene_pair.end()) {
 
 			// discard those discordant mates which point in the wrong direction (away from the breakpoint)
-			// or which are too far away from the breakpoint (3 standard deviations of the average mate gap)
 			for (auto discordant_mate = discordant_mates->second.begin(); discordant_mate != discordant_mates->second.end(); ++discordant_mate) {
 
 				alignment_t* mate1 = &((*discordant_mate)->second[MATE1]); // introduce some aliases for cleaner code
@@ -233,10 +232,18 @@ unsigned int find_fusions(chimeric_alignments_t& chimeric_alignments, fusions_t&
 					} else if (i->second.direction2 == UPSTREAM && (mate2->end > i->second.anchor_start2 || i->second.anchor_start2 == 0)) {
 						i->second.anchor_start2 = mate2->end;
 					}
+
+					if (i->second.discordant_mates >= 1000) {
+						subsampled_fusions++;
+						break;
+					}
 				}
 			}
 		}
 	}
+
+	if (subsampled_fusions > 0)
+		cerr << "WARNING: " << subsampled_fusions << " fusions were subsampled, because they have more than 1000 discordant mates" << endl;
 
 	// count fusions
 	unsigned int remaining = 0;
