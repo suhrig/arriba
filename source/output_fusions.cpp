@@ -99,15 +99,8 @@ bool get_dna_sequence_by_region(const position_t breakpoint, const direction_t d
 string get_fusion_transcript_sequence(const fusion_t& fusion, annotation_t& gene_annotation, annotation_index_t& exon_annotation_index, const unsigned int length, const transcript_start_t transcript_start) {
 
 	// we can only construct a fusion transcript, if we have split reads
-	if (fusion.split_reads1 + fusion.split_reads2 == 0) {
-		// look for discarded split-reads
-		bool has_discarded_split_reads = false;
-		for (auto i = fusion.chimeric_alignments.begin(); i != fusion.chimeric_alignments.end() && !has_discarded_split_reads; ++i)
-			if ((**i).size() == 3 && (**i).filters.find(FILTERS.at("same_gene")) == (**i).filters.end())
-				has_discarded_split_reads = true;
-		if (!has_discarded_split_reads)
-			return ".";
-	}
+	if (fusion.split_read1_list.size() + fusion.split_read2_list.size() == 0)
+		return ".";
 
 	// get the sequence next to breakpoint1
 	string sequence1;
@@ -302,10 +295,12 @@ void write_fusions_to_file(fusions_t& fusions, const string& output_file, annota
 		map<string,unsigned int> filters;
 		for (auto filter = (**i).filters.begin(); filter != (**i).filters.end(); ++filter)
 			filters[**filter] = 0;
-		for (auto chimeric_alignment = (**i).chimeric_alignments.begin(); chimeric_alignment != (**i).chimeric_alignments.end(); ++chimeric_alignment) {
+		vector<mates_t*> all_supporting_reads = (**i).split_read1_list;
+		all_supporting_reads.insert(all_supporting_reads.end(), (**i).split_read2_list.begin(), (**i).split_read2_list.end());
+		all_supporting_reads.insert(all_supporting_reads.end(), (**i).discordant_mate_list.begin(), (**i).discordant_mate_list.end());
+		for (auto chimeric_alignment = all_supporting_reads.begin(); chimeric_alignment != all_supporting_reads.end(); ++chimeric_alignment)
 			if (!(**chimeric_alignment).filters.empty())
 				filters[**(**chimeric_alignment).filters.begin()]++; // adjust this when we support more than one filter per read
-		}
 
 		// output filters
 		out << "\t";
@@ -332,8 +327,8 @@ void write_fusions_to_file(fusions_t& fusions, const string& output_file, annota
 		// if requested, print identifiers of supporting reads
 		out << "\t";
 		if (print_supporting_reads) {
-			for (auto j = (**i).chimeric_alignments.begin(); j != (**i).chimeric_alignments.end(); ++j) {
-				if (j != (**i).chimeric_alignments.begin())
+			for (auto j = all_supporting_reads.begin(); j != all_supporting_reads.end(); ++j) {
+				if (j != all_supporting_reads.begin())
 					out << ",";
 				out << (**j).name;
 			}

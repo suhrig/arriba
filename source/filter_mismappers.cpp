@@ -122,6 +122,19 @@ bool align_both_strands(const string& read_sequence, vector<kmer_index_t>& kmer_
 	return false;
 }
 
+void count_mismappers(vector<mates_t*>& chimeric_alignments_list, unsigned int& mismappers, unsigned int& total_reads, unsigned int& supporting_reads) {
+	for (auto i = chimeric_alignments_list.begin(); i != chimeric_alignments_list.end(); ++i) {
+		if ((**i).filters.empty()) {
+			total_reads++;
+		} else if ((**i).filters.find(FILTERS.at("mismappers")) != (**i).filters.end()) {
+			total_reads++;
+			mismappers++;
+			if (supporting_reads > 0)
+				supporting_reads--;
+		}
+	}
+}
+
 unsigned int filter_mismappers(fusions_t& fusions, annotation_t& gene_annotation, float max_mismapper_fraction) {
 
 	const unsigned int kmer_length = 8;
@@ -140,38 +153,41 @@ unsigned int filter_mismappers(fusions_t& fusions, annotation_t& gene_annotation
 
 	// align discordnat mate / clipped segment in gene of origin
 	for (fusions_t::iterator fusion = fusions.begin(); fusion != fusions.end(); ++fusion) {
-//TODO subtract mismappers from split_reads1 / split_reads2 / discordant mates
+
 		if (!fusion->second.filters.empty())
 			continue; // fusion has already been filtered
 
-		for (auto i = fusion->second.chimeric_alignments.begin(); i != fusion->second.chimeric_alignments.end(); ++i) {
+		// re-align split reads
+		vector<mates_t*> all_split_reads = fusion->second.split_read1_list;
+		all_split_reads.insert(all_split_reads.end(), fusion->second.split_read2_list.begin(), fusion->second.split_read2_list.end());
+		for (auto i = all_split_reads.begin(); i != all_split_reads.end(); ++i) {
 
 			if ((**i).filters.empty()) { // read has not yet been filtered
 
-				if ((**i).size() == 2) { // discordant mates
-					if (align_both_strands((**i)[MATE1].sequence, kmer_indices, (**i)[MATE2].genes, gene_annotation, kmer_length, max_score, min_align_percent) ||
-					    align_both_strands((**i)[MATE2].sequence, kmer_indices, (**i)[MATE1].genes, gene_annotation, kmer_length, max_score, min_align_percent)) {
+				alignment_t& split_read = (**i)[SPLIT_READ]; // introduce alias for cleaner code
+				if (split_read.strand == FORWARD) {
+					if (align_both_strands(split_read.sequence.substr(0, split_read.preclipping()), kmer_indices, split_read.genes, gene_annotation, kmer_length, max_score, min_align_percent) || // clipped segment aligns to donor
+					    align_both_strands((**i)[MATE1].sequence, kmer_indices, (**i)[SUPPLEMENTARY].genes, gene_annotation, kmer_length, max_score, min_align_percent)) { // non-spliced mate aligns to acceptor
 						(**i).filters.insert(FILTERS.at("mismappers"));
 					}
-
-				} else if ((**i).size() == 3) { // split reads
-					alignment_t& split_read = (**i)[SPLIT_READ]; // introduce alias for cleaner code
-					if (split_read.strand == FORWARD) {
-						if (align_both_strands(split_read.sequence.substr(0, split_read.preclipping()), kmer_indices, split_read.genes, gene_annotation, kmer_length, max_score, min_align_percent) || // clipped segment aligns to donor
-						    align_both_strands((**i)[MATE1].sequence, kmer_indices, (**i)[SUPPLEMENTARY].genes, gene_annotation, kmer_length, max_score, min_align_percent)) { // non-spliced mate aligns to acceptor
-							(**i).filters.insert(FILTERS.at("mismappers"));
-						}
-					} else { // split_read.strand == REVERSE
-						if (align_both_strands(split_read.sequence.substr(split_read.sequence.length() - split_read.postclipping()), kmer_indices, split_read.genes, gene_annotation, kmer_length, max_score, min_align_percent) || // clipped segment aligns to donor
-						    align_both_strands((**i)[MATE1].sequence, kmer_indices, (**i)[SUPPLEMENTARY].genes, gene_annotation, kmer_length, max_score, min_align_percent)) { // non-spliced mate aligns to acceptor
-							(**i).filters.insert(FILTERS.at("mismappers"));
-						}
+				} else { // split_read.strand == REVERSE
+					if (align_both_strands(split_read.sequence.substr(split_read.sequence.length() - split_read.postclipping()), kmer_indices, split_read.genes, gene_annotation, kmer_length, max_score, min_align_percent) || // clipped segment aligns to donor
+					    align_both_strands((**i)[MATE1].sequence, kmer_indices, (**i)[SUPPLEMENTARY].genes, gene_annotation, kmer_length, max_score, min_align_percent)) { // non-spliced mate aligns to acceptor
+						(**i).filters.insert(FILTERS.at("mismappers"));
 					}
 				}
-
 			}
 
 		}
+
+		// re-align discordant mates
+		for (auto i = fusion->second.discordant_mate_list.begin(); i != fusion->second.discordant_mate_list.end(); ++i)
+			if ((**i).filters.empty()) // read has not yet been filtered
+				if ((**i).size() == 2) // discordant mates
+					if (align_both_strands((**i)[MATE1].sequence, kmer_indices, (**i)[MATE2].genes, gene_annotation, kmer_length, max_score, min_align_percent) ||
+					    align_both_strands((**i)[MATE2].sequence, kmer_indices, (**i)[MATE1].genes, gene_annotation, kmer_length, max_score, min_align_percent))
+						(**i).filters.insert(FILTERS.at("mismappers"));
+
 	}
 
 	// discard all fusions with more than XX% mismappers
@@ -183,14 +199,9 @@ unsigned int filter_mismappers(fusions_t& fusions, annotation_t& gene_annotation
 
 		unsigned int total_reads = 0;
 		unsigned int mismappers = 0;
-		for (auto i = fusion->second.chimeric_alignments.begin(); i != fusion->second.chimeric_alignments.end(); ++i) {
-			if ((**i).filters.empty()) {
-				total_reads++;
-			} else if ((**i).filters.find(FILTERS.at("mismappers")) != (**i).filters.end()) {
-				total_reads++;
-				mismappers++;
-			}
-		}
+		count_mismappers(fusion->second.split_read1_list, mismappers, total_reads, fusion->second.split_reads1);
+		count_mismappers(fusion->second.split_read2_list, mismappers, total_reads, fusion->second.split_reads2);
+		count_mismappers(fusion->second.discordant_mate_list, mismappers, total_reads, fusion->second.discordant_mates);
 
 		// remove fusions with mostly mismappers
 		if (mismappers > 0 && mismappers >= floor(max_mismapper_fraction * total_reads))

@@ -7,6 +7,7 @@ using namespace std;
 unsigned int filter_min_support(fusions_t& fusions, const unsigned int min_support) {
 	unsigned int remaining = 0;
 	for (fusions_t::iterator i = fusions.begin(); i != fusions.end(); ++i) {
+
 		if (!i->second.filters.empty())
 			continue; // fusion has already been filtered
 

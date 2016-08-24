@@ -83,7 +83,6 @@ unsigned int find_fusions(chimeric_alignments_t& chimeric_alignments, fusions_t&
 						else
 							fusion.filters.insert(*i->second.filters.begin()); // TODO adjust this when we support more than one filter per read
 					}
-					fusion.chimeric_alignments.push_back(&(i->second));
 
 					// expand the size of the anchor
 					if (fusion.direction1 == DOWNSTREAM && (anchor_start1 < fusion.anchor_start1 || fusion.anchor_start1 == 0)) {
@@ -104,11 +103,15 @@ unsigned int find_fusions(chimeric_alignments_t& chimeric_alignments, fusions_t&
 					overlap_duplicate2 = true;
 
 					// increase split read counters for the given fusion
-					if (i->second.filters.empty())
-						if (swapped)
+					if (swapped) {
+						fusion.split_read2_list.push_back(&(i->second));
+						if (i->second.filters.empty())
 							fusion.split_reads2++;
-						else
+					} else {
+						fusion.split_read1_list.push_back(&(i->second));
+						if (i->second.filters.empty())
 							fusion.split_reads1++;
+					}
 				}
 				overlap_duplicate1 = true;
 			}
@@ -209,13 +212,15 @@ unsigned int find_fusions(chimeric_alignments_t& chimeric_alignments, fusions_t&
 
 				// make sure mate1 points to the mate with the lower coordinate
 				// this ensures that the coordinate of the correct mate is compared against the coordinate of the breakpoint
-				if (mate1->contig > mate2->contig || (mate1->contig == mate2->contig && mate1->start > mate2->start))
-					swap(mate1, mate2); //TODO this generates fusions with supporting reads all set to 0, when the fusion is intragenic
+				position_t mate1_breakpoint = (mate1->strand == FORWARD) ? mate1->end : mate1->start;
+				position_t mate2_breakpoint = (mate2->strand == FORWARD) ? mate2->end : mate2->start;
+				if (mate1->contig > mate2->contig || mate1->contig == mate2->contig && mate1_breakpoint > mate2_breakpoint)
+					swap(mate1, mate2);
 
 				if (((i->second.direction1 == DOWNSTREAM && mate1->strand == FORWARD && (mate1->end-2 <= i->second.breakpoint1 && i->second.split_reads1 + i->second.split_reads2 > 0 || mate1->end-200 <= i->second.breakpoint1 && i->second.split_reads1 + i->second.split_reads2 == 0)) || (i->second.direction1 == UPSTREAM && mate1->strand == REVERSE && (mate1->start+2 >= i->second.breakpoint1 && i->second.split_reads1+i->second.split_reads2 > 0 || mate1->start+200 >= i->second.breakpoint1 && i->second.split_reads1+i->second.split_reads2 == 0))) &&
 				    ((i->second.direction2 == DOWNSTREAM && mate2->strand == FORWARD && (mate2->end-2 <= i->second.breakpoint2 && i->second.split_reads1 + i->second.split_reads2 > 0 || mate2->end-200 <= i->second.breakpoint2 && i->second.split_reads1 + i->second.split_reads2 == 0)) || (i->second.direction2 == UPSTREAM && mate2->strand == REVERSE && (mate2->start+2 >= i->second.breakpoint2 && i->second.split_reads1+i->second.split_reads2 > 0 || mate2->start+200 >= i->second.breakpoint2 && i->second.split_reads1+i->second.split_reads2 == 0)))) {
 
-					i->second.chimeric_alignments.push_back(&(**discordant_mate).second);
+					i->second.discordant_mate_list.push_back(&(**discordant_mate).second);
 
 					if ((*discordant_mate)->second.filters.empty())
 						i->second.discordant_mates++;

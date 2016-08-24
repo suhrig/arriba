@@ -31,7 +31,6 @@
 #include "filter_short_anchor.hpp"
 #include "filter_nonexpressed.hpp"
 #include "filter_mismappers.hpp"
-#include "find_genomic_breakpoints.hpp"
 #include "output_fusions.hpp"
 
 using namespace std;
@@ -57,8 +56,7 @@ unordered_map<string,filter_t> FILTERS({
 	{"short_anchor", NULL},
 	{"non_expressed", NULL},
 	{"uninteresting_contigs", NULL},
-	{"low_entropy", NULL},
-	{"genomic_breakpoints", NULL}
+	{"low_entropy", NULL}
 });
 
 
@@ -153,19 +151,6 @@ int main(int argc, char **argv) {
 	make_annotation_index(exon_annotation, exon_annotation_index, contigs);
 	annotation_index_t gene_annotation_index;
 	make_annotation_index(gene_annotation, gene_annotation_index, contigs);
-
-//TODO remove
-/*
-for (auto i = 0; i < exon_annotation_index.size(); ++i) {
-	for (auto k = exon_annotation_index[i].begin(); k != exon_annotation_index[i].end(); ++k) {
-		cerr << contigs_by_id[i] << ":" << k->first;
-		for (auto j = k->second.begin(); j != k->second.end(); ++j) {
-			cerr << " " << gene_annotation[*j].name;
-		}
-		cerr << endl << flush;
-	}
-}
-*/
 
 	// calculate sum of the lengths of all exons for each gene
 	// we will need this to normalize the number of events over the gene length
@@ -351,12 +336,6 @@ for (auto i = 0; i < exon_annotation_index.size(); ++i) {
 	if (options.filters.at("non_expressed")) {
 		cout << "Filtering fusions with no expression in '" << options.rna_bam_file << "'" << flush;
 		cout << " (remaining=" << filter_nonexpressed(fusions, options.rna_bam_file, chimeric_alignments, gene_annotation, exon_annotation) << ")" << endl;
-	}
-
-	// this step must come last, otherwise the effect of filters would be reversed
-	if (options.filters.at("genomic_breakpoints")) {
-		cout << "Searching for genomic breakpoints" << flush;
-		cout << " (remaining=" << find_genomic_breakpoints(fusions, gene_annotation) << ")" << endl;
 	}
 
 	cout << "Writing fusions to file '" << options.output_file << "'" << endl;

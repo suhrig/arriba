@@ -35,18 +35,7 @@ unsigned int filter_pcr_fusions(fusions_t& fusions, const annotation_t& gene_ann
 		    i->second.filters.find(FILTERS.at("uninteresting_contigs")) == i->second.filters.end() && // ignore fusions with mitochondrial DNA and decoy sequences, there are usually tons of those
 		    i->second.filters.find(FILTERS.at("merge_adjacent")) == i->second.filters.end()) { // slightly varying alignments may lead to adjacent breakpoints, we should not count them as separate breakpoints
 
-			unsigned int split_reads = i->second.split_reads1 + i->second.split_reads2;
-			if (split_reads == 0) {
-				// look for split reads in the filtered reads
-				for (auto chimeric_alignment = i->second.chimeric_alignments.begin(); chimeric_alignment != i->second.chimeric_alignments.end(); ++chimeric_alignment) {
-					if ((**chimeric_alignment).size() == 3) {
-						split_reads++;
-						break; // one read is enough
-					}
-				}
-			}
-
-			if (split_reads > 0) {
+			if (i->second.split_read1_list.size() + i->second.split_read2_list.size()) { // this also counts discarded reads
 				if (!i->second.overlap_duplicate2)
 					exonic_breakpoint_count[i->second.gene1]++;
 				if (!i->second.overlap_duplicate1)

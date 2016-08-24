@@ -59,7 +59,7 @@ void estimate_expected_fusions(fusions_t& fusions, const annotation_t& gene_anno
 			10000.0 / gene_annotation[i->second.gene1].exonic_length * max(fusion_partner_count[i->second.gene1]-1, 0),
 			10000.0 / gene_annotation[i->second.gene2].exonic_length * max(fusion_partner_count[i->second.gene2]-1, 0)
 		);
- 
+
 		unsigned int supporting_reads = i->second.split_reads1 + i->second.split_reads2 + i->second.discordant_mates;
 
 		// calculate expected number of fusions (e-value)

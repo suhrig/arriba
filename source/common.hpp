@@ -72,7 +72,7 @@ struct fusion_t {
 	unsigned int split_reads1, split_reads2;
 	unsigned int discordant_mates;
 	position_t anchor_start1, anchor_start2;
-	vector<mates_t*> chimeric_alignments;
+	vector<mates_t*> split_read1_list, split_read2_list, discordant_mate_list;
 	float evalue; // expected number of fusions with the given properties by random chance
 	set<filter_t> filters; // name of the filter(s) which discarded the fusion (empty means not discarded)
 	fusion_t(): split_reads1(0), split_reads2(0), discordant_mates(0), anchor_start1(0), anchor_start2(0) {}
