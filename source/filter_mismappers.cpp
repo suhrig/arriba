@@ -181,13 +181,19 @@ unsigned int filter_mismappers(fusions_t& fusions, annotation_t& gene_annotation
 		if (!fusion->second.filters.empty())
 			continue; // fusion has already been filtered
 
+		unsigned int total_reads = 0;
 		unsigned int mismappers = 0;
-		for (auto i = fusion->second.chimeric_alignments.begin(); i != fusion->second.chimeric_alignments.end(); ++i)
-			if ((**i).filters.find(FILTERS.at("mismappers")) != (**i).filters.end())
+		for (auto i = fusion->second.chimeric_alignments.begin(); i != fusion->second.chimeric_alignments.end(); ++i) {
+			if ((**i).filters.empty()) {
+				total_reads++;
+			} else if ((**i).filters.find(FILTERS.at("mismappers")) != (**i).filters.end()) {
+				total_reads++;
 				mismappers++;
+			}
+		}
 
 		// remove fusions with mostly mismappers
-		if (mismappers > 0 && mismappers >= floor(max_mismapper_fraction * fusion->second.supporting_reads()))
+		if (mismappers > 0 && mismappers >= floor(max_mismapper_fraction * total_reads))
 			fusion->second.filters.insert(FILTERS.at("mismappers"));
 		else
 			remaining++;

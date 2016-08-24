@@ -1,9 +1,10 @@
-#include <unordered_map>
-#include <tuple>
-#include <vector>
+#include <cmath>
+#include <iostream>
 #include <list>
 #include <string>
-#include <cmath>
+#include <tuple>
+#include <vector>
+#include <unordered_map>
 #include "sam.h"
 #include "common.hpp"
 #include "annotation.hpp"
