@@ -339,11 +339,11 @@ int main(int argc, char **argv) {
 	}
 
 	cout << "Writing fusions to file '" << options.output_file << "'" << endl;
-	write_fusions_to_file(fusions, options.output_file, gene_annotation, gene_annotation_index, exon_annotation_index, contigs_by_id, options.print_supporting_reads, false);
+	write_fusions_to_file(fusions, options.output_file, gene_annotation, gene_annotation_index, exon_annotation_index, contigs_by_id, options.print_supporting_reads, options.print_fusion_sequence, false);
 
 	if (options.discarded_output_file != "") {
 		cout << "Writing discarded fusions to file '" << options.discarded_output_file << "'" << endl;
-		write_fusions_to_file(fusions, options.discarded_output_file, gene_annotation, gene_annotation_index, exon_annotation_index, contigs_by_id, options.print_supporting_reads_for_discarded_fusions, true);
+		write_fusions_to_file(fusions, options.discarded_output_file, gene_annotation, gene_annotation_index, exon_annotation_index, contigs_by_id, options.print_supporting_reads_for_discarded_fusions, options.print_fusion_sequence_for_discarded_fusions, true);
 	}
 
 	return 0;

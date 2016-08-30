@@ -1,12 +1,14 @@
-#include <iostream>
+#include <algorithm>
+#include <cctype>
 #include <fstream>
 #include <functional>
+#include <iostream>
 #include <map>
-#include <vector>
 #include <string>
 #include <sstream>
-#include <algorithm>
 #include <unordered_map>
+#include <vector>
+#include "sam.h"
 #include "common.hpp"
 #include "annotation.hpp"
 #include "output_fusions.hpp"
@@ -58,69 +60,235 @@ transcript_start_t get_start_of_transcript(const fusion_t& fusion, const annotat
 	}
 }
 
-bool get_dna_sequence_by_region(const position_t breakpoint, const direction_t direction, const gene_t gene, const annotation_t& gene_annotation, annotation_index_t& exon_annotation_index, const unsigned int length, string& sequence) {
+typedef map< position_t, map<string/*base*/,unsigned int/*frequency*/> > pileup_t;
 
-	position_t start;
-	if (direction == UPSTREAM) {
-		if (breakpoint + 2 < gene_annotation[gene].start || breakpoint > gene_annotation[gene].end || breakpoint + length > gene_annotation[gene].end)
-			return false; // we cannot get the sequence outside the gene
-		contig_annotation_index_t::iterator next_exon_boundary = exon_annotation_index[gene_annotation[gene].contig].upper_bound(breakpoint);
-		if (next_exon_boundary != exon_annotation_index[gene_annotation[gene].contig].end() && next_exon_boundary->first < breakpoint + length) { // breakpoint is close to an exon end
-			if (next_exon_boundary->first <= breakpoint + 2 && next_exon_boundary->second.find(gene) == next_exon_boundary->second.end()) { // breakpoint is close to the 5' end of an exon
-				next_exon_boundary = exon_annotation_index[gene_annotation[gene].contig].upper_bound(breakpoint + 3);
-				if (next_exon_boundary != exon_annotation_index[gene_annotation[gene].contig].end() && next_exon_boundary->first < breakpoint + length) // breakpoint is also close to the 3' end of an exon
-					return false; // breakpoint is too close to exon boundary
-			} else {
-				return false; // breakpoint is too close to exon boundary
-			} 
+void pileup_chimeric_alignments(vector<mates_t*>& chimeric_alignments, const unsigned int mate, const bool reverse_complement, const direction_t direction, const position_t breakpoint, pileup_t& pileup) {
+	for (auto i = chimeric_alignments.begin(); i != chimeric_alignments.end(); ++i) {
+
+		if ((**i).filters.find(FILTERS.at("duplicates")) != (**i).filters.end())
+			continue; // skip duplicates
+
+		alignment_t& read = (**i)[mate]; // introduce alias for cleaner code
+
+		if ((**i).size() == 2) // discordant mate
+			if (!(direction == DOWNSTREAM && read.strand == FORWARD && read.end   <= breakpoint+2 && read.end   >= breakpoint-200 ||
+			      direction == UPSTREAM   && read.strand == REVERSE && read.start >= breakpoint-2 && read.start <= breakpoint+200)) // only consider discordant mates close to the breakpoints (we don't care about the ones in other exons)
+				continue;
+
+		string read_sequence = (mate == SUPPLEMENTARY) ? (**i)[SPLIT_READ].sequence : read.sequence;
+		if (reverse_complement)
+			read_sequence = dna_to_reverse_complement(read_sequence);
+
+		position_t read_offset = 0;
+		position_t reference_offset = read.start;
+		for (int cigar_element = 0; cigar_element < read.cigar.size(); cigar_element++) {
+			switch (read.cigar.operation(cigar_element)) {
+				case BAM_CINS:
+					pileup[reference_offset][read_sequence.substr(read_offset, read.cigar.op_length(cigar_element)+1)]++;
+					read_offset += read.cigar.op_length(cigar_element)+1;
+					++reference_offset;
+					break;
+				case BAM_CREF_SKIP:
+					reference_offset += read.cigar.op_length(cigar_element);
+					break;
+				case BAM_CDEL:
+					for (position_t base = 0; base < read.cigar.op_length(cigar_element); ++base, ++reference_offset)
+						pileup[reference_offset]["-"]++; // indicate deletion by dash
+					break;
+				case BAM_CSOFT_CLIP:
+					if (mate == SPLIT_READ &&
+					    (cigar_element == 0 && read.strand == FORWARD || cigar_element == read.cigar.size()-1 && read.strand == REVERSE)) {
+						if (cigar_element == 0 && read.strand == FORWARD)
+							reference_offset -= read.cigar.op_length(cigar_element);
+						// fall through to next branch (we want the clipped segment to be part of the pileup to look for non-template bases
+					} else {
+						read_offset += read.cigar.op_length(cigar_element);
+						break;
+					}
+				case BAM_CMATCH:
+					for (position_t base = 0; base < read.cigar.op_length(cigar_element); ++base, ++read_offset, ++reference_offset)
+						pileup[reference_offset][read_sequence.substr(read_offset,1)]++;
+					break;
+			}
 		}
-		start = breakpoint;
-	} else { // direction == DOWNSTREAM
-		if (breakpoint + 2 < gene_annotation[gene].start || breakpoint - 2 > gene_annotation[gene].end || gene_annotation[gene].start + length > breakpoint)
-			return false; // we cannot get the sequence before the start
-		contig_annotation_index_t::iterator next_exon_boundary = exon_annotation_index[gene_annotation[gene].contig].upper_bound(breakpoint - length);
-		if (next_exon_boundary != exon_annotation_index[gene_annotation[gene].contig].end() && next_exon_boundary->first < breakpoint) {
-			if (next_exon_boundary->first < breakpoint - 2 || next_exon_boundary->second.find(gene) == next_exon_boundary->second.end())
-				return false; // breakpoint is too close to exon boundary
-		}
-		start = breakpoint - length;
 	}
-
-	start = max(0, start - gene_annotation[gene].start);
-	if (start + length > gene_annotation[gene].sequence.length())
-		return false;
-
-	sequence = gene_annotation[gene].sequence.substr(start, length);
-	std::transform(sequence.begin(), sequence.end(), sequence.begin(), (int (*)(int))std::toupper);
-
-	return true;
 }
 
-string get_fusion_transcript_sequence(const fusion_t& fusion, annotation_t& gene_annotation, annotation_index_t& exon_annotation_index, const unsigned int length, const transcript_start_t transcript_start) {
+void get_sequence_from_pileup(const pileup_t& pileup, const position_t breakpoint, const direction_t direction, const gene_t gene, const annotation_t& gene_annotation, string& sequence, string& clipped_sequence) {
 
-	// we can only construct a fusion transcript, if we have split reads
-	if (fusion.split_read1_list.size() + fusion.split_read2_list.size() == 0)
-		return ".";
+	// for each position, find the most frequent allele in the pileup
+	position_t previous_position;
+	for (pileup_t::const_iterator position = pileup.begin(); position != pileup.end(); ++position) {
 
-	// get the sequence next to breakpoint1
-	string sequence1;
-	if (!get_dna_sequence_by_region(fusion.breakpoint1, fusion.direction1, fusion.gene1, gene_annotation, exon_annotation_index, length, sequence1))
-		return ".";
+		if (position != pileup.begin() && previous_position < position->first - 1)
+			sequence += "..."; // indicate introns/gaps with an ellipsis
+		previous_position = position->first;
 
-	// get the sequence next to breakpoint2
-	string sequence2;
-	if (!get_dna_sequence_by_region(fusion.breakpoint2, fusion.direction2, fusion.gene2, gene_annotation, exon_annotation_index, length, sequence2))
-		return ".";
+		// find out base in reference to mark SNPs/SNVs
+		string reference_base = "N";
+		if (position->first >= gene_annotation[gene].start && // check if we have the sequence for the given position
+		    gene_annotation[gene].sequence.size() > position->first - gene_annotation[gene].start)
+			reference_base = gene_annotation[gene].sequence[position->first - gene_annotation[gene].start];
 
-	// try to determine the strand from the orientation of the gene
-	// and make the reverse complement, if necessary
-	if (transcript_start == TRANSCRIPT_START_GENE1) {
-		return ((gene_annotation[fusion.gene1].strand == FORWARD) ? sequence1 : dna_to_reverse_complement(sequence1)) + "|" + ((fusion.direction2 == UPSTREAM) ? sequence2 : dna_to_reverse_complement(sequence2));
-	} else if (transcript_start == TRANSCRIPT_START_GENE2) {
-		return ((gene_annotation[fusion.gene2].strand == FORWARD) ? sequence2 : dna_to_reverse_complement(sequence2)) + "|" + ((fusion.direction1 == UPSTREAM) ? sequence1 : dna_to_reverse_complement(sequence1));
-	} else { // start of gene is ambiguous
-		return ".";
+		// find most frequent allele at current position and compute coverage
+		auto base = position->second.begin();
+		auto most_frequent_base = base;
+		unsigned int coverage = most_frequent_base->second;
+		for (++base; base != position->second.end(); ++base) {
+			if (base->second > most_frequent_base->second || base->first == reference_base && base->second+1 == most_frequent_base->second)
+				most_frequent_base = base;
+			coverage += base->second;
+		}
+
+		// we trust the base, if it has a frequency of >= 75%
+		string most_frequent_base2 = (most_frequent_base->second >= 0.75 * coverage || most_frequent_base->first == reference_base) ? most_frequent_base->first : "n";
+
+		// mark SNPs/SNVs via lowercase letters
+		if (most_frequent_base2.size() > 1 /*insertion*/ || most_frequent_base2 != reference_base && reference_base != "N")
+			std::transform(most_frequent_base2.begin(), most_frequent_base2.end(), most_frequent_base2.begin(), (int (*)(int))std::tolower);
+
+		// mark insertions via brackets
+		if (most_frequent_base2.size() > 1) {
+			most_frequent_base2 = "[" + most_frequent_base2.substr(0, most_frequent_base2.size()-1) + "]" + most_frequent_base2[most_frequent_base2.size()-1];
+			if (toupper(most_frequent_base2[most_frequent_base2.size()-1]) == reference_base[0])
+				most_frequent_base2[most_frequent_base2.size()-1] = toupper(most_frequent_base2[most_frequent_base2.size()-1]);
+		}
+
+		if (direction == UPSTREAM && position->first < breakpoint || direction == DOWNSTREAM && position->first >= breakpoint)
+			clipped_sequence += most_frequent_base2;
+		else
+			sequence += most_frequent_base2;
 	}
+}
+
+string get_fusion_transcript_sequence(fusion_t& fusion, annotation_t& gene_annotation, const transcript_start_t transcript_start) {
+
+	if (transcript_start == TRANSCRIPT_START_AMBIGUOUS)
+		return "."; // sequence is unknown, because the strands cannot be determined
+
+	// get the sequences next to the breakpoints
+	pileup_t pileup1, pileup2;
+	pileup_chimeric_alignments(fusion.split_read1_list, SPLIT_READ, false, fusion.direction1, fusion.breakpoint1, pileup1);
+	pileup_chimeric_alignments(fusion.split_read1_list, MATE1, false, fusion.direction1, fusion.breakpoint1, pileup1);
+	pileup_chimeric_alignments(fusion.split_read1_list, SUPPLEMENTARY, fusion.direction1 == fusion.direction2, fusion.direction2, fusion.breakpoint2, pileup2);
+	pileup_chimeric_alignments(fusion.split_read2_list, SPLIT_READ, false, fusion.direction2, fusion.breakpoint2, pileup2);
+	pileup_chimeric_alignments(fusion.split_read2_list, MATE1, false, fusion.direction2, fusion.breakpoint2, pileup2);
+	pileup_chimeric_alignments(fusion.split_read2_list, SUPPLEMENTARY, fusion.direction1 == fusion.direction2, fusion.direction1, fusion.breakpoint1, pileup1);
+	pileup_chimeric_alignments(fusion.discordant_mate_list, MATE1, false, fusion.direction1, fusion.breakpoint1, pileup1);
+	pileup_chimeric_alignments(fusion.discordant_mate_list, MATE2, false, fusion.direction1, fusion.breakpoint1, pileup1);
+	pileup_chimeric_alignments(fusion.discordant_mate_list, MATE1, false, fusion.direction2, fusion.breakpoint2, pileup2);
+	pileup_chimeric_alignments(fusion.discordant_mate_list, MATE2, false, fusion.direction2, fusion.breakpoint2, pileup2);
+
+	// look for non-template bases inserted between the fused genes
+	int non_template_bases = 0;
+	if (!fusion.spliced1 && !fusion.spliced2) {
+
+		map<int, unsigned int> non_template_bases_count;
+		for (auto read = fusion.split_read1_list.begin(); read != fusion.split_read2_list.end(); ++read) {
+
+			// continue with split_read2_list if we have processed the split_read1_list
+			if (read == fusion.split_read1_list.end()) {
+				read = fusion.split_read2_list.begin();
+				if (read == fusion.split_read2_list.end())
+					break;
+			}
+
+			// there are non-template bases, if the sum of the clipped bases of split read and supplementary alignment are greater than the read length
+			int clipped_split_read = ((**read)[SPLIT_READ].strand == FORWARD) ? (**read)[SPLIT_READ].cigar.op_length(0) : (**read)[SPLIT_READ].cigar.op_length((**read)[SPLIT_READ].cigar.size()-1);
+			int clipped_supplementary = ((**read)[SUPPLEMENTARY].strand == FORWARD) ? (**read)[SUPPLEMENTARY].cigar.op_length((**read)[SUPPLEMENTARY].cigar.size()-1) : (**read)[SUPPLEMENTARY].cigar.op_length(0);
+			int unmapped_bases = clipped_split_read + clipped_supplementary - (**read)[SPLIT_READ].sequence.size();
+			if (++non_template_bases_count[unmapped_bases] > non_template_bases_count[non_template_bases])
+				non_template_bases = unmapped_bases;
+		}
+
+	}
+
+	// determine most frequent bases in pileup
+	string sequence1, sequence2, clipped_sequence1, clipped_sequence2;
+	get_sequence_from_pileup(pileup1, fusion.breakpoint1, fusion.direction1, fusion.gene1, gene_annotation, sequence1, clipped_sequence1);
+	get_sequence_from_pileup(pileup2, fusion.breakpoint2, fusion.direction2, fusion.gene2, gene_annotation, sequence2, clipped_sequence2);
+
+	// if we have no split reads, the exact breakpoints are unknown => use ellipsis to indicate uncertainty
+	if (fusion.split_read1_list.size() + fusion.split_read2_list.size() == 0) {
+		if (fusion.direction1 == DOWNSTREAM)
+			sequence1 += "...";
+		else // fusion.direction1 == UPSTREAM
+			sequence1 = "..." + sequence1;
+		if (fusion.direction2 == DOWNSTREAM)
+			sequence2 += "...";
+		else // fusion.direction2 == UPSTREAM
+			sequence2 = "..." + sequence2;
+	}
+
+	// add non-template bases (if there are any)
+	if (non_template_bases > 0) {
+		if (clipped_sequence1.size() >= non_template_bases) {
+			std::transform(clipped_sequence1.begin(), clipped_sequence1.end(), clipped_sequence1.begin(), (int (*)(int))std::tolower);
+			if (fusion.direction1 == UPSTREAM)
+				sequence1 = clipped_sequence1.substr(clipped_sequence1.size() - non_template_bases) + sequence1;
+			else
+				sequence1 += clipped_sequence1.substr(0, non_template_bases);
+		} else if (clipped_sequence2.size() >= non_template_bases) {
+			std::transform(clipped_sequence2.begin(), clipped_sequence2.end(), clipped_sequence2.begin(), (int (*)(int))std::tolower);
+			if (fusion.direction2 == UPSTREAM)
+				sequence2 = clipped_sequence2.substr(clipped_sequence2.size() - non_template_bases) + sequence2;
+			else
+				sequence2 += clipped_sequence2.substr(0, non_template_bases);
+		}
+	}
+
+	// look for mismatched bases (i.e., lowercase letters) next to the breakpoints, these are usually non-template bases
+	bool sequence1_has_non_template_bases = false;
+	bool sequence2_has_non_template_bases = false;
+	if (fusion.direction1 == UPSTREAM) {
+		int base = 0;
+		while (base < sequence1.size() && (sequence1[base] == 'a' || sequence1[base] == 't' || sequence1[base] == 'c' || sequence1[base] == 'g'))
+			++base;
+		if (base > 0 && base < sequence1.size()) {
+			sequence1 = sequence1.substr(0, base) + "|" + sequence1.substr(base);
+			sequence1_has_non_template_bases = true;
+		}
+	} else if (fusion.direction1 == DOWNSTREAM) {
+		int base = sequence1.size()-1;
+		while (base >= 0 && (sequence1[base] == 'a' || sequence1[base] == 't' || sequence1[base] == 'c' || sequence1[base] == 'g'))
+			--base;
+		if (base < sequence1.size()-1 && base >= 0) {
+			sequence1 = sequence1.substr(0, base+1) + "|" + sequence1.substr(base+1);
+			sequence1_has_non_template_bases = true;
+		}
+	}
+	if (fusion.direction2 == UPSTREAM) {
+		int base = 0;
+		while (base < sequence2.size() && (sequence2[base] == 'a' || sequence2[base] == 't' || sequence2[base] == 'c' || sequence2[base] == 'g'))
+			++base;
+		if (base > 0 && base < sequence2.size()) {
+			sequence2 = sequence2.substr(0, base) + "|" + sequence2.substr(base);
+			sequence2_has_non_template_bases = true;
+		}
+	} else if (fusion.direction2 == DOWNSTREAM) {
+		int base = sequence2.size()-1;
+		while (base >= 0 && (sequence2[base] == 'a' || sequence2[base] == 't' || sequence2[base] == 'c' || sequence2[base] == 'g'))
+			--base;
+		if (base < sequence2.size()-1 && base >= 0) {
+			sequence2 = sequence2.substr(0, base+1) + "|" + sequence2.substr(base+1);
+			sequence2_has_non_template_bases = true;
+		}
+	}
+
+	string concatenated_sequence = ".";
+	if (transcript_start == TRANSCRIPT_START_GENE1) {
+		concatenated_sequence = ((gene_annotation[fusion.gene1].strand == FORWARD) ? sequence1 : dna_to_reverse_complement(sequence1));
+		if (!sequence1_has_non_template_bases || !sequence2_has_non_template_bases) // otherwise the concatenated sequence might have three pipes
+			concatenated_sequence += "|";
+		concatenated_sequence += ((fusion.direction2 == UPSTREAM) ? sequence2 : dna_to_reverse_complement(sequence2));
+	} else { // transcript_start == TRANSCRIPT_START_GENE2)
+		concatenated_sequence = ((gene_annotation[fusion.gene2].strand == FORWARD) ? sequence2 : dna_to_reverse_complement(sequence2));
+		if (!sequence2_has_non_template_bases || !sequence1_has_non_template_bases) // otherwise the concatenated sequence might have three pipes
+			concatenated_sequence += "|";
+		concatenated_sequence += ((fusion.direction1 == UPSTREAM) ? sequence1 : dna_to_reverse_complement(sequence1));
+	}
+
+	return concatenated_sequence;
 }
 
 bool sort_fusions_by_support(const fusion_t* x, const fusion_t* y) {
@@ -193,7 +361,7 @@ string gene_to_name(const gene_t gene, const contig_t contig, const position_t b
 	}
 }
 
-void write_fusions_to_file(fusions_t& fusions, const string& output_file, annotation_t& gene_annotation, annotation_index_t& gene_annotation_index, annotation_index_t& exon_annotation_index, vector<string> contigs_by_id, const bool print_supporting_reads, const bool write_discarded_fusions) {
+void write_fusions_to_file(fusions_t& fusions, const string& output_file, annotation_t& gene_annotation, annotation_index_t& gene_annotation_index, annotation_index_t& exon_annotation_index, vector<string> contigs_by_id, const bool print_supporting_reads, const bool print_fusion_sequence, const bool write_discarded_fusions) {
 //TODO add "chr", if necessary
 //TODO add fusion_strand
 //TODO update help after changing columns
@@ -318,8 +486,8 @@ void write_fusions_to_file(fusions_t& fusions, const string& output_file, annota
 
 		// print a fusion-spanning sequence
 		out << "\t";
-		if (!write_discarded_fusions) {
-			out << get_fusion_transcript_sequence(**i, gene_annotation, exon_annotation_index, 30, transcript_start);
+		if (print_fusion_sequence) {
+			out << get_fusion_transcript_sequence(**i, gene_annotation, transcript_start);
 		} else {
 			out << ".";
 		}

@@ -229,7 +229,12 @@ void dna_to_reverse_complement(string& dna, string& reverse_complement) {
 			reverse_complement += 'G';
 		} else if (*i == 'G') {
 			reverse_complement += 'C';
-		}
+		} else if (*i == '[') {
+			reverse_complement += ']';
+		} else if (*i == ']') {
+			reverse_complement += '[';
+		} else
+			reverse_complement += *i;
 }
 
 string dna_to_reverse_complement(string& dna) {

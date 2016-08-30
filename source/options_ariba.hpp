@@ -29,6 +29,8 @@ struct options_t {
 	unsigned int min_anchor_length;
 	bool print_supporting_reads;
 	bool print_supporting_reads_for_discarded_fusions;
+	bool print_fusion_sequence;
+	bool print_fusion_sequence_for_discarded_fusions;
 	bool low_tumor_content;
 	float max_kmer_content;
 };

@@ -24,6 +24,8 @@ options_t get_default_options() {
 	options.min_read_through_distance = 10000;
 	options.print_supporting_reads = false;
 	options.print_supporting_reads_for_discarded_fusions = false;
+	options.print_fusion_sequence = false;
+	options.print_fusion_sequence_for_discarded_fusions = false;
 	options.low_tumor_content = false;
 	options.max_kmer_content = 0.6;
 
@@ -158,9 +160,20 @@ void print_usage(const string& error_message) {
 	     << wrap_help("-K MAX_KMER_CONTENT", "The 'low_entropy' filter removes reads with "
 	                  "repetitive 3-mers. If the 3-mers make up more than the given fraction "
 	                  "of the sequence, then the read is discarded. Default: " + to_string(default_options.max_kmer_content))
+	     << wrap_help("-S", "When set, the column 'fusion_transcript' is populated with "
+	                  "the sequence of the fused genes as assembled from the supporting reads. "
+	                  "The following letters have special meanings:\\n"
+	                  "lowercase letter = SNP/SNV, square brackets = insertion, dash = deletion, "
+	                  "ellipsis = intron/not covered bases, pipe = breakpoint, lowercase letters, "
+	                  "flanked by pipes = non-template bases.\\nSpecify twice to also print the "
+	                  "fusion transcripts to the file containing discarded fusions (-O). "
+	                  "Note: Specifying twice may be slow.\\n"
+	                  "Note: SNVs/SNPs are not indicated in the file containing discarded fusions. "
+	                  "Default: " + string((default_options.print_fusion_sequence) ? "on" : "off"))
 	     << wrap_help("-I", "When set, the column 'read_identifiers' is populated with "
 	                  "identifiers of the reads which support the fusion. The identifiers "
-	                  "are separated by commas. Default: " + string((default_options.print_supporting_reads) ? "on" : "off"))
+	                  "are separated by commas. Specify the flag twice to also print the read "
+	                  "identifiers to the file containing discarded fusions (-O). Default: " + string((default_options.print_supporting_reads) ? "on" : "off"))
 	     << wrap_help("-h", "Print help and exit.")
 	     << "Questions or problems may be sent to: " << HELP_CONTACT << endl;
 	exit(1);
@@ -174,7 +187,7 @@ options_t parse_arguments(int argc, char **argv) {
 	// parse arguments
 	opterr = 0;
 	int c;
-	while ((c = getopt(argc, argv, "c:r:x:g:o:O:a:k:b:i:f:E:s:lm:H:D:A:K:Ih")) != -1) {
+	while ((c = getopt(argc, argv, "c:r:x:g:o:O:a:k:b:i:f:E:s:lm:H:D:A:K:SIh")) != -1) {
 		switch (c) {
 			case 'c':
 				options.chimeric_bam_file = optarg;
@@ -281,6 +294,12 @@ options_t parse_arguments(int argc, char **argv) {
 				break;
 			case 'K':
 				options.max_kmer_content = atof(optarg);
+				break;
+			case 'S':
+				if (!options.print_fusion_sequence)
+					options.print_fusion_sequence = true;
+				else
+					options.print_fusion_sequence_for_discarded_fusions = true;
 				break;
 			case 'I':
 				if (!options.print_supporting_reads)
