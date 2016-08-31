@@ -24,7 +24,6 @@
 #include "recover_both_spliced.hpp"
 #include "filter_blacklisted_ranges.hpp"
 #include "filter_end_to_end.hpp"
-#include "filter_misspliced.hpp"
 #include "filter_pcr_fusions.hpp"
 #include "merge_adjacent_fusions.hpp"
 #include "select_best.hpp"
@@ -49,7 +48,6 @@ unordered_map<string,filter_t> FILTERS({
 	{"spliced", NULL},
 	{"blacklist", NULL},
 	{"end_to_end", NULL},
-	{"misspliced", NULL},
 	{"pcr_fusions", NULL},
 	{"merge_adjacent", NULL},
 	{"select_best", NULL},
@@ -283,11 +281,6 @@ int main(int argc, char **argv) {
 	if (options.filters.at("end_to_end")) {
 		cout << "Filtering end-to-end fusions with low support" << flush;
 		cout << " (remaining=" << filter_end_to_end_fusions(fusions, gene_annotation) << ")" << endl;
-	}
-
-	if (options.filters.at("misspliced")) {
-		cout << "Filtering mis-spliced fusions with low support" << flush;
-		cout << " (remaining=" << filter_misspliced(fusions, gene_annotation) << ")" << endl;
 	}
 
 	if (options.filters.at("merge_adjacent")) {
