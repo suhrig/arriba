@@ -135,7 +135,7 @@ void get_sequence_from_pileup(const pileup_t& pileup, const position_t breakpoin
 		auto most_frequent_base = base;
 		unsigned int coverage = most_frequent_base->second;
 		for (++base; base != position->second.end(); ++base) {
-			if (base->second > most_frequent_base->second || base->first == reference_base && base->second+1 == most_frequent_base->second)
+			if (base->second > most_frequent_base->second || base->first == reference_base && base->second+1 >= most_frequent_base->second)
 				most_frequent_base = base;
 			coverage += base->second;
 		}
