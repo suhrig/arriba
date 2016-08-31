@@ -3,14 +3,24 @@
 
 using namespace std;
 
-unsigned int filter_both_intronic(chimeric_alignments_t& chimeric_alignments) {
+bool list_contains_exonic_reads(const vector<mates_t*>& read_list) {
+	for (auto i = read_list.begin(); i != read_list.end(); ++i)
+		if ((**i).filters.empty())
+			for (mates_t::iterator mate = (**i).begin(); mate != (**i).end(); ++mate)
+				if (mate->exonic)
+					return true;
+	return false;
+}
+
+unsigned int filter_both_intronic(fusions_t& fusions) {
 	unsigned int remaining = 0;
-	for (chimeric_alignments_t::iterator i = chimeric_alignments.begin(); i != chimeric_alignments.end(); ++i) {
+	for (fusions_t::iterator i = fusions.begin(); i != fusions.end(); ++i) {
 		if (!i->second.filters.empty())
 			continue; // read has already been filtered
 
-		if ((i->second.size() == 2 && !i->second[MATE1].exonic && !i->second[MATE2].exonic) ||
-		    (i->second.size() == 3 && !i->second[SPLIT_READ].exonic && !i->second[SUPPLEMENTARY].exonic)) {
+		if (!list_contains_exonic_reads(i->second.split_read1_list) &&
+		    !list_contains_exonic_reads(i->second.split_read2_list) &&
+		    !list_contains_exonic_reads(i->second.discordant_mate_list)) {
 			i->second.filters.insert(FILTERS.at("intronic"));
 		} else {
 			++remaining;

@@ -13,9 +13,9 @@
 #include "filter_inconsistently_clipped.hpp"
 #include "filter_homopolymer.hpp"
 #include "filter_duplicates.hpp"
-#include "filter_both_intronic.hpp"
 #include "filter_same_gene.hpp"
 #include "fusions.hpp"
+#include "filter_both_intronic.hpp"
 #include "filter_proximal_read_through.hpp"
 #include "filter_low_entropy.hpp"
 #include "filter_promiscuous_genes.hpp"
@@ -38,8 +38,8 @@ unordered_map<string,filter_t> FILTERS({
 	{"inconsistently_clipped", NULL},
 	{"homopolymer", NULL},
 	{"duplicates", NULL},
-	{"intronic", NULL},
 	{"same_gene", NULL},
+	{"intronic", NULL},
 	{"read_through", NULL},
 	{"mismappers", NULL},
 	{"promiscuous_genes", NULL},
@@ -220,11 +220,6 @@ int main(int argc, char **argv) {
 		}
 	}
 	
-	if (options.filters.at("intronic")) {
-		cout << "Filtering fragments with both mates in intronic/intergenic regions" << flush;
-		cout << " (remaining=" << filter_both_intronic(chimeric_alignments) << ")" << endl;
-	}
-
 	if (options.filters.at("same_gene")) {
 		cout << "Filtering fragments with both mates in the same gene" << flush;
 		cout << " (remaining=" << filter_same_gene(chimeric_alignments) << ")" << endl;
@@ -253,6 +248,11 @@ int main(int argc, char **argv) {
 
 	cout << "Estimating expected number of fusions by random chance (e-value)" << endl << flush;
 	estimate_expected_fusions(fusions, gene_annotation, mapped_reads);
+
+	if (options.filters.at("intronic")) {
+		cout << "Filtering fusions with both breakpoints in intronic/intergenic regions" << flush;
+		cout << " (remaining=" << filter_both_intronic(fusions) << ")" << endl;
+	}
 
 	if (options.filters.at("promiscuous_genes")) {
 		cout << "Filtering fusions with an e-value >=" << options.evalue_cutoff << flush;
