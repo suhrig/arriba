@@ -86,6 +86,7 @@ unsigned int filter_nonexpressed(fusions_t& fusions, const string& bam_file_path
 			}
 
 			if (i->second.spliced1 || i->second.spliced2) {
+
 				++remaining;
 				continue; // don't filter spliced breakpoints (they are more credible)
 			}
