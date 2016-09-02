@@ -7,6 +7,7 @@
 #include <sstream>
 #include <set>
 #include <unordered_map>
+#include "sam.h"
 #include "annotation.hpp"
 #include "read_compressed_file.hpp"
 #include "htslib/faidx.h"
@@ -127,6 +128,34 @@ gene_set_t gene_multiset_to_set(gene_multiset_t gene_multiset) {
 	return gene_set;
 }
 
+// check if a breakpoint is near an annotated splice site
+bool is_breakpoint_spliced(const gene_t gene, const direction_t direction, const contig_t contig, const position_t breakpoint, const annotation_index_t& exon_annotation_index) {
+
+	const unsigned int max_splice_site_distance = 2;
+
+	// find overlapping exons
+	contig_annotation_index_t::const_iterator genes_at_breakpoint = exon_annotation_index[contig].lower_bound(breakpoint);
+	contig_annotation_index_t::const_iterator genes_before_breakpoint = genes_at_breakpoint;
+	if (genes_before_breakpoint != exon_annotation_index[contig].begin() && exon_annotation_index[contig].size() > 0)
+		--genes_before_breakpoint;
+
+	if (genes_before_breakpoint != exon_annotation_index[contig].end() && breakpoint - genes_before_breakpoint->first <= max_splice_site_distance &&
+	    (direction == UPSTREAM && genes_at_breakpoint != exon_annotation_index[contig].end() && genes_at_breakpoint->second.count(gene) > genes_before_breakpoint->second.count(gene) ||
+	     direction == DOWNSTREAM && (genes_at_breakpoint == exon_annotation_index[contig].end() && genes_before_breakpoint->second.count(gene) > 0 || genes_at_breakpoint != exon_annotation_index[contig].end() && genes_before_breakpoint->second.count(gene) > genes_at_breakpoint->second.count(gene))))
+		return true;
+
+	contig_annotation_index_t::const_iterator genes_after_breakpoint = genes_at_breakpoint;
+	if (genes_after_breakpoint != exon_annotation_index[contig].end())
+		++genes_after_breakpoint;
+
+	if (genes_at_breakpoint != exon_annotation_index[contig].end() && genes_at_breakpoint->first - breakpoint <= max_splice_site_distance &&
+	    (direction == UPSTREAM && genes_after_breakpoint != exon_annotation_index[contig].end() && genes_after_breakpoint->second.count(gene) > genes_at_breakpoint->second.count(gene) ||
+	     direction == DOWNSTREAM && (genes_after_breakpoint == exon_annotation_index[contig].end() && genes_at_breakpoint->second.count(gene) > 0 || genes_after_breakpoint != exon_annotation_index[contig].end() && genes_at_breakpoint->second.count(gene) > genes_after_breakpoint->second.count(gene))))
+		return true;
+
+	return false;
+}
+
 void combine_annotations(const gene_set_t& genes1, const gene_set_t& genes2, gene_set_t& combined, bool make_union) {
 	// when the two ends of a read map to different genes, the mapping is ambiguous
 	// in this case, we try to resolve the ambiguity by taking the gene that both - start and end - overlap with
@@ -137,7 +166,6 @@ void combine_annotations(const gene_set_t& genes1, const gene_set_t& genes2, gen
 
 void get_annotation_by_coordinate(const contig_t contig, const position_t start, const position_t end, gene_set_t& gene_set, annotation_index_t& annotation_index) {
 //TODO support strand-specific libraries
-//TODO make use of splicing
 	if (contig < annotation_index.size()) {
 		contig_annotation_index_t::iterator result_start = annotation_index[contig].lower_bound(start);
 		gene_set_t empty_set;
@@ -154,6 +182,49 @@ void get_annotation_by_coordinate(const contig_t contig, const position_t start,
 				gene_set
 			);
 		}
+	}
+}
+
+void get_annotation_by_alignment(const alignment_t& alignment, gene_set_t& gene_set, annotation_index_t& exon_annotation_index) {
+
+	// first, try to annotate based on the boundaries (start+end) of the alignment
+	get_annotation_by_coordinate(alignment.contig, alignment.start, alignment.end, gene_set, exon_annotation_index);
+
+	// when the alignment overlaps with multiple genes, try to resolve the ambiguity by looking for splice sites that are specific for one gene
+	if (gene_set.size() > 1) {
+		// cycle through CIGAR string and look for introns
+		gene_set_t gene_set_supported_by_splicing = gene_set;
+		position_t reference_position = alignment.start;
+		for (unsigned int i = 0; i < alignment.cigar.size() && gene_set_supported_by_splicing.size() > 1; ++i) {
+			switch (alignment.cigar.operation(i)) {
+				case BAM_CREF_SKIP:
+
+					// whenever we hit an intron in the CIGAR string, check if it aligns with splice sites for each gene
+					for (gene_set_t::iterator gene = gene_set_supported_by_splicing.begin(); gene != gene_set_supported_by_splicing.end();) {
+						if (!is_breakpoint_spliced(*gene, DOWNSTREAM, alignment.contig, reference_position, exon_annotation_index) &&
+						    !is_breakpoint_spliced(*gene, UPSTREAM, alignment.contig, reference_position + alignment.cigar.op_length(i), exon_annotation_index))
+							gene = gene_set_supported_by_splicing.erase(gene);
+						else
+							++gene;
+					}
+
+					// none of the genes match the splice pattern of the alignment
+					// => it's a tie, so we hope to find another intron in the CIGAR string
+					if (gene_set_supported_by_splicing.empty())
+						gene_set_supported_by_splicing = gene_set;
+
+					// fall-through to next case
+				case BAM_CMATCH:
+				case BAM_CDEL:
+					reference_position += alignment.cigar.op_length(i);
+					break;
+			}
+		}
+
+		// if none of the genes match the splice pattern of the alignment, return all genes,
+		// otherwise, only return the matching genes
+		if (!gene_set_supported_by_splicing.empty() && gene_set_supported_by_splicing.size() < gene_set.size())
+			gene_set = gene_set_supported_by_splicing;
 	}
 }
 
@@ -243,31 +314,4 @@ string dna_to_reverse_complement(string& dna) {
 	return reverse_complement;
 }
 
-// check if a breakpoint is near an annotated splice site
-bool is_breakpoint_spliced(const gene_t gene, const direction_t direction, const contig_t contig, const position_t breakpoint, const annotation_index_t& exon_annotation_index) {
-
-	const unsigned int max_splice_site_distance = 2;
-
-	// find overlapping exons
-	contig_annotation_index_t::const_iterator genes_at_breakpoint = exon_annotation_index[contig].lower_bound(breakpoint);
-	contig_annotation_index_t::const_iterator genes_before_breakpoint = genes_at_breakpoint;
-	if (genes_before_breakpoint != exon_annotation_index[contig].begin() && exon_annotation_index[contig].size() > 0)
-		--genes_before_breakpoint;
-
-	if (genes_before_breakpoint != exon_annotation_index[contig].end() && breakpoint - genes_before_breakpoint->first <= max_splice_site_distance &&
-	    (direction == UPSTREAM && genes_at_breakpoint != exon_annotation_index[contig].end() && genes_at_breakpoint->second.count(gene) > genes_before_breakpoint->second.count(gene) ||
-	     direction == DOWNSTREAM && (genes_at_breakpoint == exon_annotation_index[contig].end() && genes_before_breakpoint->second.count(gene) > 0 || genes_at_breakpoint != exon_annotation_index[contig].end() && genes_before_breakpoint->second.count(gene) > genes_at_breakpoint->second.count(gene))))
-		return true;
-
-	contig_annotation_index_t::const_iterator genes_after_breakpoint = genes_at_breakpoint;
-	if (genes_after_breakpoint != exon_annotation_index[contig].end())
-		++genes_after_breakpoint;
-
-	if (genes_at_breakpoint != exon_annotation_index[contig].end() && genes_at_breakpoint->first - breakpoint <= max_splice_site_distance &&
-	    (direction == UPSTREAM && genes_after_breakpoint != exon_annotation_index[contig].end() && genes_after_breakpoint->second.count(gene) > genes_at_breakpoint->second.count(gene) ||
-	     direction == DOWNSTREAM && (genes_after_breakpoint == exon_annotation_index[contig].end() && genes_at_breakpoint->second.count(gene) > 0 || genes_after_breakpoint != exon_annotation_index[contig].end() && genes_at_breakpoint->second.count(gene) > genes_after_breakpoint->second.count(gene))))
-		return true;
-
-	return false;
-}
 

@@ -19,7 +19,6 @@ using namespace std;
 // looking at which promoter likely drives transcription
 enum transcript_start_t { TRANSCRIPT_START_GENE1, TRANSCRIPT_START_GENE2, TRANSCRIPT_START_AMBIGUOUS };
 transcript_start_t get_start_of_transcript(const fusion_t& fusion, const annotation_t& gene_annotation) {
-//TODO inspect splice motifs in unclear cases
 	if (gene_annotation[fusion.gene1].is_dummy) { // if gene1 is a dummy gene, then gene2 has priority; otherwise gene1 has priority
 		// TODO this branch needs a make-over when we support strand-specific libraries
 		if (gene_annotation[fusion.gene2].strand == FORWARD && fusion.direction2 == DOWNSTREAM) { // transcript = gene2(+) -> gene1(+/-)

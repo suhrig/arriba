@@ -6,6 +6,7 @@ using namespace std;
 
 
 
+
 unsigned int filter_same_gene(chimeric_alignments_t& chimeric_alignments) {
 	unsigned int remaining = 0;
 	for (chimeric_alignments_t::iterator i = chimeric_alignments.begin(); i != chimeric_alignments.end(); ++i) {

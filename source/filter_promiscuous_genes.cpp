@@ -55,12 +55,13 @@ void estimate_expected_fusions(fusions_t& fusions, const annotation_t& gene_anno
 	vector<unsigned int/*supporting reads*/> spliced_breakpoints(2);
 	vector<unsigned int/*supporting reads*/> non_spliced_breakpoints(spliced_breakpoints.size());
 	for (fusions_t::iterator i = fusions.begin(); i != fusions.end(); ++i) {
+		unsigned int supporting_reads = i->second.supporting_reads();
 		if (i->second.filters.empty()) {
-			if (i->second.split_reads1 + i->second.split_reads2 > 0 && i->second.supporting_reads() <= spliced_breakpoints.size()) {
+			if (i->second.split_reads1 + i->second.split_reads2 > 0 && supporting_reads <= spliced_breakpoints.size()) {
 				if (i->second.spliced1 || i->second.spliced2)
-					spliced_breakpoints[i->second.supporting_reads()-1]++;
+					spliced_breakpoints[supporting_reads-1]++;
 				else
-					non_spliced_breakpoints[i->second.supporting_reads()-1]++;
+					non_spliced_breakpoints[supporting_reads-1]++;
 			}
 		}
 	}
@@ -92,29 +93,30 @@ void estimate_expected_fusions(fusions_t& fusions, const annotation_t& gene_anno
 		// the more reads there are in the rna.bam file, the more likely we find fusions supported by just a few reads (2-4)
 		// the likelihood increases linearly, therefore we scale up the e-value proportionately to the number of mapped reads
 		// for every 20 million reads, the scaling factor increases by 1 (this is an empirically determined value)
-		i->second.evalue = max_fusion_partners * max(1.0, mapped_reads / 20000000.0 * pow(0.02, i->second.supporting_reads()-2));
+		unsigned int supporting_reads = i->second.supporting_reads();
+		i->second.evalue = max_fusion_partners * max(1.0, mapped_reads / 20000000.0 * pow(0.02, supporting_reads-2));
 
 		// the more fusion partners a gene has, the less likely a fusion is true (hence we multiply the e-value by max_fusion_partners)
-		// but the likehood of a false positive decreases near-exponentially with the number of supporting reads (hence the mutiply by 0.2*0.4^(supporting_reads-2) )
-		if (i->second.supporting_reads() > 1) {
+		// but the likehood of a false positive decreases near-exponentially with the number of supporting reads (hence we multiply by x^(supporting_reads-2) )
+		if (supporting_reads > 1) {
 			i->second.evalue *= 0.035;
-			if (i->second.supporting_reads() > 2) {
+			if (supporting_reads > 2) {
 				i->second.evalue *= 0.2;
-				if (i->second.supporting_reads() > 3)
-					i->second.evalue *= pow(0.4, i->second.supporting_reads()-3);
+				if (supporting_reads > 3)
+					i->second.evalue *= pow(0.4, supporting_reads-3);
 			}
 		}
 
 		// breakpoints at splice-sites get a bonus
-		if (i->second.supporting_reads() > 0) {
+		if (supporting_reads > 0) {
 			if (i->second.spliced1 || i->second.spliced2) {
-				if (i->second.supporting_reads() <= spliced_breakpoint_bonus.size())
-					i->second.evalue *= spliced_breakpoint_bonus[i->second.supporting_reads()-1];
+				if (supporting_reads <= spliced_breakpoint_bonus.size())
+					i->second.evalue *= spliced_breakpoint_bonus[supporting_reads-1];
 				else
 					i->second.evalue *= spliced_breakpoint_bonus[spliced_breakpoints.size()-1];
 			} else {
-				if (i->second.supporting_reads() <= non_spliced_breakpoint_bonus.size())
-					i->second.evalue *= non_spliced_breakpoint_bonus[i->second.supporting_reads()-1];
+				if (supporting_reads <= non_spliced_breakpoint_bonus.size())
+					i->second.evalue *= non_spliced_breakpoint_bonus[supporting_reads-1];
 				else
 					i->second.evalue *= non_spliced_breakpoint_bonus[spliced_breakpoints.size()-1];
 			}

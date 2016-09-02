@@ -40,9 +40,13 @@ void make_annotation_index(const annotation_t& annotation, annotation_index_t& a
 void gene_multiset_to_set(gene_multiset_t gene_multiset, gene_set_t& gene_set);
 gene_set_t gene_multiset_to_set(gene_multiset_t gene_multiset);
 
+bool is_breakpoint_spliced(const gene_t gene, const direction_t direction, const contig_t contig, const position_t breakpoint, const annotation_index_t& exon_annotation_index);
+
 void combine_annotations(const gene_set_t& genes1, const gene_set_t& genes2, gene_set_t& combined, bool make_union = true);
 
 void get_annotation_by_coordinate(const contig_t contig, const position_t start, const position_t end, gene_set_t& gene_set, annotation_index_t& annotation_index);
+
+void get_annotation_by_alignment(const alignment_t& alignment, gene_set_t& gene_set, annotation_index_t& exon_annotation_index);
 
 void get_boundaries_of_biggest_gene(gene_set_t& genes, const annotation_t& gene_annotation, position_t& start, position_t& end);
 
@@ -51,8 +55,6 @@ void fetch_gene_sequences_from_fasta(const string& assembly_file_path, fusions_t
 void dna_to_reverse_complement(string& dna, string& reverse_complement);
 
 string dna_to_reverse_complement(string& dna);
-
-bool is_breakpoint_spliced(const gene_t gene, const direction_t direction, const contig_t contig, const position_t breakpoint, const annotation_index_t& exon_annotation_index);
 
 
 #endif /*_ANNOTATION_H*/

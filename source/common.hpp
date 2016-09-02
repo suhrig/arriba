@@ -27,8 +27,8 @@ typedef multiset<gene_t> gene_multiset_t;
 
 class cigar_t: public vector<uint32_t> {
 	public:
-		uint32_t operation(unsigned int index) { return this->at(index) & 15; }; // select lower 4 bits to get the operation of the CIGAR element
-		uint32_t op_length(unsigned int index) { return this->at(index) >> 4; }; // remove lower 4 bits to get the length of the CIGAR element
+		uint32_t operation(unsigned int index) const { return this->at(index) & 15; }; // select lower 4 bits to get the operation of the CIGAR element
+		uint32_t op_length(unsigned int index) const { return this->at(index) >> 4; }; // remove lower 4 bits to get the length of the CIGAR element
 		cigar_t operator=(const bam1_t* bam_record) { for (int i = 0; i < bam_record->core.n_cigar; ++i) { this->push_back(bam1_cigar(bam_record)[i]); }; return *this; };
 };
 

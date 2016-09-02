@@ -164,8 +164,17 @@ int main(int argc, char **argv) {
 	// first, try to annotate with exons
 	for (chimeric_alignments_t::iterator i = chimeric_alignments.begin(); i != chimeric_alignments.end(); ++i) {
 		for (mates_t::iterator j = i->second.begin(); j != i->second.end(); ++j) {
-			get_annotation_by_coordinate(j->contig, j->start, j->end, j->genes, exon_annotation_index);
+			get_annotation_by_alignment(*j, j->genes, exon_annotation_index);
 			j->exonic = !j->genes.empty();
+		}
+		// try to resolve ambiguous mappings using mapping information from mate
+		if (i->second.size() == 3) {
+			gene_set_t combined;
+			combine_annotations(i->second[SPLIT_READ].genes, i->second[MATE1].genes, combined);
+			if (i->second[MATE1].genes.empty() || combined.size() < i->second[MATE1].genes.size())
+				i->second[MATE1].genes = combined;
+			if (i->second[SPLIT_READ].genes.empty() || combined.size() < i->second[SPLIT_READ].genes.size())
+				i->second[SPLIT_READ].genes = combined;
 		}
 	}
 
@@ -179,6 +188,8 @@ int main(int argc, char **argv) {
 		if (i->second.size() == 3) {
 			gene_set_t combined;
 			combine_annotations(i->second[SPLIT_READ].genes, i->second[MATE1].genes, combined);
+			if (i->second[MATE1].genes.empty() || combined.size() < i->second[MATE1].genes.size())
+				i->second[MATE1].genes = combined;
 			if (i->second[SPLIT_READ].genes.empty() || combined.size() < i->second[SPLIT_READ].genes.size())
 				i->second[SPLIT_READ].genes = combined;
 		}
