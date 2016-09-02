@@ -16,7 +16,7 @@ options_t get_default_options() {
 	options.interesting_contigs = "1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 X Y";
 	for (auto i = FILTERS.begin(); i != FILTERS.end(); ++i)
 		options.filters[i->first] = true;
-	options.evalue_cutoff = 0.4;
+	options.evalue_cutoff = 0.3;
 	options.min_support = 2;
 	options.max_mismapper_fraction = 0.8;
 	options.min_anchor_length = 23;
@@ -162,12 +162,12 @@ void print_usage(const string& error_message) {
 	                  "of the sequence, then the read is discarded. Default: " + to_string(default_options.max_kmer_content))
 	     << wrap_help("-S", "When set, the column 'fusion_transcript' is populated with "
 	                  "the sequence of the fused genes as assembled from the supporting reads. "
-	                  "The following letters have special meanings:\\n"
+	                  "The following letters have special meanings:\n"
 	                  "lowercase letter = SNP/SNV, square brackets = insertion, dash = deletion, "
 	                  "ellipsis = intron/not covered bases, pipe = breakpoint, lowercase letters, "
-	                  "flanked by pipes = non-template bases.\\nSpecify twice to also print the "
+	                  "flanked by pipes = non-template bases.\nSpecify twice to also print the "
 	                  "fusion transcripts to the file containing discarded fusions (-O). "
-	                  "Note: Specifying twice may be slow.\\n"
+	                  "Note: Specifying twice may be slow.\n"
 	                  "Note: SNVs/SNPs are not indicated in the file containing discarded fusions. "
 	                  "Default: " + string((default_options.print_fusion_sequence) ? "on" : "off"))
 	     << wrap_help("-I", "When set, the column 'read_identifiers' is populated with "
