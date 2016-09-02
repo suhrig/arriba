@@ -167,7 +167,6 @@ void print_usage(const string& error_message) {
 	                  "ellipsis = intron/not covered bases, pipe = breakpoint, lowercase letters, "
 	                  "flanked by pipes = non-template bases.\nSpecify twice to also print the "
 	                  "fusion transcripts to the file containing discarded fusions (-O). "
-	                  "Note: Specifying twice may be slow.\n"
 	                  "Note: SNVs/SNPs are not indicated in the file containing discarded fusions. "
 	                  "Default: " + string((default_options.print_fusion_sequence) ? "on" : "off"))
 	     << wrap_help("-I", "When set, the column 'read_identifiers' is populated with "

@@ -81,19 +81,23 @@ void pileup_chimeric_alignments(vector<mates_t*>& chimeric_alignments, const uns
 
 		position_t read_offset = 0;
 		position_t reference_offset = read.start;
+		int subtract_from_next_element = 0;
 		for (int cigar_element = 0; cigar_element < read.cigar.size(); cigar_element++) {
 			switch (read.cigar.operation(cigar_element)) {
 				case BAM_CINS:
 					pileup[reference_offset][read_sequence.substr(read_offset, read.cigar.op_length(cigar_element)+1)]++;
-					read_offset += read.cigar.op_length(cigar_element)+1;
-					++reference_offset;
+					read_offset += read.cigar.op_length(cigar_element) + 1; // +1, because we take one base from the next element
+					++reference_offset; // +1, because we take one base from the next element
+					subtract_from_next_element = 1; // because we took one base from the next element
 					break;
 				case BAM_CREF_SKIP:
-					reference_offset += read.cigar.op_length(cigar_element);
+					reference_offset += read.cigar.op_length(cigar_element) - subtract_from_next_element;
+					subtract_from_next_element = 0;
 					break;
 				case BAM_CDEL:
-					for (position_t base = 0; base < read.cigar.op_length(cigar_element); ++base, ++reference_offset)
+					for (position_t base = 0; base < read.cigar.op_length(cigar_element) - subtract_from_next_element; ++base, ++reference_offset)
 						pileup[reference_offset]["-"]++; // indicate deletion by dash
+					subtract_from_next_element = 0;
 					break;
 				case BAM_CSOFT_CLIP:
 					if (mate == SPLIT_READ &&
@@ -102,12 +106,13 @@ void pileup_chimeric_alignments(vector<mates_t*>& chimeric_alignments, const uns
 							reference_offset -= read.cigar.op_length(cigar_element);
 						// fall through to next branch (we want the clipped segment to be part of the pileup to look for non-template bases
 					} else {
-						read_offset += read.cigar.op_length(cigar_element);
+						read_offset += read.cigar.op_length(cigar_element) - subtract_from_next_element;
 						break;
 					}
 				case BAM_CMATCH:
-					for (position_t base = 0; base < read.cigar.op_length(cigar_element); ++base, ++read_offset, ++reference_offset)
+					for (position_t base = 0; base < read.cigar.op_length(cigar_element) - subtract_from_next_element; ++base, ++read_offset, ++reference_offset)
 						pileup[reference_offset][read_sequence.substr(read_offset,1)]++;
+					subtract_from_next_element = 0;
 					break;
 			}
 		}
@@ -364,6 +369,7 @@ string gene_to_name(const gene_t gene, const contig_t contig, const position_t b
 void write_fusions_to_file(fusions_t& fusions, const string& output_file, annotation_t& gene_annotation, annotation_index_t& gene_annotation_index, annotation_index_t& exon_annotation_index, vector<string> contigs_by_id, const bool print_supporting_reads, const bool print_fusion_sequence, const bool write_discarded_fusions) {
 //TODO add "chr", if necessary
 //TODO add fusion_strand
+//TODO add type (inversion, read-through, translocation)
 //TODO update help after changing columns
 
 	// make a vector of pointers to all fusions
