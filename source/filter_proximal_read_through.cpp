@@ -13,7 +13,7 @@ unsigned int filter_proximal_read_through(chimeric_alignments_t& chimeric_alignm
 			continue; // the read has already been filtered
 
 		if (i->second.size() == 2) { // only filter discordant mates
-//TODO also apply to split-reads
+
 			// find forward and reverse mate
 			alignment_t& forward_mate = (i->second[MATE1].strand == FORWARD) ? i->second[MATE1] : i->second[MATE2];
 			alignment_t& reverse_mate = (i->second[MATE1].strand == FORWARD) ? i->second[MATE2] : i->second[MATE1];

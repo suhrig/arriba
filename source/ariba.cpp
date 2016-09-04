@@ -260,14 +260,14 @@ int main(int argc, char **argv) {
 	cout << "Estimating expected number of fusions by random chance (e-value)" << endl << flush;
 	estimate_expected_fusions(fusions, gene_annotation, mapped_reads);
 
-	if (options.filters.at("intronic")) {
-		cout << "Filtering fusions with both breakpoints in intronic/intergenic regions" << flush;
-		cout << " (remaining=" << filter_both_intronic(fusions) << ")" << endl;
-	}
-
 	if (options.filters.at("promiscuous_genes")) {
 		cout << "Filtering fusions with an e-value >=" << options.evalue_cutoff << flush;
 		cout << " (remaining=" << filter_promiscuous_genes(fusions, options.evalue_cutoff) << ")" << endl;
+	}
+
+	if (options.filters.at("intronic")) {
+		cout << "Filtering fusions with both breakpoints in intronic/intergenic regions" << flush;
+		cout << " (remaining=" << filter_both_intronic(fusions) << ")" << endl;
 	}
 
 	// this step must come after the 'promiscuous_genes' filter,

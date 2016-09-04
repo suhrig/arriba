@@ -157,6 +157,9 @@ unsigned int filter_mismappers(fusions_t& fusions, annotation_t& gene_annotation
 		if (!fusion->second.filters.empty())
 			continue; // fusion has already been filtered
 
+		if (fusion->second.gene1 == fusion->second.gene2)
+			continue; // re-aligning the read only makes sense between different genes
+
 		// re-align split reads
 		vector<mates_t*> all_split_reads = fusion->second.split_read1_list;
 		all_split_reads.insert(all_split_reads.end(), fusion->second.split_read2_list.begin(), fusion->second.split_read2_list.end());

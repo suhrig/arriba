@@ -31,7 +31,7 @@ void estimate_expected_fusions(fusions_t& fusions, const annotation_t& gene_anno
 	// find all fusion partners for each gene
 	vector< set<gene_t> > fusion_partners(gene_annotation.size());
 	for (fusions_t::iterator i = fusions.begin(); i != fusions.end(); ++i) {
-		if (i->second.filters.empty()) {
+		if (i->second.filters.empty() && i->second.gene1 != i->second.gene2) {
 			if (!i->second.overlap_duplicate1)
 				fusion_partners[i->second.gene2].insert(i->second.gene1);
 			if (!i->second.overlap_duplicate2)
@@ -93,18 +93,49 @@ void estimate_expected_fusions(fusions_t& fusions, const annotation_t& gene_anno
 		// the more reads there are in the rna.bam file, the more likely we find fusions supported by just a few reads (2-4)
 		// the likelihood increases linearly, therefore we scale up the e-value proportionately to the number of mapped reads
 		// for every 20 million reads, the scaling factor increases by 1 (this is an empirically determined value)
-		unsigned int supporting_reads = i->second.supporting_reads();
+		unsigned int supporting_reads;
+		if (i->second.gene1 != i->second.gene2) // for intergenic fusions we take the sum of all supporting reads (split reads + discordant mates)
+			supporting_reads = i->second.supporting_reads();
+		else // for intragenic fusions we ignore discordant mates, because they are very abundant
+			supporting_reads = i->second.split_reads1 + i->second.split_reads2;
+
 		i->second.evalue = max_fusion_partners * max(1.0, mapped_reads / 20000000.0 * pow(0.02, supporting_reads-2));
 
-		// the more fusion partners a gene has, the less likely a fusion is true (hence we multiply the e-value by max_fusion_partners)
-		// but the likehood of a false positive decreases near-exponentially with the number of supporting reads (hence we multiply by x^(supporting_reads-2) )
-		if (supporting_reads > 1) {
-			i->second.evalue *= 0.035;
-			if (supporting_reads > 2) {
-				i->second.evalue *= 0.2;
-				if (supporting_reads > 3)
-					i->second.evalue *= pow(0.4, supporting_reads-3);
+		// intergenic and intragenic fusions are scored differently, because they have different frequencies
+		if (i->second.gene1 != i->second.gene2) {
+
+			// the more fusion partners a gene has, the less likely a fusion is true (hence we multiply the e-value by max_fusion_partners)
+			// but the likehood of a false positive decreases near-exponentially with the number of supporting reads (hence we multiply by x^(supporting_reads-2) )
+			if (supporting_reads > 1) {
+				i->second.evalue *= 0.035;
+				if (supporting_reads > 2) {
+					i->second.evalue *= 0.2;
+					if (supporting_reads > 3)
+						i->second.evalue *= pow(0.4, supporting_reads-3);
+				}
 			}
+
+		} else { // i->second.gene1 == i->second.gene2
+
+			if (supporting_reads > 1) {
+				i->second.evalue *= 0.125;
+				if (supporting_reads > 2) {
+					i->second.evalue *= 0.3;
+					if (supporting_reads > 3)
+						i->second.evalue *= pow(0.4, supporting_reads-3);
+				}
+
+				// having discordant mates in addition to split reads only gives a small bonus
+				if (i->second.discordant_mates > 0)
+					i->second.evalue *= 0.9;
+
+			} else if (i->second.discordant_mates > 0) { // event is only supported by discordant mates
+				i->second.evalue *= 0.1;
+				if (i->second.discordant_mates > 1)
+					i->second.evalue *= 0.9;
+			}
+
+
 		}
 
 		// breakpoints at splice-sites get a bonus
@@ -122,7 +153,6 @@ void estimate_expected_fusions(fusions_t& fusions, const annotation_t& gene_anno
 			}
 		}
 	}
-
 }
 
 unsigned int filter_promiscuous_genes(fusions_t& fusions, const float evalue_cutoff) {
