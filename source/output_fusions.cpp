@@ -19,6 +19,7 @@ using namespace std;
 // looking at which promoter likely drives transcription
 enum transcript_start_t { TRANSCRIPT_START_GENE1, TRANSCRIPT_START_GENE2, TRANSCRIPT_START_AMBIGUOUS };
 transcript_start_t get_start_of_transcript(const fusion_t& fusion, const annotation_t& gene_annotation) {
+//TODO make use of splice information
 	if (gene_annotation[fusion.gene1].is_dummy) { // if gene1 is a dummy gene, then gene2 has priority; otherwise gene1 has priority
 		// TODO this branch needs a make-over when we support strand-specific libraries
 		if (gene_annotation[fusion.gene2].strand == FORWARD && fusion.direction2 == DOWNSTREAM) { // transcript = gene2(+) -> gene1(+/-)
@@ -365,10 +366,111 @@ string gene_to_name(const gene_t gene, const contig_t contig, const position_t b
 	}
 }
 
+string get_fusion_type(const fusion_t& fusion, const annotation_t& gene_annotation) {
+	if (fusion.contig1 != fusion.contig2) {
+		if (gene_annotation[fusion.gene1].is_dummy || gene_annotation[fusion.gene2].is_dummy) {
+			return "translocation/truncation"; // fusion ends up in intergenic region => gene is truncated
+		} else if (fusion.direction1 == fusion.direction2 && gene_annotation[fusion.gene1].strand != gene_annotation[fusion.gene2].strand ||
+		         fusion.direction1 != fusion.direction2 && gene_annotation[fusion.gene1].strand == gene_annotation[fusion.gene2].strand) {
+			return "translocation"; // orderly fusion yielding a hybrid protein
+		} else {
+			if (fusion.direction1 == UPSTREAM && fusion.direction2 == UPSTREAM && gene_annotation[fusion.gene1].strand == FORWARD && gene_annotation[fusion.gene2].strand == FORWARD ||
+			    fusion.direction1 == DOWNSTREAM && fusion.direction2 == DOWNSTREAM && gene_annotation[fusion.gene1].strand == REVERSE && gene_annotation[fusion.gene2].strand == REVERSE) {
+				return "translocation/3'-3'"; // tail-to-tail fusion
+			} else {
+				return "translocation/5'-5'"; // head-to-head fusion
+			}
+		}
+	} else { // fusion.contig1 == fusion.contig2
+		if (fusion.direction1 == DOWNSTREAM && fusion.direction2 == UPSTREAM) {
+			if (gene_annotation[fusion.gene1].is_dummy || gene_annotation[fusion.gene2].is_dummy ||
+			    gene_annotation[fusion.gene1].strand == FORWARD || gene_annotation[fusion.gene2].strand == REVERSE) {
+				if (fusion.breakpoint2 - fusion.breakpoint1 <= 400000) {
+					return "deletion/read-through";
+				} else {
+					return "deletion";
+				}
+			} else {
+				return "deletion/3'-3'"; // tail-to-tail fusion
+			}
+		} else if (fusion.direction1 == fusion.direction2) {
+			if (gene_annotation[fusion.gene1].strand != gene_annotation[fusion.gene2].strand) {
+				return "inversion";
+			} else {
+				if (fusion.direction1 == UPSTREAM && gene_annotation[fusion.gene1].strand == REVERSE ||
+				    fusion.direction1 == UPSTREAM && gene_annotation[fusion.gene1].strand == REVERSE) {
+					return "inversion/5'-5'";
+				} else {
+					return "inversion/3'-3'";
+				}
+			}
+		} else { // fusion.direction1 == UPSTREAM && fusion.direction2 == DOWNSTREAM
+			if (gene_annotation[fusion.gene1].strand == gene_annotation[fusion.gene2].strand) {
+				return "duplication";
+			} else {
+				if (gene_annotation[fusion.gene1].strand == REVERSE) {
+					return "duplication/5'-5'";
+				} else {
+					return "duplication/3'-3'";
+				}
+			}
+		}
+	}
+}
+
+string get_fusion_strand(const gene_t gene1, const gene_t gene2, const direction_t direction1, const direction_t direction2, const bool is_start, const annotation_t& gene_annotation, const transcript_start_t& transcript_start) {
+	string result;
+
+	// determine strand of gene as per annotation
+	if (gene_annotation[gene1].is_dummy)
+		result = ".";
+	else
+		result = (gene_annotation[gene1].strand == FORWARD) ? "+" : "-";
+
+	// separator between gene strand and fusion strand
+	result += "/";
+
+	// determine most likely strand of fusion from the directions of the fusion
+	if (transcript_start == TRANSCRIPT_START_AMBIGUOUS) {
+		result += ".";
+	} else {
+		if (is_start) {
+			if (gene_annotation[gene1].is_dummy) {
+				if (gene_annotation[gene2].is_dummy) {
+					result += ".";
+				} else {
+					if (direction1 != direction2) {
+						result += (gene_annotation[gene2].strand == FORWARD) ? "+" : "-";
+					} else {
+						result += (gene_annotation[gene2].strand == FORWARD) ? "-" : "+";
+					}
+				}
+			} else {
+				result += (gene_annotation[gene1].strand == FORWARD) ? "+" : "-";
+			}
+		} else { // !is_start
+			if (gene_annotation[gene2].is_dummy) {
+				if (gene_annotation[gene1].is_dummy) {
+					result += ".";
+				} else {
+					result += (gene_annotation[gene1].strand == FORWARD) ? "+" : "-";
+				}
+			} else {
+				if (direction1 != direction2) {
+					result += (gene_annotation[gene2].strand == FORWARD) ? "+" : "-";
+				} else {
+					result += (gene_annotation[gene2].strand == FORWARD) ? "-" : "+";
+				}
+			}
+		}
+	}
+
+	return result;
+}
+
 void write_fusions_to_file(fusions_t& fusions, const string& output_file, annotation_t& gene_annotation, annotation_index_t& gene_annotation_index, annotation_index_t& exon_annotation_index, vector<string> contigs_by_id, const bool print_supporting_reads, const bool print_fusion_sequence, const bool write_discarded_fusions) {
 //TODO add "chr", if necessary
 //TODO add fusion_strand
-//TODO add type (inversion, read-through, translocation)
 //TODO update help after changing columns
 
 	// make a vector of pointers to all fusions
@@ -414,7 +516,7 @@ void write_fusions_to_file(fusions_t& fusions, const string& output_file, annota
 		cerr << "ERROR: Failed to open output file '" << output_file << "'." << endl;
 		exit(1);
 	}
-	out << "#gene1\tgene2\tstrand1\tstrand2\tbreakpoint1\tbreakpoint2\tsite1\tsite2\tdirection1\tdirection2\tsplit_reads1\tsplit_reads2\tdiscordant_mates\te-value\tfilter\tfusion_transcript\tread_identifiers" << endl;
+	out << "#gene1\tgene2\tstrand1(gene/fusion)\tstrand2(gene/fusion)\tbreakpoint1\tbreakpoint2\tsite1\tsite2\ttype\tdirection1\tdirection2\tsplit_reads1\tsplit_reads2\tdiscordant_mates\te-value\tfilter\tfusion_transcript\tread_identifiers" << endl;
 	for (vector<fusion_t*>::iterator i = sorted_fusions.begin(); i != sorted_fusions.end(); ++i) {
 
 		if ((**i).filters.empty() == write_discarded_fusions) // write either filtered or unfiltered fusions, but not both
@@ -458,10 +560,10 @@ void write_fusions_to_file(fusions_t& fusions, const string& output_file, annota
 		}
 
 		out << gene_to_name(gene1, contig1, breakpoint1, gene_annotation, gene_annotation_index) << "\t" << gene_to_name(gene2, contig2, breakpoint2, gene_annotation, gene_annotation_index) << "\t"
-		    << ((gene_annotation[gene1].is_dummy) ? "." : ((gene_annotation[gene1].strand == FORWARD) ? "+" : "-")) << "\t" << ((gene_annotation[gene2].is_dummy) ? "." : ((gene_annotation[gene2].strand == FORWARD) ? "+" : "-")) << "\t"
+		    << get_fusion_strand(gene1, gene2, direction1, direction2, true, gene_annotation, transcript_start) << "\t" << get_fusion_strand(gene2, gene1, direction2, direction1, false, gene_annotation, transcript_start) << "\t"
 		    << contigs_by_id[contig1] << ":" << (breakpoint1+1) << "\t" << contigs_by_id[contig2] << ":" << (breakpoint2+1) << "\t"
 		    << site1 << "\t" << site2 << "\t"
-		    << ((direction1 == UPSTREAM) ? "upstream" : "downstream") << "\t" << ((direction2 == UPSTREAM) ? "upstream" : "downstream") << "\t"
+		    << get_fusion_type(**i, gene_annotation) << "\t" << ((direction1 == UPSTREAM) ? "upstream" : "downstream") << "\t" << ((direction2 == UPSTREAM) ? "upstream" : "downstream") << "\t"
 		    << split_reads1 << "\t" << split_reads2 << "\t" << (**i).discordant_mates << "\t" << (**i).evalue;
 
 		// count the number of reads discarded by a given filter
