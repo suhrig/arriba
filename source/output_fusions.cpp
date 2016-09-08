@@ -384,14 +384,20 @@ string get_fusion_type(const fusion_t& fusion, const annotation_t& gene_annotati
 	} else { // fusion.contig1 == fusion.contig2
 		if (fusion.direction1 == DOWNSTREAM && fusion.direction2 == UPSTREAM) {
 			if (gene_annotation[fusion.gene1].is_dummy || gene_annotation[fusion.gene2].is_dummy ||
-			    gene_annotation[fusion.gene1].strand == FORWARD || gene_annotation[fusion.gene2].strand == REVERSE) {
+			    (gene_annotation[fusion.gene1].strand == gene_annotation[fusion.gene2].strand)) {
 				if (fusion.breakpoint2 - fusion.breakpoint1 <= 400000) {
 					return "deletion/read-through";
 				} else {
 					return "deletion";
 				}
+			} else if (gene_annotation[fusion.gene1].strand == FORWARD || gene_annotation[fusion.gene2].strand == REVERSE) {
+				if (fusion.breakpoint2 - fusion.breakpoint1 <= 400000) {
+					return "deletion/read-through";
+				} else {
+					return "deletion/5'-5'";
+				}
 			} else {
-				return "deletion/3'-3'"; // tail-to-tail fusion
+					return "deletion/3'-3'"; // tail-to-tail fusion
 			}
 		} else if (fusion.direction1 == fusion.direction2) {
 			if (gene_annotation[fusion.gene1].strand != gene_annotation[fusion.gene2].strand) {

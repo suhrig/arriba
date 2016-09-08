@@ -38,11 +38,13 @@ unsigned int recover_both_spliced(fusions_t& fusions, const annotation_t& gene_a
 	unsigned int remaining = 0;
 	for (fusions_t::iterator i = fusions.begin(); i != fusions.end(); ++i) {
 
-		if (i->second.filters.empty() || // fusion has not been filtered, no need to recover
-		    i->second.gene1 == i->second.gene2) { // don't recover intragenic events (this would produce too many hits)
+		if (i->second.filters.empty()) { // fusion has not been filtered, no need to recover
 			remaining++;
 			continue;
 		}
+
+		if (i->second.gene1 == i->second.gene2)
+			continue; // don't recover intragenic events (this would produce too many hits)
 
 		if (are_both_breakpoints_spliced(i->second, gene_annotation) &&
 		    supporting_reads_by_gene_pair[make_tuple(i->second.gene1, i->second.gene2, i->second.direction1, i->second.direction2)] >= 2 || low_tumor_content) { // require at least two reads or else the false positive rate sky-rockets

@@ -39,8 +39,10 @@ unsigned int filter_same_gene(chimeric_alignments_t& chimeric_alignments) {
 			combine_annotations(i->second[MATE1].genes, i->second[MATE2].genes, common_genes, false);
 		else // split read
 			combine_annotations(i->second[MATE2].genes, i->second[SUPPLEMENTARY].genes, common_genes, false);
-		if (common_genes.empty())
+		if (common_genes.empty()) {
+			remaining++;
 			continue; // we are only interested in intragenic events here
+		}
 
 		if (i->second.size() == 2) { // discordant mates
 
