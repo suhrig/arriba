@@ -10,6 +10,8 @@
 
 using namespace std;
 
+
+
 bool find_spanning_intron(const bam1_t* read, const position_t gene1_end, const position_t gene2_start, unsigned int& cigar_op, position_t& read_pos, position_t& gene2_pos) {
 
 	if (read->core.n_cigar < 3)

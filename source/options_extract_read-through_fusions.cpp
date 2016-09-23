@@ -72,6 +72,10 @@ options_t parse_arguments(int argc, char **argv) {
 				break;
 			case 'o':
 				options.output_bam_file = optarg;
+				if (!output_directory_exists(options.output_bam_file)) {
+					cerr << "ERROR: Parent directory of output file '" << options.output_bam_file << "' does not exist." << endl;
+					exit(1);
+				}
 				break;
 			case '?':
 				switch (optopt) {

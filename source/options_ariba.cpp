@@ -222,9 +222,17 @@ options_t parse_arguments(int argc, char **argv) {
 				break;
 			case 'o':
 				options.output_file = optarg;
+				if (!output_directory_exists(options.output_file)) {
+					cerr << "ERROR: Parent directory of output file '" << options.output_file << "' does not exist." << endl;
+					exit(1);
+				}
 				break;
 			case 'O':
 				options.discarded_output_file = optarg;
+				if (!output_directory_exists(options.discarded_output_file)) {
+					cerr << "ERROR: Parent directory of output file '" << options.discarded_output_file << "' does not exist." << endl;
+					exit(1);
+				}
 				break;
 			case 'a':
 				options.assembly_file = optarg;
