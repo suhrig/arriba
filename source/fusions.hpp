@@ -6,6 +6,6 @@
 
 using namespace std;
 
-unsigned int find_fusions(chimeric_alignments_t& chimeric_alignments, fusions_t& fusions, annotation_index_t& exon_annotation_index);
+unsigned int find_fusions(chimeric_alignments_t& chimeric_alignments, fusions_t& fusions, exon_annotation_index_t& exon_annotation_index);
 
 #endif /* _FIND_FUSIONS_H */

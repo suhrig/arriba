@@ -7,6 +7,6 @@
 
 using namespace std;
 
-unsigned int filter_nonexpressed(fusions_t& fusions, const string& bam_file_path, chimeric_alignments_t& chimeric_alignments, const annotation_t& gene_annotation, annotation_t& exon_annotation);
+unsigned int filter_nonexpressed(fusions_t& fusions, const string& bam_file_path, chimeric_alignments_t& chimeric_alignments, exon_annotation_t& exon_annotation);
 
 #endif /* _FILTER_NONEXPRESSED_H */

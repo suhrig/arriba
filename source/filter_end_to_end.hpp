@@ -6,6 +6,6 @@
 
 using namespace std;
 
-unsigned int filter_end_to_end_fusions(fusions_t& fusions, const annotation_t& gene_annotation);
+unsigned int filter_end_to_end_fusions(fusions_t& fusions);
 
 #endif /* _FILTER_END_TO_END_H */

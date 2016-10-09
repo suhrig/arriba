@@ -2,13 +2,13 @@
 #include <iostream>
 #include <string>
 #include "sam.h"
-#include "common.hpp"
 #include "annotation.hpp"
+#include "common.hpp"
 #include "read_chimeric_alignments.hpp"
 
 using namespace std;
 
-unsigned int read_chimeric_alignments(const string& bam_file_path, chimeric_alignments_t& chimeric_alignments, contigs_t& contigs, bool read_through) {
+unsigned int read_chimeric_alignments(const string& bam_file_path, chimeric_alignments_t& chimeric_alignments, contigs_t& contigs, const bool read_through) {
 
 	chimeric_alignments_t read_through_alignments; // we only need this, when reading read-through alignments
 

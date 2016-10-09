@@ -1,4 +1,5 @@
 #include <string>
+#include <unordered_map>
 #include "sam.h"
 #include "common.hpp"
 #include "annotation.hpp"
@@ -33,7 +34,7 @@ bool region_has_non_chimeric_reads(BGZF* bam_file, bam_index_t* bam_index, const
 	return result;
 }
 
-unsigned int filter_nonexpressed(fusions_t& fusions, const string& bam_file_path, chimeric_alignments_t& chimeric_alignments, const annotation_t& gene_annotation, annotation_t& exon_annotation) {
+unsigned int filter_nonexpressed(fusions_t& fusions, const string& bam_file_path, chimeric_alignments_t& chimeric_alignments, exon_annotation_t& exon_annotation) {
 
 	// When the breakpoint is close to the start/end of a transcript, then
 	// there might not be any reads in the normal rna.bam file around the breakpoint
@@ -41,25 +42,25 @@ unsigned int filter_nonexpressed(fusions_t& fusions, const string& bam_file_path
 	// For this reason, we do not filter these breakpoints, when there is no expression
 	// in their vicinity. But we need to determine which exons are the first/last
 	// exons of a gene.
-	vector< vector<annotation_record_t*> > terminal_exons_by_gene(gene_annotation.size());
-	for (annotation_t::iterator exon = exon_annotation.begin(); exon != exon_annotation.end(); ++exon) {
+	unordered_map< gene_t,vector<exon_annotation_record_t*> > terminal_exons_by_gene;
+	for (exon_annotation_t::iterator exon = exon_annotation.begin(); exon != exon_annotation.end(); ++exon) {
 
-		if (terminal_exons_by_gene[exon->id].size() == 0) { // we encounter the first exon of this gene => simply add it
-			terminal_exons_by_gene[exon->id].push_back(&(*exon));
+		if (terminal_exons_by_gene[exon->gene].size() == 0) { // we encounter the first exon of this gene => simply add it
+			terminal_exons_by_gene[exon->gene].push_back(&(*exon));
 
-		} else if (terminal_exons_by_gene[exon->id].size() == 1) { // we encounter the second exon of this gene => simply add it
-			if (exon->start < terminal_exons_by_gene[exon->id][0]->start || exon->end > terminal_exons_by_gene[exon->id][0]->end) { // ignore exons which are encompassed by other exons
-				terminal_exons_by_gene[exon->id].push_back(&(*exon));
-				if (terminal_exons_by_gene[exon->id][0]->start > terminal_exons_by_gene[exon->id][1]->start ||
-				    terminal_exons_by_gene[exon->id][0]->end > terminal_exons_by_gene[exon->id][1]->end)
-					swap(terminal_exons_by_gene[exon->id][0], terminal_exons_by_gene[exon->id][1]); // make sure exons are sorted by coordinate
+		} else if (terminal_exons_by_gene[exon->gene].size() == 1) { // we encounter the second exon of this gene => simply add it
+			if (exon->start < terminal_exons_by_gene[exon->gene][0]->start || exon->end > terminal_exons_by_gene[exon->gene][0]->end) { // ignore exons which are encompassed by other exons
+				terminal_exons_by_gene[exon->gene].push_back(&(*exon));
+				if (terminal_exons_by_gene[exon->gene][0]->start > terminal_exons_by_gene[exon->gene][1]->start ||
+				    terminal_exons_by_gene[exon->gene][0]->end > terminal_exons_by_gene[exon->gene][1]->end)
+					swap(terminal_exons_by_gene[exon->gene][0], terminal_exons_by_gene[exon->gene][1]); // make sure exons are sorted by coordinate
 			}
 
 		} else { // we encounter the third (or more) exon of this gene => check if it is a terminal exon
-			if (terminal_exons_by_gene[exon->id][0]->start > exon->start) {
-				terminal_exons_by_gene[exon->id][0] = &(*exon);
-			} else if (terminal_exons_by_gene[exon->id][1]->end < exon->end) {
-				terminal_exons_by_gene[exon->id][1] = &(*exon);
+			if (terminal_exons_by_gene[exon->gene][0]->start > exon->start) {
+				terminal_exons_by_gene[exon->gene][0] = &(*exon);
+			} else if (terminal_exons_by_gene[exon->gene][1]->end < exon->end) {
+				terminal_exons_by_gene[exon->gene][1] = &(*exon);
 			}
 		}
 

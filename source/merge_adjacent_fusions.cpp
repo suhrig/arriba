@@ -1,7 +1,6 @@
 #include <tuple>
 #include <vector>
 #include "common.hpp"
-#include "annotation.hpp"
 #include "options.hpp"
 #include "fusions.hpp"
 #include "merge_adjacent_fusions.hpp"

@@ -1,4 +1,3 @@
-#include <iostream>
 #include <unordered_map>
 #include <algorithm>
 #include <string>
@@ -9,8 +8,6 @@
 #include "options_extract_read-through_fusions.hpp"
 
 using namespace std;
-
-
 
 bool find_spanning_intron(const bam1_t* read, const position_t gene1_end, const position_t gene2_start, unsigned int& cigar_op, position_t& read_pos, position_t& gene2_pos) {
 
@@ -79,6 +76,8 @@ void clip_start(BGZF* output_bam_file, bam1_t* read, unsigned int cigar_op, posi
 
 typedef map<string,bam1_t*> buffered_bam_records_t;
 
+//TODO does not throw an error on out-of-memory
+
 int main(int argc, char **argv) {
 
 	options_t options = parse_arguments(argc, argv);
@@ -93,11 +92,13 @@ int main(int argc, char **argv) {
 		contigs[removeChr(bam_header->target_name[i])] = i;
 
 	// read gene annotation
-	annotation_t gene_annotation;
-	annotation_t exon_annotation;
-	read_annotation_gtf(options.gene_annotation_file, gene_annotation, exon_annotation, contigs);
+	gene_annotation_t gene_annotation;
+	exon_annotation_t exon_annotation;
+	unordered_map<string,gene_t> gene_names;
+	read_annotation_gtf(options.gene_annotation_file, contigs, gene_annotation, exon_annotation, gene_names);
 	exon_annotation.clear(); // we don't need exon information
-	annotation_index_t gene_annotation_index;
+	gene_names.clear(); // we don't need gene names
+	gene_annotation_index_t gene_annotation_index;
 	make_annotation_index(gene_annotation, gene_annotation_index, contigs);
 
 	// open output BAM file
@@ -113,7 +114,7 @@ int main(int argc, char **argv) {
 		    (bam_record->core.flag & BAM_FUNMAP) || (bam_record->core.flag & BAM_FMUNMAP) || // ignore single mates
 		    (bam_record->core.flag & BAM_FSECONDARY)) // ignore secondary alignments
 			continue;
-	
+
 		// try to insert the mate into the buffered BAM records
 		// if there was already a record with the same read name, insertion will fail (set to false) and
 		// existing_element will point to the mate which was already in the buffered BAM records
@@ -149,8 +150,8 @@ int main(int argc, char **argv) {
 
 				// find the biggest genes that the mates overlap with
 				position_t forward_gene_start, forward_gene_end, reverse_gene_start, reverse_gene_end;
-				get_boundaries_of_biggest_gene(forward_mate_genes, gene_annotation, forward_gene_start, forward_gene_end);
-				get_boundaries_of_biggest_gene(reverse_mate_genes, gene_annotation, reverse_gene_start, reverse_gene_end);
+				get_boundaries_of_biggest_gene(forward_mate_genes, forward_gene_start, forward_gene_end);
+				get_boundaries_of_biggest_gene(reverse_mate_genes, reverse_gene_start, reverse_gene_end);
 
 				// if a mate does not overlap with any gene,
 				// use the boundaries of the mate or of the gene of the other mate

@@ -22,10 +22,10 @@ using namespace std;
 
 
 
-unsigned int filter_pcr_fusions(fusions_t& fusions, const annotation_t& gene_annotation, const float max_pcr_fusion_score, const unsigned int max_exonic_breakpoints, const unsigned int max_partners_with_many_exonic_breakpoints, const unsigned int min_split_reads) {
+unsigned int filter_pcr_fusions(fusions_t& fusions, const float max_pcr_fusion_score, const unsigned int max_exonic_breakpoints, const unsigned int max_partners_with_many_exonic_breakpoints, const unsigned int min_split_reads) {
 
-	vector<unsigned int> exonic_breakpoint_count(gene_annotation.size()); // count the number of fusions with exonic (non-spliced) breakpoints for each gene
-	vector<unsigned int> partners_with_many_exonic_breakpoints(gene_annotation.size()); // count the number of gene partners which have many exonic breakpoints for each gene
+	unordered_map< gene_t,unsigned int > exonic_breakpoint_count; // count the number of fusions with exonic (non-spliced) breakpoints for each gene
+	unordered_map< gene_t,unsigned int > partners_with_many_exonic_breakpoints; // count the number of gene partners which have many exonic breakpoints for each gene
 	unordered_map< tuple<gene_t/*gene1*/, gene_t/*gene2*/>, unsigned int > exonic_breakpoints_by_gene_pair; // count the number of exonic breakpoints for each gene pair
 	for (fusions_t::iterator i = fusions.begin(); i != fusions.end(); ++i) {
 		if (i->second.gene1 != i->second.gene2 && // there are often many breakpoints within the same gene (probably hairpin fusions)
@@ -49,14 +49,9 @@ unsigned int filter_pcr_fusions(fusions_t& fusions, const annotation_t& gene_ann
 	}
 
 	// calculate score which reflects the likelihood of PCR fusions for each gene
-	vector<float> pcr_fusion_scores(gene_annotation.size());
-	for (unsigned int i = 0; i < gene_annotation.size(); ++i) {
-		pcr_fusion_scores[i] = partners_with_many_exonic_breakpoints[i];
-		if (exonic_breakpoint_count[i] > 0)
-			pcr_fusion_scores[i] *= log10(exonic_breakpoint_count[i]); // we take the logarithm so that the factors have about equal order of magnitude / weight
-		else
-			pcr_fusion_scores[i] = 0;
-	}
+	unordered_map< gene_t,float > pcr_fusion_scores;
+	for (auto i = partners_with_many_exonic_breakpoints.begin(); i != partners_with_many_exonic_breakpoints.end(); ++i)
+		pcr_fusion_scores[i->first] = i->second * log10(exonic_breakpoint_count[i->first]); // we take the logarithm so that the factors have about equal order of magnitude / weight
 
 	unsigned int remaining = 0;
 	for (fusions_t::iterator i = fusions.begin(); i != fusions.end(); ++i) {

@@ -12,9 +12,6 @@
 
 using namespace std;
 
-//TODO filter all IG* genes (e.g., IGKV7-3, IGKC)
-
-
 bool parse_range(string range, const contigs_t& contigs, contig_t& contig, position_t& start, position_t& end) {
 	istringstream iss;
 

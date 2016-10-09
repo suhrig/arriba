@@ -25,7 +25,7 @@ bool is_breakpoint_within_aligned_segment(const position_t breakpoint, const ali
 	return false;
 }
 
-unsigned int filter_same_gene(chimeric_alignments_t& chimeric_alignments) {
+unsigned int filter_same_gene(chimeric_alignments_t& chimeric_alignments, exon_annotation_index_t& exon_annotation_index) {
 	unsigned int remaining = 0;
 	for (chimeric_alignments_t::iterator i = chimeric_alignments.begin(); i != chimeric_alignments.end(); ++i) {
 
@@ -54,6 +54,8 @@ unsigned int filter_same_gene(chimeric_alignments_t& chimeric_alignments) {
 
 			position_t breakpoint1 = (i->second[MATE1].strand == FORWARD) ? i->second[MATE1].end : i->second[MATE1].start;
 			position_t breakpoint2 = (i->second[MATE2].strand == FORWARD) ? i->second[MATE2].end : i->second[MATE2].start;
+			direction_t direction1 = (i->second[MATE1].strand == FORWARD) ? DOWNSTREAM : UPSTREAM;
+			direction_t direction2 = (i->second[MATE2].strand == FORWARD) ? DOWNSTREAM : UPSTREAM;
 
 			if (abs(breakpoint1 - breakpoint2) <= 200 ||
 			    is_breakpoint_within_aligned_segment(breakpoint1, i->second[MATE2]) ||
@@ -71,10 +73,18 @@ unsigned int filter_same_gene(chimeric_alignments_t& chimeric_alignments) {
 			}
 
 			position_t breakpoint_split_read = (i->second[SPLIT_READ].strand == FORWARD) ? i->second[SPLIT_READ].start : i->second[SPLIT_READ].end;
+			direction_t direction_split_read = (i->second[SPLIT_READ].strand == FORWARD) ? UPSTREAM : DOWNSTREAM;
 			position_t breakpoint_supplementary = (i->second[SUPPLEMENTARY].strand == FORWARD) ? i->second[SUPPLEMENTARY].end : i->second[SUPPLEMENTARY].start;
+			direction_t direction_supplementary = (i->second[SUPPLEMENTARY].strand == FORWARD) ? DOWNSTREAM : UPSTREAM;
 			position_t gap_start_mate1 = (i->second[MATE1].strand == FORWARD) ? i->second[MATE1].end : i->second[MATE1].start;
+			direction_t direction_gap_start_mate1 = (i->second[MATE1].strand == FORWARD) ? DOWNSTREAM : UPSTREAM;
 			position_t gap_start_split_read = (i->second[SPLIT_READ].strand == FORWARD) ? i->second[SPLIT_READ].end : i->second[SPLIT_READ].start;
-			if (abs(breakpoint_supplementary - gap_start_mate1) <= 200 ||
+			direction_t direction_gap_start_split_read = (i->second[SPLIT_READ].strand == FORWARD) ? DOWNSTREAM : UPSTREAM;
+			position_t start_mate1 = (i->second[MATE1].strand == FORWARD) ? i->second[MATE1].start : i->second[MATE1].end;
+			direction_t direction_start_mate1 = (i->second[MATE1].strand == FORWARD) ? UPSTREAM : DOWNSTREAM;
+			if (abs(breakpoint_supplementary - breakpoint_split_read) <= 200 ||
+			    abs(breakpoint_supplementary - gap_start_mate1) <= 200 ||
+			    abs(breakpoint_supplementary - start_mate1) <= 200 ||
 			    abs(breakpoint_supplementary - gap_start_split_read) <= 200 ||
 			    is_breakpoint_within_aligned_segment(breakpoint_split_read, i->second[SUPPLEMENTARY]) ||
 			    is_breakpoint_within_aligned_segment(breakpoint_supplementary, i->second[SPLIT_READ]) ||

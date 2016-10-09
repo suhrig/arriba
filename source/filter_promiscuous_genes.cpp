@@ -26,10 +26,11 @@ unsigned long int count_mapped_reads(const string& bam_file_path, const vector<b
 	return result;
 }
 
-void estimate_expected_fusions(fusions_t& fusions, const annotation_t& gene_annotation, const unsigned long int mapped_reads) {
+
+void estimate_expected_fusions(fusions_t& fusions, const unsigned long int mapped_reads) {
 
 	// find all fusion partners for each gene
-	vector< set<gene_t> > fusion_partners(gene_annotation.size());
+	unordered_map< gene_t,gene_set_t > fusion_partners;
 	for (fusions_t::iterator i = fusions.begin(); i != fusions.end(); ++i) {
 		if (i->second.filters.empty() && i->second.gene1 != i->second.gene2) {
 			if (!i->second.overlap_duplicate1)
@@ -41,11 +42,11 @@ void estimate_expected_fusions(fusions_t& fusions, const annotation_t& gene_anno
 
 	// count the number of fusion partners for each gene
 	// fusions with genes that have more fusion partners are ignored
-	vector<int> fusion_partner_count(gene_annotation.size());
-	for (gene_t i = 0; i < gene_annotation.size(); ++i) {
-		for (set<gene_t>::iterator j = fusion_partners[i].begin(); j != fusion_partners[i].end(); ++j) {
-			if (fusion_partners[i].size() >= fusion_partners[*j].size()) {
-				fusion_partner_count[i]++;
+	unordered_map<gene_t,int> fusion_partner_count;
+	for (auto fusion_partner1 = fusion_partners.begin(); fusion_partner1 != fusion_partners.end(); ++fusion_partner1) {
+		for (auto fusion_partner2 = fusion_partner1->second.begin(); fusion_partner2 != fusion_partner1->second.end(); ++fusion_partner2) {
+			if (fusion_partner1->second.size() >= fusion_partners[*fusion_partner2].size()) {
+				fusion_partner_count[fusion_partner1->first]++;
 			}
 		}
 	}
@@ -84,8 +85,8 @@ void estimate_expected_fusions(fusions_t& fusions, const annotation_t& gene_anno
 
 		// pick the gene with the most fusion partners
 		float max_fusion_partners = max(
-			10000.0 / gene_annotation[i->second.gene1].exonic_length * max(fusion_partner_count[i->second.gene1]-1, 0),
-			10000.0 / gene_annotation[i->second.gene2].exonic_length * max(fusion_partner_count[i->second.gene2]-1, 0)
+			10000.0 / i->second.gene1->exonic_length * max(fusion_partner_count[i->second.gene1]-1, 0),
+			10000.0 / i->second.gene2->exonic_length * max(fusion_partner_count[i->second.gene2]-1, 0)
 		);
 
 		// calculate expected number of fusions (e-value)

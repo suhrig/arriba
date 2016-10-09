@@ -9,6 +9,7 @@
 using namespace std;
 
 typedef unordered_map< string, vector<string::size_type> > kmer_index_t;
+typedef unordered_map<gene_t,kmer_index_t> kmer_indices_t;
 
 bool align(int score, const string& read_sequence, string::size_type read_pos, const string& gene_sequence, string::size_type gene_pos, kmer_index_t& kmer_index, const unsigned int kmer_length, const int min_score, unsigned int segment_count) {
 
@@ -103,19 +104,19 @@ bool align(int score, const string& read_sequence, string::size_type read_pos, c
 	return false;
 }
 
-bool align_both_strands(const string& read_sequence, vector<kmer_index_t>& kmer_indices, gene_set_t& genes, annotation_t& gene_annotation, const unsigned int kmer_length, const int max_score, const float min_align_percent) {
+bool align_both_strands(const string& read_sequence, kmer_indices_t& kmer_indices, gene_set_t& genes, const unsigned int kmer_length, const int max_score, const float min_align_percent) {
 	int min_score = min_align_percent * read_sequence.size();
 	if (min_score > max_score)
 		min_score = max_score;
-	for (gene_set_t::iterator i = genes.begin(); i != genes.end(); ++i) {
-		if (!gene_annotation[*i].sequence.empty()) {
-			if (align(0, read_sequence, 0, gene_annotation[*i].sequence, 0, kmer_indices[*i], kmer_length, min_score, 1)) { // align on forward strand
+	for (gene_set_t::iterator gene = genes.begin(); gene != genes.end(); ++gene) {
+		if (!(**gene).sequence.empty()) {
+			if (align(0, read_sequence, 0, (**gene).sequence, 0, kmer_indices[*gene], kmer_length, min_score, 1)) { // align on forward strand
 				return true;
 			} else { // align on reverse strand
 				string reverse_complement;
 				string original = read_sequence;
 				dna_to_reverse_complement(original, reverse_complement);
-				return align(0, reverse_complement, 0, gene_annotation[*i].sequence, 0, kmer_indices[*i], kmer_length, min_score, 1);
+				return align(0, reverse_complement, 0, (**gene).sequence, 0, kmer_indices[*gene], kmer_length, min_score, 1);
 			}
 		}
 	}
@@ -135,19 +136,19 @@ void count_mismappers(vector<mates_t*>& chimeric_alignments_list, unsigned int& 
 	}
 }
 
-unsigned int filter_mismappers(fusions_t& fusions, annotation_t& gene_annotation, float max_mismapper_fraction) {
+unsigned int filter_mismappers(fusions_t& fusions, gene_annotation_t& gene_annotation, float max_mismapper_fraction) {
 
 	const unsigned int kmer_length = 8;
 	const int max_score = 30; // maximum amount of nucleotides which need to align to consider alignment good
 	float min_align_percent = 0.8; // allow ~1 mismatch for every six matches
 
 	// make kmer indices from gene sequences
-	vector<kmer_index_t> kmer_indices(gene_annotation.size()); // contains a kmer index for every gene sequence
-	for (unsigned int gene = 0; gene < gene_annotation.size(); ++gene) {
-		if (!gene_annotation[gene].sequence.empty()) {
+	kmer_indices_t kmer_indices; // contains a kmer index for every gene sequence
+	for (gene_annotation_t::iterator gene = gene_annotation.begin(); gene != gene_annotation.end(); ++gene) {
+		if (!gene->sequence.empty()) {
 			// store positions of kmers in hash
-			for (string::size_type pos = 0; pos + kmer_length < gene_annotation[gene].sequence.length(); pos++)
-				kmer_indices[gene][gene_annotation[gene].sequence.substr(pos, kmer_length)].push_back(pos);
+			for (string::size_type pos = 0; pos + kmer_length < gene->sequence.length(); pos++)
+				kmer_indices[&(*gene)][gene->sequence.substr(pos, kmer_length)].push_back(pos);
 		}
 	}
 
@@ -169,13 +170,13 @@ unsigned int filter_mismappers(fusions_t& fusions, annotation_t& gene_annotation
 
 				alignment_t& split_read = (**i)[SPLIT_READ]; // introduce alias for cleaner code
 				if (split_read.strand == FORWARD) {
-					if (align_both_strands(split_read.sequence.substr(0, split_read.preclipping()), kmer_indices, split_read.genes, gene_annotation, kmer_length, max_score, min_align_percent) || // clipped segment aligns to donor
-					    align_both_strands((**i)[MATE1].sequence, kmer_indices, (**i)[SUPPLEMENTARY].genes, gene_annotation, kmer_length, max_score, min_align_percent)) { // non-spliced mate aligns to acceptor
+					if (align_both_strands(split_read.sequence.substr(0, split_read.preclipping()), kmer_indices, split_read.genes, kmer_length, max_score, min_align_percent) || // clipped segment aligns to donor
+					    align_both_strands((**i)[MATE1].sequence, kmer_indices, (**i)[SUPPLEMENTARY].genes, kmer_length, max_score, min_align_percent)) { // non-spliced mate aligns to acceptor
 						(**i).filters.insert(FILTERS.at("mismappers"));
 					}
 				} else { // split_read.strand == REVERSE
-					if (align_both_strands(split_read.sequence.substr(split_read.sequence.length() - split_read.postclipping()), kmer_indices, split_read.genes, gene_annotation, kmer_length, max_score, min_align_percent) || // clipped segment aligns to donor
-					    align_both_strands((**i)[MATE1].sequence, kmer_indices, (**i)[SUPPLEMENTARY].genes, gene_annotation, kmer_length, max_score, min_align_percent)) { // non-spliced mate aligns to acceptor
+					if (align_both_strands(split_read.sequence.substr(split_read.sequence.length() - split_read.postclipping()), kmer_indices, split_read.genes, kmer_length, max_score, min_align_percent) || // clipped segment aligns to donor
+					    align_both_strands((**i)[MATE1].sequence, kmer_indices, (**i)[SUPPLEMENTARY].genes, kmer_length, max_score, min_align_percent)) { // non-spliced mate aligns to acceptor
 						(**i).filters.insert(FILTERS.at("mismappers"));
 					}
 				}
@@ -187,8 +188,8 @@ unsigned int filter_mismappers(fusions_t& fusions, annotation_t& gene_annotation
 		for (auto i = fusion->second.discordant_mate_list.begin(); i != fusion->second.discordant_mate_list.end(); ++i)
 			if ((**i).filters.empty()) // read has not yet been filtered
 				if ((**i).size() == 2) // discordant mates
-					if (align_both_strands((**i)[MATE1].sequence, kmer_indices, (**i)[MATE2].genes, gene_annotation, kmer_length, max_score, min_align_percent) ||
-					    align_both_strands((**i)[MATE2].sequence, kmer_indices, (**i)[MATE1].genes, gene_annotation, kmer_length, max_score, min_align_percent))
+					if (align_both_strands((**i)[MATE1].sequence, kmer_indices, (**i)[MATE2].genes, kmer_length, max_score, min_align_percent) ||
+					    align_both_strands((**i)[MATE2].sequence, kmer_indices, (**i)[MATE1].genes, kmer_length, max_score, min_align_percent))
 						(**i).filters.insert(FILTERS.at("mismappers"));
 
 	}

@@ -6,6 +6,6 @@
 
 using namespace std;
 
-unsigned int filter_mismappers(fusions_t& fusions, annotation_t& gene_annotation, float max_mismapper_fraction);
+unsigned int filter_mismappers(fusions_t& fusions, gene_annotation_t& gene_annotation, float max_mismapper_fraction);
 
 #endif /* _FILTER_MISMAPPERS_H */

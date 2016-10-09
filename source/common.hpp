@@ -1,6 +1,8 @@
 #ifndef _COMMON_H
 #define _COMMON_H 1
 
+#include <deque>
+#include <map>
 #include <string>
 #include <set>
 #include <tuple>
@@ -21,9 +23,50 @@ typedef unsigned short int contig_t;
 typedef unordered_map<string,contig_t> contigs_t;
 typedef int position_t;
 
-typedef unsigned int gene_t;
-typedef set<gene_t> gene_set_t;
-typedef multiset<gene_t> gene_multiset_t;
+struct annotation_record_t {
+	contig_t contig;
+	position_t start;
+	position_t end;
+	strand_t strand;
+	// function to sort annotation records by coordinate
+	inline bool operator < (const annotation_record_t& x) const {
+		if (contig != x.contig) return contig < x.contig;
+		return end < x.end;
+	}
+	void copy(const annotation_record_t& x) {
+		*this = x;
+	}
+};
+template <class T> class annotation_set_t: public set<T> {};
+template <class T> class annotation_multiset_t: public multiset<T> {};
+template <class T> class annotation_t: public deque<T> {}; // must be a deque for stable pointers
+template <class T> class contig_annotation_index_t: public map< position_t, annotation_multiset_t<T> > {};
+template <class T> class annotation_index_t: public vector< contig_annotation_index_t<T> > {};
+
+struct gene_annotation_record_t: public annotation_record_t {
+	string name;
+	string sequence;
+	int exonic_length; // sum of the length of all exons in a gene
+	bool is_dummy;
+};
+typedef gene_annotation_record_t* gene_t;
+typedef annotation_set_t<gene_t> gene_set_t;
+typedef annotation_multiset_t<gene_t> gene_multiset_t;
+typedef annotation_t<gene_annotation_record_t> gene_annotation_t;
+typedef contig_annotation_index_t<gene_t> gene_contig_annotation_index_t;
+typedef annotation_index_t<gene_t> gene_annotation_index_t;
+
+typedef unsigned int transcript_t;
+struct exon_annotation_record_t: public annotation_record_t {
+	gene_t gene;
+	transcript_t transcript;
+};
+typedef exon_annotation_record_t* exon_t;
+typedef annotation_set_t<exon_t> exon_set_t;
+typedef annotation_multiset_t<exon_t> exon_multiset_t;
+typedef annotation_t<exon_annotation_record_t> exon_annotation_t;
+typedef contig_annotation_index_t<exon_t> exon_contig_annotation_index_t;
+typedef annotation_index_t<exon_t> exon_annotation_index_t;
 
 class cigar_t: public vector<uint32_t> {
 	public:

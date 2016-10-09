@@ -12,7 +12,7 @@
 
 using namespace std;
 
-unsigned int find_fusions(chimeric_alignments_t& chimeric_alignments, fusions_t& fusions, annotation_index_t& exon_annotation_index) {
+unsigned int find_fusions(chimeric_alignments_t& chimeric_alignments, fusions_t& fusions, exon_annotation_index_t& exon_annotation_index) {
 
 	typedef unordered_map< tuple<gene_t/*gene1*/,gene_t/*gene2*/>, vector<chimeric_alignments_t::iterator> > discordant_mates_by_gene_pair_t;
 	discordant_mates_by_gene_pair_t discordant_mates_by_gene_pair; // contains the discordant mates for each pair of genes
