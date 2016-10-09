@@ -247,7 +247,9 @@ for (fusion in 1:nrow(fusions)) {
 	if (printFusionTranscript && fusions[fusion,"fusion_transcript"] != ".") {
 		# print fusion transcript colored by gene of origin
 		fusion_transcript1 <- gsub("\\|.*", "", fusions[fusion,"fusion_transcript"], perl=T)
+		fusion_transcript1 <- substr(fusion_transcript1, max(1, nchar(fusion_transcript1)-30), nchar(fusion_transcript1))
 		fusion_transcript2 <- gsub(".*\\|", "", fusions[fusion,"fusion_transcript"], perl=T)
+		fusion_transcript2 <- substr(fusion_transcript2, 1, min(nchar(fusion_transcript2), 30))
 		text(scalingFactor/2, -0.09, bquote("Breakpoint-spanning transcript = " * phantom(.(fusion_transcript1)) * phantom(.(fusion_transcript2))), cex=0.75)
 		text(scalingFactor/2, -0.09, bquote(phantom("Breakpoint-spanning transcript = ") * .(fusion_transcript1) * phantom(.(fusion_transcript2))), col="darkolivegreen4", cex=0.75)
 		text(scalingFactor/2, -0.09, bquote(phantom("Breakpoint-spanning transcript = ") * phantom(.(fusion_transcript1)) * .(fusion_transcript2)), col="deepskyblue4", cex=0.75)
