@@ -576,6 +576,7 @@ void write_fusions_to_file(fusions_t& fusions, const string& output_file, gene_a
 		for (auto filter = (**i).filters.begin(); filter != (**i).filters.end(); ++filter)
 			filters[**filter] = 0;
 		vector<mates_t*> all_supporting_reads = (**i).split_read1_list;
+		all_supporting_reads.insert(all_supporting_reads.end(), (**i).split_read1_list.begin(), (**i).split_read1_list.end());
 		all_supporting_reads.insert(all_supporting_reads.end(), (**i).split_read2_list.begin(), (**i).split_read2_list.end());
 		all_supporting_reads.insert(all_supporting_reads.end(), (**i).discordant_mate_list.begin(), (**i).discordant_mate_list.end());
 		for (auto chimeric_alignment = all_supporting_reads.begin(); chimeric_alignment != all_supporting_reads.end(); ++chimeric_alignment)
