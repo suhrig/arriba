@@ -36,6 +36,8 @@ void dna_to_reverse_complement(string& dna, string& reverse_complement);
 
 string dna_to_reverse_complement(string& dna);
 
+int get_spliced_distance(const contig_t contig, const position_t position1, const position_t position2, const direction_t direction1, const direction_t direction2, const gene_t gene, const exon_annotation_index_t& exon_annotation_index);
+
 // include template functions
 #include "annotation.t.hpp"
 

@@ -318,3 +318,45 @@ string dna_to_reverse_complement(string& dna) {
 	return reverse_complement;
 }
 
+// get the distance between two positions after splicing (i.e., ignoring introns)
+int get_spliced_distance(const contig_t contig, position_t position1, position_t position2, direction_t direction1, direction_t direction2, const gene_t gene, const exon_annotation_index_t& exon_annotation_index) {
+
+	if (position1 > position2) {
+		swap(position1, position2);
+		swap(direction1, direction2);
+	}
+
+	// find exon/intron of position1
+	exon_contig_annotation_index_t::const_iterator p1 = exon_annotation_index[contig].lower_bound(position1);
+	// find exon/intron of position2
+	exon_contig_annotation_index_t::const_iterator p2 = exon_annotation_index[contig].lower_bound(position2);
+
+	if (p1 == p2) // position1 and position2 are in the same intron/exon => distance = difference
+		return position2 - position1;
+
+	// the exon/intron where position1/position2 is located must only be counted partially
+	// (i.e., from position1/position2 to next exon boundary)
+	position_t result = 0;
+	if (!is_breakpoint_spliced(gene, direction1, contig, position1, exon_annotation_index)) {
+		// add distance from position1 to next higher exon boundary
+		result += p1->first - position1;
+	}
+	if (is_breakpoint_spliced(gene, direction2, contig, position2, exon_annotation_index)) {
+		--p2;
+	} else {
+		// add distance from position2 to next lower exon boundary
+		result += position2;
+		--p2;
+		result -= p2->first;
+	}
+
+	// all other exons between position1 and position2 are counted fully
+	while (p1 != p2) {
+		position_t boundary = p1->first;
+		++p1;
+		if (get_genes_from_exons(p1->second).count(gene) > 0) // only exons are counted
+			result += p1->first - boundary;
+	}
+
+	return result;
+}
