@@ -36,6 +36,7 @@ bool region_has_non_chimeric_reads(BGZF* bam_file, bam_index_t* bam_index, const
 
 unsigned int filter_nonexpressed(fusions_t& fusions, const string& bam_file_path, chimeric_alignments_t& chimeric_alignments, exon_annotation_t& exon_annotation) {
 
+
 	// When the breakpoint is close to the start/end of a transcript, then
 	// there might not be any reads in the normal rna.bam file around the breakpoint
 	// other than the chimeric reads.

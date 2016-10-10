@@ -6,6 +6,8 @@
 
 using namespace std;
 
+//TODO is this filter non-deterministic?
+
 unsigned int rank_fusion(fusion_t& fusion) {
 	if (fusion.split_reads1 != 0 && fusion.split_reads2 != 0 && fusion.discordant_mates != 0) {
 		return 4; // fusions with split reads in both genes and discordant mates get the best rank
