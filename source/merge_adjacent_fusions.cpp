@@ -28,13 +28,15 @@ unsigned int merge_adjacent_fusions(fusions_t& fusions, const int max_distance) 
 		bool fusion_has_most_support = true;
 		for (unsigned int k = 0; k < adjacent_fusions.size(); ++k) {
 			if (adjacent_fusions[k] != fusions.end()) {
-				if (fusion->second.split_reads1              + fusion->second.split_reads2              + fusion->second.discordant_mates >=
-				    adjacent_fusions[k]->second.split_reads1 + adjacent_fusions[k]->second.split_reads2 + adjacent_fusions[k]->second.discordant_mates) {
-					sum_split_reads1 += adjacent_fusions[k]->second.split_reads1;
-					sum_split_reads2 += adjacent_fusions[k]->second.split_reads2;
-				} else {
+				if (fusion->second.supporting_reads() < adjacent_fusions[k]->second.supporting_reads() || // fewer supporting reads => this is not the best fusion
+				    fusion->second.supporting_reads() == adjacent_fusions[k]->second.supporting_reads() && // this condition does nothing but ensure deterministic behavior
+				    (fusion->second.breakpoint1 < adjacent_fusions[k]->second.breakpoint1 || // this condition does nothing but ensure deterministic behavior
+				     fusion->second.breakpoint1 == adjacent_fusions[k]->second.breakpoint1 && fusion->second.breakpoint2 < adjacent_fusions[k]->second.breakpoint2)) { // this condition does nothing but ensure deterministic behavior
 					fusion_has_most_support = false;
 					break;
+				} else {
+					sum_split_reads1 += adjacent_fusions[k]->second.split_reads1;
+					sum_split_reads2 += adjacent_fusions[k]->second.split_reads2;
 				}
 			}
 		}

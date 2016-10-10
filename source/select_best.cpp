@@ -6,8 +6,6 @@
 
 using namespace std;
 
-//TODO is this filter non-deterministic?
-
 unsigned int rank_fusion(fusion_t& fusion) {
 	if (fusion.split_reads1 != 0 && fusion.split_reads2 != 0 && fusion.discordant_mates != 0) {
 		return 4; // fusions with split reads in both genes and discordant mates get the best rank
@@ -45,11 +43,14 @@ unsigned int select_most_supported_breakpoints(fusions_t& fusions) {
 				if (i->second.supporting_reads() > current_best->second.supporting_reads()) {
 					best_breakpoints[gene_pair] = i;
 				} else if (i->second.supporting_reads() == current_best->second.supporting_reads()) { // then look for the most upstream / downstream breakpoints
-					if ((i->second.direction1 == DOWNSTREAM && i->second.breakpoint1 > current_best->second.breakpoint1) ||
-					    (i->second.direction1 == UPSTREAM   && i->second.breakpoint1 < current_best->second.breakpoint1) ||
-					    (i->second.direction2 == DOWNSTREAM && i->second.breakpoint2 > current_best->second.breakpoint2) ||
-					    (i->second.direction2 == UPSTREAM   && i->second.breakpoint2 < current_best->second.breakpoint2)) {
+					if (i->second.direction1 == DOWNSTREAM && i->second.breakpoint1 > current_best->second.breakpoint1 ||
+					    i->second.direction1 == UPSTREAM   && i->second.breakpoint1 < current_best->second.breakpoint1) {
 						best_breakpoints[gene_pair] = i;
+					} else if (i->second.direction1 == DOWNSTREAM && i->second.breakpoint1 == current_best->second.breakpoint1 ||
+					           i->second.direction1 == UPSTREAM   && i->second.breakpoint1 == current_best->second.breakpoint1) {
+						if (i->second.direction2 == DOWNSTREAM && i->second.breakpoint2 > current_best->second.breakpoint2 ||
+					            i->second.direction2 == UPSTREAM   && i->second.breakpoint2 < current_best->second.breakpoint2)
+							best_breakpoints[gene_pair] = i;
 					}
 				}
 			}
