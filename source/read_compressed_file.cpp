@@ -37,6 +37,10 @@ void autodecompress_file(const string& file_path, stringstream& file_content) {
 			}
 			buffer[bytes_read] = '\0';
 			file_content << buffer;
+			if (!file_content.good()) {
+				cerr << "ERROR: failed to load file '" << file_path << "' into memory." << endl;
+				exit(1);
+			}
 		} while (bytes_read == buffer_size);
 
 		// free resources
@@ -52,6 +56,10 @@ void autodecompress_file(const string& file_path, stringstream& file_content) {
 			exit(1);
 		}
 		file_content << uncompressed_file.rdbuf();
+		if (!file_content.good()) {
+			cerr << "ERROR: failed to load file '" << file_path << "' into memory." << endl;
+			exit(1);
+		}
 		uncompressed_file.close();
 	}
 }

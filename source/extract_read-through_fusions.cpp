@@ -39,6 +39,10 @@ void clip_end(BGZF* output_bam_file, bam1_t* read, unsigned int cigar_op, positi
 
 	// clip read after intron given in cigar_op
 	bam1_t* clipped_read = bam_dup1(read);
+	if (clipped_read == NULL) {
+		cerr << "ERROR: failed to allocate memory." << endl;
+		exit(1);
+	}
 	copy( // throw away end of CIGAR string by shifting the end of the BAM record a bit to the front
 		(char*) (bam1_cigar(read) + read->core.n_cigar),
 		((char*) read->data) + read->data_len,
@@ -57,6 +61,10 @@ void clip_start(BGZF* output_bam_file, bam1_t* read, unsigned int cigar_op, posi
 
 	// clip read before intron given in cigar_op
 	bam1_t* clipped_read = bam_dup1(read);
+	if (clipped_read == NULL) {
+		cerr << "ERROR: failed to allocate memory." << endl;
+		exit(1);
+	}
 	for (unsigned int i = cigar_op+1; i < read->core.n_cigar; ++i) // copy end of CIGAR string to beginning
 		bam1_cigar(clipped_read)[i - cigar_op] = bam1_cigar(clipped_read)[i];
 	copy( // throw away end of CIGAR string by shifting the end of the BAM record a bit to the front
@@ -75,8 +83,6 @@ void clip_start(BGZF* output_bam_file, bam1_t* read, unsigned int cigar_op, posi
 }
 
 typedef map<string,bam1_t*> buffered_bam_records_t;
-
-//TODO does not throw an error on out-of-memory
 
 int main(int argc, char **argv) {
 
@@ -107,6 +113,10 @@ int main(int argc, char **argv) {
 
 	// read BAM records
 	bam1_t* bam_record = bam_init1();
+	if (bam_record == NULL) {
+		cerr << "ERROR: failed to allocate memory." << endl;
+		exit(1);
+	}
 	buffered_bam_records_t buffered_bam_records; // holds the first mate until we have found the second
 	while (bam_read1(input_bam_file, bam_record) > 0) {
 
@@ -123,6 +133,10 @@ int main(int argc, char **argv) {
 		if (get<1>(existing_element)) { // insertion succeeded, i.e., this is the first mate with the given read name, which we encounter
 			
 			bam_record = bam_init1(); // allocate memory for the next record
+			if (bam_record == NULL) {
+				cerr << "ERROR: failed to allocate memory." << endl;
+				exit(1);
+			}
 
 		} else { // insertion failed, i.e., we have already read the first mate previously
 
