@@ -124,6 +124,8 @@ int main(int argc, char **argv) {
 		cout << " (remaining=" << filter_duplicates(chimeric_alignments) << ")" << endl;
 	}
 
+	
+
 	cout << "Annotating alignments using genes from '" << options.gene_annotation_file << "'" << endl << flush;
 	// load GTF file
 	gene_annotation_t gene_annotation;
@@ -137,7 +139,6 @@ int main(int argc, char **argv) {
 	gene_annotation_index_t gene_annotation_index;
 	make_annotation_index(gene_annotation, gene_annotation_index, contigs);
 
-	//TODO this overestimates the exonic length for genes with multiple transcripts
 	// calculate sum of the lengths of all exons for each gene
 	// we will need this to normalize the number of events over the gene length
 	for (exon_annotation_index_t::iterator contig = exon_annotation_index.begin(); contig != exon_annotation_index.end(); ++contig) {
