@@ -260,9 +260,16 @@ int main(int argc, char **argv) {
 		cout << " (total=" << mapped_reads << ")" << endl;
 	}
 
+	if (options.filters.at("merge_adjacent")) {
+		cout << "Merging adjacent fusion breakpoints" << flush;
+		cout << " (remaining=" << merge_adjacent_fusions(fusions, 5) << ")" << endl;
+	}
+
+	// this step must come after the 'merge_adjacent' filter,
+	// because STAR clips reads supporting the same breakpoints at different position
+	// and that spreads the supporting reads over multiple breakpoints
 	cout << "Estimating expected number of fusions by random chance (e-value)" << endl << flush;
 	estimate_expected_fusions(fusions, mapped_reads);
-
 	if (options.filters.at("promiscuous_genes")) {
 		cout << "Filtering fusions with an e-value >=" << options.evalue_cutoff << flush;
 		cout << " (remaining=" << filter_promiscuous_genes(fusions, options.evalue_cutoff) << ")" << endl;
@@ -295,11 +302,6 @@ int main(int argc, char **argv) {
 	if (options.filters.at("end_to_end")) {
 		cout << "Filtering end-to-end fusions with low support" << flush;
 		cout << " (remaining=" << filter_end_to_end_fusions(fusions) << ")" << endl;
-	}
-
-	if (options.filters.at("merge_adjacent")) {
-		cout << "Merging adjacent fusion breakpoints" << flush;
-		cout << " (remaining=" << merge_adjacent_fusions(fusions, 2) << ")" << endl;
 	}
 
 	// this step must come after the 'merge_adjacent' filter,

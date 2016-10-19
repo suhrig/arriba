@@ -13,15 +13,29 @@ unsigned int merge_adjacent_fusions(fusions_t& fusions, const int max_distance) 
 		if (!fusion->second.filters.empty())
 			continue; // fusion has already been filtered
 
+		if (fusion->second.split_reads1 + fusion->second.split_reads2 == 0)
+			continue; // only merge fusions with exactly known breakpoints
+
 		// find all adjacent breakpoints
 		vector<fusions_t::iterator> adjacent_fusions;
-		for (int d1 = -max_distance; d1 <= +max_distance; d1++)
-			for (int d2 = -max_distance; d2 <= +max_distance; d2++)
-				if (d1 != 0 || d2 != 0) { // don't merge with itself
-					fusions_t::iterator adjacent_fusion = fusions.find(make_tuple(get<0>(fusion->first), get<1>(fusion->first), get<2>(fusion->first), get<3>(fusion->first), get<4>(fusion->first)+d1, get<5>(fusion->first)+d2, get<6>(fusion->first), get<7>(fusion->first)));
-					if (adjacent_fusion != fusions.end() && adjacent_fusion->second.filters.empty())
-						adjacent_fusions.push_back(adjacent_fusion);
-				}
+		for (int distance = -max_distance; distance <= +max_distance; distance++)
+			if (distance != 0) { // don't merge with itself
+				fusions_t::iterator adjacent_fusion = fusions.find(
+					make_tuple(
+						fusion->second.gene1,
+						fusion->second.gene2,
+						fusion->second.contig1,
+						fusion->second.contig2,
+						fusion->second.breakpoint1 + distance,
+						fusion->second.breakpoint2 + distance * ((fusion->second.direction1 == fusion->second.direction2) ? -1 : +1),
+						fusion->second.direction1,
+						fusion->second.direction2
+					)
+				);
+				if (adjacent_fusion != fusions.end() && adjacent_fusion->second.filters.empty() &&
+				    adjacent_fusion->second.split_reads1 + adjacent_fusion->second.split_reads2 > 0)
+					adjacent_fusions.push_back(adjacent_fusion);
+			}
 
 		// select the one with the most supporting alignments
 		unsigned int sum_split_reads1 = 0, sum_split_reads2 = 0;
