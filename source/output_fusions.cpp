@@ -412,7 +412,11 @@ string get_fusion_type(const fusion_t& fusion) {
 			}
 		} else { // fusion.direction1 == UPSTREAM && fusion.direction2 == DOWNSTREAM
 			if (fusion.gene1->strand == fusion.gene2->strand) {
-				return "duplication";
+				if (fusion.gene1 == fusion.gene2 && fusion.spliced1 && fusion.spliced2) {
+					return "duplication/non-canonical_splicing";
+				} else {
+					return "duplication";
+				}
 			} else {
 				if (fusion.gene1->strand == REVERSE) {
 					return "duplication/5'-5'";
