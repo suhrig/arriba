@@ -213,6 +213,8 @@ void get_annotation_by_alignment(const alignment_t& alignment, gene_set_t& gene_
 		position_t reference_position = alignment.start;
 		for (unsigned int i = 0; i < alignment.cigar.size() && gene_set_supported_by_splicing.size() > 1; ++i) {
 			switch (alignment.cigar.operation(i)) {
+				case BAM_CSOFT_CLIP:
+				case BAM_CHARD_CLIP:
 				case BAM_CREF_SKIP:
 
 					// whenever we hit an intron in the CIGAR string, check if it aligns with splice sites for each gene
@@ -228,12 +230,13 @@ void get_annotation_by_alignment(const alignment_t& alignment, gene_set_t& gene_
 					// => it's a tie, so we hope to find another intron in the CIGAR string
 					if (gene_set_supported_by_splicing.empty())
 						gene_set_supported_by_splicing = gene_set;
+			}
 
-					// fall-through to next case
+			switch (alignment.cigar.operation(i)) {
+				case BAM_CREF_SKIP:
 				case BAM_CMATCH:
 				case BAM_CDEL:
 					reference_position += alignment.cigar.op_length(i);
-					break;
 			}
 		}
 
@@ -242,6 +245,7 @@ void get_annotation_by_alignment(const alignment_t& alignment, gene_set_t& gene_
 		if (!gene_set_supported_by_splicing.empty() && gene_set_supported_by_splicing.size() < gene_set.size())
 			gene_set = gene_set_supported_by_splicing;
 	}
+
 }
 
 // when a read overlaps with multiple genes, this function returns the boundaries of the biggest one

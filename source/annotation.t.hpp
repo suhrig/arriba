@@ -45,14 +45,12 @@ template <class T> void make_annotation_index(annotation_t<T>& annotation, annot
 	}
 }
 
-//TODO use const reference for annotation_multiset?
-template <class T> void annotation_multiset_to_set(annotation_multiset_t<T> annotation_multiset, annotation_set_t<T>& annotation_set) {
-	for (typename annotation_multiset_t<T>::iterator i = annotation_multiset.begin(); i != annotation_multiset.end(); i = annotation_multiset.upper_bound(*i))
+template <class T> void annotation_multiset_to_set(const annotation_multiset_t<T> annotation_multiset, annotation_set_t<T>& annotation_set) {
+	for (typename annotation_multiset_t<T>::const_iterator i = annotation_multiset.begin(); i != annotation_multiset.end(); i = annotation_multiset.upper_bound(*i))
 		annotation_set.insert(*i);
 }
 
-//TODO use const reference for annotation_multiset?
-template <class T> annotation_set_t<T> annotation_multiset_to_set(annotation_multiset_t<T> annotation_multiset) {
+template <class T> annotation_set_t<T> annotation_multiset_to_set(const annotation_multiset_t<T> annotation_multiset) {
 	annotation_set_t<T> annotation_set;
 	annotation_multiset_to_set(annotation_multiset, annotation_set);
 	return annotation_set;
@@ -66,24 +64,46 @@ template <class T> void combine_annotations(const annotation_set_t<T>& genes1, c
 		set_union(genes1.begin(), genes1.end(), genes2.begin(), genes2.end(), inserter(combined, combined.begin()));
 }
 
-template <class T> void get_annotation_by_coordinate(const contig_t contig, const position_t start, const position_t end, annotation_set_t<T>& annotation_set, const annotation_index_t<T>& annotation_index) {
+template <class T> void get_annotation_by_coordinate(const contig_t contig, position_t start, position_t end, annotation_set_t<T>& annotation_set, const annotation_index_t<T>& annotation_index) {
 //TODO support strand-specific libraries
-	if (contig < annotation_index.size()) {
-		typename contig_annotation_index_t<T>::const_iterator result_start = annotation_index[contig].lower_bound(start);
-		annotation_set_t<T> empty_set;
-		if (start == end) {
-			if (result_start != annotation_index[contig].end())
-				annotation_multiset_to_set(result_start->second, annotation_set);
-			else
-				annotation_set = empty_set;
-		} else {
-			typename contig_annotation_index_t<T>::const_iterator result_end = annotation_index[contig].lower_bound(end);
-			combine_annotations(
-				(result_start != annotation_index[contig].end()) ? annotation_multiset_to_set(result_start->second) : empty_set,
-				(result_end != annotation_index[contig].end()) ? annotation_multiset_to_set(result_end->second) : empty_set,
-				annotation_set
-			);
+	if (start == end) {
+
+		// get all features at position
+		typename contig_annotation_index_t<T>::const_iterator position = annotation_index[contig].lower_bound(start);
+		if (position != annotation_index[contig].end())
+			annotation_multiset_to_set(position->second, annotation_set);
+		else
+			annotation_set.clear(); // return empty set
+
+	} else {
+		if (start > end)
+			swap(start, end);
+
+		// get all features at start (+ 2bp)
+		annotation_multiset_t<T> result_start;
+		typename contig_annotation_index_t<T>::const_iterator position_start = annotation_index[contig].lower_bound(start);
+		if (position_start != annotation_index[contig].end()) {
+			result_start = position_start->second;
+			if (position_start->first - start <= 2) {
+				++position_start;
+				if (position_start != annotation_index[contig].end())
+					result_start.insert(position_start->second.begin(), position_start->second.end());
+			}
 		}
+
+		// get all features at end (- 2 bp)
+		annotation_multiset_t<T> result_end;
+		typename contig_annotation_index_t<T>::const_iterator position_end = annotation_index[contig].lower_bound(end);
+		if (position_end != annotation_index[contig].end())
+			result_end = position_end->second;
+		if (position_end != annotation_index[contig].begin() && annotation_index[contig].size() > 0) {
+			--position_end;
+			if (end - position_end->first <= 2)
+				result_end.insert(position_end->second.begin(), position_end->second.end());
+		}
+
+		// take intersection of genes at start and end
+		combine_annotations(annotation_multiset_to_set(result_start), annotation_multiset_to_set(result_end), annotation_set);
 	}
 }
 
