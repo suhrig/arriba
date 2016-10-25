@@ -19,8 +19,8 @@ parseStringParameter <- function(parameter, args, default="") {
 	return(ifelse(length(result) == 0, default, result))
 }
 if (any(grepl("^--help", args)))
-	stop("usage: draw_fusions.R --exonAnnotation=exon_annotation.bed --fusions=fusions.tsv --output=output.pdf [--sqishIntrons=TRUE] [--printStats=TRUE] [--printFusionTranscript=TRUE] [--pdfPaper=a4r] [--pdfWidth=11] [--pdfHeight=7]")
-exonsFile <- parseStringParameter("exonAnnotation", args)
+	stop("usage: draw_fusions.R --annotation=annotation.gtf --fusions=fusions.tsv --output=output.pdf [--squishIntrons=TRUE] [--printStats=TRUE] [--printFusionTranscript=TRUE] [--pdfPaper=a4r] [--pdfWidth=11] [--pdfHeight=7]")
+exonsFile <- parseStringParameter("annotation", args)
 if (file.access(exonsFile) == -1)
 	stop(sprintf("Exon annotation file (%s) does not exist", exonsFile))
 fusionsFile <- parseStringParameter("fusions", args)
@@ -38,30 +38,40 @@ pdfHeight <- as.integer(parseStringParameter("pdfHeight", args, "7"))
 
 # read fusions
 fusions <- read.table(fusionsFile, stringsAsFactors=F, sep="\t", header=T, comment.char="")
-colnames(fusions)[which(colnames(fusions) == "X.gene1")] <- "gene1"
-fusions$contig1 <- sub(":.*", "", fusions$breakpoint1);
-fusions$breakpoint1 <- as.numeric(sub(".*:", "", fusions$breakpoint1, perl=T));
-fusions$contig2 <- sub(":.*", "", fusions$breakpoint2);
-fusions$breakpoint2 <- as.numeric(sub(".*:", "", fusions$breakpoint2, perl=T));
+colnames(fusions)[colnames(fusions) == "X.gene1"] <- "gene1"
+fusions$contig1 <- sub(":.*", "", fusions$breakpoint1)
+fusions$breakpoint1 <- as.numeric(sub(".*:", "", fusions$breakpoint1, perl=T))
+fusions$contig2 <- sub(":.*", "", fusions$breakpoint2)
+fusions$breakpoint2 <- as.numeric(sub(".*:", "", fusions$breakpoint2, perl=T))
 
 # read exon annotation
-exons <- read.table(exonsFile, stringsAsFactors=F, sep="\t", header=T, comment.char="")[,1:6]
+exons <- read.table(exonsFile, header=F, sep="\t", comment.char="#", quote="", stringsAsFactors=F)[,c(1, 3, 4, 5, 7, 9)]
+colnames(exons) <- c("contig", "type", "start", "end", "strand", "attributes")
+exons <- exons[exons$type %in% c("exon", "UTR") & grepl("exon_number ", exons$attributes),]
+exons$geneName <- gsub(".*gene_name \"?([^;\"]+)\"?;.*", "\\1", exons$attributes)
+exons$transcript <- gsub(".*transcript_id \"?([^;\"]+)\"?;.*", "\\1", exons$attributes)
+exons$exonNumber <- gsub(".*exon_number \"?([^;\"]+)\"?;.*", "\\1", exons$attributes)
+exons <- exons[, !colnames(exons) %in% c("type", "attributes")]
 
 # insert dummy annotations for dummy genes
 if (any(grepl(",", fusions$gene1) | grepl(",", fusions$gene2))) {
 	intergenicBreakpoints <- rbind(
-		setNames(fusions[grepl(",", fusions$gene1),c("gene1", "breakpoint1")], c("gene", "breakpoint")),
-		setNames(fusions[grepl(",", fusions$gene2),c("gene2", "breakpoint2")], c("gene", "breakpoint"))
+		setNames(fusions[grepl(",", fusions$gene1),c("gene1", "contig1", "breakpoint1")], c("gene", "contig", "breakpoint")),
+		setNames(fusions[grepl(",", fusions$gene2),c("gene2", "contig2", "breakpoint2")], c("gene", "contig", "breakpoint"))
 	)
 	exons <- rbind(exons, data.frame(
-		X.chrom=sub(":.*", "", intergenicBreakpoints$breakpoint, perl=T),
-		start=as.numeric(sub(".*:", "", intergenicBreakpoints$breakpoint, perl=T))-5000,
-		end=as.numeric(sub(".*:", "", intergenicBreakpoints$breakpoint, perl=T))+5000,
-		gene_name=intergenicBreakpoints$gene,
-		exon_number="intergenic",
-		strand=""
+		contig=intergenicBreakpoints$contig,
+		start=intergenicBreakpoints$breakpoint-5000,
+		end=intergenicBreakpoints$breakpoint+5000,
+		strand="",
+		geneName=intergenicBreakpoints$gene,
+		transcript=intergenicBreakpoints$gene,
+		exonNumber="intergenic"
 	))
 }
+exons <- merge(exons, setNames(aggregate(exons$start, by=list(exons$transcript), min), c("transcript", "transcriptStart")), by="transcript")
+exons <- merge(exons, setNames(aggregate(exons$end, by=list(exons$transcript), max), c("transcript", "transcriptEnd")), by="transcript")
+exons <- merge(exons, setNames(aggregate(exons$start, by=list(exons$transcript), length), c("transcript", "count")), by="transcript")
 exons <- unique(exons[order(exons$start),])
 
 drawStrands <- function(start, end, y, col, strand, scalingFactor, drawLabels=T, gene="") {
@@ -79,10 +89,23 @@ drawStrands <- function(start, end, y, col, strand, scalingFactor, drawLabels=T,
 
 pdf(outputFile, onefile=T, paper=pdfPaper, width=pdfWidth, height=pdfHeight, title=fusionsFile)
 
+findExons <- function(exons, gene, direction, contig, breakpoint) {
+	# look for exon with breakpoint as splice site
+	transcripts <- exons[exons$geneName == gene & exons$contig == contig & (direction == "downstream" & abs(exons$end - breakpoint) <= 2 | direction == "upstream" & abs(exons$start - breakpoint) <= 2),"transcript"]
+	if (length(transcripts) == 0) # not found => use any transcript
+		transcripts <- exons[exons$geneName == gene & exons$contig == contig & exons$transcriptStart <= breakpoint & exons$transcriptEnd >= breakpoint,"transcript"]
+	# use the longest transcript, if there are multiple hits
+	if (length(transcripts) > 1) {
+		longestTranscript <- max(exons[exons$transcript %in% transcripts,"count"])
+		transcripts <- head(exons[exons$transcript %in% transcripts & exons$count == longestTranscript,"transcript"], 1)
+	}
+	return(exons[exons$transcript == transcripts,])
+}
+
 for (fusion in 1:nrow(fusions)) {
-	exons1 <- exons[which(exons$gene_name == fusions[fusion,"gene1"]),]
+	exons1 <- findExons(exons, fusions[fusion,"gene1"], fusions[fusion,"direction1"], fusions[fusion,"contig1"], fusions[fusion,"breakpoint1"])
 	if (nrow(exons1) == 0) { plot(0, 0, type="l", xaxt="n", yaxt="n"); text(0, 0, paste0("Error: exon coordinates of ", fusions[fusion,"gene1"], " not found in\n", exonsFile)); next }
-	exons2 <- exons[which(exons$gene_name == fusions[fusion,"gene2"]),]
+	exons2 <- findExons(exons, fusions[fusion,"gene2"], fusions[fusion,"direction2"], fusions[fusion,"contig2"], fusions[fusion,"breakpoint2"])
 	if (nrow(exons2) == 0) { plot(0, 0, type="l", xaxt="n", yaxt="n"); text(0, 0, paste0("Error: exon coordinates of ", fusions[fusion,"gene2"], " not found in\n", exonsFile)); next }
 
 	# insert dummy exons, if breakpoints are outside the gene (e.g., in UTRs)
@@ -90,14 +113,14 @@ for (fusion in 1:nrow(fusions)) {
 	breakpoint1 <- fusions[fusion,"breakpoint1"]
 	breakpoint2 <- fusions[fusion,"breakpoint2"]
 	if (breakpoint1 < min(exons1$start)) {
-		exons1 <- rbind(c("", breakpoint1-1000, breakpoint1-1000, "", "dummy", exons1[1,"strand"]), exons1)
+		exons1 <- rbind(c(exons1[1,"transcript"], exons1[1,"contig"], breakpoint1-1000, breakpoint1-1000, exons1[1,"strand"], "dummy", "", exons1[1,"transcriptStart"], exons1[1,"transcriptEnd"], exons1[1,"count"]), exons1)
 	} else if (breakpoint1 > max(exons1$end)) {
-		exons1 <- rbind(exons1, c("", breakpoint1+1000, breakpoint1+1000, "", "dummy", exons1[1,"strand"]))
+		exons1 <- rbind(exons1, c(exons1[1,"transcript"], exons1[1,"contig"], breakpoint1+1000, breakpoint1+1000, exons1[1,"strand"], "dummy", "", exons1[1,"transcriptStart"], exons1[1,"transcriptEnd"], exons1[1,"count"]))
 	}
 	if (breakpoint2 < min(exons2$start)) {
-		exons2 <- rbind(c("", breakpoint2-1000, breakpoint2-1000, "", "dummy", exons2[1,"strand"], 0), exons2)
+		exons2 <- rbind(c(exons2[1,"transcript"], exons2[1,"contig"], breakpoint2-1000, breakpoint2-1000, exons2[1,"strand"], "dummy", "", exons2[1,"transcriptStart"], exons2[1,"transcriptEnd"], exons2[1,"count"]), exons2)
 	} else if (breakpoint2 > max(exons2$end)) {
-		exons2 <- rbind(exons2, c("", breakpoint2+1000, breakpoint2+1000, "", "dummy", exons2[1,"strand"]))
+		exons2 <- rbind(exons2, c(exons2[1,"transcript"], exons2[1,"contig"], breakpoint2+1000, breakpoint2+1000, exons2[1,"strand"], "dummy", "", exons2[1,"transcriptStart"], exons2[1,"transcriptEnd"], exons2[1,"count"]))
 	}
 	exons1$start <- as.integer(exons1$start)
 	exons1$end <- as.integer(exons1$end)
@@ -150,20 +173,20 @@ for (fusion in 1:nrow(fusions)) {
 	# plot gene 1 (at top of the page)
 	drawStrands(-0.02*scalingFactor, max(exons1$end)+0.02*scalingFactor, 0.85, "darkolivegreen4", exons1[1,"strand"], scalingFactor, gene=fusions[fusion,"gene1"])
 	for (exon in 1:nrow(exons1)) {
-		if (exons1[exon,"exon_number"] != "dummy") {
+		if (exons1[exon,"exonNumber"] != "dummy") {
 			rect(exons1[exon,"start"], 0.9, exons1[exon,"end"], 0.8, col="darkolivegreen2", border=NA)
 			y <- ifelse(exon %% 2, 0.875, 0.825)
-			text((exons1[exon,"end"]+exons1[exon,"start"])/2, y, exons1[exon,"exon_number"], cex=0.75)
+			text((exons1[exon,"end"]+exons1[exon,"start"])/2, y, exons1[exon,"exonNumber"], cex=0.75)
 		}
 	}
 
 	# plot gene 2 (at the bottom of the page)
 	drawStrands(-0.02*scalingFactor, max(exons2$end)+0.02*scalingFactor, 0.15, col="deepskyblue4", exons2[1,"strand"], scalingFactor, gene=fusions[fusion,"gene2"])
 	for (exon in 1:nrow(exons2)) {
-		if (exons2[exon,"exon_number"] != "dummy") {
+		if (exons2[exon,"exonNumber"] != "dummy") {
 			rect(exons2[exon,"start"], 0.1, exons2[exon,"end"], 0.2, col="deepskyblue2", border=NA)
 			y <- ifelse(exon %% 2, 0.175, 0.125)
-			text((exons2[exon,"end"]+exons2[exon,"start"])/2, y, exons2[exon,"exon_number"], cex=0.75)
+			text((exons2[exon,"end"]+exons2[exon,"start"])/2, y, exons2[exon,"exonNumber"], cex=0.75)
 		}
 	}
 	
@@ -175,10 +198,10 @@ for (fusion in 1:nrow(fusions)) {
 		drawStrands(-0.02*scalingFactor, breakpoint1, 0.5, col="darkolivegreen4", exons1[1,"strand"], scalingFactor, drawLabels=F, gene="fusion")
 		# plot exons
 		for (exon in 1:nrow(exons1))
-			if (exons1[exon,"start"] <= breakpoint1 && exons1[exon,"exon_number"] != "dummy") {
+			if (exons1[exon,"start"] <= breakpoint1 && exons1[exon,"exonNumber"] != "dummy") {
 				rect(exons1[exon,"start"], 0.45, min(breakpoint1, exons1[exon,"end"]), 0.55, col="darkolivegreen2", border=NA)
 				y <- ifelse(exon %% 2, 0.475, 0.525)
-				text((exons1[exon,"start"]+min(breakpoint1, exons1[exon,"end"]))/2, y, exons1[exon,"exon_number"], cex=0.75)
+				text((exons1[exon,"start"]+min(breakpoint1, exons1[exon,"end"]))/2, y, exons1[exon,"exonNumber"], cex=0.75)
 			}
 		# plot trajectories
 		lines(c(breakpoint1, breakpoint1), c(0.8, 0.55), col="red", lty=2)
@@ -189,10 +212,10 @@ for (fusion in 1:nrow(fusions)) {
 		drawStrands(-0.02*scalingFactor, fusionOffset, 0.5, col="darkolivegreen4", chartr("+-", "-+", exons1[1,"strand"]), scalingFactor, gene="fusion", drawLabels=F)
 		# plot exons
 		for (exon in 1:nrow(exons1))
-			if (exons1[exon,"end"]+1 >= breakpoint1 && exons1[exon,"exon_number"] != "dummy") {
+			if (exons1[exon,"end"]+1 >= breakpoint1 && exons1[exon,"exonNumber"] != "dummy") {
 				rect(max(exons1$end)-exons1[exon,"end"], 0.45, min(fusionOffset, max(exons1$end)-exons1[exon,"start"]), 0.55, col="darkolivegreen2", border=NA)
 				y <- ifelse(exon %% 2, 0.475, 0.525)
-				text((max(exons1$end)-exons1[exon,"end"]+min(fusionOffset, max(exons1$end)-exons1[exon,"start"]))/2, y, exons1[exon,"exon_number"], cex=0.75)
+				text((max(exons1$end)-exons1[exon,"end"]+min(fusionOffset, max(exons1$end)-exons1[exon,"start"]))/2, y, exons1[exon,"exonNumber"], cex=0.75)
 			}
 		# plot trajectories
 		lines(c(breakpoint1, fusionOffset), c(0.8, 0.55), col="red", lty=2)
@@ -209,10 +232,10 @@ for (fusion in 1:nrow(fusions)) {
 		drawStrands(fusionOffset, fusionOffset+breakpoint2+0.02*scalingFactor, 0.5, col="deepskyblue4", chartr("+-", "-+", exons2[1,"strand"]), scalingFactor, drawLabels=F)
 		# plot exons
 		for (exon in 1:nrow(exons2))
-			if (exons2[exon,"start"] <= breakpoint2 && exons2[exon,"exon_number"] != "dummy") {
+			if (exons2[exon,"start"] <= breakpoint2 && exons2[exon,"exonNumber"] != "dummy") {
 				rect(max(fusionOffset, fusionOffset+breakpoint2-exons2[exon,"end"]), 0.45, fusionOffset+breakpoint2-exons2[exon,"start"], 0.55, col="deepskyblue2", border=NA)
 				y <- ifelse(exon %% 2, 0.475, 0.525)
-				text((max(fusionOffset, fusionOffset+breakpoint2-exons2[exon,"end"])+fusionOffset+breakpoint2-exons2[exon,"start"])/2, y, exons2[exon,"exon_number"], cex=0.75)
+				text((max(fusionOffset, fusionOffset+breakpoint2-exons2[exon,"end"])+fusionOffset+breakpoint2-exons2[exon,"start"])/2, y, exons2[exon,"exonNumber"], cex=0.75)
 			}
 		# plot trajectories
 		lines(c(breakpoint2, fusionOffset), c(0.2, 0.45), col="red", lty=2)
@@ -223,10 +246,10 @@ for (fusion in 1:nrow(fusions)) {
 		drawStrands(fusionOffset, fusionOffset+max(exons2$end)-breakpoint2+0.02*scalingFactor, 0.5, col="deepskyblue4", exons2[1,"strand"], scalingFactor, drawLabels=F)
 		# plot exons
 		for (exon in 1:nrow(exons2))
-			if (exons2[exon,"end"]+1 >= breakpoint2 && exons2[exon,"exon_number"] != "dummy") {
+			if (exons2[exon,"end"]+1 >= breakpoint2 && exons2[exon,"exonNumber"] != "dummy") {
 				rect(max(fusionOffset, fusionOffset+exons2[exon,"start"]-breakpoint2), 0.45, fusionOffset+exons2[exon,"end"]-breakpoint2, 0.55, col="deepskyblue2", border=NA)
 				y <- ifelse(exon %% 2, 0.475, 0.525)
-				text((max(fusionOffset, fusionOffset+exons2[exon,"start"]-breakpoint2)+fusionOffset+exons2[exon,"end"]-breakpoint2)/2, y, exons2[exon,"exon_number"], cex=0.75)
+				text((max(fusionOffset, fusionOffset+exons2[exon,"start"]-breakpoint2)+fusionOffset+exons2[exon,"end"]-breakpoint2)/2, y, exons2[exon,"exonNumber"], cex=0.75)
 			}
 		# plot trajectories
 		lines(c(breakpoint2, fusionOffset), c(0.2, 0.45), col="red", lty=2)
@@ -250,9 +273,9 @@ for (fusion in 1:nrow(fusions)) {
 		fusion_transcript1 <- substr(fusion_transcript1, max(1, nchar(fusion_transcript1)-30), nchar(fusion_transcript1))
 		fusion_transcript2 <- gsub(".*\\|", "", fusions[fusion,"fusion_transcript"], perl=T)
 		fusion_transcript2 <- substr(fusion_transcript2, 1, min(nchar(fusion_transcript2), 30))
-		text(scalingFactor/2, -0.09, bquote("Breakpoint-spanning transcript = " * phantom(.(fusion_transcript1)) * phantom(.(fusion_transcript2))), cex=0.75)
-		text(scalingFactor/2, -0.09, bquote(phantom("Breakpoint-spanning transcript = ") * .(fusion_transcript1) * phantom(.(fusion_transcript2))), col="darkolivegreen4", cex=0.75)
-		text(scalingFactor/2, -0.09, bquote(phantom("Breakpoint-spanning transcript = ") * phantom(.(fusion_transcript1)) * .(fusion_transcript2)), col="deepskyblue4", cex=0.75)
+		text(scalingFactor/2, -0.09, bquote("Fusion transcript = " * phantom(.(fusion_transcript1)) * phantom(.(fusion_transcript2))), cex=0.75)
+		text(scalingFactor/2, -0.09, bquote(phantom("Fusion transcript = ") * .(fusion_transcript1) * phantom(.(fusion_transcript2))), col="darkolivegreen4", cex=0.75)
+		text(scalingFactor/2, -0.09, bquote(phantom("Fusion transcript = ") * phantom(.(fusion_transcript1)) * .(fusion_transcript2)), col="deepskyblue4", cex=0.75)
 	}
 }
 
