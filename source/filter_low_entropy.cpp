@@ -5,8 +5,6 @@
 
 using namespace std;
 
-
-
 unsigned int filter_low_entropy(chimeric_alignments_t& chimeric_alignments, const unsigned int kmer_length, const float kmer_content) {
 	unsigned int remaining = 0;
 	for (chimeric_alignments_t::iterator i = chimeric_alignments.begin(); i != chimeric_alignments.end(); ++i) {
@@ -41,10 +39,8 @@ unsigned int filter_low_entropy(chimeric_alignments_t& chimeric_alignments, cons
 				}
 
 				// extract all possible k-mers from read
+				const char* sequence = i->second[mate].sequence.data();
 				for (unsigned int kmer_pos = 0; kmer_pos < i->second[mate].sequence.length() - kmer_length; kmer_pos++) {
-					const char* sequence = i->second[mate].sequence.data();
-					char kmer[kmer_length];
-					strncpy(kmer, sequence + kmer_pos, kmer_length);
 
 					// count the number of occurrences of the given k-mer
 					unsigned int kmer_count = 1;
@@ -54,7 +50,7 @@ unsigned int filter_low_entropy(chimeric_alignments_t& chimeric_alignments, cons
 					unsigned int max_kmer_count_aligned1 = (mate1_end - mate1_start) * kmer_content / kmer_length + 0.5;
 					unsigned int max_kmer_count_aligned2 = (mate2_end - mate2_start) * kmer_content / kmer_length + 0.5;
 					for (unsigned int pos = kmer_pos + kmer_length; pos < i->second[mate].sequence.length() - kmer_length;) {
-						if (strncmp(kmer, sequence + pos, kmer_length) == 0) {
+						if (strncmp(sequence + kmer_pos, sequence + pos, kmer_length) == 0) {
 							++kmer_count;
 							if (pos+2 >= mate1_start && pos < mate1_end)
 								++kmer_count_aligned1;
