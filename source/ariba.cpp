@@ -212,15 +212,22 @@ int main(int argc, char **argv) {
 		gene_annotation_record.strand = FORWARD;
 		gene_annotation_record.exonic_length = 10000; //TODO more exact estimation of exonic_length
 		gene_annotation_record.is_dummy = true;
+		gene_contig_annotation_index_t::iterator next_known_gene = gene_annotation_index[unmapped_alignments[0].contig].lower_bound(unmapped_alignments[0].end);
 		for (int i = 1; i <= unmapped_alignments.size(); ++i) {
 			// subsume all unmapped alignments in a range of 10kb into a dummy gene with the generic name "contig:start-end"
-			if (i == unmapped_alignments.size() || gene_annotation_record.end+10000 < unmapped_alignments[i].start || unmapped_alignments[i].contig != gene_annotation_record.contig) {
+			if (i == unmapped_alignments.size() || // all unmapped alignments have been processed => add last record
+			    gene_annotation_record.end+10000 < unmapped_alignments[i].start || // current alignment is too far away
+			    (next_known_gene != gene_annotation_index[gene_annotation_record.contig].end() && next_known_gene->first <= unmapped_alignments[i].start) || // dummy gene must not overlap known genes
+			    unmapped_alignments[i].contig != gene_annotation_record.contig) { // end of contig reached
 				gene_annotation_record.name = contigs_by_id[gene_annotation_record.contig] + ":" + to_string(gene_annotation_record.start) + "-" + to_string(gene_annotation_record.end);
 				gene_annotation.push_back(gene_annotation_record);
 				gene_annotation_record.contig = unmapped_alignments[i].contig;
 				gene_annotation_record.start = unmapped_alignments[i].start;
+				if (i < unmapped_alignments.size())
+					next_known_gene = gene_annotation_index[unmapped_alignments[i].contig].lower_bound(unmapped_alignments[i].end);
 			}
-			gene_annotation_record.end = unmapped_alignments[i].end;	
+			if (i < unmapped_alignments.size())
+				gene_annotation_record.end = unmapped_alignments[i].end;	
 		}
 	}
 

@@ -118,8 +118,13 @@ struct fusion_t {
 	vector<mates_t*> split_read1_list, split_read2_list, discordant_mate_list;
 	float evalue; // expected number of fusions with the given properties by random chance
 	set<filter_t> filters; // name of the filter(s) which discarded the fusion (empty means not discarded)
-	fusion_t(): split_reads1(0), split_reads2(0), discordant_mates(0), anchor_start1(0), anchor_start2(0) {}
-	unsigned int supporting_reads() const { return split_reads1 + split_reads2 + discordant_mates; }
+	fusion_t(): split_reads1(0), split_reads2(0), discordant_mates(0), anchor_start1(0), anchor_start2(0) {};
+	unsigned int supporting_reads() const { return split_reads1 + split_reads2 + discordant_mates; };
+	bool breakpoint_overlaps_both_genes(const unsigned int which_breakpoint = 0) const {
+		if (which_breakpoint == 1) return breakpoint1 >= gene2->start && breakpoint1 <= gene2->end;
+		if (which_breakpoint == 2) return breakpoint2 >= gene1->start && breakpoint2 <= gene1->end;
+		return breakpoint_overlaps_both_genes(1) || breakpoint_overlaps_both_genes(2);
+	};
 };
 typedef unordered_map< tuple<gene_t /*gene1*/, gene_t /*gene2*/, contig_t /*contig1*/, contig_t /*contig2*/, position_t /*breakpoint1*/, position_t /*breakpoint2*/, direction_t /*direction1*/, direction_t /*direction2*/>,fusion_t > fusions_t;
 

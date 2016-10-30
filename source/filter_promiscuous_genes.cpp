@@ -95,7 +95,7 @@ void estimate_expected_fusions(fusions_t& fusions, const unsigned long int mappe
 		// the likelihood increases linearly, therefore we scale up the e-value proportionately to the number of mapped reads
 		// for every 20 million reads, the scaling factor increases by 1 (this is an empirically determined value)
 		unsigned int supporting_reads;
-		if (i->second.gene1 != i->second.gene2) // for intergenic fusions we take the sum of all supporting reads (split reads + discordant mates)
+		if (!i->second.breakpoint_overlaps_both_genes()) // for intergenic fusions we take the sum of all supporting reads (split reads + discordant mates)
 			supporting_reads = i->second.supporting_reads();
 		else // for intragenic fusions we ignore discordant mates, because they are very abundant
 			supporting_reads = i->second.split_reads1 + i->second.split_reads2;
@@ -103,7 +103,7 @@ void estimate_expected_fusions(fusions_t& fusions, const unsigned long int mappe
 		i->second.evalue = max_fusion_partners * max(1.0, mapped_reads / 20000000.0 * pow(0.02, supporting_reads-2));
 
 		// intergenic and intragenic fusions are scored differently, because they have different frequencies
-		if (i->second.gene1 != i->second.gene2) {
+		if (!i->second.breakpoint_overlaps_both_genes()) {
 
 			// the more fusion partners a gene has, the less likely a fusion is true (hence we multiply the e-value by max_fusion_partners)
 			// but the likehood of a false positive decreases near-exponentially with the number of supporting reads (hence we multiply by x^(supporting_reads-2) )
@@ -116,7 +116,7 @@ void estimate_expected_fusions(fusions_t& fusions, const unsigned long int mappe
 				}
 			}
 
-		} else { // i->second.gene1 == i->second.gene2
+		} else {
 
 			if (supporting_reads > 1) {
 				i->second.evalue *= 0.125;

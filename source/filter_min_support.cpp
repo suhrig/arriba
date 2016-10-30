@@ -12,7 +12,7 @@ unsigned int filter_min_support(fusions_t& fusions, const unsigned int min_suppo
 			continue; // fusion has already been filtered
 
 		if (i->second.split_reads1 + i->second.split_reads2 + i->second.discordant_mates < min_support ||
-		    i->second.gene1 == i->second.gene2 && i->second.split_reads1 + i->second.split_reads2 < min_support)
+		    i->second.breakpoint_overlaps_both_genes() && i->second.split_reads1 + i->second.split_reads2 < min_support)
 			i->second.filters.insert(FILTERS.at("min_support"));
 		else
 			remaining++;
