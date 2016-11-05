@@ -385,13 +385,13 @@ string get_fusion_type(const fusion_t& fusion) {
 		if (fusion.direction1 == DOWNSTREAM && fusion.direction2 == UPSTREAM) {
 			if (fusion.gene1->is_dummy || fusion.gene2->is_dummy ||
 			    (fusion.gene1->strand == fusion.gene2->strand)) {
-				if (fusion.breakpoint2 - fusion.breakpoint1 <= 400000) {
+				if (fusion.is_read_through()) {
 					return "deletion/read-through";
 				} else {
 					return "deletion";
 				}
 			} else if (fusion.gene1->strand == FORWARD || fusion.gene2->strand == REVERSE) {
-				if (fusion.breakpoint2 - fusion.breakpoint1 <= 400000) {
+				if (fusion.is_read_through()) {
 					return "deletion/read-through";
 				} else {
 					return "deletion/5'-5'";

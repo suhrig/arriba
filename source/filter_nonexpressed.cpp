@@ -83,7 +83,7 @@ unsigned int filter_nonexpressed(fusions_t& fusions, const string& bam_file_path
 			continue; // fusion has already been filtered
 
 
-		if (!(i->second.contig1 == i->second.contig2 && i->second.breakpoint2 - i->second.breakpoint1 < 400000 && i->second.direction1 == DOWNSTREAM && i->second.direction2 == UPSTREAM)) { // fusion is not read-through
+		if (!i->second.is_read_through()) {
 
 			if (i->second.split_reads1 + i->second.split_reads2 != 0 &&
 			    i->second.split_reads1 + i->second.discordant_mates != 0 &&
