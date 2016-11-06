@@ -5,49 +5,56 @@
 
 using namespace std;
 
-bool are_both_breakpoints_spliced(const fusion_t& fusion) {
-	if (!fusion.filters.empty() &&
-	    fusion.filters.find(FILTERS.at("promiscuous_genes")) == fusion.filters.end() &&
-	    fusion.filters.find(FILTERS.at("min_support")) == fusion.filters.end())
-		return false; // we won't recover fusions which were not discarded due to low support
-
-	if (!fusion.spliced1 || !fusion.spliced2)
-		return false; // both sides must be spliced
-
-	if (fusion.gene1->strand == fusion.gene2->strand && fusion.direction1 == fusion.direction2 ||
-	    fusion.gene1->strand != fusion.gene2->strand && fusion.direction1 != fusion.direction2)
-		return false; // exons would be spliced in a nonsensical way
-
-	return true;
-}
-
 unsigned int recover_both_spliced(fusions_t& fusions, const bool low_tumor_content) {
 
 	// look for any supporting reads between two genes
-	map< tuple<gene_t,gene_t,direction_t,direction_t>, unsigned int > supporting_reads_by_gene_pair;
+	map< tuple<gene_t,gene_t,direction_t,direction_t>, vector<fusion_t*> > fusions_by_gene_pair;
 	for (fusions_t::iterator i = fusions.begin(); i != fusions.end(); ++i)
 		if (i->second.filters.empty() ||
 		    i->second.filters.find(FILTERS.at("intronic")) != i->second.filters.end() ||
 		    i->second.filters.find(FILTERS.at("promiscuous_genes")) != i->second.filters.end() ||
 		    i->second.filters.find(FILTERS.at("min_support")) != i->second.filters.end()) {
-			supporting_reads_by_gene_pair[make_tuple(i->second.gene1, i->second.gene2, i->second.direction1, i->second.direction2)] += max(i->second.supporting_reads(), (unsigned int) 1);
+			fusions_by_gene_pair[make_tuple(i->second.gene1, i->second.gene2, i->second.direction1, i->second.direction2)].push_back(&i->second);
 		}
 
 	unsigned int remaining = 0;
-	for (fusions_t::iterator i = fusions.begin(); i != fusions.end(); ++i) {
+	for (fusions_t::iterator fusion = fusions.begin(); fusion != fusions.end(); ++fusion) {
 
-		if (i->second.filters.empty()) { // fusion has not been filtered, no need to recover
+		if (fusion->second.filters.empty()) { // fusion has not been filtered, no need to recover
 			remaining++;
 			continue;
 		}
 
-		if (i->second.gene1 == i->second.gene2)
+		if (fusion->second.gene1 == fusion->second.gene2)
 			continue; // don't recover intragenic events (this would produce too many hits)
 
-		if (are_both_breakpoints_spliced(i->second) &&
-		    supporting_reads_by_gene_pair[make_tuple(i->second.gene1, i->second.gene2, i->second.direction1, i->second.direction2)] >= 2 || low_tumor_content) { // require at least two reads or else the false positive rate sky-rockets
-			i->second.filters.clear();
-			remaining++;
+		if (!fusion->second.filters.empty() &&
+		    fusion->second.filters.find(FILTERS.at("promiscuous_genes")) == fusion->second.filters.end() &&
+		    fusion->second.filters.find(FILTERS.at("min_support")) == fusion->second.filters.end())
+			continue; // we won't recover fusions which were not discarded due to low support
+
+		if (!fusion->second.spliced1 || !fusion->second.spliced2)
+			continue; // both sides must be spliced
+
+		if (fusion->second.gene1->strand == fusion->second.gene2->strand && fusion->second.direction1 == fusion->second.direction2 ||
+		    fusion->second.gene1->strand != fusion->second.gene2->strand && fusion->second.direction1 != fusion->second.direction2)
+			continue; // exons would be spliced in a nonsensical way
+
+		// count all supporting reads of all fusions between the pair of genes
+		auto fusions_of_given_gene_pair = fusions_by_gene_pair.find(make_tuple(fusion->second.gene1, fusion->second.gene2, fusion->second.direction1, fusion->second.direction2));
+		if (fusions_of_given_gene_pair != fusions_by_gene_pair.end()) {
+			unsigned int sum_of_supporting_reads = 0;
+			for (auto another_fusion = fusions_of_given_gene_pair->second.begin(); another_fusion != fusions_of_given_gene_pair->second.end(); ++another_fusion) {
+				// for read-through fusions, we require the distance of the other fusion to be at least as big as that of the fusion with spliced breakpoints
+				if (!(**another_fusion).is_read_through() ||
+				    (**another_fusion).breakpoint2 - (**another_fusion).breakpoint1 >= fusion->second.breakpoint2 - fusion->second.breakpoint1)
+					sum_of_supporting_reads += max((unsigned int) 1, (**another_fusion).supporting_reads());
+			}
+
+			if (sum_of_supporting_reads >= 2 || low_tumor_content) { // require at least two reads or else the false positive rate sky-rockets
+				fusion->second.filters.clear();
+				remaining++;
+			}
 		}
 	}
 	return remaining;
