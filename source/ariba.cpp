@@ -16,6 +16,7 @@
 #include "filter_both_intronic.hpp"
 #include "filter_proximal_read_through.hpp"
 #include "filter_same_gene.hpp"
+#include "filter_hairpin.hpp"
 #include "filter_low_entropy.hpp"
 #include "fusions.hpp"
 #include "filter_promiscuous_genes.hpp"
@@ -41,6 +42,7 @@ unordered_map<string,filter_t> FILTERS({
 	{"intronic", NULL},
 	{"read_through", NULL},
 	{"same_gene", NULL},
+	{"hairpin", NULL},
 	{"mismappers", NULL},
 	{"promiscuous_genes", NULL},
 	{"min_support", NULL},
@@ -249,6 +251,11 @@ int main(int argc, char **argv) {
 	if (options.filters.at("same_gene")) {
 		cout << "Filtering fragments with both mates in the same gene" << flush;
 		cout << " (remaining=" << filter_same_gene(chimeric_alignments, exon_annotation_index) << ")" << endl;
+	}
+
+	if (options.filters.at("hairpin")) {
+		cout << "Filtering fusions arising from hairpin structures" << flush;
+		cout << " (remaining=" << filter_hairpin(chimeric_alignments, exon_annotation_index) << ")" << endl;
 	}
 
 	if (options.filters.at("low_entropy")) {
