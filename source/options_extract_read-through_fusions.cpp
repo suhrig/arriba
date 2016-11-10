@@ -26,7 +26,7 @@ void print_usage(const string& error_message) {
 
 	cerr << endl
 	     << "Ariba RNA fusion detector - extract_read-through_fusions" << endl
-	     << "---------------------------------------------------------" << endl
+	     << "--------------------------------------------------------" << endl
 	     << "Version: " << ARIBA_VERSION << endl << endl
 	     << "This is a helper utility of Ariba The STAR RNA-Seq aligner does " << endl
 	     << "not report read-through fusions in the chimeric BAM file. This program " << endl
