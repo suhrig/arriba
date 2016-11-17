@@ -41,7 +41,8 @@ unsigned int recover_known_fusions(fusions_t& fusions, const string& known_fusio
 	unsigned int remaining = 0;
 	for (fusions_t::iterator i = fusions.begin(); i != fusions.end(); ++i) {
 
-		if (i->second.filters.empty()) { // fusion has not been filtered, no need to recover
+		if (i->second.filters.empty() || // fusion has not been filtered, no need to recover
+		    i->second.gene1 == i->second.gene2) { // don't recover intragenic events
 			remaining++;
 			continue;
 		}
