@@ -13,13 +13,14 @@
 #include "filter_inconsistently_clipped.hpp"
 #include "filter_homopolymer.hpp"
 #include "filter_duplicates.hpp"
-#include "filter_both_intronic.hpp"
 #include "filter_proximal_read_through.hpp"
 #include "filter_same_gene.hpp"
 #include "filter_hairpin.hpp"
 #include "filter_low_entropy.hpp"
 #include "fusions.hpp"
 #include "filter_promiscuous_genes.hpp"
+#include "filter_both_intronic.hpp"
+#include "filter_both_novel.hpp"
 #include "filter_min_support.hpp"
 #include "recover_known_fusions.hpp"
 #include "recover_both_spliced.hpp"
@@ -39,12 +40,13 @@ unordered_map<string,filter_t> FILTERS({
 	{"inconsistently_clipped", NULL},
 	{"homopolymer", NULL},
 	{"duplicates", NULL},
-	{"intronic", NULL},
 	{"read_through", NULL},
 	{"same_gene", NULL},
 	{"hairpin", NULL},
 	{"mismappers", NULL},
 	{"promiscuous_genes", NULL},
+	{"intronic", NULL},
+	{"novel", NULL},
 	{"min_support", NULL},
 	{"known_fusions", NULL},
 	{"spliced", NULL},
@@ -214,6 +216,7 @@ int main(int argc, char **argv) {
 		gene_annotation_record.strand = FORWARD;
 		gene_annotation_record.exonic_length = 10000; //TODO more exact estimation of exonic_length
 		gene_annotation_record.is_dummy = true;
+		gene_annotation_record.is_known = false;
 		gene_contig_annotation_index_t::iterator next_known_gene = gene_annotation_index[unmapped_alignments[0].contig].lower_bound(unmapped_alignments[0].end);
 		for (int i = 1; i <= unmapped_alignments.size(); ++i) {
 			// subsume all unmapped alignments in a range of 10kb into a dummy gene with the generic name "contig:start-end"
@@ -292,6 +295,11 @@ int main(int argc, char **argv) {
 	if (options.filters.at("intronic")) {
 		cout << "Filtering fusions with both breakpoints in intronic/intergenic regions" << flush;
 		cout << " (remaining=" << filter_both_intronic(fusions) << ")" << endl;
+	}
+
+	if (options.filters.at("novel")) {
+		cout << "Filtering fusions with both breakpoints in novel/intergenic regions" << flush;
+		cout << " (remaining=" << filter_both_novel(fusions) << ")" << endl;
 	}
 
 	// this step must come after the 'promiscuous_genes' filter,

@@ -48,6 +48,7 @@ struct gene_annotation_record_t: public annotation_record_t {
 	string sequence;
 	int exonic_length; // sum of the length of all exons in a gene
 	bool is_dummy;
+	bool is_known;
 };
 typedef gene_annotation_record_t* gene_t;
 typedef annotation_set_t<gene_t> gene_set_t;
