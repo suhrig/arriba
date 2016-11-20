@@ -12,6 +12,8 @@ struct options_t {
 	string chimeric_bam_file;
 	string read_through_bam_file;
 	string rna_bam_file;
+	string genomic_breakpoints_file;
+	unsigned int max_genomic_breakpoint_distance;
 	string gene_annotation_file;
 	string exon_annotation_file;
 	string known_fusions_file;

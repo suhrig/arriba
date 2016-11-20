@@ -115,11 +115,12 @@ struct fusion_t {
 	bool spliced1, spliced2;
 	unsigned int split_reads1, split_reads2;
 	unsigned int discordant_mates;
+	position_t closest_genomic_breakpoint1, closest_genomic_breakpoint2;
 	position_t anchor_start1, anchor_start2;
 	vector<mates_t*> split_read1_list, split_read2_list, discordant_mate_list;
 	float evalue; // expected number of fusions with the given properties by random chance
 	set<filter_t> filters; // name of the filter(s) which discarded the fusion (empty means not discarded)
-	fusion_t(): split_reads1(0), split_reads2(0), discordant_mates(0), anchor_start1(0), anchor_start2(0) {};
+	fusion_t(): split_reads1(0), split_reads2(0), discordant_mates(0), anchor_start1(0), anchor_start2(0), closest_genomic_breakpoint1(-1), closest_genomic_breakpoint2(-1) {};
 	unsigned int supporting_reads() const { return split_reads1 + split_reads2 + discordant_mates; };
 	bool breakpoint_overlaps_both_genes(const unsigned int which_breakpoint = 0) const {
 		if (which_breakpoint == 1) return breakpoint1 >= gene2->start && breakpoint1 <= gene2->end;

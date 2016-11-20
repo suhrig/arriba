@@ -127,7 +127,7 @@ bool blacklist_fusion(const contig_t contig1, const position_t start1, const pos
 	return false; // fusion was not filtered
 }
 
-unsigned int filter_blacklisted_ranges(fusions_t& fusions, const string blacklist_file_path, const contigs_t& contigs, const unordered_map<string,gene_t>& genes) {
+unsigned int filter_blacklisted_ranges(fusions_t& fusions, const string& blacklist_file_path, const contigs_t& contigs, const unordered_map<string,gene_t>& genes) {
 
 	// sort fusions by coordinate of gene1
 	map< position_t, vector<fusion_t*> > fusions_by_position;

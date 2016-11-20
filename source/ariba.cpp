@@ -18,6 +18,7 @@
 #include "filter_hairpin.hpp"
 #include "filter_low_entropy.hpp"
 #include "fusions.hpp"
+#include "mark_genomic_support.hpp"
 #include "filter_promiscuous_genes.hpp"
 #include "filter_both_intronic.hpp"
 #include "filter_both_novel.hpp"
@@ -267,8 +268,18 @@ int main(int argc, char **argv) {
 	}
 
 	cout << "Finding fusions and counting supporting reads" << flush;
-	fusions_t fusions; // list of detected (preliminary) fusions
+	fusions_t fusions;
 	cout << " (total=" << find_fusions(chimeric_alignments, fusions, exon_annotation_index) << ")" << endl;
+
+	if (!options.genomic_breakpoints_file.empty()) {
+		cout << "Marking fusions with support from whole-genome sequencing in '" << options.genomic_breakpoints_file << "'" << flush;
+		cout << " (marked=" << mark_genomic_support(fusions, options.genomic_breakpoints_file, contigs, options.max_genomic_breakpoint_distance) << ")" << endl;
+	}
+
+	if (options.filters.at("merge_adjacent")) {
+		cout << "Merging adjacent fusion breakpoints" << flush;
+		cout << " (remaining=" << merge_adjacent_fusions(fusions, 5) << ")" << endl;
+	}
 
 	unsigned long int mapped_reads = 0;
 	if (!options.low_tumor_content) {
@@ -277,14 +288,10 @@ int main(int argc, char **argv) {
 		cout << " (total=" << mapped_reads << ")" << endl;
 	}
 
-	if (options.filters.at("merge_adjacent")) {
-		cout << "Merging adjacent fusion breakpoints" << flush;
-		cout << " (remaining=" << merge_adjacent_fusions(fusions, 5) << ")" << endl;
-	}
-
 	// this step must come after the 'merge_adjacent' filter,
 	// because STAR clips reads supporting the same breakpoints at different position
 	// and that spreads the supporting reads over multiple breakpoints
+	// this step must also come after the 'genomic_breakpoints' filter
 	cout << "Estimating expected number of fusions by random chance (e-value)" << endl << flush;
 	estimate_expected_fusions(fusions, mapped_reads);
 	if (options.filters.at("promiscuous_genes")) {

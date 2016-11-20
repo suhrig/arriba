@@ -525,15 +525,16 @@ void write_fusions_to_file(fusions_t& fusions, const string& output_file, gene_a
 		cerr << "ERROR: Failed to open output file '" << output_file << "'." << endl;
 		exit(1);
 	}
-	out << "#gene1\tgene2\tstrand1(gene/fusion)\tstrand2(gene/fusion)\tbreakpoint1\tbreakpoint2\tsite1\tsite2\ttype\tdirection1\tdirection2\tsplit_reads1\tsplit_reads2\tdiscordant_mates\te-value\tfilter\tfusion_transcript\tread_identifiers" << endl;
+	out << "#gene1\tgene2\tstrand1(gene/fusion)\tstrand2(gene/fusion)\tbreakpoint1\tbreakpoint2\tsite1\tsite2\ttype\tdirection1\tdirection2\tsplit_reads1\tsplit_reads2\tdiscordant_mates\te-value\tclosest_genomic_breakpoint1\tclosest_genomic_breakpoint2\tfilter\tfusion_transcript\tread_identifiers" << endl;
 	for (vector<fusion_t*>::iterator i = sorted_fusions.begin(); i != sorted_fusions.end(); ++i) {
 
 		if ((**i).filters.empty() == write_discarded_fusions) // write either filtered or unfiltered fusions, but not both
 			continue;
 
-		// write the gene which likely makes the 5' end of the transcript first
+		// get the gene which likely makes the 5' end of the transcript first
 		transcript_start_t transcript_start = get_start_of_transcript(**i);
 
+		// prepare columns
 		gene_t gene1 = (**i).gene1; gene_t gene2 = (**i).gene2;
 		contig_t contig1 = (**i).contig1; contig_t contig2 = (**i).contig2;
 		position_t breakpoint1 = (**i).breakpoint1; position_t breakpoint2 = (**i).breakpoint2;
@@ -558,7 +559,19 @@ void write_fusions_to_file(fusions_t& fusions, const string& output_file, gene_a
 		} else {
 			site2 = "intronic";
 		}
+		string closest_genomic_breakpoint1, closest_genomic_breakpoint2;
+		if ((**i).closest_genomic_breakpoint1 >= 0) {
+			closest_genomic_breakpoint1 = contigs_by_id[(**i).contig1] + ":" + to_string((**i).closest_genomic_breakpoint1+1) + "(" + to_string(abs((**i).breakpoint1 - (**i).closest_genomic_breakpoint1)) + ")";
+		} else {
+			closest_genomic_breakpoint1 = ".";
+		}
+		if ((**i).closest_genomic_breakpoint2 >= 0) {
+			closest_genomic_breakpoint2 = contigs_by_id[(**i).contig2] + ":" + to_string((**i).closest_genomic_breakpoint2+1) + "(" + to_string(abs((**i).breakpoint2 - (**i).closest_genomic_breakpoint2)) + ")";
+		} else {
+			closest_genomic_breakpoint2 = ".";
+		}
 
+		// the 5' gene should always come first => swap columns, if necessary
 		if (transcript_start == TRANSCRIPT_START_GENE2) {
 			swap(gene1, gene2);
 			swap(direction1, direction2);
@@ -566,14 +579,16 @@ void write_fusions_to_file(fusions_t& fusions, const string& output_file, gene_a
 			swap(breakpoint1, breakpoint2);
 			swap(site1, site2);
 			swap(split_reads1, split_reads2);
+			swap(closest_genomic_breakpoint1, closest_genomic_breakpoint2);
 		}
 
+		// write line to output file
 		out << gene_to_name(gene1, contig1, breakpoint1, gene_annotation_index) << "\t" << gene_to_name(gene2, contig2, breakpoint2, gene_annotation_index) << "\t"
 		    << get_fusion_strand(gene1, gene2, direction1, direction2, true, transcript_start) << "\t" << get_fusion_strand(gene2, gene1, direction2, direction1, false, transcript_start) << "\t"
 		    << contigs_by_id[contig1] << ":" << (breakpoint1+1) << "\t" << contigs_by_id[contig2] << ":" << (breakpoint2+1) << "\t"
 		    << site1 << "\t" << site2 << "\t"
 		    << get_fusion_type(**i) << "\t" << ((direction1 == UPSTREAM) ? "upstream" : "downstream") << "\t" << ((direction2 == UPSTREAM) ? "upstream" : "downstream") << "\t"
-		    << split_reads1 << "\t" << split_reads2 << "\t" << (**i).discordant_mates << "\t" << (**i).evalue;
+		    << split_reads1 << "\t" << split_reads2 << "\t" << (**i).discordant_mates << "\t" << (**i).evalue << "\t" << closest_genomic_breakpoint1 << "\t" << closest_genomic_breakpoint2;
 
 		// count the number of reads discarded by a given filter
 		map<string,unsigned int> filters;

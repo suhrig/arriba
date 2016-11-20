@@ -21,6 +21,7 @@ options_t get_default_options() {
 	options.max_mismapper_fraction = 0.8;
 	options.min_anchor_length = 23;
 	options.homopolymer_length = 6;
+	options.max_genomic_breakpoint_distance = 100000;
 	options.min_read_through_distance = 10000;
 	options.print_supporting_reads = false;
 	options.print_supporting_reads_for_discarded_fusions = false;
@@ -68,6 +69,15 @@ void print_usage(const string& error_message) {
 	                  "present. The file is used to estimate the mate gap distribution "
 	                  "and to filter fusions with no expression around the "
 	                  "breakpoints, which are likely false positives.")
+	     << wrap_help("-d FILE", "Tab-separated file with coordinates of structural variants "
+	                  "found using whole-genome sequencing data. These coordinates server to "
+	                  "increase sensitivity towards weakly expressed fusions and to eliminate "
+	                  "fusions with low evidence. The file must contain the following columns:\n"
+	                  "breakpoint1: chromosome and position of 1st breakpoint separated by a colon\n"
+	                  "breakpoint2: chromosome and position of 2nd breakpoint separated by a colon\n"
+	                  "direction1: whether the 2nd partner is fused 'upstream' (at a coordinate lower than breakpoint1) or 'downstream' (at a coordinate higher than breakpoint1)\n"
+	                  "direction2: whether the 1st partner is fused 'upstream' (at a coordinate lower than breakpoint2) or 'downstream' (at a coordinate higher than breakpoint2)\n"
+	                  "Positions are 1-based.")
 	     << wrap_help("-g FILE", "GTF file with gene annotation. The file may be gzip-compressed.")
 	     << wrap_help("-o FILE", "Output file with fusions that have passed all filters. The "
 	                  "file contains the following columns separated by tabs:\n"
@@ -143,7 +153,14 @@ void print_usage(const string& error_message) {
 	                  "discards the fusion. Default: " + to_string(default_options.max_mismapper_fraction))
 	     << wrap_help("-H HOMOPOLYMER_LENGTH", "The 'homopolymer' filter removes breakpoints "
 	                  "adjacent to homopolymers of the given length or more. Default: " + to_string(default_options.homopolymer_length))
-	     << wrap_help("-D READ_THROUGH_DISTANCE", "The executable 'extract_read-through_fusions' extracts "
+	     << wrap_help("-D MAX_GENOMIC_BREAKPOINT_DISTANCE", "When a file with genomic breakpoints "
+	                  "obtained via whole-genome sequencing is supplied via the -d parameter, "
+	                  "This parameter determines how far genomic breakpoints may be away from "
+	                  "a transcriptomic breakpoint to still consider is as the same event. "
+	                  "For events inside genes, the distance is added to the end of the gene; "
+	                  "for intergenic events, the distance threshold is applied as is. Default: " +
+	                  to_string(default_options.max_genomic_breakpoint_distance))
+	     << wrap_help("-R READ_THROUGH_DISTANCE", "The executable 'extract_read-through_fusions' extracts "
 	                  "chimeric alignments from the BAM file with RNA-Seq data which could "
 	                  "potentially originate from read-through fusions (fusions of neighboring "
 	                  "genes). Any pair of mates where one of the mates does not map to the "
@@ -186,7 +203,7 @@ options_t parse_arguments(int argc, char **argv) {
 	// parse arguments
 	opterr = 0;
 	int c;
-	while ((c = getopt(argc, argv, "c:r:x:g:o:O:a:k:b:i:f:E:s:lm:H:D:A:K:SIh")) != -1) {
+	while ((c = getopt(argc, argv, "c:r:x:d:g:o:O:a:k:b:i:f:E:s:lm:H:D:R:A:K:SIh")) != -1) {
 		switch (c) {
 			case 'c':
 				options.chimeric_bam_file = optarg;
@@ -210,6 +227,13 @@ options_t parse_arguments(int argc, char **argv) {
 				}
 				if (access((options.rna_bam_file + ".bai").c_str(), R_OK) != 0) {
 					cerr << "ERROR: File '" << options.rna_bam_file << ".bai' not found." << endl;
+					exit(1);
+				}
+				break;
+			case 'd':
+				options.genomic_breakpoints_file = optarg;
+				if (access(options.genomic_breakpoints_file.c_str(), R_OK) != 0) {
+					cerr << "ERROR: File '" << options.genomic_breakpoints_file << "' not found." << endl;
 					exit(1);
 				}
 				break;
@@ -294,6 +318,9 @@ options_t parse_arguments(int argc, char **argv) {
 				options.homopolymer_length = atoi(optarg);
 				break;
 			case 'D':
+				options.max_genomic_breakpoint_distance = atoi(optarg);
+				break;
+			case 'R':
 				options.min_read_through_distance = atoi(optarg);
 				break;
 			case 'A':
@@ -316,7 +343,7 @@ options_t parse_arguments(int argc, char **argv) {
 				break;
 			case '?':
 				switch (optopt) {
-					case 'c': case 'r': case 'x': case 'g': case 'o': case 'O': case 'a': case 'k': case 'b': case 'i': case 'f': case 'E': case 's': case 'm': case 'H': case 'D': case 'A': case 'K':
+					case 'c': case 'r': case 'x': case 'd': case 'g': case 'o': case 'O': case 'a': case 'k': case 'b': case 'i': case 'f': case 'E': case 's': case 'm': case 'H': case 'D': case 'R': case 'A': case 'K':
 						print_usage(string("Option -") + ((char) optopt) + " requires an argument.");
 						break;
 					default:
