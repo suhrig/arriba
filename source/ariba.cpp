@@ -160,6 +160,9 @@ int main(int argc, char **argv) {
 			region_start = region->first;
 		}
 	}
+	for (gene_annotation_t::iterator gene = gene_annotation.begin(); gene != gene_annotation.end(); ++gene)
+		if (gene->exonic_length == 0)
+			gene->exonic_length = gene->end - gene->start; // use total gene length, if the gene has no exons
 
 	// first, try to annotate with exons
 	for (chimeric_alignments_t::iterator i = chimeric_alignments.begin(); i != chimeric_alignments.end(); ++i) {
