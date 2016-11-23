@@ -121,7 +121,13 @@ unsigned int mark_genomic_support(fusions_t& fusions, const string& genomic_brea
 			while (is_genomic_breakpoint_close_enough(fusion->second.direction1, closeby_genomic_breakpoints->first, fusion->second.breakpoint1, fusion->second.gene1, max_distance)) {
 
 				for (auto closeby_genomic_breakpoint2 = closeby_genomic_breakpoints->second.begin(); closeby_genomic_breakpoint2 != closeby_genomic_breakpoints->second.end(); ++closeby_genomic_breakpoint2) {
-					if (is_genomic_breakpoint_close_enough(fusion->second.direction2, *closeby_genomic_breakpoint2, fusion->second.breakpoint2, fusion->second.gene2, max_distance)) {
+					if (is_genomic_breakpoint_close_enough(fusion->second.direction2, *closeby_genomic_breakpoint2, fusion->second.breakpoint2, fusion->second.gene2, max_distance) &&
+					    (fusion->second.contig1 != fusion->second.contig2 || // we need to make extra checks for deletions and inversions:
+					     fusion->second.direction1 == UPSTREAM && fusion->second.direction2 == DOWNSTREAM || // (but not duplications)
+					     fusion->second.direction1 == DOWNSTREAM && fusion->second.direction2 == UPSTREAM && closeby_genomic_breakpoints->first < fusion->second.breakpoint2 && *closeby_genomic_breakpoint2 > fusion->second.breakpoint1 || // for deletions, both genomic breakpoints must be between the transcriptomic breakpoints
+					     fusion->second.direction1 == UPSTREAM && fusion->second.direction2 == UPSTREAM && *closeby_genomic_breakpoint2 > fusion->second.breakpoint1 || // for inversions, one genomic breakpoint must be between the transcriptomic breakpoints
+					     fusion->second.direction1 == DOWNSTREAM && fusion->second.direction2 == DOWNSTREAM && closeby_genomic_breakpoints->first < fusion->second.breakpoint2)) { // for inversions, one genomic breakpoint must be between the transcriptomic breakpoints
+					                                                                                                                                      // (this avoids false associations in the case of small deletions/inversions)
 						// we consider a pair of genomic breakpoints to be closer than a given one,
 						// if the sum of the distances between genomic and transcriptomic breakpoints is lower
 						if (fusion->second.closest_genomic_breakpoint1 < 0 || fusion->second.closest_genomic_breakpoint2 < 0 ||
