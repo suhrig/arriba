@@ -14,14 +14,15 @@ bool list_contains_exonic_reads(const vector<mates_t*>& read_list) {
 
 unsigned int filter_both_intronic(fusions_t& fusions) {
 	unsigned int remaining = 0;
-	for (fusions_t::iterator i = fusions.begin(); i != fusions.end(); ++i) {
-		if (!i->second.filters.empty())
+	for (fusions_t::iterator fusion = fusions.begin(); fusion != fusions.end(); ++fusion) {
+		if (!fusion->second.filters.empty())
 			continue; // read has already been filtered
 
-		if (!list_contains_exonic_reads(i->second.split_read1_list) &&
-		    !list_contains_exonic_reads(i->second.split_read2_list) &&
-		    !list_contains_exonic_reads(i->second.discordant_mate_list)) {
-			i->second.filters.insert(FILTERS.at("intronic"));
+		if (!list_contains_exonic_reads(fusion->second.split_read1_list) &&
+		    !list_contains_exonic_reads(fusion->second.split_read2_list) &&
+		    !list_contains_exonic_reads(fusion->second.discordant_mate_list) &&
+		    fusion->second.closest_genomic_breakpoint1 < 0) {
+			fusion->second.filters.insert(FILTERS.at("intronic"));
 		} else {
 			++remaining;
 		}

@@ -163,7 +163,7 @@ unsigned int filter_promiscuous_genes(fusions_t& fusions, const float evalue_cut
 			continue; // fusion has already been filtered
 
 		// throw away fusions which are expected to occur by random chance
-		if (i->second.evalue < evalue_cutoff) {
+		if (i->second.evalue < evalue_cutoff || i->second.closest_genomic_breakpoint1 >= 0) {
 			remaining++;
 		} else {
 			i->second.filters.insert(FILTERS.at("promiscuous_genes"));

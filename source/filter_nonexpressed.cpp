@@ -82,6 +82,11 @@ unsigned int filter_nonexpressed(fusions_t& fusions, const string& bam_file_path
 		if (!i->second.filters.empty())
 			continue; // fusion has already been filtered
 
+		if (i->second.closest_genomic_breakpoint1 >= 0) {
+			++remaining;
+			continue; // don't filter fusions with support from WGS
+		}
+
 
 		if (!i->second.is_read_through()) {
 
