@@ -88,6 +88,12 @@ bool blacklist_fusion(const contig_t contig1, const position_t start1, const pos
 				return true;
 			}
 
+		} else if (range2 == "read_through") { // remove blacklisted read-through fusions
+			if (fusion->is_read_through()) {
+				fusion->filters.insert(FILTERS.at("blacklist"));
+				return true;
+			}
+
 		} else if (genes.find(range2) != genes.end()) { // remove fusions by name of gene
 			if (genes.at(range2) == gene2) {
 				fusion->filters.insert(FILTERS.at("blacklist"));
