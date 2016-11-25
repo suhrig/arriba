@@ -18,7 +18,6 @@
 #include "filter_hairpin.hpp"
 #include "filter_low_entropy.hpp"
 #include "fusions.hpp"
-#include "mark_genomic_support.hpp"
 #include "filter_promiscuous_genes.hpp"
 #include "filter_both_intronic.hpp"
 #include "filter_both_novel.hpp"
@@ -31,8 +30,9 @@
 #include "merge_adjacent_fusions.hpp"
 #include "select_best.hpp"
 #include "filter_short_anchor.hpp"
-#include "filter_nonexpressed.hpp"
+#include "filter_no_genomic_support.hpp"
 #include "filter_mismappers.hpp"
+#include "filter_nonexpressed.hpp"
 #include "output_fusions.hpp"
 
 using namespace std;
@@ -59,6 +59,7 @@ unordered_map<string,filter_t> FILTERS({
 	{"short_anchor", NULL},
 	{"non_expressed", NULL},
 	{"uninteresting_contigs", NULL},
+	{"no_genomic_support", NULL},
 	{"low_entropy", NULL}
 });
 
@@ -353,6 +354,11 @@ int main(int argc, char **argv) {
 	if (options.filters.at("short_anchor")) {
 		cout << "Filtering fusions with anchors <=" << options.min_anchor_length << "nt" << flush;
 		cout << " (remaining=" << filter_short_anchor(fusions, options.min_anchor_length) << ")" << endl;
+	}
+
+	if (!options.genomic_breakpoints_file.empty() && options.filters.at("no_genomic_support")) {
+		cout << "Removing low-confidence events with no support from WGS" << flush;
+		cout << " (remaining=" << filter_no_genomic_support(fusions, options.evalue_cutoff) << ")" << endl;
 	}
 
 	// this step must come after the 'select_best' filter, because this filter removes breakpoints which are

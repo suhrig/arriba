@@ -8,7 +8,7 @@
 #include "common.hpp"
 #include "annotation.hpp"
 #include "read_compressed_file.hpp"
-#include "mark_genomic_support.hpp"
+#include "filter_no_genomic_support.hpp"
 
 using namespace std;
 
@@ -153,5 +153,22 @@ unsigned int mark_genomic_support(fusions_t& fusions, const string& genomic_brea
 		if (fusion->second.closest_genomic_breakpoint1 >= 0)
 			marked++;
 	return marked;
+}
+
+// filter speculative fusions without support from WGS
+unsigned int filter_no_genomic_support(fusions_t& fusions, const float evalue_cutoff) {
+
+	unsigned int remaining = 0;
+	for (fusions_t::iterator fusion = fusions.begin(); fusion != fusions.end(); ++fusion) {
+		if (fusion->second.closest_genomic_breakpoint1 < 0 && // no genomic support
+		    (fusion->second.is_read_through() || // probable accidental read-through artefact
+		     fusion->second.breakpoint_overlaps_both_genes() && fusion->second.exonic1 && fusion->second.exonic2 || // intragenic events with both breakpoints being in exons (probable hairpin artefact)
+		     fusion->second.evalue > evalue_cutoff)) // e-value > threashold => speculative fusion
+			fusion->second.filters.insert(FILTERS.at("no_genomic_support"));
+		else
+			remaining++;
+	}
+
+	return remaining;
 }
 
