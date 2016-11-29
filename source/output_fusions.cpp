@@ -478,9 +478,106 @@ string get_fusion_strand(const gene_t gene1, const gene_t gene2, const direction
 	return result;
 }
 
+enum confidence_t { LOW_CONFIDENCE, MEDIUM_CONFIDENCE, HIGH_CONFIDENCE };
+confidence_t get_confidence(const fusion_t& fusion, const map< gene_t, vector<fusion_t*> >& fusions_by_gene) {
+	confidence_t result;
+
+	if (!fusion.filters.empty()) {
+		result = LOW_CONFIDENCE;
+	} else {
+		if (fusion.evalue > 0.3) {
+			result = LOW_CONFIDENCE;
+			if (fusion.spliced1 && fusion.spliced2 && !fusion.is_read_through()) {
+				// look for multiple spliced translocations
+				unsigned int number_of_spliced_breakpoints = 0;
+				auto fusions_of_gene = fusions_by_gene.find(fusion.gene1);
+				for (auto fusion_of_gene = fusions_of_gene->second.begin(); fusion_of_gene != fusions_of_gene->second.end(); ++fusion_of_gene) {
+					if ((**fusion_of_gene).gene2 == fusion.gene2 && (**fusion_of_gene).gene2 == fusion.gene2 && (**fusion_of_gene).spliced1 && (**fusion_of_gene).spliced2)
+						++number_of_spliced_breakpoints;
+				}
+				fusions_of_gene = fusions_by_gene.find(fusion.gene2);
+				for (auto fusion_of_gene = fusions_of_gene->second.begin(); fusion_of_gene != fusions_of_gene->second.end(); ++fusion_of_gene) {
+					if ((**fusion_of_gene).gene1 == fusion.gene1 && (**fusion_of_gene).gene2 == fusion.gene2 && (**fusion_of_gene).spliced1 && (**fusion_of_gene).spliced2)
+						++number_of_spliced_breakpoints;
+				}
+				if (number_of_spliced_breakpoints >= 2)
+					result = MEDIUM_CONFIDENCE;
+			}
+		} else if (fusion.is_read_through()) {
+			result = LOW_CONFIDENCE;
+			if ((fusion.split_reads1 > 0 && fusion.split_reads2 > 0 || fusion.split_reads1 > 0 && fusion.discordant_mates > 0 || fusion.split_reads2 > 0 && fusion.discordant_mates > 0) && fusion.supporting_reads() > 9) {
+				result = MEDIUM_CONFIDENCE;
+			} else {
+				// look for multiple deletions involving the same gene
+				unsigned int number_of_deletions = 0;
+				auto fusions_of_gene = fusions_by_gene.find(fusion.gene1);
+				for (auto fusion_of_gene = fusions_of_gene->second.begin(); fusion_of_gene != fusions_of_gene->second.end(); ++fusion_of_gene) {
+					if ((**fusion_of_gene).filters.empty() &&
+					    (**fusion_of_gene).split_reads1 + (**fusion_of_gene).split_reads2 > 0 &&
+					    (**fusion_of_gene).direction1 == DOWNSTREAM && (**fusion_of_gene).direction2 == UPSTREAM &&
+					    ((**fusion_of_gene).breakpoint1 != fusion.breakpoint1 || (**fusion_of_gene).breakpoint2 != fusion.breakpoint2) &&
+					    (**fusion_of_gene).breakpoint2 > fusion.breakpoint1 && (**fusion_of_gene).breakpoint1 < fusion.breakpoint2) {
+						++number_of_deletions;
+					}
+				}
+				fusions_of_gene = fusions_by_gene.find(fusion.gene2);
+				for (auto fusion_of_gene = fusions_of_gene->second.begin(); fusion_of_gene != fusions_of_gene->second.end(); ++fusion_of_gene) {
+					if ((**fusion_of_gene).filters.empty() &&
+					    (**fusion_of_gene).split_reads1 + (**fusion_of_gene).split_reads2 > 0 &&
+					    (**fusion_of_gene).direction1 == DOWNSTREAM && (**fusion_of_gene).direction2 == UPSTREAM &&
+					    ((**fusion_of_gene).breakpoint1 != fusion.breakpoint1 || (**fusion_of_gene).breakpoint2 != fusion.breakpoint2) &&
+					    (**fusion_of_gene).breakpoint2 > fusion.breakpoint1 && (**fusion_of_gene).breakpoint1 < fusion.breakpoint2) {
+						++number_of_deletions;
+						}
+				}
+				if (number_of_deletions >= 1)
+					result = MEDIUM_CONFIDENCE;
+			}
+
+		} else if (fusion.breakpoint_overlaps_both_genes() || fusion.gene1 == fusion.gene2) { // intragenic event
+			if (fusion.split_reads1 + fusion.split_reads2 == 0) {
+				result = LOW_CONFIDENCE;
+			} else if (!fusion.exonic1 && !fusion.exonic2) {
+				if (fusion.split_reads1 > 0 && fusion.split_reads2 > 0) {
+					result = HIGH_CONFIDENCE;
+				} else {
+					result = MEDIUM_CONFIDENCE;
+				}
+			} else if (!fusion.exonic1 || !fusion.exonic2) {
+				if (fusion.split_reads1 > 3 && fusion.split_reads2 > 3) {
+					result = HIGH_CONFIDENCE;
+				} else {
+					result = MEDIUM_CONFIDENCE;
+				}
+			} else {
+				result = LOW_CONFIDENCE;
+			}
+		} else if (fusion.split_reads1 + fusion.split_reads2 == 0 || fusion.split_reads1 + fusion.discordant_mates == 0 || fusion.split_reads2 + fusion.discordant_mates == 0) {
+			result = MEDIUM_CONFIDENCE;
+		} else {
+			result = HIGH_CONFIDENCE;
+		}
+
+		if (fusion.evalue > 0.2) {
+			if (result == HIGH_CONFIDENCE)
+				result = MEDIUM_CONFIDENCE;
+			else if (result == MEDIUM_CONFIDENCE)
+				result = LOW_CONFIDENCE;
+		}
+
+		if (fusion.closest_genomic_breakpoint1 >= 0) { // has genomic support
+			if (result == LOW_CONFIDENCE)
+				result = MEDIUM_CONFIDENCE;
+			else if (result == MEDIUM_CONFIDENCE)
+				result = HIGH_CONFIDENCE;
+		}
+	}
+
+	return result;
+}
+
 void write_fusions_to_file(fusions_t& fusions, const string& output_file, gene_annotation_index_t& gene_annotation_index, exon_annotation_index_t& exon_annotation_index, vector<string> contigs_by_id, const bool print_supporting_reads, const bool print_fusion_sequence, const bool write_discarded_fusions) {
 //TODO add "chr", if necessary
-//TODO update help after changing columns
 
 	// make a vector of pointers to all fusions
 	// the vector will hold the fusions in sorted order
@@ -519,13 +616,20 @@ void write_fusions_to_file(fusions_t& fusions, const string& output_file, gene_a
 		sort(sorted_fusions.begin(), sorted_fusions.end(), ref(sort_fusions_by_rank_of_best));
 	}
 
+	// get all fusions by gene, we need this for better confidence scoring
+	map< gene_t, vector<fusion_t*> > fusions_by_gene;
+	for (fusions_t::iterator fusion = fusions.begin(); fusion != fusions.end(); ++fusion) {
+		fusions_by_gene[fusion->second.gene1].push_back(&fusion->second);
+		fusions_by_gene[fusion->second.gene2].push_back(&fusion->second);
+	}
+
 	// write sorted list to file
 	ofstream out(output_file);
 	if (!out.is_open()) {
 		cerr << "ERROR: Failed to open output file '" << output_file << "'." << endl;
 		exit(1);
 	}
-	out << "#gene1\tgene2\tstrand1(gene/fusion)\tstrand2(gene/fusion)\tbreakpoint1\tbreakpoint2\tsite1\tsite2\ttype\tdirection1\tdirection2\tsplit_reads1\tsplit_reads2\tdiscordant_mates\te-value\tclosest_genomic_breakpoint1\tclosest_genomic_breakpoint2\tfilter\tfusion_transcript\tread_identifiers" << endl;
+	out << "#gene1\tgene2\tstrand1(gene/fusion)\tstrand2(gene/fusion)\tbreakpoint1\tbreakpoint2\tsite1\tsite2\ttype\tdirection1\tdirection2\tsplit_reads1\tsplit_reads2\tdiscordant_mates\tconfidence\tclosest_genomic_breakpoint1\tclosest_genomic_breakpoint2\tfilters\tfusion_transcript\tread_identifiers" << endl;
 	for (vector<fusion_t*>::iterator i = sorted_fusions.begin(); i != sorted_fusions.end(); ++i) {
 
 		if ((**i).filters.empty() == write_discarded_fusions) // write either filtered or unfiltered fusions, but not both
@@ -570,6 +674,18 @@ void write_fusions_to_file(fusions_t& fusions, const string& output_file, gene_a
 		} else {
 			closest_genomic_breakpoint2 = ".";
 		}
+		string confidence;
+		switch (get_confidence(**i, fusions_by_gene)) {
+			case LOW_CONFIDENCE:
+				confidence = "low";
+				break;
+			case MEDIUM_CONFIDENCE:
+				confidence = "medium";
+				break;
+			case HIGH_CONFIDENCE:
+				confidence = "high";
+				break;
+		}
 
 		// the 5' gene should always come first => swap columns, if necessary
 		if (transcript_start == TRANSCRIPT_START_GENE2) {
@@ -588,7 +704,9 @@ void write_fusions_to_file(fusions_t& fusions, const string& output_file, gene_a
 		    << contigs_by_id[contig1] << ":" << (breakpoint1+1) << "\t" << contigs_by_id[contig2] << ":" << (breakpoint2+1) << "\t"
 		    << site1 << "\t" << site2 << "\t"
 		    << get_fusion_type(**i) << "\t" << ((direction1 == UPSTREAM) ? "upstream" : "downstream") << "\t" << ((direction2 == UPSTREAM) ? "upstream" : "downstream") << "\t"
-		    << split_reads1 << "\t" << split_reads2 << "\t" << (**i).discordant_mates << "\t" << (**i).evalue << "\t" << closest_genomic_breakpoint1 << "\t" << closest_genomic_breakpoint2;
+		    << split_reads1 << "\t" << split_reads2 << "\t" << (**i).discordant_mates << "\t"
+		    << confidence << "\t"
+		    << closest_genomic_breakpoint1 << "\t" << closest_genomic_breakpoint2;
 
 		// count the number of reads discarded by a given filter
 		map<string,unsigned int> filters;
