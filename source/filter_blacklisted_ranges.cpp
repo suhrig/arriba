@@ -55,7 +55,7 @@ bool parse_range(string range, const contigs_t& contigs, contig_t& contig, posit
 	return true;
 }
 
-bool blacklist_fusion(const contig_t contig1, const position_t start1, const position_t end1, const string& range1, const string& range2, const contigs_t& contigs, const unordered_map<string,gene_t>& genes, const contig_t fusion_contig1, const contig_t fusion_contig2, const position_t breakpoint1, const position_t breakpoint2, const direction_t direction1, const direction_t direction2, const gene_t gene1, const gene_t gene2, const unsigned int donor_split_reads, const unsigned int acceptor_split_reads, fusion_t* fusion) {
+bool blacklist_fusion(const contig_t contig1, const position_t start1, const position_t end1, const string& range1, const string& range2, const contigs_t& contigs, const unordered_map<string,gene_t>& genes, const contig_t fusion_contig1, const contig_t fusion_contig2, const position_t breakpoint1, const position_t breakpoint2, const direction_t direction1, const direction_t direction2, const gene_t gene1, const gene_t gene2, const unsigned int donor_split_reads, const unsigned int acceptor_split_reads, fusion_t* fusion, const float evalue_cutoff) {
 
 	if (genes.find(range1) != genes.end() && genes.at(range1) == gene1 || // match location by gene name
 	    fusion_contig1 == contig1 && breakpoint1 >= start1 && breakpoint1 <= end1) { // match location by coordinate
@@ -90,6 +90,12 @@ bool blacklist_fusion(const contig_t contig1, const position_t start1, const pos
 
 		} else if (range2 == "read_through") { // remove blacklisted read-through fusions
 			if (fusion->is_read_through()) {
+				fusion->filters.insert(FILTERS.at("blacklist"));
+				return true;
+			}
+
+		} else if (range2 == "low_support") { // remove recurrent speculative fusions (mostly those with two splice-sites)
+			if (fusion->evalue > evalue_cutoff) {
 				fusion->filters.insert(FILTERS.at("blacklist"));
 				return true;
 			}
@@ -133,7 +139,7 @@ bool blacklist_fusion(const contig_t contig1, const position_t start1, const pos
 	return false; // fusion was not filtered
 }
 
-unsigned int filter_blacklisted_ranges(fusions_t& fusions, const string& blacklist_file_path, const contigs_t& contigs, const unordered_map<string,gene_t>& genes) {
+unsigned int filter_blacklisted_ranges(fusions_t& fusions, const string& blacklist_file_path, const contigs_t& contigs, const unordered_map<string,gene_t>& genes, const float evalue_cutoff) {
 
 	// sort fusions by coordinate of gene1
 	map< position_t, vector<fusion_t*> > fusions_by_position;
@@ -187,11 +193,11 @@ unsigned int filter_blacklisted_ranges(fusions_t& fusions, const string& blackli
 					continue; // fusion has already been filtered
 
 				// check if breakpoint1 is in range1 and breakpoint2 is in range2
-				if (blacklist_fusion(contig1, start1, end1, range1, range2, contigs, genes, (**fusion).contig1, (**fusion).contig2, (**fusion).breakpoint1, (**fusion).breakpoint2, (**fusion).direction1, (**fusion).direction2, (**fusion).gene1, (**fusion).gene2, (**fusion).split_reads1, (**fusion).split_reads2, *fusion))
+				if (blacklist_fusion(contig1, start1, end1, range1, range2, contigs, genes, (**fusion).contig1, (**fusion).contig2, (**fusion).breakpoint1, (**fusion).breakpoint2, (**fusion).direction1, (**fusion).direction2, (**fusion).gene1, (**fusion).gene2, (**fusion).split_reads1, (**fusion).split_reads2, *fusion, evalue_cutoff))
 					continue;
 
 				// check if breakpoint2 is in range1 and breakpoint1 is in range2
-				if (blacklist_fusion(contig1, start1, end1, range1, range2, contigs, genes, (**fusion).contig2, (**fusion).contig1, (**fusion).breakpoint2, (**fusion).breakpoint1, (**fusion).direction2, (**fusion).direction1, (**fusion).gene2, (**fusion).gene1, (**fusion).split_reads2, (**fusion).split_reads1, *fusion))
+				if (blacklist_fusion(contig1, start1, end1, range1, range2, contigs, genes, (**fusion).contig2, (**fusion).contig1, (**fusion).breakpoint2, (**fusion).breakpoint1, (**fusion).direction2, (**fusion).direction1, (**fusion).gene2, (**fusion).gene1, (**fusion).split_reads2, (**fusion).split_reads1, *fusion, evalue_cutoff))
 					continue;
 
 			}

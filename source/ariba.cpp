@@ -365,7 +365,7 @@ int main(int argc, char **argv) {
 	// only supported by discordant mates, if there is a fusion with breakpoints also supported by split reads
 	if (options.filters.at("blacklist") && !options.blacklist_file.empty()) {
 		cout << "Filtering blacklisted fusions in '" << options.blacklist_file << "'" << flush;
-		cout << " (remaining=" << filter_blacklisted_ranges(fusions, options.blacklist_file, contigs, gene_names) << ")" << endl;
+		cout << " (remaining=" << filter_blacklisted_ranges(fusions, options.blacklist_file, contigs, gene_names, options.evalue_cutoff) << ")" << endl;
 	}
 
 	if (!options.assembly_file.empty()) {
