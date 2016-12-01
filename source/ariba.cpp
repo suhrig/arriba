@@ -252,7 +252,7 @@ int main(int argc, char **argv) {
 	}
 	
 	if (options.filters.at("read_through")) {
-		cout << "Filtering intergenic read-through fragments with a distance <=" << options.min_read_through_distance << "bp" << flush;
+		cout << "Filtering read-through fragments with a distance <=" << options.min_read_through_distance << "bp" << flush;
 		cout << " (remaining=" << filter_proximal_read_through(chimeric_alignments, options.min_read_through_distance) << ")" << endl;
 	}
 

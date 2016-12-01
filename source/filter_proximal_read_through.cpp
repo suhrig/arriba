@@ -12,29 +12,31 @@ unsigned int filter_proximal_read_through(chimeric_alignments_t& chimeric_alignm
 		if (!i->second.filters.empty())
 			continue; // the read has already been filtered
 
-		if (i->second.size() == 2) { // only filter discordant mates
+		// find forward and reverse mate
+		alignment_t* forward_mate;
+		alignment_t* reverse_mate;
+		if (i->second.size() == 2) { // discordant mates
+			forward_mate = &((i->second[MATE1].strand == FORWARD) ? i->second[MATE1] : i->second[MATE2]);
+			reverse_mate = &((i->second[MATE1].strand == FORWARD) ? i->second[MATE2] : i->second[MATE1]);
+		} else { // split read
+			forward_mate = &((i->second[SPLIT_READ].strand == FORWARD) ? i->second[SUPPLEMENTARY] : i->second[SPLIT_READ]);
+			reverse_mate = &((i->second[SPLIT_READ].strand == FORWARD) ? i->second[SPLIT_READ] : i->second[SUPPLEMENTARY]);
+		}
 
-			// find forward and reverse mate
-			alignment_t& forward_mate = (i->second[MATE1].strand == FORWARD) ? i->second[MATE1] : i->second[MATE2];
-			alignment_t& reverse_mate = (i->second[MATE1].strand == FORWARD) ? i->second[MATE2] : i->second[MATE1];
+		// only proper pairs can be read-through fragments
+		if (i->second.size() == 2 && forward_mate->strand != reverse_mate->strand && forward_mate->contig == reverse_mate->contig && forward_mate->end < reverse_mate->start ||
+		    i->second.size() == 3 && forward_mate->strand == reverse_mate->strand && forward_mate->contig == reverse_mate->contig && forward_mate->end < reverse_mate->start) {
 
-			// only proper pairs can be read-through fragments
-			if (forward_mate.strand != reverse_mate.strand && forward_mate.contig == reverse_mate.contig && forward_mate.end < reverse_mate.start) {
+			// find boundaries of biggest gene that the mates overlap with
+			position_t forward_gene_start, forward_gene_end, reverse_gene_start, reverse_gene_end;
+			get_boundaries_of_biggest_gene(forward_mate->genes, forward_gene_start, forward_gene_end);
+			get_boundaries_of_biggest_gene(reverse_mate->genes, reverse_gene_start, reverse_gene_end);
 
-				// find boundaries of biggest gene that the mates overlap with
-				position_t forward_gene_start, forward_gene_end, reverse_gene_start, reverse_gene_end;
-				get_boundaries_of_biggest_gene(forward_mate.genes, forward_gene_start, forward_gene_end);
-				get_boundaries_of_biggest_gene(reverse_mate.genes, reverse_gene_start, reverse_gene_end);
-
-				if ((!(**forward_mate.genes.begin()).is_dummy && forward_mate.end   >= reverse_gene_start - min_distance) ||
-				    (!(**reverse_mate.genes.begin()).is_dummy && reverse_mate.start <= forward_gene_end   + min_distance)) {
-					// delete the chimeric alignments, if one mate maps to a dummy gene
-					// and the mate is proximal (< min_distance) to the gene of the other mate
-					i->second.filters.insert(FILTERS.at("read_through"));
-					continue;
-				}
+			// remove chimeric alignment when mates map too close to end of gene
+			if (forward_mate->end >= reverse_gene_start - min_distance || reverse_mate->start <= forward_gene_end + min_distance) {
+				i->second.filters.insert(FILTERS.at("read_through"));
+				continue;
 			}
-
 		}
 
 		// we only get here, if the chimeric alignments were not filtered

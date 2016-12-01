@@ -170,7 +170,7 @@ void print_usage(const string& error_message) {
 	                  "Most of these alignments map to the UTRs of a gene, however, and are "
 	                  "therefore false positives. The 'read_through' filter removes mates "
 	                  "that map less than the given distance away from the gene of the other "
-	                  "mate, unless both mates map to annotated genes. Default: " + to_string(default_options.min_read_through_distance))
+	                  "mate. Default: " + to_string(default_options.min_read_through_distance))
 	     << wrap_help("-A MIN_ANCHOR_LENGTH", "Alignment artifacts are often characterized by "
 	                  "split reads coming from only gene and no discordant mates. Moreover, the split reads only "
 	                  "align to a short stretch in one of the genes. The 'short_anchor' "
