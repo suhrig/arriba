@@ -341,7 +341,7 @@ int main(int argc, char **argv) {
 	// or else adjacent breakpoints will be counted several times
 	if (options.filters.at("pcr_fusions")) {
 		cout << "Filtering PCR fusions" << flush;
-		cout << " (remaining=" << filter_pcr_fusions(fusions, 20, 4, 4, 3) << ")" << endl;
+		cout << " (remaining=" << filter_pcr_fusions(fusions, 20, 4, 4, 3, 8) << ")" << endl;
 	}
 
 	// this step must come after the 'merge_adjacent' filter,
