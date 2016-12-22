@@ -8,23 +8,35 @@
 
 using namespace std;
 
-typedef unordered_map< string, vector<string::size_type> > kmer_index_t;
-typedef unordered_map<gene_t,kmer_index_t> kmer_indices_t;
+typedef unsigned int kmer_as_int_t;
+typedef unordered_map< kmer_as_int_t, vector<string::size_type> > kmer_index_t;
+typedef vector<kmer_index_t> kmer_indices_t;
 
-bool align(int score, const string& read_sequence, string::size_type read_pos, const string& gene_sequence, string::size_type gene_pos, kmer_index_t& kmer_index, const unsigned int kmer_length, const int min_score, unsigned int segment_count) {
+kmer_as_int_t kmer_to_int(const string& kmer, const string::size_type position, const char kmer_length) {
+	unsigned int result = 0;
+	for (char base = 0; base < kmer_length; ++base) {
+		result = result<<2;
+		switch (kmer.c_str()[position + base]) {
+			case 'T': result += 0; break;
+			case 'G': result += 1; break;
+			case 'C': result += 2; break;
+			default:  result += 3; break;
+		}
+	}
+	return result;
+}
+
+bool align(int score, const string& read_sequence, string::size_type read_pos, const string& gene_sequence, const string::size_type gene_pos, const position_t gene_start, const position_t gene_end, const kmer_index_t& kmer_index, const char kmer_length, const int min_score, unsigned int segment_count) {
 
 	const string::size_type max_extend_left = read_pos; // we must not extend the alignment beyond this left boundary
 
 	for (/* read_pos comes from parameters */; read_pos + kmer_length < read_sequence.length() && read_pos + min_score < read_sequence.length() + score; ++read_pos, score--) {
 
-		auto kmer_hits = kmer_index.find(read_sequence.substr(read_pos, kmer_length));
+		auto kmer_hits = kmer_index.find(kmer_to_int(read_sequence, read_pos, kmer_length));
 		if (kmer_hits == kmer_index.end())
-			continue; // kmer not found in gene sequence
+			continue; // kmer not found on given contig
 
-		for (auto kmer_hit = kmer_hits->second.begin(); kmer_hit != kmer_hits->second.end(); ++kmer_hit) {
-
-			if (*kmer_hit < gene_pos)
-				continue;
+		for (auto kmer_hit = lower_bound(kmer_hits->second.begin(), kmer_hits->second.end(), gene_start + gene_pos); kmer_hit != kmer_hits->second.end() && *kmer_hit < gene_end; ++kmer_hit) {
 
 			int extended_score = score + kmer_length;
 			if (extended_score >= min_score)
@@ -32,10 +44,10 @@ bool align(int score, const string& read_sequence, string::size_type read_pos, c
 
 			// extend match locally to the left
 			// (if this is the first segment and we are not near the left end of the read / gene)
-			string::size_type extended_left = *kmer_hit; // keeps track of how far we can extend to the left
+			string::size_type extended_left = *kmer_hit - gene_start; // keeps track of how far we can extend to the left
 			if (read_pos > max_extend_left + 2 && gene_pos > 2) {
 				string::size_type extended_read_pos = read_pos - 1;
-				string::size_type extended_gene_pos = *kmer_hit - 1;
+				string::size_type extended_gene_pos = *kmer_hit - gene_start - 1;
 				unsigned int mismatch_count = 0;
 				while (extended_read_pos >= max_extend_left && extended_gene_pos >= 0) {
 
@@ -64,7 +76,7 @@ bool align(int score, const string& read_sequence, string::size_type read_pos, c
 			// extend match locally to the right
 			{
 				string::size_type extended_read_pos = read_pos + kmer_length;
-				string::size_type extended_gene_pos = *kmer_hit + kmer_length;
+				string::size_type extended_gene_pos = *kmer_hit - gene_start + kmer_length;
 				unsigned int mismatch_count = 0;
 				while (extended_read_pos < read_sequence.length() && extended_gene_pos < gene_sequence.length()) {
 
@@ -81,7 +93,7 @@ bool align(int score, const string& read_sequence, string::size_type read_pos, c
 						mismatch_count++;
 						if (mismatch_count > 1) {
 							if (read_sequence.length() >= 30 && (segment_count == 1 || extended_left <= gene_pos+1)) { // when there is more than one mismatch, try to align the other part of the read (but only allow one intron/indel)
-								if (align(extended_score, read_sequence, extended_read_pos, gene_sequence, extended_gene_pos, kmer_index, kmer_length, min_score, segment_count+1)) {
+								if (align(extended_score, read_sequence, extended_read_pos, gene_sequence, extended_gene_pos, gene_start, gene_end, kmer_index, kmer_length, min_score, segment_count+1)) {
 									return true;
 								} else {
 									break;
@@ -104,7 +116,7 @@ bool align(int score, const string& read_sequence, string::size_type read_pos, c
 	return false;
 }
 
-bool align_both_strands(const string& read_sequence, const position_t alignment_start, const position_t alignment_end, kmer_indices_t& kmer_indices, gene_set_t& genes, const unsigned int kmer_length, const int max_score, const float min_align_percent) {
+bool align_both_strands(const string& read_sequence, const position_t alignment_start, const position_t alignment_end, kmer_indices_t& kmer_indices, gene_set_t& genes, const char kmer_length, const int max_score, const float min_align_percent) {
 	int min_score = min_align_percent * read_sequence.size();
 	if (min_score > max_score)
 		min_score = max_score;
@@ -120,13 +132,13 @@ bool align_both_strands(const string& read_sequence, const position_t alignment_
 		    alignment_end   >= (**gene).start && alignment_end   <= (**gene).end)
 			continue;
 
-		if (align(0, read_sequence, 0, (**gene).sequence, 0, kmer_indices[*gene], kmer_length, min_score, 1)) { // align on forward strand
+		if (align(0, read_sequence, 0, (**gene).sequence, 0, (**gene).start, (**gene).end, kmer_indices[(**gene).contig], kmer_length, min_score, 1)) { // align on forward strand
 			return true;
 		} else { // align on reverse strand
 			string reverse_complement;
 			string original = read_sequence;
 			dna_to_reverse_complement(original, reverse_complement);
-			return align(0, reverse_complement, 0, (**gene).sequence, 0, kmer_indices[*gene], kmer_length, min_score, 1);
+			return align(0, reverse_complement, 0, (**gene).sequence, 0, (**gene).start, (**gene).end, kmer_indices[(**gene).contig], kmer_length, min_score, 1);
 		}
 	}
 	return false;
@@ -145,21 +157,24 @@ void count_mismappers(vector<mates_t*>& chimeric_alignments_list, unsigned int& 
 	}
 }
 
-unsigned int filter_mismappers(fusions_t& fusions, gene_annotation_t& gene_annotation, float max_mismapper_fraction) {
+unsigned int filter_mismappers(fusions_t& fusions, const gene_annotation_t& gene_annotation, const contigs_t& contigs, const float max_mismapper_fraction) {
 
-	const unsigned int kmer_length = 8;
+	const char kmer_length = 8; // must not be bigger than 32 or else conversion to int will fail
 	const int max_score = 30; // maximum amount of nucleotides which need to align to consider alignment good
-	float min_align_percent = 0.8; // allow ~1 mismatch for every six matches
+	const float min_align_percent = 0.8; // allow ~1 mismatch for every six matches
 
 	// make kmer indices from gene sequences
-	kmer_indices_t kmer_indices; // contains a kmer index for every gene sequence
-	for (gene_annotation_t::iterator gene = gene_annotation.begin(); gene != gene_annotation.end(); ++gene) {
+	kmer_indices_t kmer_indices(contigs.size()); // contains a kmer index for every contig
+	for (gene_annotation_t::const_iterator gene = gene_annotation.begin(); gene != gene_annotation.end(); ++gene) {
 		if (!gene->sequence.empty()) {
 			// store positions of kmers in hash
 			for (string::size_type pos = 0; pos + kmer_length < gene->sequence.length(); pos++)
-				kmer_indices[&(*gene)][gene->sequence.substr(pos, kmer_length)].push_back(pos);
+				kmer_indices[gene->contig][kmer_to_int(gene->sequence, pos, kmer_length)].push_back(pos + gene->start);
 		}
 	}
+	for (kmer_indices_t::iterator kmer_index = kmer_indices.begin(); kmer_index != kmer_indices.end(); ++kmer_index)
+		for (kmer_index_t::iterator kmer_hits = kmer_index->begin(); kmer_hits != kmer_index->end(); ++kmer_hits)
+			sort(kmer_hits->second.begin(), kmer_hits->second.end());
 
 	// align discordnat mate / clipped segment in gene of origin
 	for (fusions_t::iterator fusion = fusions.begin(); fusion != fusions.end(); ++fusion) {

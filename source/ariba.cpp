@@ -375,7 +375,7 @@ int main(int argc, char **argv) {
 		// this step must come near the end, because it is computationally expensive
 		if (options.filters.at("mismappers")) {
 			cout << "Re-aligning chimeric reads to filter fusions with >=" << (options.max_mismapper_fraction*100) << "% mis-mappers" << flush;
-			cout << " (remaining=" << filter_mismappers(fusions, gene_annotation, options.max_mismapper_fraction) << ")" << endl;
+			cout << " (remaining=" << filter_mismappers(fusions, gene_annotation, contigs, options.max_mismapper_fraction) << ")" << endl;
 		}
 	}
 
