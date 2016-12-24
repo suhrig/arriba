@@ -34,6 +34,7 @@ struct options_t {
 	bool print_fusion_sequence;
 	bool print_fusion_sequence_for_discarded_fusions;
 	bool low_tumor_content;
+	bool single_end;
 	float max_kmer_content;
 };
 

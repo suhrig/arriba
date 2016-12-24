@@ -5,6 +5,6 @@
 
 using namespace std;
 
-unsigned int filter_multi_mappers(chimeric_alignments_t& chimeric_alignments);
+unsigned int filter_multi_mappers(chimeric_alignments_t& chimeric_alignments, const bool single_end);
 
 #endif /* _FILTER_MULTI_MAPPERS_H */

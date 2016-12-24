@@ -28,6 +28,7 @@ options_t get_default_options() {
 	options.print_fusion_sequence = false;
 	options.print_fusion_sequence_for_discarded_fusions = false;
 	options.low_tumor_content = false;
+	options.single_end = false;
 	options.max_kmer_content = 0.6;
 
 	return options;
@@ -126,6 +127,7 @@ void print_usage(const string& error_message) {
 	                  "column can contain one of the following keywords: any, split_read_donor, "
 	                  "split_read_acceptor, split_read_any, discordant_mates. The file may be "
 	                  "gzip-compressed.")
+	     << wrap_help("-1", "Single-end data. Default: " + string((default_options.single_end) ? "single-end" : "paired-end"))
 	     << wrap_help("-i CONTIGS", "A comma-/space-separated list of interesting contigs. Fusions "
 	                  "between genes on other contigs are ignored. Contigs can be specified with "
 	                  "or without the prefix \"chr\".\nDefault: " + default_options.interesting_contigs)
@@ -205,7 +207,7 @@ options_t parse_arguments(int argc, char **argv) {
 	// parse arguments
 	opterr = 0;
 	int c;
-	while ((c = getopt(argc, argv, "c:r:x:d:g:o:O:a:k:b:i:f:E:s:lm:H:D:R:A:K:SIh")) != -1) {
+	while ((c = getopt(argc, argv, "c:r:x:d:g:o:O:a:k:b:1i:f:E:s:lm:H:D:R:A:K:SIh")) != -1) {
 		switch (c) {
 			case 'c':
 				options.chimeric_bam_file = optarg;
@@ -284,6 +286,9 @@ options_t parse_arguments(int argc, char **argv) {
 					cerr << "ERROR: File '" << options.known_fusions_file << "' not found." << endl;
 					exit(1);
 				}
+				break;
+			case '1':
+				options.single_end = true;
 				break;
 			case 'i':
 				options.interesting_contigs = optarg;

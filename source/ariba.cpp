@@ -96,7 +96,7 @@ int main(int argc, char **argv) {
 		contigs_by_id[i->second] = i->first;
 
 	cout << "Filtering multi-mappers and single mates" << flush;
-	cout << " (remaining=" << filter_multi_mappers(chimeric_alignments) << ")" << endl;
+	cout << " (remaining=" << filter_multi_mappers(chimeric_alignments, options.single_end) << ")" << endl;
 
 	vector<bool> interesting_contigs(contigs.size());
 	if (options.filters.at("uninteresting_contigs") && !options.interesting_contigs.empty()) {
