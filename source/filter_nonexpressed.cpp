@@ -79,7 +79,7 @@ unsigned int filter_nonexpressed(fusions_t& fusions, const string& bam_file_path
 	unsigned int remaining = 0;
 	for (fusions_t::iterator i = fusions.begin(); i != fusions.end(); ++i) {
 
-		if (!i->second.filters.empty())
+		if (i->second.filter != NULL)
 			continue; // fusion has already been filtered
 
 		if (i->second.closest_genomic_breakpoint1 >= 0) {
@@ -126,7 +126,7 @@ unsigned int filter_nonexpressed(fusions_t& fusions, const string& bam_file_path
 					end += 200;
 			}
 			if (!region_has_non_chimeric_reads(bam_file, bam_index, i->second.contig1, start, end, i->second.direction1, chimeric_alignments, i->second.exonic1)) {
-				i->second.filters.insert(FILTERS.at("non_expressed"));
+				i->second.filter = FILTERS.at("non_expressed");
 				continue;
 			}
 		}
@@ -151,7 +151,7 @@ unsigned int filter_nonexpressed(fusions_t& fusions, const string& bam_file_path
 					end += 200;
 			}
 			if (!region_has_non_chimeric_reads(bam_file, bam_index, i->second.contig2, start, end, i->second.direction2, chimeric_alignments, i->second.exonic2)) {
-				i->second.filters.insert(FILTERS.at("non_expressed"));
+				i->second.filter = FILTERS.at("non_expressed");
 				continue;
 			}
 		}

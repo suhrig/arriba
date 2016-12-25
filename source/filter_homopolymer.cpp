@@ -8,7 +8,7 @@ using namespace std;
 unsigned int filter_homopolymer(chimeric_alignments_t& chimeric_alignments, const unsigned int homopolymer_length) {
 	unsigned int remaining = 0;
 	for (chimeric_alignments_t::iterator i = chimeric_alignments.begin(); i != chimeric_alignments.end(); ++i) {
-		if (!i->second.filters.empty())
+		if (i->second.filter != NULL)
 			continue; // read has already been filtered
 
 		if (i->second.size() == 3) { // these are alignments of a split read
@@ -33,7 +33,7 @@ unsigned int filter_homopolymer(chimeric_alignments_t& chimeric_alignments, cons
 				if (sequence[c-1] == sequence[c]) {
 					run++;
 					if (run == homopolymer_length) {
-						i->second.filters.insert(FILTERS.at("homopolymer"));
+						i->second.filter = FILTERS.at("homopolymer");
 						goto next_read;
 					}
 				} else {

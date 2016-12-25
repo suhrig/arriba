@@ -269,7 +269,7 @@ void fetch_gene_sequences_from_fasta(const string& assembly_file_path, fusions_t
 	// fetch sequences of non-discarded fusions from FastA file
 	for (fusions_t::iterator i = fusions.begin(); i != fusions.end(); ++i) {
 
-		if (!i->second.filters.empty())
+		if (i->second.filter != NULL)
 			continue; // skip discarded fusions
 
 		vector<gene_t> genes = { i->second.gene1, i->second.gene2 };

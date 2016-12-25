@@ -61,48 +61,48 @@ bool blacklist_fusion(const contig_t contig1, const position_t start1, const pos
 	    fusion_contig1 == contig1 && breakpoint1 >= start1 && breakpoint1 <= end1) { // match location by coordinate
 
 		if (range2 == "any") { // remove the fusion if one breakpoint is within a region that is completely blacklisted
-			fusion->filters.insert(FILTERS.at("blacklist"));
+			fusion->filter = FILTERS.at("blacklist");
 			return true;
 
 		} else if (range2 == "split_read_donor") { // remove fusions which are only supported by blacklisted donor split reads
 			if (fusion->discordant_mates + acceptor_split_reads == 0) {
-				fusion->filters.insert(FILTERS.at("blacklist"));
+				fusion->filter = FILTERS.at("blacklist");
 				return true;
 			}
 
 		} else if (range2 == "split_read_acceptor") { // remove fusions which are only supported by blacklisted acceptor split reads
 			if (fusion->discordant_mates + donor_split_reads == 0) {
-				fusion->filters.insert(FILTERS.at("blacklist"));
+				fusion->filter = FILTERS.at("blacklist");
 				return true;
 			}
 
 		} else if (range2 == "split_read_any") { // remove fusions which are only supported by blacklisted split reads
 			if (fusion->discordant_mates == 0) {
-				fusion->filters.insert(FILTERS.at("blacklist"));
+				fusion->filter = FILTERS.at("blacklist");
 				return true;
 			}
 
 		} else if (range2 == "discordant_mates") { // remove fusions which are only supported by blacklisted discordant mates
 			if (donor_split_reads + acceptor_split_reads == 0) {
-				fusion->filters.insert(FILTERS.at("blacklist"));
+				fusion->filter = FILTERS.at("blacklist");
 				return true;
 			}
 
 		} else if (range2 == "read_through") { // remove blacklisted read-through fusions
 			if (fusion->is_read_through()) {
-				fusion->filters.insert(FILTERS.at("blacklist"));
+				fusion->filter = FILTERS.at("blacklist");
 				return true;
 			}
 
 		} else if (range2 == "low_support") { // remove recurrent speculative fusions (mostly those with two splice-sites)
 			if (fusion->evalue > evalue_cutoff) {
-				fusion->filters.insert(FILTERS.at("blacklist"));
+				fusion->filter = FILTERS.at("blacklist");
 				return true;
 			}
 
 		} else if (genes.find(range2) != genes.end()) { // remove fusions by name of gene
 			if (genes.at(range2) == gene2) {
-				fusion->filters.insert(FILTERS.at("blacklist"));
+				fusion->filter = FILTERS.at("blacklist");
 				return true;
 			}
 
@@ -111,7 +111,7 @@ bool blacklist_fusion(const contig_t contig1, const position_t start1, const pos
 			position_t start2, end2;
 			if (parse_range(range2, contigs, contig2, start2, end2)) {
 				if (fusion_contig2 == contig2 && breakpoint2 >= start2 && breakpoint2 <= end2) {
-					fusion->filters.insert(FILTERS.at("blacklist"));
+					fusion->filter = FILTERS.at("blacklist");
 					return true;
 				}
 			}
@@ -130,7 +130,7 @@ bool blacklist_fusion(const contig_t contig1, const position_t start1, const pos
 		if (parse_range(range2, contigs, contig2, start2, end2)) {
 			if (start2 == end2 && // blacklisted breakpont is a single base position
 			    fusion_contig2 == contig2 && (breakpoint2 <= start2 && breakpoint2 + 200 >= start2 && direction2 == DOWNSTREAM || breakpoint2 >= start2 && breakpoint2 <= start2 + 200 && direction2 == UPSTREAM)) { // read2 points towards blacklisted breakpoint
-				fusion->filters.insert(FILTERS.at("blacklist"));
+				fusion->filter = FILTERS.at("blacklist");
 				return true;
 			}
 		}
@@ -144,7 +144,7 @@ unsigned int filter_blacklisted_ranges(fusions_t& fusions, const string& blackli
 	// sort fusions by coordinate of gene1
 	map< position_t, vector<fusion_t*> > fusions_by_position;
 	for (fusions_t::iterator i = fusions.begin(); i != fusions.end(); ++i) {
-		if (!i->second.filters.empty())
+		if (i->second.filter != NULL)
 			continue; // fusion has already been filtered
 		fusions_by_position[i->second.breakpoint1].push_back(&i->second);
 		fusions_by_position[i->second.breakpoint2].push_back(&i->second);
@@ -153,7 +153,7 @@ unsigned int filter_blacklisted_ranges(fusions_t& fusions, const string& blackli
 	// hash fusions by gene
 	unordered_map< gene_t, vector<fusion_t*> > fusions_by_gene;
 	for (fusions_t::iterator i = fusions.begin(); i != fusions.end(); ++i) {
-		if (!i->second.filters.empty())
+		if (i->second.filter != NULL)
 			continue; // fusion has already been filtered
 		fusions_by_gene[i->second.gene1].push_back(&i->second);
 		fusions_by_gene[i->second.gene2].push_back(&i->second);
@@ -189,7 +189,7 @@ unsigned int filter_blacklisted_ranges(fusions_t& fusions, const string& blackli
 			// check for all fusions falling into range1 whether they also fall into range2
 			for (auto fusion = fusions_to_check.begin(); fusion != fusions_to_check.end(); ++fusion) {
 
-				if (!(**fusion).filters.empty())
+				if ((**fusion).filter != NULL)
 					continue; // fusion has already been filtered
 
 				// check if breakpoint1 is in range1 and breakpoint2 is in range2
@@ -207,7 +207,7 @@ unsigned int filter_blacklisted_ranges(fusions_t& fusions, const string& blackli
 	// count remaining fusions
 	unsigned int remaining = 0;
 	for (fusions_t::iterator i = fusions.begin(); i != fusions.end(); ++i)
-		if (i->second.filters.empty())
+		if (i->second.filter == NULL)
 			remaining++;
 	return remaining;
 }

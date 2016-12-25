@@ -32,7 +32,7 @@ void estimate_expected_fusions(fusions_t& fusions, const unsigned long int mappe
 	// find all fusion partners for each gene
 	unordered_map< gene_t,gene_set_t > fusion_partners;
 	for (fusions_t::iterator i = fusions.begin(); i != fusions.end(); ++i) {
-		if (i->second.filters.empty() && i->second.gene1 != i->second.gene2) {
+		if (i->second.filter == NULL && i->second.gene1 != i->second.gene2) {
 			if (!i->second.overlap_duplicate1)
 				fusion_partners[i->second.gene2].insert(i->second.gene1);
 			if (!i->second.overlap_duplicate2)
@@ -57,7 +57,7 @@ void estimate_expected_fusions(fusions_t& fusions, const unsigned long int mappe
 	vector<unsigned int/*supporting reads*/> non_spliced_breakpoints(spliced_breakpoints.size());
 	for (fusions_t::iterator i = fusions.begin(); i != fusions.end(); ++i) {
 		unsigned int supporting_reads = i->second.supporting_reads();
-		if (i->second.filters.empty()) {
+		if (i->second.filter == NULL) {
 			if (i->second.split_reads1 + i->second.split_reads2 > 0 && supporting_reads <= spliced_breakpoints.size()) {
 				if (i->second.spliced1 || i->second.spliced2)
 					spliced_breakpoints[supporting_reads-1]++;
@@ -159,7 +159,7 @@ void estimate_expected_fusions(fusions_t& fusions, const unsigned long int mappe
 unsigned int filter_promiscuous_genes(fusions_t& fusions, const float evalue_cutoff) {
 	unsigned int remaining = 0;
 	for (fusions_t::iterator i = fusions.begin(); i != fusions.end(); ++i) {
-		if (!i->second.filters.empty())
+		if (i->second.filter != NULL)
 			continue; // fusion has already been filtered
 
 		// throw away fusions which are expected to occur by random chance
@@ -168,7 +168,7 @@ unsigned int filter_promiscuous_genes(fusions_t& fusions, const float evalue_cut
 		    i->second.closest_genomic_breakpoint1 >= 0) { // keep anyting with support from WGS
 			remaining++;
 		} else {
-			i->second.filters.insert(FILTERS.at("promiscuous_genes"));
+			i->second.filter = FILTERS.at("promiscuous_genes");
 		}
 	}
 	return remaining;

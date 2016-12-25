@@ -9,7 +9,7 @@ unsigned int filter_duplicates(chimeric_alignments_t& chimeric_alignments) {
 	unsigned int remaining = 0;
 	unordered_map< tuple<position_t,position_t,position_t,position_t> , unsigned int> duplicate_count;
 	for (chimeric_alignments_t::iterator i = chimeric_alignments.begin(); i != chimeric_alignments.end(); ++i) {
-		if (!i->second.filters.empty())
+		if (i->second.filter != NULL)
 			continue; // read has already been filtered
 
 		tuple<position_t,position_t,position_t,position_t> mate_coordinates = make_tuple(i->second[MATE1].start - i->second[MATE1].preclipping(),
@@ -17,7 +17,7 @@ unsigned int filter_duplicates(chimeric_alignments_t& chimeric_alignments) {
 												 i->second[MATE2].start - i->second[MATE2].preclipping(),
 												 i->second[MATE2].end   + i->second[MATE2].postclipping());
 		if (duplicate_count[mate_coordinates]++ > 0)
-			i->second.filters.insert(FILTERS.at("duplicates"));
+			i->second.filter = FILTERS.at("duplicates");
 		else
 			++remaining;
 	}

@@ -9,7 +9,7 @@ unsigned int filter_proximal_read_through(chimeric_alignments_t& chimeric_alignm
 	unsigned int remaining = 0;
 	for (chimeric_alignments_t::iterator i = chimeric_alignments.begin(); i != chimeric_alignments.end(); ++i) {
 
-		if (!i->second.filters.empty())
+		if (i->second.filter != NULL)
 			continue; // the read has already been filtered
 
 		// find forward and reverse mate
@@ -34,7 +34,7 @@ unsigned int filter_proximal_read_through(chimeric_alignments_t& chimeric_alignm
 
 			// remove chimeric alignment when mates map too close to end of gene
 			if (forward_mate->end >= reverse_gene_start - min_distance || reverse_mate->start <= forward_gene_end + min_distance) {
-				i->second.filters.insert(FILTERS.at("read_through"));
+				i->second.filter = FILTERS.at("read_through");
 				continue;
 			}
 		}

@@ -10,7 +10,7 @@ using namespace std;
 unsigned int merge_adjacent_fusions(fusions_t& fusions, const int max_distance) {
 	for (fusions_t::iterator fusion = fusions.begin(); fusion != fusions.end(); ++fusion) {
 
-		if (!fusion->second.filters.empty())
+		if (fusion->second.filter != NULL)
 			continue; // fusion has already been filtered
 
 		if (fusion->second.split_reads1 + fusion->second.split_reads2 == 0)
@@ -32,7 +32,7 @@ unsigned int merge_adjacent_fusions(fusions_t& fusions, const int max_distance) 
 						fusion->second.direction2
 					)
 				);
-				if (adjacent_fusion != fusions.end() && adjacent_fusion->second.filters.empty() &&
+				if (adjacent_fusion != fusions.end() && adjacent_fusion->second.filter == NULL &&
 				    adjacent_fusion->second.split_reads1 + adjacent_fusion->second.split_reads2 > 0)
 					adjacent_fusions.push_back(adjacent_fusion);
 			}
@@ -61,13 +61,13 @@ unsigned int merge_adjacent_fusions(fusions_t& fusions, const int max_distance) 
 			fusion->second.split_reads2 += sum_split_reads2;
 			for (unsigned int k = 0; k < adjacent_fusions.size(); ++k)
 				if (adjacent_fusions[k] != fusions.end())
-					adjacent_fusions[k]->second.filters.insert(FILTERS.at("merge_adjacent"));
+					adjacent_fusions[k]->second.filter = FILTERS.at("merge_adjacent");
 		}
 	}
 
 	unsigned int remaining = 0;
 	for (fusions_t::iterator fusion = fusions.begin(); fusion != fusions.end(); ++fusion)
-		if (fusion->second.filters.empty())
+		if (fusion->second.filter == NULL)
 			remaining++;
 	return remaining;
 }

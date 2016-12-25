@@ -32,8 +32,8 @@ unsigned int filter_pcr_fusions(fusions_t& fusions, const float max_pcr_fusion_s
 		    !fusion->second.spliced1 && !fusion->second.spliced2 && // breakpoints at splice sites are almost exclusively a result of splicing and thus, no PCR-mediated fusions
 		    (!fusion->second.overlap_duplicate1 || !fusion->second.overlap_duplicate2) && // don't count breakpoints twice, if they are in overlapping genes
 		    fusion->second.exonic1 && fusion->second.exonic2 && // PCR fusions only contain spliced transcripts, so we ignore intronic/intergenic breakpoints
-		    fusion->second.filters.find(FILTERS.at("uninteresting_contigs")) == fusion->second.filters.end() && // ignore fusions with mitochondrial DNA and decoy sequences, there are usually tons of those
-		    fusion->second.filters.find(FILTERS.at("merge_adjacent")) == fusion->second.filters.end()) { // slightly varying alignments may lead to adjacent breakpoints, we should not count them as separate breakpoints
+		    fusion->second.filter != FILTERS.at("uninteresting_contigs") && // ignore fusions with mitochondrial DNA and decoy sequences, there are usually tons of those
+		    fusion->second.filter != FILTERS.at("merge_adjacent")) { // slightly varying alignments may lead to adjacent breakpoints, we should not count them as separate breakpoints
 
 			if (fusion->second.split_read1_list.size() + fusion->second.split_read2_list.size()) { // this also counts discarded reads
 				if (!fusion->second.overlap_duplicate2)
@@ -57,7 +57,7 @@ unsigned int filter_pcr_fusions(fusions_t& fusions, const float max_pcr_fusion_s
 	map< pair<gene_t,gene_t>, bool > filtered_gene_pairs;
 	for (fusions_t::iterator fusion = fusions.begin(); fusion != fusions.end(); ++fusion) {
 
-		if (!fusion->second.filters.empty())
+		if (fusion->second.filter != NULL)
 			continue; // fusion has already been filtered
 
 		if (fusion->second.closest_genomic_breakpoint1 >= 0)
@@ -71,13 +71,13 @@ unsigned int filter_pcr_fusions(fusions_t& fusions, const float max_pcr_fusion_s
 		     (partners_with_many_exonic_breakpoints[fusion->second.gene1] >= max_partners_with_many_exonic_breakpoints || partners_with_many_exonic_breakpoints[fusion->second.gene2] >= max_partners_with_many_exonic_breakpoints) || // one of the partners must have many other partners with many exonic breakpoints
 		      exonic_breakpoints_by_gene_pair[make_tuple(fusion->second.gene1, fusion->second.gene2)] > max_exonic_breakpoints_for_gene_pair)) { // the gene pair has many breakpoints between each other
 			filtered_gene_pairs[make_pair(fusion->second.gene1, fusion->second.gene2)];
-			fusion->second.filters.insert(FILTERS.at("pcr_fusions"));
+			fusion->second.filter = FILTERS.at("pcr_fusions");
 		}
 	}
 
 	// filter fusions which overlap with genes removed by this filter
 	for (fusions_t::iterator fusion = fusions.begin(); fusion != fusions.end(); ++fusion) {
-		if (!fusion->second.filters.empty())
+		if (fusion->second.filter != NULL)
 			continue; // fusion has already been filtered
 
 		if (fusion->second.closest_genomic_breakpoint1 >= 0)
@@ -97,14 +97,14 @@ unsigned int filter_pcr_fusions(fusions_t& fusions, const float max_pcr_fusion_s
 			}
 
 			if (breakpoints_overlap_filtered_gene_pair)
-				fusion->second.filters.insert(FILTERS.at("pcr_fusions"));
+				fusion->second.filter = FILTERS.at("pcr_fusions");
 		}
 
 	}
 
 	unsigned int remaining = 0;
 	for (fusions_t::iterator fusion = fusions.begin(); fusion != fusions.end(); ++fusion)
-		if (fusion->second.filters.empty())
+		if (fusion->second.filter == NULL)
 			++remaining;
 	return remaining;
 }

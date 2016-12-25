@@ -8,12 +8,12 @@ unsigned int filter_min_support(fusions_t& fusions, const unsigned int min_suppo
 	unsigned int remaining = 0;
 	for (fusions_t::iterator i = fusions.begin(); i != fusions.end(); ++i) {
 
-		if (!i->second.filters.empty())
+		if (i->second.filter != NULL)
 			continue; // fusion has already been filtered
 
 		if (i->second.split_reads1 + i->second.split_reads2 + i->second.discordant_mates < min_support ||
 		    i->second.breakpoint_overlaps_both_genes() && i->second.split_reads1 + i->second.split_reads2 < min_support)
-			i->second.filters.insert(FILTERS.at("min_support"));
+			i->second.filter = FILTERS.at("min_support");
 		else
 			remaining++;
 	}

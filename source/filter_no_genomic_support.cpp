@@ -164,7 +164,7 @@ unsigned int filter_no_genomic_support(fusions_t& fusions, const float evalue_cu
 		    (fusion->second.is_read_through() || // probable accidental read-through artefact
 		     fusion->second.breakpoint_overlaps_both_genes() && fusion->second.exonic1 && fusion->second.exonic2 || // intragenic events with both breakpoints being in exons (probable hairpin artefact)
 		     fusion->second.evalue > evalue_cutoff)) // e-value > threashold => speculative fusion
-			fusion->second.filters.insert(FILTERS.at("no_genomic_support"));
+			fusion->second.filter = FILTERS.at("no_genomic_support");
 		else
 			remaining++;
 	}

@@ -64,7 +64,7 @@ typedef map< position_t, map<string/*base*/,unsigned int/*frequency*/> > pileup_
 void pileup_chimeric_alignments(vector<mates_t*>& chimeric_alignments, const unsigned int mate, const bool reverse_complement, const direction_t direction, const position_t breakpoint, pileup_t& pileup) {
 	for (auto i = chimeric_alignments.begin(); i != chimeric_alignments.end(); ++i) {
 
-		if ((**i).filters.find(FILTERS.at("duplicates")) != (**i).filters.end())
+		if ((**i).filter == FILTERS.at("duplicates"))
 			continue; // skip duplicates
 
 		alignment_t& read = (**i)[mate]; // introduce alias for cleaner code
@@ -481,7 +481,7 @@ enum confidence_t { LOW_CONFIDENCE, MEDIUM_CONFIDENCE, HIGH_CONFIDENCE };
 confidence_t get_confidence(const fusion_t& fusion, const map< gene_t, vector<fusion_t*> >& fusions_by_gene) {
 	confidence_t result;
 
-	if (!fusion.filters.empty()) {
+	if (fusion.filter != NULL) {
 		result = LOW_CONFIDENCE;
 	} else {
 		if (fusion.evalue > 0.3) {
@@ -511,7 +511,7 @@ confidence_t get_confidence(const fusion_t& fusion, const map< gene_t, vector<fu
 				unsigned int number_of_deletions = 0;
 				auto fusions_of_gene = fusions_by_gene.find(fusion.gene1);
 				for (auto fusion_of_gene = fusions_of_gene->second.begin(); fusion_of_gene != fusions_of_gene->second.end(); ++fusion_of_gene) {
-					if ((**fusion_of_gene).filters.empty() &&
+					if ((**fusion_of_gene).filter == NULL &&
 					    (**fusion_of_gene).split_reads1 + (**fusion_of_gene).split_reads2 > 0 &&
 					    (**fusion_of_gene).direction1 == DOWNSTREAM && (**fusion_of_gene).direction2 == UPSTREAM &&
 					    ((**fusion_of_gene).breakpoint1 != fusion.breakpoint1 || (**fusion_of_gene).breakpoint2 != fusion.breakpoint2) &&
@@ -521,7 +521,7 @@ confidence_t get_confidence(const fusion_t& fusion, const map< gene_t, vector<fu
 				}
 				fusions_of_gene = fusions_by_gene.find(fusion.gene2);
 				for (auto fusion_of_gene = fusions_of_gene->second.begin(); fusion_of_gene != fusions_of_gene->second.end(); ++fusion_of_gene) {
-					if ((**fusion_of_gene).filters.empty() &&
+					if ((**fusion_of_gene).filter == NULL &&
 					    (**fusion_of_gene).split_reads1 + (**fusion_of_gene).split_reads2 > 0 &&
 					    (**fusion_of_gene).direction1 == DOWNSTREAM && (**fusion_of_gene).direction2 == UPSTREAM &&
 					    ((**fusion_of_gene).breakpoint1 != fusion.breakpoint1 || (**fusion_of_gene).breakpoint2 != fusion.breakpoint2) &&
@@ -582,7 +582,7 @@ void write_fusions_to_file(fusions_t& fusions, const string& output_file, gene_a
 	// the vector will hold the fusions in sorted order
 	vector<fusion_t*> sorted_fusions;
 	for (fusions_t::iterator i = fusions.begin(); i != fusions.end(); ++i) {
-		if (write_discarded_fusions || i->second.filters.empty())
+		if (write_discarded_fusions || i->second.filter == NULL)
 			sorted_fusions.push_back(&(i->second));
 	}
 
@@ -598,7 +598,7 @@ void write_fusions_to_file(fusions_t& fusions, const string& output_file, gene_a
 		//    which we use as a parameter to the sort function later
 		sort_fusions_by_rank_of_best_t sort_fusions_by_rank_of_best;
 		for (fusions_t::iterator i = fusions.begin(); i != fusions.end(); ++i) {
-			if (!i->second.filters.empty())
+			if (i->second.filter != NULL)
 				continue; // skip discarded fusions
 
 			gene_pair_t gene_pair = make_tuple(i->second.gene1, i->second.gene2);
@@ -631,7 +631,7 @@ void write_fusions_to_file(fusions_t& fusions, const string& output_file, gene_a
 	out << "#gene1\tgene2\tstrand1(gene/fusion)\tstrand2(gene/fusion)\tbreakpoint1\tbreakpoint2\tsite1\tsite2\ttype\tdirection1\tdirection2\tsplit_reads1\tsplit_reads2\tdiscordant_mates\tconfidence\tclosest_genomic_breakpoint1\tclosest_genomic_breakpoint2\tfilters\tfusion_transcript\tread_identifiers" << endl;
 	for (vector<fusion_t*>::iterator i = sorted_fusions.begin(); i != sorted_fusions.end(); ++i) {
 
-		if ((**i).filters.empty() == write_discarded_fusions) // write either filtered or unfiltered fusions, but not both
+		if (((**i).filter == NULL) == write_discarded_fusions) // write either filtered or unfiltered fusions, but not both
 			continue;
 
 		// get the gene which likely makes the 5' end of the transcript first
@@ -709,15 +709,15 @@ void write_fusions_to_file(fusions_t& fusions, const string& output_file, gene_a
 
 		// count the number of reads discarded by a given filter
 		map<string,unsigned int> filters;
-		for (auto filter = (**i).filters.begin(); filter != (**i).filters.end(); ++filter)
-			filters[**filter] = 0;
+		if ((**i).filter != NULL)
+			filters[*(**i).filter] = 0;
 		vector<mates_t*> all_supporting_reads = (**i).split_read1_list;
 		all_supporting_reads.insert(all_supporting_reads.end(), (**i).split_read1_list.begin(), (**i).split_read1_list.end());
 		all_supporting_reads.insert(all_supporting_reads.end(), (**i).split_read2_list.begin(), (**i).split_read2_list.end());
 		all_supporting_reads.insert(all_supporting_reads.end(), (**i).discordant_mate_list.begin(), (**i).discordant_mate_list.end());
 		for (auto chimeric_alignment = all_supporting_reads.begin(); chimeric_alignment != all_supporting_reads.end(); ++chimeric_alignment)
-			if (!(**chimeric_alignment).filters.empty())
-				filters[**(**chimeric_alignment).filters.begin()]++; // adjust this when we support more than one filter per read
+			if ((**chimeric_alignment).filter != NULL)
+				filters[*(**chimeric_alignment).filter]++;
 
 		// output filters
 		out << "\t";

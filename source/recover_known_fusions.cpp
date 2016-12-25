@@ -40,23 +40,23 @@ unsigned int recover_known_fusions(fusions_t& fusions, const string& known_fusio
 	// look for known fusions with low support which were filtered
 	for (fusions_t::iterator i = fusions.begin(); i != fusions.end(); ++i) {
 
-		if (i->second.filters.empty() || // fusion has not been filtered, no need to recover
+		if (i->second.filter == NULL || // fusion has not been filtered, no need to recover
 		    i->second.gene1 == i->second.gene2) // don't recover intragenic events
 			continue;
 
-		if (!i->second.filters.empty() && // fusion has been filtered
-		    i->second.filters.find(FILTERS.at("promiscuous_genes")) == i->second.filters.end() && i->second.filters.find(FILTERS.at("min_support")) == i->second.filters.end()) // reason is not low support
+		if (i->second.filter != NULL && // fusion has been filtered
+		    i->second.filter != FILTERS.at("promiscuous_genes") && i->second.filter != FILTERS.at("min_support")) // reason is not low support
 			continue; // we won't recover fusions which were not discarded due to low support
 
 		if ((i->second.supporting_reads() >= 2 || low_tumor_content) && // we still require at least two reads, otherwise there will be too many false positives
 		    known_fusions.find(make_tuple(i->second.gene1, i->second.gene2)) != known_fusions.end()) // fusion is known
-			i->second.filters.clear();
+			i->second.filter = NULL;
 	}
 
 	// count remaining fusions
 	unsigned int remaining = 0;
 	for (fusions_t::iterator i = fusions.begin(); i != fusions.end(); ++i)
-		if (i->second.filters.empty())
+		if (i->second.filter == NULL)
 			++remaining;
 	return remaining;
 }

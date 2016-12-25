@@ -36,7 +36,7 @@ unsigned int filter_hairpin(chimeric_alignments_t& chimeric_alignments, exon_ann
 	unsigned int remaining = 0;
 	for (chimeric_alignments_t::iterator i = chimeric_alignments.begin(); i != chimeric_alignments.end(); ++i) {
 
-		if (!i->second.filters.empty())
+		if (i->second.filter != NULL)
 			continue; // the read has already been filtered
 
 		// check if mate1 and mate2 map to the same gene
@@ -61,7 +61,7 @@ unsigned int filter_hairpin(chimeric_alignments_t& chimeric_alignments, exon_ann
 			    spliced_distance_too_short(i->second[MATE1].contig, breakpoint1, breakpoint2, direction1, direction2, common_genes, 200, exon_annotation_index) ||
 			    is_breakpoint_within_aligned_segment(breakpoint1, i->second[MATE2]) ||
 			    is_breakpoint_within_aligned_segment(breakpoint2, i->second[MATE1])) {
-				i->second.filters.insert(FILTERS.at("hairpin"));
+				i->second.filter = FILTERS.at("hairpin");
 				continue;
 			}
 
@@ -88,7 +88,7 @@ unsigned int filter_hairpin(chimeric_alignments_t& chimeric_alignments, exon_ann
 			    is_breakpoint_within_aligned_segment(breakpoint_split_read, i->second[SUPPLEMENTARY]) ||
 			    is_breakpoint_within_aligned_segment(breakpoint_supplementary, i->second[SPLIT_READ]) ||
 			    is_breakpoint_within_aligned_segment(breakpoint_supplementary, i->second[MATE1])) {
-				i->second.filters.insert(FILTERS.at("hairpin"));
+				i->second.filter = FILTERS.at("hairpin");
 				continue;
 			}
 

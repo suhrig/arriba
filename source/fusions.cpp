@@ -78,10 +78,10 @@ unsigned int find_fusions(chimeric_alignments_t& chimeric_alignments, fusions_t&
 					}
 
 					if (fusion.split_reads1 + fusion.split_reads2 + fusion.discordant_mates == 0) {
-						if (i->second.filters.empty())
-							fusion.filters.clear();
+						if (i->second.filter == NULL)
+							fusion.filter = NULL;
 						else
-							fusion.filters.insert(*i->second.filters.begin()); // TODO adjust this when we support more than one filter per read
+							fusion.filter = i->second.filter;
 					}
 
 					// expand the size of the anchor
@@ -105,11 +105,11 @@ unsigned int find_fusions(chimeric_alignments_t& chimeric_alignments, fusions_t&
 					// increase split read counters for the given fusion
 					if (swapped) {
 						fusion.split_read2_list.push_back(&(i->second));
-						if (i->second.filters.empty())
+						if (i->second.filter == NULL)
 							fusion.split_reads2++;
 					} else {
 						fusion.split_read1_list.push_back(&(i->second));
-						if (i->second.filters.empty())
+						if (i->second.filter == NULL)
 							fusion.split_reads1++;
 					}
 				}
@@ -159,10 +159,10 @@ unsigned int find_fusions(chimeric_alignments_t& chimeric_alignments, fusions_t&
 					fusion.exonic1 = exonic1; fusion.exonic2 = exonic2;
 					fusion.spliced1 = false; fusion.spliced2 = false;
 
-					if (i->second.filters.empty()) {
-						fusion.filters.clear();
-					} else if (is_new_fusion || !fusion.filters.empty()) {
-						fusion.filters.insert(*i->second.filters.begin()); // TODO adjust this when we support more than one filter per read
+					if (i->second.filter == NULL) {
+						fusion.filter = NULL;
+					} else if (is_new_fusion || fusion.filter != NULL) {
+						fusion.filter = i->second.filter;
 					}
 
 					// expand the size of the anchor
@@ -197,7 +197,7 @@ unsigned int find_fusions(chimeric_alignments_t& chimeric_alignments, fusions_t&
 	unsigned int subsampled_fusions = 0;
 	for (fusions_t::iterator i = fusions.begin(); i != fusions.end(); ++i) {
 
-		if (!i->second.filters.empty())
+		if (i->second.filter != NULL)
 			continue; // don't look for discordant mates, if the fusion has been filtered
 
 		// get list of discordant mates supporting a fusion between the given gene pair
@@ -207,8 +207,8 @@ unsigned int find_fusions(chimeric_alignments_t& chimeric_alignments, fusions_t&
 			// discard those discordant mates which point in the wrong direction (away from the breakpoint)
 			for (auto discordant_mate = discordant_mates->second.begin(); discordant_mate != discordant_mates->second.end(); ++discordant_mate) {
 
-				alignment_t* mate1 = &((*discordant_mate)->second[MATE1]); // introduce some aliases for cleaner code
-				alignment_t* mate2 = &((*discordant_mate)->second[MATE2]);
+				alignment_t* mate1 = &((**discordant_mate).second[MATE1]); // introduce some aliases for cleaner code
+				alignment_t* mate2 = &((**discordant_mate).second[MATE2]);
 
 				// make sure mate1 points to the mate with the lower coordinate
 				// this ensures that the coordinate of the correct mate is compared against the coordinate of the breakpoint
@@ -222,10 +222,10 @@ unsigned int find_fusions(chimeric_alignments_t& chimeric_alignments, fusions_t&
 
 					i->second.discordant_mate_list.push_back(&(**discordant_mate).second);
 
-					if ((*discordant_mate)->second.filters.empty())
+					if ((*discordant_mate)->second.filter == NULL)
 						i->second.discordant_mates++;
-					else if (!i->second.filters.empty())
-						i->second.filters.insert(*(*discordant_mate)->second.filters.begin()); // TODO adjust this when we support more than one filter per read
+					else if (i->second.filter != NULL)
+						i->second.filter = (**discordant_mate).second.filter;
 
 					// expand the size of the anchor
 					if (i->second.direction1 == DOWNSTREAM && (mate1->start < i->second.anchor_start1 || i->second.anchor_start1 == 0)) {
@@ -254,7 +254,7 @@ unsigned int find_fusions(chimeric_alignments_t& chimeric_alignments, fusions_t&
 	// count fusions
 	unsigned int remaining = 0;
 	for (fusions_t::iterator i = fusions.begin(); i != fusions.end(); ++i)
-		if (i->second.filters.empty())
+		if (i->second.filter == NULL)
 			remaining++;
 
 	return remaining;

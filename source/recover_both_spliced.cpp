@@ -11,10 +11,10 @@ unsigned int recover_both_spliced(fusions_t& fusions, const unsigned int max_fus
 	// look for any supporting reads between two genes
 	map< tuple<gene_t,gene_t,direction_t,direction_t>, vector<fusion_t*> > fusions_by_gene_pair;
 	for (fusions_t::iterator i = fusions.begin(); i != fusions.end(); ++i)
-		if (i->second.filters.empty() ||
-		    i->second.filters.find(FILTERS.at("intronic")) != i->second.filters.end() ||
-		    i->second.filters.find(FILTERS.at("promiscuous_genes")) != i->second.filters.end() ||
-		    i->second.filters.find(FILTERS.at("min_support")) != i->second.filters.end()) {
+		if (i->second.filter == NULL ||
+		    i->second.filter == FILTERS.at("intronic") ||
+		    i->second.filter == FILTERS.at("promiscuous_genes") ||
+		    i->second.filter == FILTERS.at("min_support")) {
 			fusions_by_gene_pair[make_tuple(i->second.gene1, i->second.gene2, i->second.direction1, i->second.direction2)].push_back(&i->second);
 		}
 
@@ -26,7 +26,7 @@ unsigned int recover_both_spliced(fusions_t& fusions, const unsigned int max_fus
 	for (char mode = MODE_COUNTING; mode <= MODE_RECOVER; ++mode) {
 		for (fusions_t::iterator fusion = fusions.begin(); fusion != fusions.end(); ++fusion) {
 
-			if (fusion->second.filters.empty()) { // fusion has not been filtered, no need to recover
+			if (fusion->second.filter == NULL) { // fusion has not been filtered, no need to recover
 				if (mode == MODE_RECOVER)
 					remaining++;
 				continue;
@@ -35,9 +35,9 @@ unsigned int recover_both_spliced(fusions_t& fusions, const unsigned int max_fus
 			if (fusion->second.gene1 == fusion->second.gene2)
 				continue; // don't recover intragenic events (this would produce too many hits)
 
-			if (!fusion->second.filters.empty() &&
-			    fusion->second.filters.find(FILTERS.at("promiscuous_genes")) == fusion->second.filters.end() &&
-			    fusion->second.filters.find(FILTERS.at("min_support")) == fusion->second.filters.end())
+			if (fusion->second.filter != NULL &&
+			    fusion->second.filter != FILTERS.at("promiscuous_genes") &&
+			    fusion->second.filter != FILTERS.at("min_support"))
 				continue; // we won't recover fusions which were not discarded due to low support
 
 			if (!fusion->second.spliced1 || !fusion->second.spliced2)
@@ -57,7 +57,7 @@ unsigned int recover_both_spliced(fusions_t& fusions, const unsigned int max_fus
 				if (sum_of_supporting_reads >= 2 || low_tumor_content) { // require at least two reads or else the false positive rate sky-rockets
 					if (mode == MODE_RECOVER) { // we are in recover mode => actually recover the fusion by clearing the filters
 						if (fusion->second.supporting_reads() >= min_supporting_reads && !fusion->second.is_read_through()) {
-							fusion->second.filters.clear();
+							fusion->second.filter = NULL;
 							remaining++;
 						}
 					} else { // mode == MODE_COUNTING
