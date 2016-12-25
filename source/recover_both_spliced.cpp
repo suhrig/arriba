@@ -51,16 +51,12 @@ unsigned int recover_both_spliced(fusions_t& fusions, const unsigned int max_fus
 			auto fusions_of_given_gene_pair = fusions_by_gene_pair.find(make_tuple(fusion->second.gene1, fusion->second.gene2, fusion->second.direction1, fusion->second.direction2));
 			if (fusions_of_given_gene_pair != fusions_by_gene_pair.end()) {
 				unsigned int sum_of_supporting_reads = 0;
-				for (auto another_fusion = fusions_of_given_gene_pair->second.begin(); another_fusion != fusions_of_given_gene_pair->second.end(); ++another_fusion) {
-					// for read-through fusions, we require the distance of the other fusion to be at least as big as that of the fusion with spliced breakpoints
-					if (!(**another_fusion).is_read_through() ||
-					    (**another_fusion).breakpoint2 - (**another_fusion).breakpoint1 >= fusion->second.breakpoint2 - fusion->second.breakpoint1)
-						sum_of_supporting_reads += max((unsigned int) 1, (**another_fusion).supporting_reads());
-				}
+				for (auto another_fusion = fusions_of_given_gene_pair->second.begin(); another_fusion != fusions_of_given_gene_pair->second.end(); ++another_fusion)
+					sum_of_supporting_reads += max((unsigned int) 1, (**another_fusion).supporting_reads());
 
 				if (sum_of_supporting_reads >= 2 || low_tumor_content) { // require at least two reads or else the false positive rate sky-rockets
 					if (mode == MODE_RECOVER) { // we are in recover mode => actually recover the fusion by clearing the filters
-						if (fusion->second.supporting_reads() >= min_supporting_reads) {
+						if (fusion->second.supporting_reads() >= min_supporting_reads && !fusion->second.is_read_through()) {
 							fusion->second.filters.clear();
 							remaining++;
 						}
