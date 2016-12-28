@@ -33,6 +33,7 @@
 #include "filter_no_genomic_support.hpp"
 #include "filter_mismappers.hpp"
 #include "filter_nonexpressed.hpp"
+#include "recover_isoforms.hpp""
 #include "output_fusions.hpp"
 
 using namespace std;
@@ -60,6 +61,7 @@ unordered_map<string,filter_t> FILTERS({
 	{"non_expressed", NULL},
 	{"uninteresting_contigs", NULL},
 	{"no_genomic_support", NULL},
+	{"isoforms", NULL},
 	{"low_entropy", NULL}
 });
 
@@ -383,6 +385,12 @@ int main(int argc, char **argv) {
 	if (options.filters.at("non_expressed")) {
 		cout << "Filtering fusions with no expression in '" << options.rna_bam_file << "'" << flush;
 		cout << " (remaining=" << filter_nonexpressed(fusions, options.rna_bam_file, chimeric_alignments, exon_annotation) << ")" << endl;
+	}
+
+	// this step must come last, because it should only recover isoforms of fusions which pass all other filters
+	if (options.filters.at("isoforms")) {
+		cout << "Searching for additional isoforms" << flush;
+		cout << " (remaining=" << recover_isoforms(fusions) << ")" << endl;
 	}
 
 	cout << "Writing fusions to file '" << options.output_file << "'" << endl;

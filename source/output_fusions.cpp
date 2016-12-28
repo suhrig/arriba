@@ -491,7 +491,7 @@ confidence_t get_confidence(const fusion_t& fusion, const map< gene_t, vector<fu
 				unsigned int number_of_spliced_breakpoints = 0;
 				auto fusions_of_gene = fusions_by_gene.find(fusion.gene1);
 				for (auto fusion_of_gene = fusions_of_gene->second.begin(); fusion_of_gene != fusions_of_gene->second.end(); ++fusion_of_gene) {
-					if ((**fusion_of_gene).gene2 == fusion.gene2 && (**fusion_of_gene).gene2 == fusion.gene2 && (**fusion_of_gene).spliced1 && (**fusion_of_gene).spliced2)
+					if ((**fusion_of_gene).gene1 == fusion.gene1 && (**fusion_of_gene).gene2 == fusion.gene2 && (**fusion_of_gene).spliced1 && (**fusion_of_gene).spliced2)
 						++number_of_spliced_breakpoints;
 				}
 				fusions_of_gene = fusions_by_gene.find(fusion.gene2);
@@ -514,6 +514,8 @@ confidence_t get_confidence(const fusion_t& fusion, const map< gene_t, vector<fu
 					if ((**fusion_of_gene).filter == NULL &&
 					    (**fusion_of_gene).split_reads1 + (**fusion_of_gene).split_reads2 > 0 &&
 					    (**fusion_of_gene).direction1 == DOWNSTREAM && (**fusion_of_gene).direction2 == UPSTREAM &&
+					    ((**fusion_of_gene).gene1 == fusion.gene1 && (**fusion_of_gene).gene2 != fusion.gene2 || // don't count different isoforms
+					     (**fusion_of_gene).gene1 != fusion.gene1 && (**fusion_of_gene).gene2 == fusion.gene2) &&
 					    ((**fusion_of_gene).breakpoint1 != fusion.breakpoint1 || (**fusion_of_gene).breakpoint2 != fusion.breakpoint2) &&
 					    (**fusion_of_gene).breakpoint2 > fusion.breakpoint1 && (**fusion_of_gene).breakpoint1 < fusion.breakpoint2) {
 						++number_of_deletions;
@@ -524,6 +526,8 @@ confidence_t get_confidence(const fusion_t& fusion, const map< gene_t, vector<fu
 					if ((**fusion_of_gene).filter == NULL &&
 					    (**fusion_of_gene).split_reads1 + (**fusion_of_gene).split_reads2 > 0 &&
 					    (**fusion_of_gene).direction1 == DOWNSTREAM && (**fusion_of_gene).direction2 == UPSTREAM &&
+					    ((**fusion_of_gene).gene1 == fusion.gene1 && (**fusion_of_gene).gene2 != fusion.gene2 || // don't count different isoforms
+					     (**fusion_of_gene).gene1 != fusion.gene1 && (**fusion_of_gene).gene2 == fusion.gene2) &&
 					    ((**fusion_of_gene).breakpoint1 != fusion.breakpoint1 || (**fusion_of_gene).breakpoint2 != fusion.breakpoint2) &&
 					    (**fusion_of_gene).breakpoint2 > fusion.breakpoint1 && (**fusion_of_gene).breakpoint1 < fusion.breakpoint2) {
 						++number_of_deletions;
