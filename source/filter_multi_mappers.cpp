@@ -1,4 +1,5 @@
 #include "common.hpp"
+#include "annotation.hpp"
 #include "filter_multi_mappers.hpp"
 
 using namespace std;
@@ -40,17 +41,17 @@ unsigned int filter_multi_mappers(chimeric_alignments_t& chimeric_alignments, co
 				if (chimeric_alignment->second[SPLIT_READ].sequence.length() - chimeric_alignment->second[SPLIT_READ].preclipping() - ((chimeric_alignment->second[SPLIT_READ].strand == chimeric_alignment->second[SUPPLEMENTARY].strand) ? chimeric_alignment->second[SUPPLEMENTARY].postclipping() : chimeric_alignment->second[SUPPLEMENTARY].preclipping()) <
 				    chimeric_alignment->second[SPLIT_READ].sequence.length() - chimeric_alignment->second[SPLIT_READ].postclipping() - ((chimeric_alignment->second[SPLIT_READ].strand == chimeric_alignment->second[SUPPLEMENTARY].strand) ? chimeric_alignment->second[SUPPLEMENTARY].preclipping() : chimeric_alignment->second[SUPPLEMENTARY].postclipping())) {
 					if (chimeric_alignment->second[SPLIT_READ].strand == FORWARD) {
-						chimeric_alignment->second[MATE1].strand = (chimeric_alignment->second[MATE1].strand == FORWARD) ? REVERSE : FORWARD;
+						chimeric_alignment->second[MATE1].strand = complement_strand(chimeric_alignment->second[MATE1].strand);
 					} else {
-						chimeric_alignment->second[SPLIT_READ].strand = (chimeric_alignment->second[SPLIT_READ].strand == FORWARD) ? REVERSE : FORWARD;
-						chimeric_alignment->second[SUPPLEMENTARY].strand = (chimeric_alignment->second[SUPPLEMENTARY].strand == FORWARD) ? REVERSE : FORWARD;
+						chimeric_alignment->second[SPLIT_READ].strand = complement_strand(chimeric_alignment->second[SPLIT_READ].strand);
+						chimeric_alignment->second[SUPPLEMENTARY].strand = complement_strand(chimeric_alignment->second[SUPPLEMENTARY].strand);
 					}
 				} else {
 					if (chimeric_alignment->second[SPLIT_READ].strand == REVERSE) {
-						chimeric_alignment->second[MATE1].strand = (chimeric_alignment->second[MATE1].strand == FORWARD) ? REVERSE : FORWARD;
+						chimeric_alignment->second[MATE1].strand = complement_strand(chimeric_alignment->second[MATE1].strand);
 					} else {
-						chimeric_alignment->second[SPLIT_READ].strand = (chimeric_alignment->second[SPLIT_READ].strand == FORWARD) ? REVERSE : FORWARD;
-						chimeric_alignment->second[SUPPLEMENTARY].strand = (chimeric_alignment->second[SUPPLEMENTARY].strand == FORWARD) ? REVERSE : FORWARD;
+						chimeric_alignment->second[SPLIT_READ].strand = complement_strand(chimeric_alignment->second[SPLIT_READ].strand);
+						chimeric_alignment->second[SUPPLEMENTARY].strand = complement_strand(chimeric_alignment->second[SUPPLEMENTARY].strand);
 					}
 				}
 
