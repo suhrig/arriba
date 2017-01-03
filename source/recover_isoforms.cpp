@@ -23,7 +23,8 @@ unsigned int recover_isoforms(fusions_t& fusions) {
 
 		if (fusion->second.filter == FILTERS.at("merge_adjacent") || // don't recover alternative alignments
 		    fusion->second.filter == FILTERS.at("blacklist") || // don't recover normal splice variants and artifacts
-		    fusion->second.filter == FILTERS.at("end_to_end")) // don't recover alignments that happen to end at splice-sites
+		    fusion->second.filter == FILTERS.at("end_to_end") || // don't recover alignments that happen to end at splice-sites
+		    fusion->second.gene1 == fusion->second.gene2) // don't recover circular RNAs
 			continue;
 
 		// find all splice-variants
