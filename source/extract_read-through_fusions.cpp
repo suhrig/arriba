@@ -120,17 +120,25 @@ int main(int argc, char **argv) {
 	buffered_bam_records_t buffered_bam_records; // holds the first mate until we have found the second
 	while (bam_read1(input_bam_file, bam_record) > 0) {
 
-		if (!(bam_record->core.flag & BAM_FPROPER_PAIR) || // ignore discordant mates, they are in the chimeric.bam file already
-		    (bam_record->core.flag & BAM_FUNMAP) || (bam_record->core.flag & BAM_FMUNMAP) || // ignore single mates
+		if (!options.single_end &&
+		    (!(bam_record->core.flag & BAM_FPROPER_PAIR) || // ignore discordant mates, they are in the chimeric.bam file already
+		     (bam_record->core.flag & BAM_FUNMAP) || (bam_record->core.flag & BAM_FMUNMAP)) || // ignore single mates
 		    (bam_record->core.flag & BAM_FSECONDARY)) // ignore secondary alignments
 			continue;
 
-		// try to insert the mate into the buffered BAM records
-		// if there was already a record with the same read name, insertion will fail (set to false) and
-		// existing_element will point to the mate which was already in the buffered BAM records
-		pair<buffered_bam_records_t::iterator,bool> existing_element = buffered_bam_records.insert(pair<string,bam1_t*>((char*) bam1_qname(bam_record), bam_record));
+		// when single-end data is given, fake paired-end data by creating a fake mate
+		if (options.single_end) {
+			bam1_t* fake_mate = bam_dup1(bam_record);
+			fake_mate->core.flag ^= BAM_FREVERSE; // invert strand
+			buffered_bam_records[(char*) bam1_qname(fake_mate)] = fake_mate;
+		}
 
-		if (get<1>(existing_element)) { // insertion succeeded, i.e., this is the first mate with the given read name, which we encounter
+		// try to insert the mate into the buffered BAM records
+		// if there was already a record with the same read name, insertion will fail (->second set to false) and
+		// previously_seen_mate->first will point to the mate which was already in the buffered BAM records
+		pair<buffered_bam_records_t::iterator,bool> previously_seen_mate = buffered_bam_records.insert(pair<string,bam1_t*>((char*) bam1_qname(bam_record), bam_record));
+
+		if (previously_seen_mate.second) { // insertion succeeded, i.e., this is the first mate with the given read name, which we encounter
 			
 			bam_record = bam_init1(); // allocate memory for the next record
 			if (bam_record == NULL) {
@@ -141,7 +149,7 @@ int main(int argc, char **argv) {
 		} else { // insertion failed, i.e., we have already read the first mate previously
 
 			// get the mate that already existed in the buffered BAM records
-			buffered_bam_records_t::iterator buffered_bam_record = get<0>(existing_element);
+			buffered_bam_records_t::iterator buffered_bam_record = previously_seen_mate.first;
 
 			// find out which read is on the forward strand and which on the reverse
 			bam1_t* forward_mate = buffered_bam_record->second;
@@ -182,39 +190,43 @@ int main(int argc, char **argv) {
 				unsigned int cigar_op;
 				position_t read_pos;
 				position_t gene2_pos;
-				if (find_spanning_intron(forward_mate, forward_gene_end, reverse_gene_start, cigar_op, read_pos, gene2_pos)) {
+				if (find_spanning_intron(forward_mate, forward_gene_end, reverse_gene_start, cigar_op, read_pos, gene2_pos) && (!options.single_end || !(bam_record->core.flag & BAM_FREVERSE))) {
 
 					// make split read and supplementary from forward mate
 					clip_start(output_bam_file, forward_mate, cigar_op, read_pos, gene2_pos, false); // split read
 					clip_end(output_bam_file, forward_mate, cigar_op, read_pos, true); // supplementary
 					
-					if (reverse_mate->core.pos >= bam_endpos(forward_mate)) {
-						// write reverse mate to output as is
-						bam_write1(output_bam_file, reverse_mate);
-					} else { // reverse mate overlaps with forward mate
-						if (find_spanning_intron(reverse_mate, forward_gene_end, reverse_gene_start, cigar_op, read_pos, gene2_pos)) { // reverse mate overlaps with breakpoint => clip it
-							clip_start(output_bam_file, reverse_mate, cigar_op, read_pos, gene2_pos, false);
-						} else { // reverse mate overlaps with forward mate, but not with breakpoint
+					if (!options.single_end) {
+						if (reverse_mate->core.pos >= bam_endpos(forward_mate)) {
 							// write reverse mate to output as is
 							bam_write1(output_bam_file, reverse_mate);
+						} else { // reverse mate overlaps with forward mate
+							if (find_spanning_intron(reverse_mate, forward_gene_end, reverse_gene_start, cigar_op, read_pos, gene2_pos)) { // reverse mate overlaps with breakpoint => clip it
+								clip_start(output_bam_file, reverse_mate, cigar_op, read_pos, gene2_pos, false);
+							} else { // reverse mate overlaps with forward mate, but not with breakpoint
+								// write reverse mate to output as is
+								bam_write1(output_bam_file, reverse_mate);
+							}
 						}
 					}
 
-				} else if (find_spanning_intron(reverse_mate, forward_gene_end, reverse_gene_start, cigar_op, read_pos, gene2_pos)) {
+				} else if (find_spanning_intron(reverse_mate, forward_gene_end, reverse_gene_start, cigar_op, read_pos, gene2_pos) && (!options.single_end || bam_record->core.flag & BAM_FREVERSE)) {
 
 					// make split read and supplementary from reverse mate
 					clip_start(output_bam_file, reverse_mate, cigar_op, read_pos, gene2_pos, true); // supplementary
 					clip_end(output_bam_file, reverse_mate, cigar_op, read_pos, false); // split read
 
-					if (bam_endpos(forward_mate) <= reverse_mate->core.pos) {
-						// write forward mate to output as is
-						bam_write1(output_bam_file, forward_mate);
-					} else { // forward mate overlaps with reverse mate
-						if (find_spanning_intron(forward_mate, forward_gene_end, reverse_gene_start, cigar_op, read_pos, gene2_pos)) { // forward mate overlaps with breakpoints => clip it
-							clip_end(output_bam_file, forward_mate, cigar_op, read_pos, false);
-						} else { // forward mate overlaps with reverse mate, but not with breakpoint
+					if (!options.single_end) {
+						if (bam_endpos(forward_mate) <= reverse_mate->core.pos) {
 							// write forward mate to output as is
 							bam_write1(output_bam_file, forward_mate);
+						} else { // forward mate overlaps with reverse mate
+							if (find_spanning_intron(forward_mate, forward_gene_end, reverse_gene_start, cigar_op, read_pos, gene2_pos)) { // forward mate overlaps with breakpoints => clip it
+								clip_end(output_bam_file, forward_mate, cigar_op, read_pos, false);
+							} else { // forward mate overlaps with reverse mate, but not with breakpoint
+								// write forward mate to output as is
+								bam_write1(output_bam_file, forward_mate);
+							}
 						}
 					}
 
@@ -236,8 +248,6 @@ int main(int argc, char **argv) {
 		}
 
 	}
-
-	// close BAM files
 	bam_destroy1(bam_record);
 	bam_header_destroy(bam_header);
 	bam_close(input_bam_file);

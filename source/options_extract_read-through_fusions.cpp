@@ -14,6 +14,7 @@ options_t get_default_options() {
 
 	options.input_bam_file = "/dev/stdin";
 	options.output_bam_file = "/dev/stdout";
+	options.single_end = false;
 
 	return options;
 }
@@ -41,6 +42,7 @@ void print_usage(const string& error_message) {
 	                  "The file need not be sorted. Default: " + default_options.input_bam_file)
 	     << wrap_help("-o FILE", "Output file in BAM format containing reads which support "
 	                  "read-through fusions. Default: " + default_options.output_bam_file)
+	     << wrap_help("-1", "Single-end data. Default: " + string((default_options.single_end) ? "single-end" : "paired-end"))
 	     << wrap_help("-h", "Print help and exit.")
 	     << "Questions or problems may be sent to: " << HELP_CONTACT << endl;
 	exit(1);
@@ -54,7 +56,7 @@ options_t parse_arguments(int argc, char **argv) {
 	// parse arguments
 	opterr = 0;
 	int c;
-	while ((c = getopt(argc, argv, "g:i:o:h")) != -1) {
+	while ((c = getopt(argc, argv, "g:i:o:1h")) != -1) {
 		switch (c) {
 			case 'g':
 				options.gene_annotation_file = optarg;
@@ -76,6 +78,9 @@ options_t parse_arguments(int argc, char **argv) {
 					cerr << "ERROR: Parent directory of output file '" << options.output_bam_file << "' does not exist." << endl;
 					exit(1);
 				}
+				break;
+			case '1':
+				options.single_end = true;
 				break;
 			case '?':
 				switch (optopt) {
