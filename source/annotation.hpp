@@ -38,6 +38,20 @@ string dna_to_reverse_complement(string& dna);
 
 int get_spliced_distance(const contig_t contig, const position_t position1, const position_t position2, const direction_t direction1, const direction_t direction2, const gene_t gene, const exon_annotation_index_t& exon_annotation_index);
 
+// get the complementary strand
+inline strand_t complement_strand(const strand_t strand) {
+	return (strand == FORWARD) ? REVERSE : FORWARD;
+}
+
+// only return the complementary strand, if condition is met
+inline strand_t complement_strand_if(const strand_t strand, const bool condition) {
+	if (condition) {
+		return complement_strand(strand);
+	} else {
+		return strand;
+	}
+}
+
 // include template functions
 #include "annotation.t.hpp"
 
