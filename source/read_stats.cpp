@@ -4,6 +4,18 @@
 #include "annotation.hpp"
 #include "read_stats.hpp"
 
+unsigned long int count_mapped_reads(const string& bam_file_path, const vector<bool>& interesting_contigs) {
+	unsigned long int result = 0;
+	bam_index_t* bam_index = bam_index_load(bam_file_path.c_str());
+	for (unsigned int i = 0; i < interesting_contigs.size(); ++i) {
+        	unsigned long int mapped, unmapped;
+		hts_idx_get_stat(bam_index, i, &mapped, &unmapped);
+		if (interesting_contigs[i]) // only count reads on interesting contigs
+			result += mapped;
+	}
+	return result;
+}
+
 void estimate_mate_gap_distribution(const string& bam_file_path, float& mate_gap_mean, float& mate_gap_stddev, const gene_annotation_index_t& gene_annotation_index, const exon_annotation_index_t& exon_annotation_index, const unsigned int sample_size) {
 
 	// open BAM file

@@ -14,19 +14,6 @@
 
 using namespace std;
 
-unsigned long int count_mapped_reads(const string& bam_file_path, const vector<bool>& interesting_contigs) {
-	unsigned long int result = 0;
-	bam_index_t* bam_index = bam_index_load(bam_file_path.c_str());
-	for (unsigned int i = 0; i < interesting_contigs.size(); ++i) {
-        	unsigned long int mapped, unmapped;
-		hts_idx_get_stat(bam_index, i, &mapped, &unmapped);
-		if (interesting_contigs[i]) // only count reads on interesting contigs
-			result += mapped;
-	}
-	return result;
-}
-
-
 void estimate_expected_fusions(fusions_t& fusions, const unsigned long int mapped_reads) {
 
 	// find all fusion partners for each gene
