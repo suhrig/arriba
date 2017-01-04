@@ -7,9 +7,7 @@
 using namespace std;
 
 unsigned int rank_fusion(fusion_t& fusion) {
-	if (fusion.split_reads1 != 0 && fusion.split_reads2 != 0 && fusion.discordant_mates != 0) {
-		return 4; // fusions with split reads in both genes and discordant mates get the best rank
-	} else if (fusion.split_reads1 != 0 && fusion.split_reads2 != 0) {
+	if (fusion.split_reads1 != 0 && fusion.split_reads2 != 0) {
 		return 3; // fusions with only split reads (but no discordant mates) are usually better than only discordant mates, because they are more accurate
 	} else if ((fusion.split_reads1 != 0 || fusion.split_reads2 != 0) && fusion.discordant_mates != 0) {
 		return 2; // the next most accurate fusion is one with discordant mates and split reads in one gene
