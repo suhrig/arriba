@@ -117,7 +117,7 @@ int main(int argc, char **argv) {
 			*i = true;
 	}
 
-	if (options.filters.at("inconsistently_clipped")) {
+	if (!options.single_end && options.filters.at("inconsistently_clipped")) {
 		cout << "Filtering inconsistently clipped mates" << flush;
 		cout << " (remaining=" << filter_inconsistently_clipped_mates(chimeric_alignments) << ")" << endl;
 	}
