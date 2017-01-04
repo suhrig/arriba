@@ -6,6 +6,6 @@
 
 using namespace std;
 
-unsigned int find_fusions(chimeric_alignments_t& chimeric_alignments, fusions_t& fusions, exon_annotation_index_t& exon_annotation_index);
+unsigned int find_fusions(chimeric_alignments_t& chimeric_alignments, fusions_t& fusions, exon_annotation_index_t& exon_annotation_index, const int max_mate_gap);
 
 #endif /* _FIND_FUSIONS_H */

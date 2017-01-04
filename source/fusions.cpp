@@ -12,7 +12,7 @@
 
 using namespace std;
 
-unsigned int find_fusions(chimeric_alignments_t& chimeric_alignments, fusions_t& fusions, exon_annotation_index_t& exon_annotation_index) {
+unsigned int find_fusions(chimeric_alignments_t& chimeric_alignments, fusions_t& fusions, exon_annotation_index_t& exon_annotation_index, const int max_mate_gap) {
 
 	typedef unordered_map< tuple<gene_t/*gene1*/,gene_t/*gene2*/>, vector<chimeric_alignments_t::iterator> > discordant_mates_by_gene_pair_t;
 	discordant_mates_by_gene_pair_t discordant_mates_by_gene_pair; // contains the discordant mates for each pair of genes
@@ -217,8 +217,8 @@ unsigned int find_fusions(chimeric_alignments_t& chimeric_alignments, fusions_t&
 				if (mate1->contig > mate2->contig || mate1->contig == mate2->contig && mate1_breakpoint > mate2_breakpoint)
 					swap(mate1, mate2);
 
-				if (((i->second.direction1 == DOWNSTREAM && mate1->strand == FORWARD && (mate1->end-2 <= i->second.breakpoint1 && i->second.split_reads1 + i->second.split_reads2 > 0 || mate1->end-200 <= i->second.breakpoint1 && i->second.split_reads1 + i->second.split_reads2 == 0)) || (i->second.direction1 == UPSTREAM && mate1->strand == REVERSE && (mate1->start+2 >= i->second.breakpoint1 && i->second.split_reads1+i->second.split_reads2 > 0 || mate1->start+200 >= i->second.breakpoint1 && i->second.split_reads1+i->second.split_reads2 == 0))) &&
-				    ((i->second.direction2 == DOWNSTREAM && mate2->strand == FORWARD && (mate2->end-2 <= i->second.breakpoint2 && i->second.split_reads1 + i->second.split_reads2 > 0 || mate2->end-200 <= i->second.breakpoint2 && i->second.split_reads1 + i->second.split_reads2 == 0)) || (i->second.direction2 == UPSTREAM && mate2->strand == REVERSE && (mate2->start+2 >= i->second.breakpoint2 && i->second.split_reads1+i->second.split_reads2 > 0 || mate2->start+200 >= i->second.breakpoint2 && i->second.split_reads1+i->second.split_reads2 == 0)))) {
+				if (((i->second.direction1 == DOWNSTREAM && mate1->strand == FORWARD && (mate1->end-2 <= i->second.breakpoint1 && i->second.split_reads1 + i->second.split_reads2 > 0 || mate1->end-max_mate_gap <= i->second.breakpoint1 && i->second.split_reads1 + i->second.split_reads2 == 0)) || (i->second.direction1 == UPSTREAM && mate1->strand == REVERSE && (mate1->start+2 >= i->second.breakpoint1 && i->second.split_reads1+i->second.split_reads2 > 0 || mate1->start+max_mate_gap >= i->second.breakpoint1 && i->second.split_reads1+i->second.split_reads2 == 0))) &&
+				    ((i->second.direction2 == DOWNSTREAM && mate2->strand == FORWARD && (mate2->end-2 <= i->second.breakpoint2 && i->second.split_reads1 + i->second.split_reads2 > 0 || mate2->end-max_mate_gap <= i->second.breakpoint2 && i->second.split_reads1 + i->second.split_reads2 == 0)) || (i->second.direction2 == UPSTREAM && mate2->strand == REVERSE && (mate2->start+2 >= i->second.breakpoint2 && i->second.split_reads1+i->second.split_reads2 > 0 || mate2->start+max_mate_gap >= i->second.breakpoint2 && i->second.split_reads1+i->second.split_reads2 == 0)))) {
 
 					i->second.discordant_mate_list.push_back(&(**discordant_mate).second);
 

@@ -346,9 +346,11 @@ void get_unique_transcripts_from_exons(const exon_multiset_t& exons, set<transcr
 // get the distance between two positions after splicing (i.e., ignoring introns)
 int get_spliced_distance(const contig_t contig, position_t position1, position_t position2, direction_t direction1, direction_t direction2, const gene_t gene, const exon_annotation_index_t& exon_annotation_index) {
 
+	int negate = 1;
 	if (position1 > position2) {
 		swap(position1, position2);
 		swap(direction1, direction2);
+		negate = -1;
 	}
 
 	// find exon/intron of position1
@@ -357,7 +359,7 @@ int get_spliced_distance(const contig_t contig, position_t position1, position_t
 	exon_contig_annotation_index_t::const_iterator p2 = exon_annotation_index[contig].lower_bound(position2);
 
 	if (p1 == p2) // position1 and position2 are in the same intron/exon => distance = difference
-		return position2 - position1;
+		return (position2 - position1) * negate;
 
 	// the exon/intron where position1/position2 is located must only be counted partially
 	// (i.e., from position1/position2 to next exon boundary)
@@ -417,5 +419,5 @@ int get_spliced_distance(const contig_t contig, position_t position1, position_t
 		if (d->second < distance)
 			distance = d->second;
 
-	return distance;
+	return distance * negate;
 }

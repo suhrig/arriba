@@ -7,6 +7,7 @@
 #include "common.hpp"
 #include "annotation.hpp"
 #include "options_ariba.hpp"
+#include "read_stats.hpp"
 #include "read_chimeric_alignments.hpp"
 #include "filter_multi_mappers.hpp"
 #include "filter_uninteresting_contigs.hpp"
@@ -64,7 +65,6 @@ unordered_map<string,filter_t> FILTERS({
 	{"isoforms", NULL},
 	{"low_entropy", NULL}
 });
-
 
 int main(int argc, char **argv) {
 
@@ -252,6 +252,16 @@ int main(int argc, char **argv) {
 				get_annotation_by_coordinate(mate->contig, mate->start, mate->end, mate->genes, gene_annotation_index);
 		}
 	}
+
+	float mate_gap_mean, mate_gap_stddev;
+	int max_mate_gap;
+	if (!options.single_end) {
+		cout << "Estimating mate gap distribution" << flush;
+		estimate_mate_gap_distribution(options.rna_bam_file, mate_gap_mean, mate_gap_stddev, gene_annotation_index, exon_annotation_index, 200000);
+		cout << " (mean=" << mate_gap_mean << ", stddev=" << mate_gap_stddev << ")" << endl;
+		max_mate_gap = max(0, (int) (mate_gap_mean + 3*mate_gap_stddev));
+	} else
+		max_mate_gap = options.fragment_length;
 	
 	if (options.filters.at("read_through")) {
 		cout << "Filtering read-through fragments with a distance <=" << options.min_read_through_distance << "bp" << flush;
@@ -265,7 +275,7 @@ int main(int argc, char **argv) {
 
 	if (options.filters.at("hairpin")) {
 		cout << "Filtering fusions arising from hairpin structures" << flush;
-		cout << " (remaining=" << filter_hairpin(chimeric_alignments, exon_annotation_index) << ")" << endl;
+		cout << " (remaining=" << filter_hairpin(chimeric_alignments, exon_annotation_index, max_mate_gap) << ")" << endl;
 	}
 
 	if (options.filters.at("low_entropy")) {
@@ -275,7 +285,7 @@ int main(int argc, char **argv) {
 
 	cout << "Finding fusions and counting supporting reads" << flush;
 	fusions_t fusions;
-	cout << " (total=" << find_fusions(chimeric_alignments, fusions, exon_annotation_index) << ")" << endl;
+	cout << " (total=" << find_fusions(chimeric_alignments, fusions, exon_annotation_index, max_mate_gap) << ")" << endl;
 
 	if (!options.genomic_breakpoints_file.empty()) {
 		cout << "Marking fusions with support from whole-genome sequencing in '" << options.genomic_breakpoints_file << "'" << flush;
@@ -367,7 +377,7 @@ int main(int argc, char **argv) {
 	// only supported by discordant mates, if there is a fusion with breakpoints also supported by split reads
 	if (options.filters.at("blacklist") && !options.blacklist_file.empty()) {
 		cout << "Filtering blacklisted fusions in '" << options.blacklist_file << "'" << flush;
-		cout << " (remaining=" << filter_blacklisted_ranges(fusions, options.blacklist_file, contigs, gene_names, options.evalue_cutoff) << ")" << endl;
+		cout << " (remaining=" << filter_blacklisted_ranges(fusions, options.blacklist_file, contigs, gene_names, options.evalue_cutoff, max_mate_gap) << ")" << endl;
 	}
 
 	if (!options.assembly_file.empty()) {
@@ -384,7 +394,7 @@ int main(int argc, char **argv) {
 	// this step must come near the end, because random BAM file accesses are slow
 	if (options.filters.at("non_expressed")) {
 		cout << "Filtering fusions with no expression in '" << options.rna_bam_file << "'" << flush;
-		cout << " (remaining=" << filter_nonexpressed(fusions, options.rna_bam_file, chimeric_alignments, exon_annotation) << ")" << endl;
+		cout << " (remaining=" << filter_nonexpressed(fusions, options.rna_bam_file, chimeric_alignments, exon_annotation, max_mate_gap) << ")" << endl;
 	}
 
 	// this step must come last, because it should only recover isoforms of fusions which pass all other filters

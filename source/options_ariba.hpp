@@ -36,6 +36,7 @@ struct options_t {
 	bool low_tumor_content;
 	bool single_end;
 	float max_kmer_content;
+	unsigned int fragment_length;
 };
 
 options_t get_default_options();

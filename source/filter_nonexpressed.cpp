@@ -34,7 +34,7 @@ bool region_has_non_chimeric_reads(BGZF* bam_file, bam_index_t* bam_index, const
 	return result;
 }
 
-unsigned int filter_nonexpressed(fusions_t& fusions, const string& bam_file_path, chimeric_alignments_t& chimeric_alignments, exon_annotation_t& exon_annotation) {
+unsigned int filter_nonexpressed(fusions_t& fusions, const string& bam_file_path, chimeric_alignments_t& chimeric_alignments, exon_annotation_t& exon_annotation, const int max_mate_gap) {
 
 	// When the breakpoint is close to the start/end of a transcript, then
 	// there might not be any reads in the normal rna.bam file around the breakpoint
@@ -117,13 +117,13 @@ unsigned int filter_nonexpressed(fusions_t& fusions, const string& bam_file_path
 			if (i->second.direction1 == UPSTREAM) {
 				start = i->second.breakpoint1;
 				if (i->second.split_reads1 + i->second.split_reads2 == 0)
-					start -= 200;
-				end = max(i->second.breakpoint1 + 200, i->second.anchor_start1);
+					start -= max_mate_gap;
+				end = max(i->second.breakpoint1 + max_mate_gap, i->second.anchor_start1);
 			} else {
-				start = min(i->second.breakpoint1 - 200, i->second.anchor_start1);
+				start = min(i->second.breakpoint1 - max_mate_gap, i->second.anchor_start1);
 				end = i->second.breakpoint1;
 				if (i->second.split_reads1 + i->second.split_reads2 == 0)
-					end += 200;
+					end += max_mate_gap;
 			}
 			if (!region_has_non_chimeric_reads(bam_file, bam_index, i->second.contig1, start, end, i->second.direction1, chimeric_alignments, i->second.exonic1)) {
 				i->second.filter = FILTERS.at("non_expressed");
@@ -142,13 +142,13 @@ unsigned int filter_nonexpressed(fusions_t& fusions, const string& bam_file_path
 			if (i->second.direction2 == UPSTREAM) {
 				start = i->second.breakpoint2;
 				if (i->second.split_reads1 + i->second.split_reads2 == 0)
-					start -= 200;
-				end = max(i->second.breakpoint2 + 200, i->second.anchor_start2);
+					start -= max_mate_gap;
+				end = max(i->second.breakpoint2 + max_mate_gap, i->second.anchor_start2);
 			} else {
-				start = min(i->second.breakpoint2 - 200, i->second.anchor_start2);
+				start = min(i->second.breakpoint2 - max_mate_gap, i->second.anchor_start2);
 				end = i->second.breakpoint2;
 				if (i->second.split_reads1 + i->second.split_reads2 == 0)
-					end += 200;
+					end += max_mate_gap;
 			}
 			if (!region_has_non_chimeric_reads(bam_file, bam_index, i->second.contig2, start, end, i->second.direction2, chimeric_alignments, i->second.exonic2)) {
 				i->second.filter = FILTERS.at("non_expressed");

@@ -55,7 +55,7 @@ bool parse_range(string range, const contigs_t& contigs, contig_t& contig, posit
 	return true;
 }
 
-bool blacklist_fusion(const contig_t contig1, const position_t start1, const position_t end1, const string& range1, const string& range2, const contigs_t& contigs, const unordered_map<string,gene_t>& genes, const contig_t fusion_contig1, const contig_t fusion_contig2, const position_t breakpoint1, const position_t breakpoint2, const direction_t direction1, const direction_t direction2, const gene_t gene1, const gene_t gene2, const unsigned int donor_split_reads, const unsigned int acceptor_split_reads, fusion_t* fusion, const float evalue_cutoff) {
+bool blacklist_fusion(const contig_t contig1, const position_t start1, const position_t end1, const string& range1, const string& range2, const contigs_t& contigs, const unordered_map<string,gene_t>& genes, const contig_t fusion_contig1, const contig_t fusion_contig2, const position_t breakpoint1, const position_t breakpoint2, const direction_t direction1, const direction_t direction2, const gene_t gene1, const gene_t gene2, const unsigned int donor_split_reads, const unsigned int acceptor_split_reads, fusion_t* fusion, const float evalue_cutoff, const int max_mate_gap) {
 
 	if (genes.find(range1) != genes.end() && genes.at(range1) == gene1 || // match location by gene name
 	    fusion_contig1 == contig1 && breakpoint1 >= start1 && breakpoint1 <= end1) { // match location by coordinate
@@ -122,14 +122,14 @@ bool blacklist_fusion(const contig_t contig1, const position_t start1, const pos
 	// it, provided that the discordant mates point towards the blacklisted breakpoints
 	if (donor_split_reads + acceptor_split_reads == 0 && // fusion is supported by discordant mates only
 	    start1 == end1 && // blacklisted breakpoint is a single base position
-	    fusion_contig1 == contig1 && (breakpoint1 <= start1 && breakpoint1 + 200 >= start1 && direction1 == DOWNSTREAM || breakpoint1 >= start1 && breakpoint1 <= start1 + 200 && direction1 == UPSTREAM) && // read1 points towards blacklisted breakpoint
+	    fusion_contig1 == contig1 && (breakpoint1 <= start1 && breakpoint1 + max_mate_gap >= start1 && direction1 == DOWNSTREAM || breakpoint1 >= start1 && breakpoint1 <= start1 + max_mate_gap && direction1 == UPSTREAM) && // read1 points towards blacklisted breakpoint
 	    genes.find(range1) == genes.end() && genes.find(range2) == genes.end() && // range1 and range2 do not contain a gene name
 	    range2.find(":") != string::npos) { // range2 really contains a range and not a keyword
 		contig_t contig2;
 		position_t start2, end2;
 		if (parse_range(range2, contigs, contig2, start2, end2)) {
 			if (start2 == end2 && // blacklisted breakpont is a single base position
-			    fusion_contig2 == contig2 && (breakpoint2 <= start2 && breakpoint2 + 200 >= start2 && direction2 == DOWNSTREAM || breakpoint2 >= start2 && breakpoint2 <= start2 + 200 && direction2 == UPSTREAM)) { // read2 points towards blacklisted breakpoint
+			    fusion_contig2 == contig2 && (breakpoint2 <= start2 && breakpoint2 + max_mate_gap >= start2 && direction2 == DOWNSTREAM || breakpoint2 >= start2 && breakpoint2 <= start2 + max_mate_gap && direction2 == UPSTREAM)) { // read2 points towards blacklisted breakpoint
 				fusion->filter = FILTERS.at("blacklist");
 				return true;
 			}
@@ -139,7 +139,7 @@ bool blacklist_fusion(const contig_t contig1, const position_t start1, const pos
 	return false; // fusion was not filtered
 }
 
-unsigned int filter_blacklisted_ranges(fusions_t& fusions, const string& blacklist_file_path, const contigs_t& contigs, const unordered_map<string,gene_t>& genes, const float evalue_cutoff) {
+unsigned int filter_blacklisted_ranges(fusions_t& fusions, const string& blacklist_file_path, const contigs_t& contigs, const unordered_map<string,gene_t>& genes, const float evalue_cutoff, const int max_mate_gap) {
 
 	// sort fusions by coordinate of gene1
 	map< position_t, vector<fusion_t*> > fusions_by_position;
@@ -180,8 +180,8 @@ unsigned int filter_blacklisted_ranges(fusions_t& fusions, const string& blackli
 			} else if (parse_range(range1, contigs, contig1, start1, end1)) { // range1 is a range
 				// if the blacklisted range is a single base position, we loosen up the boundaries a little to
 				// also catch discordant mates
-				position_t loose_start1 = (start1 == end1) ? start1 - 200 : start1;
-				position_t loose_end1 = (start1 == end1) ? end1 + 200 : end1;
+				position_t loose_start1 = (start1 == end1) ? start1 - max_mate_gap : start1;
+				position_t loose_end1 = (start1 == end1) ? end1 + max_mate_gap : end1;
 				for (auto i = fusions_by_position.lower_bound(loose_start1); i != fusions_by_position.end() && i->first <= loose_end1; ++i)
 					fusions_to_check.insert(fusions_to_check.end(), i->second.begin(), i->second.end());
 			}
@@ -193,11 +193,11 @@ unsigned int filter_blacklisted_ranges(fusions_t& fusions, const string& blackli
 					continue; // fusion has already been filtered
 
 				// check if breakpoint1 is in range1 and breakpoint2 is in range2
-				if (blacklist_fusion(contig1, start1, end1, range1, range2, contigs, genes, (**fusion).contig1, (**fusion).contig2, (**fusion).breakpoint1, (**fusion).breakpoint2, (**fusion).direction1, (**fusion).direction2, (**fusion).gene1, (**fusion).gene2, (**fusion).split_reads1, (**fusion).split_reads2, *fusion, evalue_cutoff))
+				if (blacklist_fusion(contig1, start1, end1, range1, range2, contigs, genes, (**fusion).contig1, (**fusion).contig2, (**fusion).breakpoint1, (**fusion).breakpoint2, (**fusion).direction1, (**fusion).direction2, (**fusion).gene1, (**fusion).gene2, (**fusion).split_reads1, (**fusion).split_reads2, *fusion, evalue_cutoff, max_mate_gap))
 					continue;
 
 				// check if breakpoint2 is in range1 and breakpoint1 is in range2
-				if (blacklist_fusion(contig1, start1, end1, range1, range2, contigs, genes, (**fusion).contig2, (**fusion).contig1, (**fusion).breakpoint2, (**fusion).breakpoint1, (**fusion).direction2, (**fusion).direction1, (**fusion).gene2, (**fusion).gene1, (**fusion).split_reads2, (**fusion).split_reads1, *fusion, evalue_cutoff))
+				if (blacklist_fusion(contig1, start1, end1, range1, range2, contigs, genes, (**fusion).contig2, (**fusion).contig1, (**fusion).breakpoint2, (**fusion).breakpoint1, (**fusion).direction2, (**fusion).direction1, (**fusion).gene2, (**fusion).gene1, (**fusion).split_reads2, (**fusion).split_reads1, *fusion, evalue_cutoff, max_mate_gap))
 					continue;
 
 			}

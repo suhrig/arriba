@@ -4,7 +4,7 @@ LDFLAGS := -lz
 
 all: ariba extract_read-through_fusions
 
-ARIBA_OBJECTS := annotation.o options_ariba.o options.o read_chimeric_alignments.o filter_multi_mappers.o filter_uninteresting_contigs.o filter_inconsistently_clipped.o filter_homopolymer.o filter_duplicates.o fusions.o filter_proximal_read_through.o filter_same_gene.o filter_hairpin.o filter_low_entropy.o filter_promiscuous_genes.o filter_both_intronic.o filter_both_novel.o filter_min_support.o recover_known_fusions.o recover_both_spliced.o filter_blacklisted_ranges.o filter_end_to_end.o filter_pcr_fusions.o merge_adjacent_fusions.o select_best.o filter_short_anchor.o filter_nonexpressed.o filter_mismappers.o filter_no_genomic_support.o recover_isoforms.o output_fusions.o read_compressed_file.o ../samtools-1.3/libbam.a ../samtools-1.3/htslib-1.3/libhts.a
+ARIBA_OBJECTS := annotation.o options_ariba.o options.o read_chimeric_alignments.o filter_multi_mappers.o filter_uninteresting_contigs.o filter_inconsistently_clipped.o filter_homopolymer.o filter_duplicates.o read_stats.o fusions.o filter_proximal_read_through.o filter_same_gene.o filter_hairpin.o filter_low_entropy.o filter_promiscuous_genes.o filter_both_intronic.o filter_both_novel.o filter_min_support.o recover_known_fusions.o recover_both_spliced.o filter_blacklisted_ranges.o filter_end_to_end.o filter_pcr_fusions.o merge_adjacent_fusions.o select_best.o filter_short_anchor.o filter_nonexpressed.o filter_mismappers.o filter_no_genomic_support.o recover_isoforms.o output_fusions.o read_compressed_file.o ../samtools-1.3/libbam.a ../samtools-1.3/htslib-1.3/libhts.a
 ariba: $(ARIBA_OBJECTS) ariba.cpp
 	$(CXX) $(CXXFLAGS) -o ariba ariba.cpp $(ARIBA_OBJECTS) $(LDFLAGS)
 
