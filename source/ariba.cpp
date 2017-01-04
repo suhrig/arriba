@@ -22,6 +22,7 @@
 #include "filter_promiscuous_genes.hpp"
 #include "filter_both_intronic.hpp"
 #include "filter_both_novel.hpp"
+#include "filter_intragenic_both_exonic.hpp"
 #include "filter_min_support.hpp"
 #include "recover_known_fusions.hpp"
 #include "recover_both_spliced.hpp"
@@ -50,6 +51,7 @@ unordered_map<string,filter_t> FILTERS({
 	{"promiscuous_genes", NULL},
 	{"intronic", NULL},
 	{"novel", NULL},
+	{"intragenic_exonic", NULL},
 	{"min_support", NULL},
 	{"known_fusions", NULL},
 	{"spliced", NULL},
@@ -323,6 +325,11 @@ int main(int argc, char **argv) {
 	if (options.filters.at("novel")) {
 		cout << "Filtering fusions with both breakpoints in novel/intergenic regions" << flush;
 		cout << " (remaining=" << filter_both_novel(fusions) << ")" << endl;
+	}
+
+	if (options.filters.at("intragenic_exonic")) {
+		cout << "Filtering intragenic fusions with both breakpoints in exonic regions" << flush;
+		cout << " (remaining=" << filter_intragenic_both_exonic(fusions) << ")" << endl;
 	}
 
 	// this step must come after the 'promiscuous_genes' filter,
