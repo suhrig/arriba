@@ -171,11 +171,13 @@ void assign_confidence(fusions_t& fusions) {
 		if (fusion->second.filter != NULL) {
 			fusion->second.confidence = CONFIDENCE_LOW;
 		} else {
-			if (fusion->second.evalue > 0.3) {
+			if (fusion->second.evalue > 0.3 || fusion->second.supporting_reads() < 2) {
 				fusion->second.confidence = CONFIDENCE_LOW;
 			} else if (fusion->second.is_read_through()) {
 				fusion->second.confidence = CONFIDENCE_LOW;
-				if ((fusion->second.split_reads1 > 0 && fusion->second.split_reads2 > 0 || fusion->second.split_reads1 > 0 && fusion->second.discordant_mates > 0 || fusion->second.split_reads2 > 0 && fusion->second.discordant_mates > 0) && fusion->second.supporting_reads() > 9) {
+				if ((fusion->second.split_reads1 > 0 && fusion->second.split_reads2 > 0 ||
+				     fusion->second.split_reads1 > 0 && fusion->second.discordant_mates > 0 ||
+				     fusion->second.split_reads2 > 0 && fusion->second.discordant_mates > 0) && fusion->second.supporting_reads() > 9) {
 					fusion->second.confidence = CONFIDENCE_MEDIUM;
 				} else {
 					// look for multiple deletions involving the same gene
@@ -226,7 +228,9 @@ void assign_confidence(fusions_t& fusions) {
 				} else {
 					fusion->second.confidence = CONFIDENCE_LOW;
 				}
-			} else if (fusion->second.split_reads1 + fusion->second.split_reads2 == 0 || fusion->second.split_reads1 + fusion->second.discordant_mates == 0 || fusion->second.split_reads2 + fusion->second.discordant_mates == 0) {
+			} else if (fusion->second.split_reads1 + fusion->second.split_reads2 == 0 ||
+			           fusion->second.split_reads1 + fusion->second.discordant_mates == 0 ||
+			           fusion->second.split_reads2 + fusion->second.discordant_mates == 0) {
 				fusion->second.confidence = CONFIDENCE_MEDIUM;
 			} else {
 				fusion->second.confidence = CONFIDENCE_HIGH;
@@ -246,15 +250,19 @@ void assign_confidence(fusions_t& fusions) {
 				unsigned int number_of_spliced_breakpoints = 0;
 				auto fusions_of_gene = fusions_by_gene.find(fusion->second.gene1);
 				for (auto fusion_of_gene = fusions_of_gene->second.begin(); fusion_of_gene != fusions_of_gene->second.end(); ++fusion_of_gene) {
-					if ((**fusion_of_gene).gene1 == fusion->second.gene1 && (**fusion_of_gene).gene2 == fusion->second.gene2 && (**fusion_of_gene).spliced1 && (**fusion_of_gene).spliced2)
+					if ((**fusion_of_gene).gene1 == fusion->second.gene1 && (**fusion_of_gene).gene2 == fusion->second.gene2 &&
+					    (**fusion_of_gene).spliced1 && (**fusion_of_gene).spliced2 &&
+					    (abs((**fusion_of_gene).breakpoint1 - fusion->second.breakpoint1) > 2 || abs((**fusion_of_gene).breakpoint2 - fusion->second.breakpoint2) > 2))
 						++number_of_spliced_breakpoints;
 				}
 				fusions_of_gene = fusions_by_gene.find(fusion->second.gene2);
 				for (auto fusion_of_gene = fusions_of_gene->second.begin(); fusion_of_gene != fusions_of_gene->second.end(); ++fusion_of_gene) {
-					if ((**fusion_of_gene).gene1 == fusion->second.gene1 && (**fusion_of_gene).gene2 == fusion->second.gene2 && (**fusion_of_gene).spliced1 && (**fusion_of_gene).spliced2)
+					if ((**fusion_of_gene).gene1 == fusion->second.gene1 && (**fusion_of_gene).gene2 == fusion->second.gene2 &&
+					    (**fusion_of_gene).spliced1 && (**fusion_of_gene).spliced2 &&
+					    (abs((**fusion_of_gene).breakpoint1 - fusion->second.breakpoint1) > 2 || abs((**fusion_of_gene).breakpoint2 - fusion->second.breakpoint2) > 2))
 						++number_of_spliced_breakpoints;
 				}
-				if (number_of_spliced_breakpoints >= 2)
+				if (number_of_spliced_breakpoints > 0)
 					fusion->second.confidence++;
 			}
 
