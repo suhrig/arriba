@@ -173,22 +173,6 @@ void assign_confidence(fusions_t& fusions) {
 		} else {
 			if (fusion->second.evalue > 0.3) {
 				fusion->second.confidence = CONFIDENCE_LOW;
-				if (fusion->second.spliced1 && fusion->second.spliced2 && !fusion->second.is_read_through()) {
-					// look for multiple spliced translocations
-					unsigned int number_of_spliced_breakpoints = 0;
-					auto fusions_of_gene = fusions_by_gene.find(fusion->second.gene1);
-					for (auto fusion_of_gene = fusions_of_gene->second.begin(); fusion_of_gene != fusions_of_gene->second.end(); ++fusion_of_gene) {
-						if ((**fusion_of_gene).gene1 == fusion->second.gene1 && (**fusion_of_gene).gene2 == fusion->second.gene2 && (**fusion_of_gene).spliced1 && (**fusion_of_gene).spliced2)
-							++number_of_spliced_breakpoints;
-					}
-					fusions_of_gene = fusions_by_gene.find(fusion->second.gene2);
-					for (auto fusion_of_gene = fusions_of_gene->second.begin(); fusion_of_gene != fusions_of_gene->second.end(); ++fusion_of_gene) {
-						if ((**fusion_of_gene).gene1 == fusion->second.gene1 && (**fusion_of_gene).gene2 == fusion->second.gene2 && (**fusion_of_gene).spliced1 && (**fusion_of_gene).spliced2)
-							++number_of_spliced_breakpoints;
-					}
-					if (number_of_spliced_breakpoints >= 2)
-						fusion->second.confidence = CONFIDENCE_MEDIUM;
-				}
 			} else if (fusion->second.is_read_through()) {
 				fusion->second.confidence = CONFIDENCE_LOW;
 				if ((fusion->second.split_reads1 > 0 && fusion->second.split_reads2 > 0 || fusion->second.split_reads1 > 0 && fusion->second.discordant_mates > 0 || fusion->second.split_reads2 > 0 && fusion->second.discordant_mates > 0) && fusion->second.supporting_reads() > 9) {
@@ -248,19 +232,32 @@ void assign_confidence(fusions_t& fusions) {
 				fusion->second.confidence = CONFIDENCE_HIGH;
 			}
 
-			if (fusion->second.evalue > 0.2) { // decrease the confidence, when the e-value is not overwhelming
-				if (fusion->second.confidence == CONFIDENCE_HIGH)
-					fusion->second.confidence = CONFIDENCE_MEDIUM;
-				else if (fusion->second.confidence == CONFIDENCE_MEDIUM)
-					fusion->second.confidence = CONFIDENCE_LOW;
+			if (fusion->second.confidence > CONFIDENCE_LOW &&
+			    fusion->second.evalue > 0.2) // decrease the confidence, when the e-value is not overwhelming
+				fusion->second.confidence--;
+
+			if (fusion->second.confidence < CONFIDENCE_HIGH &&
+			    fusion->second.closest_genomic_breakpoint1 >= 0) // has genomic support
+				fusion->second.confidence++;
+
+			// increase confidence, when there are multiple spliced events
+			if (fusion->second.confidence < CONFIDENCE_HIGH &&
+			    fusion->second.spliced1 && fusion->second.spliced2 && !fusion->second.is_read_through() && fusion->second.gene1 != fusion->second.gene2) {
+				unsigned int number_of_spliced_breakpoints = 0;
+				auto fusions_of_gene = fusions_by_gene.find(fusion->second.gene1);
+				for (auto fusion_of_gene = fusions_of_gene->second.begin(); fusion_of_gene != fusions_of_gene->second.end(); ++fusion_of_gene) {
+					if ((**fusion_of_gene).gene1 == fusion->second.gene1 && (**fusion_of_gene).gene2 == fusion->second.gene2 && (**fusion_of_gene).spliced1 && (**fusion_of_gene).spliced2)
+						++number_of_spliced_breakpoints;
+				}
+				fusions_of_gene = fusions_by_gene.find(fusion->second.gene2);
+				for (auto fusion_of_gene = fusions_of_gene->second.begin(); fusion_of_gene != fusions_of_gene->second.end(); ++fusion_of_gene) {
+					if ((**fusion_of_gene).gene1 == fusion->second.gene1 && (**fusion_of_gene).gene2 == fusion->second.gene2 && (**fusion_of_gene).spliced1 && (**fusion_of_gene).spliced2)
+						++number_of_spliced_breakpoints;
+				}
+				if (number_of_spliced_breakpoints >= 2)
+					fusion->second.confidence++;
 			}
 
-			if (fusion->second.closest_genomic_breakpoint1 >= 0) { // has genomic support
-				if (fusion->second.confidence == CONFIDENCE_LOW)
-					fusion->second.confidence = CONFIDENCE_MEDIUM;
-				else if (fusion->second.confidence == CONFIDENCE_MEDIUM)
-					fusion->second.confidence = CONFIDENCE_HIGH;
-			}
 		}
 	}
 }

@@ -375,14 +375,6 @@ int main(int argc, char **argv) {
 		cout << " (remaining=" << filter_short_anchor(fusions, options.min_anchor_length) << ")" << endl;
 	}
 
-	cout << "Assigning confidence scores to events" << endl << flush;
-	assign_confidence(fusions);
-
-	if (!options.genomic_breakpoints_file.empty() && options.filters.at("no_genomic_support")) {
-		cout << "Removing low-confidence events with no support from WGS" << flush;
-		cout << " (remaining=" << filter_no_genomic_support(fusions) << ")" << endl;
-	}
-
 	// this step must come after the 'select_best' filter, because this filter removes breakpoints which are
 	// only supported by discordant mates, if there is a fusion with breakpoints also supported by split reads
 	if (options.filters.at("blacklist") && !options.blacklist_file.empty()) {
@@ -405,6 +397,16 @@ int main(int argc, char **argv) {
 	if (options.filters.at("non_expressed")) {
 		cout << "Filtering fusions with no expression in '" << options.rna_bam_file << "'" << flush;
 		cout << " (remaining=" << filter_nonexpressed(fusions, options.rna_bam_file, chimeric_alignments, exon_annotation, max_mate_gap) << ")" << endl;
+	}
+
+	// this step must come near the end to assign confidence scores correctly
+	cout << "Assigning confidence scores to events" << endl << flush;
+	assign_confidence(fusions);
+
+	// this step must come after assigning confidence scores
+	if (!options.genomic_breakpoints_file.empty() && options.filters.at("no_genomic_support")) {
+		cout << "Removing low-confidence events with no support from WGS" << flush;
+		cout << " (remaining=" << filter_no_genomic_support(fusions) << ")" << endl;
 	}
 
 	// this step must come last, because it should only recover isoforms of fusions which pass all other filters
