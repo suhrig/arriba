@@ -448,12 +448,16 @@ string get_fusion_type(const fusion_t& fusion) {
 				}
 			} else if (fusion.gene1->strand == FORWARD || fusion.gene2->strand == REVERSE) {
 				if (fusion.is_read_through()) {
-					return "deletion/read-through";
+					return "deletion/read-through/5'-5'";
 				} else {
 					return "deletion/5'-5'";
 				}
 			} else {
+				if (fusion.is_read_through()) {
+					return "deletion/read_through/3'-3'";
+				} else {
 					return "deletion/3'-3'"; // tail-to-tail fusion
+				}
 			}
 		} else if (fusion.direction1 == fusion.direction2) {
 			if (fusion.gene1->strand != fusion.gene2->strand) {
