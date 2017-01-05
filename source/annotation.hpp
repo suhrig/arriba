@@ -13,7 +13,7 @@ using namespace std;
 string removeChr(string contig);
 string addChr(string contig);
 
-void read_annotation_gtf(const string& filename, const contigs_t& contigs, gene_annotation_t& gene_annotation, exon_annotation_t& exon_annotation, unordered_map<string,gene_t>& gene_names);
+void read_annotation_gtf(const string& filename, const contigs_t& contigs, const string& known_gene_keyword, gene_annotation_t& gene_annotation, exon_annotation_t& exon_annotation, unordered_map<string,gene_t>& gene_names);
 
 template <class T> void make_annotation_index(annotation_t<T>& annotation, annotation_index_t<T*>& annotation_index, const contigs_t& contigs);
 

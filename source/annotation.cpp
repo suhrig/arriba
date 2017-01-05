@@ -49,7 +49,7 @@ bool get_gtf_attribute(const string& attributes, const string& attribute_name, s
 	return true;
 }
 
-void read_annotation_gtf(const string& filename, const contigs_t& contigs, gene_annotation_t& gene_annotation, exon_annotation_t& exon_annotation, unordered_map<string,gene_t>& gene_names) {
+void read_annotation_gtf(const string& filename, const contigs_t& contigs, const string& known_gene_keyword, gene_annotation_t& gene_annotation, exon_annotation_t& exon_annotation, unordered_map<string,gene_t>& gene_names) {
 
 	unordered_map<string,transcript_t> transcripts; // translates transcript IDs to numeric IDs
 
@@ -100,7 +100,7 @@ void read_annotation_gtf(const string& filename, const contigs_t& contigs, gene_
 					gene_annotation_record.name = gene_name;
 					gene_annotation_record.exonic_length = 0; // is calculated later in ariba.cpp
 					gene_annotation_record.is_dummy = false;
-					gene_annotation_record.is_known = attributes.find("KNOWN") != string::npos;
+					gene_annotation_record.is_known = attributes.find(known_gene_keyword) != string::npos;
 					gene_annotation.push_back(gene_annotation_record);
 
 				} else if (feature == "exon" || feature == "UTR") {

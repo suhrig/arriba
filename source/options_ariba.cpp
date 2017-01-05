@@ -31,6 +31,7 @@ options_t get_default_options() {
 	options.single_end = false;
 	options.max_kmer_content = 0.6;
 	options.fragment_length = 200;
+	options.known_gene_keyword = "KNOWN";
 
 	return options;
 }
@@ -187,6 +188,9 @@ void print_usage(const string& error_message) {
 	                  "single-end data is given, the mean fragment length should be specified "
 	                  "to effectively filter fusions that arise from hairpin structures. "
 	                  "Default: " + to_string(default_options.fragment_length))
+	     << wrap_help("-W KNOWN_KEYWORD", "Consider annotation records in the GTF file with the "
+	                  "given keyword as known (non-novel) genes. The filter 'both_novel' discards "
+	                  "fusions between genes that are both novel. Default: " + default_options.known_gene_keyword)
 	     << wrap_help("-S", "When set, the column 'fusion_transcript' is populated with "
 	                  "the sequence of the fused genes as assembled from the supporting reads. "
 	                  "The following letters have special meanings:\n"
@@ -213,7 +217,7 @@ options_t parse_arguments(int argc, char **argv) {
 	// parse arguments
 	opterr = 0;
 	int c;
-	while ((c = getopt(argc, argv, "c:r:x:d:g:o:O:a:k:b:1i:f:E:s:lm:H:D:R:A:K:F:SIh")) != -1) {
+	while ((c = getopt(argc, argv, "c:r:x:d:g:o:O:a:k:b:1i:f:E:s:lm:H:D:R:A:K:F:W:SIh")) != -1) {
 		switch (c) {
 			case 'c':
 				options.chimeric_bam_file = optarg;
@@ -345,6 +349,9 @@ options_t parse_arguments(int argc, char **argv) {
 			case 'F':
 				options.fragment_length = atoi(optarg);
 				break;
+			case 'W':
+				options.known_gene_keyword = optarg;
+				break;
 			case 'S':
 				if (!options.print_fusion_sequence)
 					options.print_fusion_sequence = true;
@@ -359,7 +366,7 @@ options_t parse_arguments(int argc, char **argv) {
 				break;
 			case '?':
 				switch (optopt) {
-					case 'c': case 'r': case 'x': case 'd': case 'g': case 'o': case 'O': case 'a': case 'k': case 'b': case 'i': case 'f': case 'E': case 's': case 'm': case 'H': case 'D': case 'R': case 'A': case 'K': case 'F':
+					case 'c': case 'r': case 'x': case 'd': case 'g': case 'o': case 'O': case 'a': case 'k': case 'b': case 'i': case 'f': case 'E': case 's': case 'm': case 'H': case 'D': case 'R': case 'A': case 'K': case 'F': case 'W':
 						print_usage(string("Option -") + ((char) optopt) + " requires an argument.");
 						break;
 					default:
