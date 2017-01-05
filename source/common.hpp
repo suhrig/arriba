@@ -103,6 +103,11 @@ class mates_t: public vector<alignment_t> {
 };
 typedef unordered_map<string,mates_t> chimeric_alignments_t;
 
+typedef unsigned char confidence_t;
+const confidence_t CONFIDENCE_LOW = 0;
+const confidence_t CONFIDENCE_MEDIUM = 1;
+const confidence_t CONFIDENCE_HIGH = 2;
+
 const bool UPSTREAM = true;
 const bool DOWNSTREAM = false;
 typedef bool direction_t;
@@ -111,9 +116,10 @@ struct fusion_t {
 	contig_t contig1, contig2;
 	position_t breakpoint1, breakpoint2;
 	direction_t direction1, direction2;
-	bool exonic1, exonic2;
-	bool overlap_duplicate1, overlap_duplicate2;
-	bool spliced1, spliced2;
+	bool exonic1:1, exonic2:1;
+	bool overlap_duplicate1:1, overlap_duplicate2:1;
+	bool spliced1:1, spliced2:1;
+	confidence_t confidence:2;
 	unsigned int split_reads1, split_reads2;
 	unsigned int discordant_mates;
 	position_t closest_genomic_breakpoint1, closest_genomic_breakpoint2;

@@ -503,108 +503,6 @@ string get_fusion_strand(const strand_t strand, const gene_t gene, const transcr
 	return result;
 }
 
-enum confidence_t { LOW_CONFIDENCE, MEDIUM_CONFIDENCE, HIGH_CONFIDENCE };
-confidence_t get_confidence(const fusion_t& fusion, const map< gene_t, vector<fusion_t*> >& fusions_by_gene) {
-	confidence_t result;
-
-	if (fusion.filter != NULL) {
-		result = LOW_CONFIDENCE;
-	} else {
-		if (fusion.evalue > 0.3) {
-			result = LOW_CONFIDENCE;
-			if (fusion.spliced1 && fusion.spliced2 && !fusion.is_read_through()) {
-				// look for multiple spliced translocations
-				unsigned int number_of_spliced_breakpoints = 0;
-				auto fusions_of_gene = fusions_by_gene.find(fusion.gene1);
-				for (auto fusion_of_gene = fusions_of_gene->second.begin(); fusion_of_gene != fusions_of_gene->second.end(); ++fusion_of_gene) {
-					if ((**fusion_of_gene).gene1 == fusion.gene1 && (**fusion_of_gene).gene2 == fusion.gene2 && (**fusion_of_gene).spliced1 && (**fusion_of_gene).spliced2)
-						++number_of_spliced_breakpoints;
-				}
-				fusions_of_gene = fusions_by_gene.find(fusion.gene2);
-				for (auto fusion_of_gene = fusions_of_gene->second.begin(); fusion_of_gene != fusions_of_gene->second.end(); ++fusion_of_gene) {
-					if ((**fusion_of_gene).gene1 == fusion.gene1 && (**fusion_of_gene).gene2 == fusion.gene2 && (**fusion_of_gene).spliced1 && (**fusion_of_gene).spliced2)
-						++number_of_spliced_breakpoints;
-				}
-				if (number_of_spliced_breakpoints >= 2)
-					result = MEDIUM_CONFIDENCE;
-			}
-		} else if (fusion.is_read_through()) {
-			result = LOW_CONFIDENCE;
-			if ((fusion.split_reads1 > 0 && fusion.split_reads2 > 0 || fusion.split_reads1 > 0 && fusion.discordant_mates > 0 || fusion.split_reads2 > 0 && fusion.discordant_mates > 0) && fusion.supporting_reads() > 9) {
-				result = MEDIUM_CONFIDENCE;
-			} else {
-				// look for multiple deletions involving the same gene
-				unsigned int number_of_deletions = 0;
-				auto fusions_of_gene = fusions_by_gene.find(fusion.gene1);
-				for (auto fusion_of_gene = fusions_of_gene->second.begin(); fusion_of_gene != fusions_of_gene->second.end(); ++fusion_of_gene) {
-					if ((**fusion_of_gene).filter == NULL &&
-					    (**fusion_of_gene).split_reads1 + (**fusion_of_gene).split_reads2 > 0 &&
-					    (**fusion_of_gene).direction1 == DOWNSTREAM && (**fusion_of_gene).direction2 == UPSTREAM &&
-					    ((**fusion_of_gene).gene1 == fusion.gene1 && (**fusion_of_gene).gene2 != fusion.gene2 || // don't count different isoforms
-					     (**fusion_of_gene).gene1 != fusion.gene1 && (**fusion_of_gene).gene2 == fusion.gene2) &&
-					    ((**fusion_of_gene).breakpoint1 != fusion.breakpoint1 || (**fusion_of_gene).breakpoint2 != fusion.breakpoint2) &&
-					    (**fusion_of_gene).breakpoint2 > fusion.breakpoint1 && (**fusion_of_gene).breakpoint1 < fusion.breakpoint2) {
-						++number_of_deletions;
-					}
-				}
-				fusions_of_gene = fusions_by_gene.find(fusion.gene2);
-				for (auto fusion_of_gene = fusions_of_gene->second.begin(); fusion_of_gene != fusions_of_gene->second.end(); ++fusion_of_gene) {
-					if ((**fusion_of_gene).filter == NULL &&
-					    (**fusion_of_gene).split_reads1 + (**fusion_of_gene).split_reads2 > 0 &&
-					    (**fusion_of_gene).direction1 == DOWNSTREAM && (**fusion_of_gene).direction2 == UPSTREAM &&
-					    ((**fusion_of_gene).gene1 == fusion.gene1 && (**fusion_of_gene).gene2 != fusion.gene2 || // don't count different isoforms
-					     (**fusion_of_gene).gene1 != fusion.gene1 && (**fusion_of_gene).gene2 == fusion.gene2) &&
-					    ((**fusion_of_gene).breakpoint1 != fusion.breakpoint1 || (**fusion_of_gene).breakpoint2 != fusion.breakpoint2) &&
-					    (**fusion_of_gene).breakpoint2 > fusion.breakpoint1 && (**fusion_of_gene).breakpoint1 < fusion.breakpoint2) {
-						++number_of_deletions;
-						}
-				}
-				if (number_of_deletions >= 1)
-					result = MEDIUM_CONFIDENCE;
-			}
-
-		} else if (fusion.breakpoint_overlaps_both_genes() || fusion.gene1 == fusion.gene2) { // intragenic event
-			if (fusion.split_reads1 + fusion.split_reads2 == 0) {
-				result = LOW_CONFIDENCE;
-			} else if (!fusion.exonic1 && !fusion.exonic2) {
-				if (fusion.split_reads1 > 0 && fusion.split_reads2 > 0) {
-					result = HIGH_CONFIDENCE;
-				} else {
-					result = MEDIUM_CONFIDENCE;
-				}
-			} else if (!fusion.exonic1 || !fusion.exonic2) {
-				if (fusion.split_reads1 > 3 && fusion.split_reads2 > 3) {
-					result = HIGH_CONFIDENCE;
-				} else {
-					result = MEDIUM_CONFIDENCE;
-				}
-			} else {
-				result = LOW_CONFIDENCE;
-			}
-		} else if (fusion.split_reads1 + fusion.split_reads2 == 0 || fusion.split_reads1 + fusion.discordant_mates == 0 || fusion.split_reads2 + fusion.discordant_mates == 0) {
-			result = MEDIUM_CONFIDENCE;
-		} else {
-			result = HIGH_CONFIDENCE;
-		}
-
-		if (fusion.evalue > 0.2) {
-			if (result == HIGH_CONFIDENCE)
-				result = MEDIUM_CONFIDENCE;
-			else if (result == MEDIUM_CONFIDENCE)
-				result = LOW_CONFIDENCE;
-		}
-
-		if (fusion.closest_genomic_breakpoint1 >= 0) { // has genomic support
-			if (result == LOW_CONFIDENCE)
-				result = MEDIUM_CONFIDENCE;
-			else if (result == MEDIUM_CONFIDENCE)
-				result = HIGH_CONFIDENCE;
-		}
-	}
-
-	return result;
-}
-
 void write_fusions_to_file(fusions_t& fusions, const string& output_file, gene_annotation_index_t& gene_annotation_index, exon_annotation_index_t& exon_annotation_index, vector<string> contigs_by_id, const bool print_supporting_reads, const bool print_fusion_sequence, const bool write_discarded_fusions) {
 //TODO add "chr", if necessary
 
@@ -643,13 +541,6 @@ void write_fusions_to_file(fusions_t& fusions, const string& output_file, gene_a
 
 		// sort all gene pairs by the rank of the best scoring breakpoints of a given gene pair
 		sort(sorted_fusions.begin(), sorted_fusions.end(), ref(sort_fusions_by_rank_of_best));
-	}
-
-	// get all fusions by gene, we need this for better confidence scoring
-	map< gene_t, vector<fusion_t*> > fusions_by_gene;
-	for (fusions_t::iterator fusion = fusions.begin(); fusion != fusions.end(); ++fusion) {
-		fusions_by_gene[fusion->second.gene1].push_back(&fusion->second);
-		fusions_by_gene[fusion->second.gene2].push_back(&fusion->second);
 	}
 
 	// write sorted list to file
@@ -705,14 +596,14 @@ void write_fusions_to_file(fusions_t& fusions, const string& output_file, gene_a
 
 		// assign confidence scores
 		string confidence;
-		switch (get_confidence(**i, fusions_by_gene)) {
-			case LOW_CONFIDENCE:
+		switch ((**i).confidence) {
+			case CONFIDENCE_LOW:
 				confidence = "low";
 				break;
-			case MEDIUM_CONFIDENCE:
+			case CONFIDENCE_MEDIUM:
 				confidence = "medium";
 				break;
-			case HIGH_CONFIDENCE:
+			case CONFIDENCE_HIGH:
 				confidence = "high";
 				break;
 		}

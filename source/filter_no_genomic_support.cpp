@@ -155,15 +155,123 @@ unsigned int mark_genomic_support(fusions_t& fusions, const string& genomic_brea
 	return marked;
 }
 
+void assign_confidence(fusions_t& fusions) {
+
+	// order fusions by gene pair
+	// => the confidence in an event is increased, when there are other events between the same pair of genes
+	map< gene_t, vector<fusion_t*> > fusions_by_gene;
+	for (fusions_t::iterator fusion = fusions.begin(); fusion != fusions.end(); ++fusion) {
+		fusions_by_gene[fusion->second.gene1].push_back(&fusion->second);
+		fusions_by_gene[fusion->second.gene2].push_back(&fusion->second);
+	}
+
+	// assign a confidence to each fusion
+	for (fusions_t::iterator fusion = fusions.begin(); fusion != fusions.end(); ++fusion) {
+
+		if (fusion->second.filter != NULL) {
+			fusion->second.confidence = CONFIDENCE_LOW;
+		} else {
+			if (fusion->second.evalue > 0.3) {
+				fusion->second.confidence = CONFIDENCE_LOW;
+				if (fusion->second.spliced1 && fusion->second.spliced2 && !fusion->second.is_read_through()) {
+					// look for multiple spliced translocations
+					unsigned int number_of_spliced_breakpoints = 0;
+					auto fusions_of_gene = fusions_by_gene.find(fusion->second.gene1);
+					for (auto fusion_of_gene = fusions_of_gene->second.begin(); fusion_of_gene != fusions_of_gene->second.end(); ++fusion_of_gene) {
+						if ((**fusion_of_gene).gene1 == fusion->second.gene1 && (**fusion_of_gene).gene2 == fusion->second.gene2 && (**fusion_of_gene).spliced1 && (**fusion_of_gene).spliced2)
+							++number_of_spliced_breakpoints;
+					}
+					fusions_of_gene = fusions_by_gene.find(fusion->second.gene2);
+					for (auto fusion_of_gene = fusions_of_gene->second.begin(); fusion_of_gene != fusions_of_gene->second.end(); ++fusion_of_gene) {
+						if ((**fusion_of_gene).gene1 == fusion->second.gene1 && (**fusion_of_gene).gene2 == fusion->second.gene2 && (**fusion_of_gene).spliced1 && (**fusion_of_gene).spliced2)
+							++number_of_spliced_breakpoints;
+					}
+					if (number_of_spliced_breakpoints >= 2)
+						fusion->second.confidence = CONFIDENCE_MEDIUM;
+				}
+			} else if (fusion->second.is_read_through()) {
+				fusion->second.confidence = CONFIDENCE_LOW;
+				if ((fusion->second.split_reads1 > 0 && fusion->second.split_reads2 > 0 || fusion->second.split_reads1 > 0 && fusion->second.discordant_mates > 0 || fusion->second.split_reads2 > 0 && fusion->second.discordant_mates > 0) && fusion->second.supporting_reads() > 9) {
+					fusion->second.confidence = CONFIDENCE_MEDIUM;
+				} else {
+					// look for multiple deletions involving the same gene
+					unsigned int number_of_deletions = 0;
+					auto fusions_of_gene = fusions_by_gene.find(fusion->second.gene1);
+					for (auto fusion_of_gene = fusions_of_gene->second.begin(); fusion_of_gene != fusions_of_gene->second.end(); ++fusion_of_gene) {
+						if ((**fusion_of_gene).filter == NULL &&
+						    (**fusion_of_gene).split_reads1 + (**fusion_of_gene).split_reads2 > 0 &&
+						    (**fusion_of_gene).direction1 == DOWNSTREAM && (**fusion_of_gene).direction2 == UPSTREAM &&
+						    ((**fusion_of_gene).gene1 == fusion->second.gene1 && (**fusion_of_gene).gene2 != fusion->second.gene2 || // don't count different isoforms
+						     (**fusion_of_gene).gene1 != fusion->second.gene1 && (**fusion_of_gene).gene2 == fusion->second.gene2) &&
+						    ((**fusion_of_gene).breakpoint1 != fusion->second.breakpoint1 || (**fusion_of_gene).breakpoint2 != fusion->second.breakpoint2) &&
+						    (**fusion_of_gene).breakpoint2 > fusion->second.breakpoint1 && (**fusion_of_gene).breakpoint1 < fusion->second.breakpoint2) {
+							++number_of_deletions;
+						}
+					}
+					fusions_of_gene = fusions_by_gene.find(fusion->second.gene2);
+					for (auto fusion_of_gene = fusions_of_gene->second.begin(); fusion_of_gene != fusions_of_gene->second.end(); ++fusion_of_gene) {
+						if ((**fusion_of_gene).filter == NULL &&
+						    (**fusion_of_gene).split_reads1 + (**fusion_of_gene).split_reads2 > 0 &&
+						    (**fusion_of_gene).direction1 == DOWNSTREAM && (**fusion_of_gene).direction2 == UPSTREAM &&
+						    ((**fusion_of_gene).gene1 == fusion->second.gene1 && (**fusion_of_gene).gene2 != fusion->second.gene2 || // don't count different isoforms
+						     (**fusion_of_gene).gene1 != fusion->second.gene1 && (**fusion_of_gene).gene2 == fusion->second.gene2) &&
+						    ((**fusion_of_gene).breakpoint1 != fusion->second.breakpoint1 || (**fusion_of_gene).breakpoint2 != fusion->second.breakpoint2) &&
+						    (**fusion_of_gene).breakpoint2 > fusion->second.breakpoint1 && (**fusion_of_gene).breakpoint1 < fusion->second.breakpoint2) {
+							++number_of_deletions;
+							}
+					}
+					if (number_of_deletions >= 1)
+						fusion->second.confidence = CONFIDENCE_MEDIUM;
+				}
+
+			} else if (fusion->second.breakpoint_overlaps_both_genes() || fusion->second.gene1 == fusion->second.gene2) { // intragenic event
+				if (fusion->second.split_reads1 + fusion->second.split_reads2 == 0) {
+					fusion->second.confidence = CONFIDENCE_LOW;
+				} else if (!fusion->second.exonic1 && !fusion->second.exonic2) {
+					if (fusion->second.split_reads1 > 0 && fusion->second.split_reads2 > 0) {
+						fusion->second.confidence = CONFIDENCE_HIGH;
+					} else {
+						fusion->second.confidence = CONFIDENCE_MEDIUM;
+					}
+				} else if (!fusion->second.exonic1 || !fusion->second.exonic2) {
+					if (fusion->second.split_reads1 > 3 && fusion->second.split_reads2 > 3) {
+						fusion->second.confidence = CONFIDENCE_HIGH;
+					} else {
+						fusion->second.confidence = CONFIDENCE_MEDIUM;
+					}
+				} else {
+					fusion->second.confidence = CONFIDENCE_LOW;
+				}
+			} else if (fusion->second.split_reads1 + fusion->second.split_reads2 == 0 || fusion->second.split_reads1 + fusion->second.discordant_mates == 0 || fusion->second.split_reads2 + fusion->second.discordant_mates == 0) {
+				fusion->second.confidence = CONFIDENCE_MEDIUM;
+			} else {
+				fusion->second.confidence = CONFIDENCE_HIGH;
+			}
+
+			if (fusion->second.evalue > 0.2) { // decrease the confidence, when the e-value is not overwhelming
+				if (fusion->second.confidence == CONFIDENCE_HIGH)
+					fusion->second.confidence = CONFIDENCE_MEDIUM;
+				else if (fusion->second.confidence == CONFIDENCE_MEDIUM)
+					fusion->second.confidence = CONFIDENCE_LOW;
+			}
+
+			if (fusion->second.closest_genomic_breakpoint1 >= 0) { // has genomic support
+				if (fusion->second.confidence == CONFIDENCE_LOW)
+					fusion->second.confidence = CONFIDENCE_MEDIUM;
+				else if (fusion->second.confidence == CONFIDENCE_MEDIUM)
+					fusion->second.confidence = CONFIDENCE_HIGH;
+			}
+		}
+	}
+}
+
 // filter speculative fusions without support from WGS
-unsigned int filter_no_genomic_support(fusions_t& fusions, const float evalue_cutoff) {
+unsigned int filter_no_genomic_support(fusions_t& fusions) {
 
 	unsigned int remaining = 0;
 	for (fusions_t::iterator fusion = fusions.begin(); fusion != fusions.end(); ++fusion) {
 		if (fusion->second.closest_genomic_breakpoint1 < 0 && // no genomic support
-		    (fusion->second.is_read_through() || // probable accidental read-through artefact
-		     fusion->second.breakpoint_overlaps_both_genes() && fusion->second.exonic1 && fusion->second.exonic2 || // intragenic events with both breakpoints being in exons (probable hairpin artefact)
-		     fusion->second.evalue > evalue_cutoff)) // e-value > threashold => speculative fusion
+		     fusion->second.confidence == CONFIDENCE_LOW)
 			fusion->second.filter = FILTERS.at("no_genomic_support");
 		else
 			remaining++;

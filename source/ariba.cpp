@@ -375,9 +375,12 @@ int main(int argc, char **argv) {
 		cout << " (remaining=" << filter_short_anchor(fusions, options.min_anchor_length) << ")" << endl;
 	}
 
+	cout << "Assigning confidence scores to events" << endl << flush;
+	assign_confidence(fusions);
+
 	if (!options.genomic_breakpoints_file.empty() && options.filters.at("no_genomic_support")) {
 		cout << "Removing low-confidence events with no support from WGS" << flush;
-		cout << " (remaining=" << filter_no_genomic_support(fusions, options.evalue_cutoff) << ")" << endl;
+		cout << " (remaining=" << filter_no_genomic_support(fusions) << ")" << endl;
 	}
 
 	// this step must come after the 'select_best' filter, because this filter removes breakpoints which are

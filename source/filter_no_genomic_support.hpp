@@ -8,6 +8,8 @@ using namespace std;
 
 unsigned int mark_genomic_support(fusions_t& fusions, const string& genomic_breakpoints_file_path, const contigs_t& contigs, const int max_distance);
 
-unsigned int filter_no_genomic_support(fusions_t& fusions, const float evalue_cutoff);
+void assign_confidence(fusions_t& fusions);
+
+unsigned int filter_no_genomic_support(fusions_t& fusions);
 
 #endif /* _FILTER_NO_GENOMIC_SUPPORT_H */
