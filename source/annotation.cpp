@@ -154,8 +154,6 @@ gene_multiset_t get_genes_from_exons(const exon_multiset_t& exons) {
 // check if a breakpoint is near an annotated splice site
 exon_multiset_t get_exons_from_splice_site(const gene_t gene, const direction_t direction, const contig_t contig, const position_t breakpoint, const exon_annotation_index_t& exon_annotation_index) {
 
-	const unsigned int max_splice_site_distance = 2;
-
 	// find overlapping exons
 	exon_contig_annotation_index_t::const_iterator exons_at_breakpoint = exon_annotation_index[contig].lower_bound(breakpoint);
 	exon_contig_annotation_index_t::const_iterator exons_before_breakpoint = exons_at_breakpoint;
@@ -166,7 +164,7 @@ exon_multiset_t get_exons_from_splice_site(const gene_t gene, const direction_t 
 	unsigned int genes_at_breakpoint = (exons_at_breakpoint != exon_annotation_index[contig].end()) ? get_genes_from_exons(exons_at_breakpoint->second).count(gene) : 0;
 	unsigned int genes_before_breakpoint = (exons_before_breakpoint != exon_annotation_index[contig].end()) ? get_genes_from_exons(exons_before_breakpoint->second).count(gene) : 0;
 
-	if (exons_before_breakpoint != exon_annotation_index[contig].end() && breakpoint - exons_before_breakpoint->first <= max_splice_site_distance) {
+	if (exons_before_breakpoint != exon_annotation_index[contig].end() && breakpoint - exons_before_breakpoint->first <= MAX_SPLICE_SITE_DISTANCE) {
 		if (direction == UPSTREAM && exons_at_breakpoint != exon_annotation_index[contig].end() && genes_at_breakpoint > genes_before_breakpoint)
 			return exons_at_breakpoint->second;
 
@@ -180,7 +178,7 @@ exon_multiset_t get_exons_from_splice_site(const gene_t gene, const direction_t 
 
 	unsigned int genes_after_breakpoint = (exons_after_breakpoint != exon_annotation_index[contig].end()) ? get_genes_from_exons(exons_after_breakpoint->second).count(gene) : 0;
 
-	if (exons_at_breakpoint != exon_annotation_index[contig].end() && exons_at_breakpoint->first - breakpoint <= max_splice_site_distance) {
+	if (exons_at_breakpoint != exon_annotation_index[contig].end() && exons_at_breakpoint->first - breakpoint <= MAX_SPLICE_SITE_DISTANCE) {
 		if (direction == UPSTREAM && exons_after_breakpoint != exon_annotation_index[contig].end() && genes_after_breakpoint > genes_at_breakpoint)
 			return exons_after_breakpoint->second;
 

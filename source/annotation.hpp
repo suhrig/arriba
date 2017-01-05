@@ -10,6 +10,9 @@
 
 using namespace std;
 
+// coordinates that are at most this far away from a splice-site are considered to be at the splice-site
+const unsigned int MAX_SPLICE_SITE_DISTANCE = 2;
+
 string removeChr(string contig);
 string addChr(string contig);
 
