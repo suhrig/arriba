@@ -375,6 +375,15 @@ int main(int argc, char **argv) {
 		cout << " (remaining=" << filter_short_anchor(fusions, options.min_anchor_length) << ")" << endl;
 	}
 
+	cout << "Assigning confidence scores to events" << endl << flush;
+	assign_confidence(fusions);
+
+	// this step must come after assigning confidence scores
+	if (!options.genomic_breakpoints_file.empty() && options.filters.at("no_genomic_support")) {
+		cout << "Removing low-confidence events with no support from WGS" << flush;
+		cout << " (remaining=" << filter_no_genomic_support(fusions) << ")" << endl;
+	}
+
 	// this step must come after the 'select_best' filter, because this filter removes breakpoints which are
 	// only supported by discordant mates, if there is a fusion with breakpoints also supported by split reads
 	if (options.filters.at("blacklist") && !options.blacklist_file.empty()) {
@@ -399,21 +408,15 @@ int main(int argc, char **argv) {
 		cout << " (remaining=" << filter_nonexpressed(fusions, options.rna_bam_file, chimeric_alignments, exon_annotation, max_mate_gap) << ")" << endl;
 	}
 
-	// this step must come near the end to assign confidence scores correctly
-	cout << "Assigning confidence scores to events" << endl << flush;
-	assign_confidence(fusions);
-
-	// this step must come after assigning confidence scores
-	if (!options.genomic_breakpoints_file.empty() && options.filters.at("no_genomic_support")) {
-		cout << "Removing low-confidence events with no support from WGS" << flush;
-		cout << " (remaining=" << filter_no_genomic_support(fusions) << ")" << endl;
-	}
-
-	// this step must come last, because it should only recover isoforms of fusions which pass all other filters
+	// this filter must come last, because it should only recover isoforms of fusions which pass all other filters
 	if (options.filters.at("isoforms")) {
 		cout << "Searching for additional isoforms" << flush;
 		cout << " (remaining=" << recover_isoforms(fusions) << ")" << endl;
 	}
+
+	// this step must come after the 'isoforms' filter, because recovered isoforms need to be scored anew
+	cout << "Re-assigning confidence scores to events" << endl << flush;
+	assign_confidence(fusions);
 
 	cout << "Writing fusions to file '" << options.output_file << "'" << endl;
 	write_fusions_to_file(fusions, options.output_file, gene_annotation_index, exon_annotation_index, contigs_by_id, options.print_supporting_reads, options.print_fusion_sequence, false);
