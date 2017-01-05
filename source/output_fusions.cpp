@@ -351,7 +351,9 @@ string get_fusion_transcript_sequence(fusion_t& fusion, const transcript_start_t
 }
 
 bool sort_fusions_by_support(const fusion_t* x, const fusion_t* y) {
-	if (x->supporting_reads() != y->supporting_reads())
+	if (x->confidence != y->confidence)
+		return x->confidence > y->confidence;
+	else if (x->supporting_reads() != y->supporting_reads())
 		return x->supporting_reads() > y->supporting_reads();
 	else if (x->evalue != y->evalue)
 		return x->evalue < y->evalue;
