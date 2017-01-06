@@ -36,14 +36,18 @@ bool get_gtf_attribute(const string& attributes, const string& attribute_name, s
 	size_t start = attributes.find(attribute_name + " \"");
 	if (start != string::npos)
 		start = attributes.find('"', start);
-	if (start == string::npos)
+	if (start == string::npos) {
+		cerr << "WARNING: failed to extract " << attribute_name << " from line in GTF file: " << attributes << endl;
 		return false;
+	}
 	start++;
 
 	// find end of attribute
 	size_t end = attributes.find('"', start);
-	if (end == string::npos)
+	if (end == string::npos) {
+		cerr << "WARNING: failed to extract " << attribute_name << " from line in GTF file: " << attributes << endl;
 		return false;
+	}
 	attribute_value = attributes.substr(start, end - start);
 
 	return true;
@@ -52,8 +56,8 @@ bool get_gtf_attribute(const string& attributes, const string& attribute_name, s
 void read_annotation_gtf(const string& filename, const contigs_t& contigs, const string& known_gene_keyword, gene_annotation_t& gene_annotation, exon_annotation_t& exon_annotation, unordered_map<string,gene_t>& gene_names) {
 
 	unordered_map<string,transcript_t> transcripts; // translates transcript IDs to numeric IDs
-
-	unordered_map<exon_t,string> gene_name_by_exon; // remembers which exon belongs to which gene
+	unordered_map<string,gene_t> gene_by_gene_id; // maps gene IDs to genes (used to map exons to genes)
+	unordered_map<exon_t,string> gene_id_by_exon; // maps exons to gene IDs (used to map exons to genes)
 
 	stringstream gtf_file;
 	autodecompress_file(filename, gtf_file);
@@ -63,25 +67,24 @@ void read_annotation_gtf(const string& filename, const contigs_t& contigs, const
 
 			istringstream iss(line);
 			annotation_record_t annotation_record;
-			string contig, strand, feature, attributes, trash, gene_name;
+			string contig, strand, feature, attributes, trash, gene_name, gene_id;
 
 			// parse line
 			iss >> contig >> trash >> feature >> annotation_record.start >> annotation_record.end >> trash >> strand >> trash;
 			if (contig.empty() || feature.empty() || strand.empty()) {
-				cerr << "WARNING: failed to parse line in GTF file '" << filename << "': " << line << endl;
+				cerr << "WARNING: failed to parse line in GTF file: " << line << endl;
 				continue;
 			}
 			getline(iss, attributes);
 
-			// extract gene name from attributes
-			if (!get_gtf_attribute(attributes, "gene_name", gene_name)) {
-				cerr << "WARNING: failed to extract gene name from line in GTF file '" << filename << "': " << line << endl;
+			// extract gene name and ID from attributes
+			if (!get_gtf_attribute(attributes, "gene_name", gene_name) ||
+			    !get_gtf_attribute(attributes, "gene_id", gene_id))
 				continue;
-			}
 
 			contig = removeChr(contig);
 			if (contigs.find(contig) == contigs.end()) {
-				cerr << "WARNING: unknown contig in GTF file '" << filename << "': " << contig << endl;
+				cerr << "WARNING: unknown contig in GTF file: " << contig << endl;
 
 			} else {
 
@@ -103,6 +106,9 @@ void read_annotation_gtf(const string& filename, const contigs_t& contigs, const
 					gene_annotation_record.is_known = attributes.find(known_gene_keyword) != string::npos;
 					gene_annotation.push_back(gene_annotation_record);
 
+					// remember ID of gene, so we can map exons to genes later
+					gene_by_gene_id[gene_id] = &(gene_annotation[gene_annotation.size()-1]);
+
 				} else if (feature == "exon" || feature == "UTR") {
 
 					// make exon annotation record
@@ -111,10 +117,8 @@ void read_annotation_gtf(const string& filename, const contigs_t& contigs, const
 
 					// extract transcript ID from attributes
 					string transcript_id;
-					if (!get_gtf_attribute(attributes, "transcript_id", transcript_id)) {
-						cerr << "WARNING: failed to extract transcript ID from line in GTF file '" << filename << "': " << line << endl;
+					if (!get_gtf_attribute(attributes, "transcript_id", transcript_id))
 						continue;
-					}
 					exon_annotation_record.transcript = transcripts[transcript_id];
 					if (exon_annotation_record.transcript == 0) // this is the first time we encounter this transcript ID => give it a numeric ID
 						exon_annotation_record.transcript = transcripts[transcript_id] = transcripts.size();
@@ -122,23 +126,26 @@ void read_annotation_gtf(const string& filename, const contigs_t& contigs, const
 					// give the record an ID (= a consecutive number)
 					exon_annotation.push_back(exon_annotation_record);
 
-					// remember name of gene, so we can make pointers later
-					gene_name_by_exon[&(exon_annotation[exon_annotation.size()-1])] = gene_name;
+					// remember ID of gene, so we can map exons to genes later
+					gene_id_by_exon[&(exon_annotation[exon_annotation.size()-1])] = gene_id;
 				}
 			}
 		}
 	}
 
-	// assign exons to genes
+	// make a map of gene_name -> gene
+	//TODO this can cause collisions, because gene names are not unique
 	for (gene_annotation_t::iterator gene = gene_annotation.begin(); gene != gene_annotation.end(); ++gene)
 		gene_names[gene->name] = &(*gene);
+
+	// assign exons to genes
 	for (exon_annotation_t::iterator exon = exon_annotation.begin(); exon != exon_annotation.end(); ++exon) {
-		auto gene_name = gene_names.find(gene_name_by_exon[&(*exon)]);
-		if (gene_name == gene_names.end()) {
-			cerr << "ERROR: exon belongs to unknown gene: " << gene_name_by_exon[&(*exon)] << endl;
+		auto gene_id = gene_by_gene_id.find(gene_id_by_exon[&(*exon)]);
+		if (gene_id == gene_by_gene_id.end()) {
+			cerr << "ERROR: exon belongs to unknown gene with ID: " << gene_id_by_exon[&(*exon)] << endl;
 			exit(1);
 		} else {
-			exon->gene = gene_name->second;
+			exon->gene = gene_id->second;
 		}
 	}
 
