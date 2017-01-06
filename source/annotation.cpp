@@ -216,10 +216,14 @@ void get_annotation_by_alignment(const alignment_t& alignment, gene_set_t& gene_
 				case BAM_CHARD_CLIP:
 				case BAM_CREF_SKIP:
 
-					// whenever we hit an intron in the CIGAR string, check if it aligns with splice sites for each gene
+					// whenever we hit an intron (or clipped segment) in the CIGAR string, check if it aligns with splice sites for each gene
 					for (gene_set_t::iterator gene = gene_set_supported_by_splicing.begin(); gene != gene_set_supported_by_splicing.end();) {
-						if (!is_breakpoint_spliced(*gene, DOWNSTREAM, alignment.contig, reference_position, exon_annotation_index) &&
-						    !is_breakpoint_spliced(*gene, UPSTREAM, alignment.contig, reference_position + alignment.cigar.op_length(i), exon_annotation_index))
+						if ((alignment.cigar.operation(i) == BAM_CSOFT_CLIP || alignment.cigar.operation(i) == BAM_CHARD_CLIP) &&
+						    (i == 0 && !is_breakpoint_spliced(*gene, UPSTREAM, alignment.contig, reference_position, exon_annotation_index) || // preclipped segment aligns with exon start
+						     i != 0 && !is_breakpoint_spliced(*gene, DOWNSTREAM, alignment.contig, reference_position, exon_annotation_index)) || // postclipped segment aligns with exon end
+						    alignment.cigar.operation(i) == BAM_CREF_SKIP &&
+						    !is_breakpoint_spliced(*gene, DOWNSTREAM, alignment.contig, reference_position, exon_annotation_index) && // intron aligns with exon start
+						    !is_breakpoint_spliced(*gene, UPSTREAM, alignment.contig, reference_position + alignment.cigar.op_length(i), exon_annotation_index)) // intron aligns with exon end
 							gene = gene_set_supported_by_splicing.erase(gene);
 						else
 							++gene;
