@@ -375,11 +375,11 @@ int main(int argc, char **argv) {
 		cout << " (remaining=" << filter_short_anchor(fusions, options.min_anchor_length) << ")" << endl;
 	}
 
-	cout << "Assigning confidence scores to events" << endl << flush;
-	assign_confidence(fusions);
-
 	// this step must come after assigning confidence scores
 	if (!options.genomic_breakpoints_file.empty() && options.filters.at("no_genomic_support")) {
+		cout << "Assigning confidence scores to events" << endl << flush;
+		assign_confidence(fusions);
+
 		cout << "Removing low-confidence events with no support from WGS" << flush;
 		cout << " (remaining=" << filter_no_genomic_support(fusions) << ")" << endl;
 	}
@@ -415,7 +415,7 @@ int main(int argc, char **argv) {
 	}
 
 	// this step must come after the 'isoforms' filter, because recovered isoforms need to be scored anew
-	cout << "Re-assigning confidence scores to events" << endl << flush;
+	cout << "Assigning confidence scores to events" << endl << flush;
 	assign_confidence(fusions);
 
 	cout << "Writing fusions to file '" << options.output_file << "'" << endl;
