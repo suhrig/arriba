@@ -645,7 +645,7 @@ void write_fusions_to_file(fusions_t& fusions, const string& output_file, gene_a
 		map<string,unsigned int> filters;
 		if ((**i).filter != NULL)
 			filters[*(**i).filter] = 0;
-		vector<mates_t*> all_supporting_reads = (**i).split_read1_list;
+		vector<mates_t*> all_supporting_reads;
 		all_supporting_reads.insert(all_supporting_reads.end(), (**i).split_read1_list.begin(), (**i).split_read1_list.end());
 		all_supporting_reads.insert(all_supporting_reads.end(), (**i).split_read2_list.begin(), (**i).split_read2_list.end());
 		all_supporting_reads.insert(all_supporting_reads.end(), (**i).discordant_mate_list.begin(), (**i).discordant_mate_list.end());
