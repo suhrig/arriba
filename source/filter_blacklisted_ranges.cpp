@@ -94,8 +94,14 @@ bool blacklist_fusion(const contig_t contig1, const position_t start1, const pos
 				return true;
 			}
 
-		} else if (range2 == "low_support") { // remove recurrent speculative fusions (mostly those with two splice-sites)
+		} else if (range2 == "low_support") { // remove recurrent speculative fusions that were recovered for one or the other reason
 			if (fusion->evalue > evalue_cutoff) {
+				fusion->filter = FILTERS.at("blacklist");
+				return true;
+			}
+
+		} else if (range2 == "filter_spliced") { // remove recurrent speculative fusions that were recovered by the 'both_spliced' filter
+			if (fusion->evalue > evalue_cutoff && fusion->spliced1 && fusion->spliced2) {
 				fusion->filter = FILTERS.at("blacklist");
 				return true;
 			}
