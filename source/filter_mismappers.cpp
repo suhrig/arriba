@@ -185,9 +185,6 @@ unsigned int filter_mismappers(fusions_t& fusions, const gene_annotation_t& gene
 		if (fusion->second.gene1 == fusion->second.gene2)
 			continue; // re-aligning the read only makes sense between different genes
 
-		if (fusion->second.closest_genomic_breakpoint1 >= 0)
-			continue; // don't filter fusions with support from WGS
-
 		// re-align split reads
 		vector<mates_t*> all_split_reads;
 		all_split_reads.insert(all_split_reads.end(), fusion->second.split_read1_list.begin(), fusion->second.split_read1_list.end());

@@ -11,8 +11,7 @@ unsigned int filter_intragenic_both_exonic(fusions_t& fusions) {
 
 		if ((fusion->second.breakpoint_overlaps_both_genes() || fusion->second.gene1 == fusion->second.gene2) &&
 		    fusion->second.exonic1 && fusion->second.exonic2 &&
-		    !fusion->second.spliced1 && !fusion->second.spliced2 &&
-		    fusion->second.closest_genomic_breakpoint1 < 0) {
+		    !fusion->second.spliced1 && !fusion->second.spliced2) {
 			fusion->second.filter = FILTERS.at("intragenic_exonic");
 		} else {
 			++remaining;

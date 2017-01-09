@@ -60,10 +60,7 @@ unsigned int filter_pcr_fusions(fusions_t& fusions, const float max_pcr_fusion_s
 		if (fusion->second.filter != NULL)
 			continue; // fusion has already been filtered
 
-		if (fusion->second.closest_genomic_breakpoint1 >= 0)
-			continue; // don't filter fusions with genomic support
-
-//TODO how about we don't care if it is spliced in the PCR amplified gene and only care about if it is spliced in the other gene?
+		//TODO how about we don't care if it is spliced in the PCR amplified gene and only care about if it is spliced in the other gene?
 		if ((fusion->second.split_reads1 + fusion->second.split_reads2 < fusion->second.discordant_mates || fusion->second.split_reads1 + fusion->second.split_reads2 <= min_split_reads) &&
 		    (!fusion->second.spliced1 && !fusion->second.spliced2 || fusion->second.split_reads1 + fusion->second.split_reads2 <= min_split_reads || pcr_fusion_scores[fusion->second.gene1] >= max_pcr_fusion_score && pcr_fusion_scores[fusion->second.gene2] >= max_pcr_fusion_score) && // discard fusions, which are not spliced / have few reads / are between genes with high PCR fusion scores
 		    (fusion->second.exonic1 || fusion->second.exonic2) && // one of the breakpoints must be exonic (in theory, both should be, but there are too many exceptions)
@@ -79,9 +76,6 @@ unsigned int filter_pcr_fusions(fusions_t& fusions, const float max_pcr_fusion_s
 	for (fusions_t::iterator fusion = fusions.begin(); fusion != fusions.end(); ++fusion) {
 		if (fusion->second.filter != NULL)
 			continue; // fusion has already been filtered
-
-		if (fusion->second.closest_genomic_breakpoint1 >= 0)
-			continue; // don't filter fusions with genomic support
 
 		if ((fusion->second.split_reads1 + fusion->second.split_reads2 < fusion->second.discordant_mates || fusion->second.split_reads1 + fusion->second.split_reads2 <= min_split_reads) &&
 		    (!fusion->second.spliced1 && !fusion->second.spliced2 || fusion->second.split_reads1 + fusion->second.split_reads2 <= min_split_reads) && // discard fusions, which are not spliced / have few reads

@@ -143,20 +143,20 @@ unsigned int filter_blacklisted_ranges(fusions_t& fusions, const string& blackli
 
 	// sort fusions by coordinate of gene1
 	map< position_t, vector<fusion_t*> > fusions_by_position;
-	for (fusions_t::iterator i = fusions.begin(); i != fusions.end(); ++i) {
-		if (i->second.filter != NULL)
-			continue; // fusion has already been filtered
-		fusions_by_position[i->second.breakpoint1].push_back(&i->second);
-		fusions_by_position[i->second.breakpoint2].push_back(&i->second);
+	for (fusions_t::iterator fusion = fusions.begin(); fusion != fusions.end(); ++fusion) {
+		if (fusion->second.filter != NULL && fusion->second.closest_genomic_breakpoint1 < 0)
+			continue; // fusion has already been filtered and won't be recovered by the 'genomic_support' filter
+		fusions_by_position[fusion->second.breakpoint1].push_back(&fusion->second);
+		fusions_by_position[fusion->second.breakpoint2].push_back(&fusion->second);
 	}
 
 	// hash fusions by gene
 	unordered_map< gene_t, vector<fusion_t*> > fusions_by_gene;
-	for (fusions_t::iterator i = fusions.begin(); i != fusions.end(); ++i) {
-		if (i->second.filter != NULL)
-			continue; // fusion has already been filtered
-		fusions_by_gene[i->second.gene1].push_back(&i->second);
-		fusions_by_gene[i->second.gene2].push_back(&i->second);
+	for (fusions_t::iterator fusion = fusions.begin(); fusion != fusions.end(); ++fusion) {
+		if (fusion->second.filter != NULL && fusion->second.closest_genomic_breakpoint1 < 0)
+			continue; // fusion has already been filtered and won't be recovered by the 'genomic_support' filter
+		fusions_by_gene[fusion->second.gene1].push_back(&fusion->second);
+		fusions_by_gene[fusion->second.gene2].push_back(&fusion->second);
 	}
 
 	// load blacklist from file
@@ -189,8 +189,8 @@ unsigned int filter_blacklisted_ranges(fusions_t& fusions, const string& blackli
 			// check for all fusions falling into range1 whether they also fall into range2
 			for (auto fusion = fusions_to_check.begin(); fusion != fusions_to_check.end(); ++fusion) {
 
-				if ((**fusion).filter != NULL)
-					continue; // fusion has already been filtered
+				if ((**fusion).filter != NULL && (**fusion).closest_genomic_breakpoint1 < 0)
+					continue; // fusion has already been filtered and won't be recovered by the 'genomic_support' filter
 
 				// check if breakpoint1 is in range1 and breakpoint2 is in range2
 				if (blacklist_fusion(contig1, start1, end1, range1, range2, contigs, genes, (**fusion).contig1, (**fusion).contig2, (**fusion).breakpoint1, (**fusion).breakpoint2, (**fusion).direction1, (**fusion).direction2, (**fusion).gene1, (**fusion).gene2, (**fusion).split_reads1, (**fusion).split_reads2, *fusion, evalue_cutoff, max_mate_gap))
@@ -206,8 +206,8 @@ unsigned int filter_blacklisted_ranges(fusions_t& fusions, const string& blackli
 
 	// count remaining fusions
 	unsigned int remaining = 0;
-	for (fusions_t::iterator i = fusions.begin(); i != fusions.end(); ++i)
-		if (i->second.filter == NULL)
+	for (fusions_t::iterator fusion = fusions.begin(); fusion != fusions.end(); ++fusion)
+		if (fusion->second.filter == NULL)
 			remaining++;
 	return remaining;
 }

@@ -151,8 +151,7 @@ unsigned int filter_promiscuous_genes(fusions_t& fusions, const float evalue_cut
 
 		// throw away fusions which are expected to occur by random chance
 		if (i->second.evalue < evalue_cutoff && // only keep fusions with good e-value
-		    !(i->second.gene1 == i->second.gene2 && i->second.split_reads1 + i->second.split_reads2 == 0) || // but ignore intragenic fusions only supported by discordant mates
-		    i->second.closest_genomic_breakpoint1 >= 0) { // keep anyting with support from WGS
+		    !(i->second.gene1 == i->second.gene2 && i->second.split_reads1 + i->second.split_reads2 == 0)) { // but ignore intragenic fusions only supported by discordant mates
 			remaining++;
 		} else {
 			i->second.filter = FILTERS.at("promiscuous_genes");

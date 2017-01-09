@@ -20,8 +20,7 @@ unsigned int filter_both_intronic(fusions_t& fusions) {
 
 		if (!list_contains_exonic_reads(fusion->second.split_read1_list) &&
 		    !list_contains_exonic_reads(fusion->second.split_read2_list) &&
-		    !list_contains_exonic_reads(fusion->second.discordant_mate_list) &&
-		    fusion->second.closest_genomic_breakpoint1 < 0) {
+		    !list_contains_exonic_reads(fusion->second.discordant_mate_list)) {
 			fusion->second.filter = FILTERS.at("intronic");
 		} else {
 			++remaining;

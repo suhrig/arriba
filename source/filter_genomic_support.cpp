@@ -8,7 +8,7 @@
 #include "common.hpp"
 #include "annotation.hpp"
 #include "read_compressed_file.hpp"
-#include "filter_no_genomic_support.hpp"
+#include "filter_genomic_support.hpp"
 
 using namespace std;
 
@@ -237,11 +237,15 @@ void assign_confidence(fusions_t& fusions) {
 			}
 
 			if (fusion->second.confidence > CONFIDENCE_LOW &&
-			    fusion->second.evalue > 0.2) // decrease the confidence, when the e-value is not overwhelming
+			    fusion->second.evalue > 0.2 && fusion->second.evalue <= 0.3) // decrease the confidence, when the e-value is not overwhelming
 				fusion->second.confidence--;
 
 			if (fusion->second.confidence < CONFIDENCE_HIGH &&
-			    fusion->second.closest_genomic_breakpoint1 >= 0) // has genomic support
+			    fusion->second.closest_genomic_breakpoint1 >= 0 && // has genomic support and
+			    (fusion->second.evalue < 0.3 && fusion->second.supporting_reads() >= 2 || // has good evalue or
+			     fusion->second.spliced1 && fusion->second.spliced2 && fusion->second.gene1 != fusion->second.gene2 || // was recovered due to splicing or
+			     abs(fusion->second.breakpoint1 - fusion->second.closest_genomic_breakpoint1) + abs(fusion->second.breakpoint2 - fusion->second.closest_genomic_breakpoint2) < 20000 || // genomic breakpoints are very close to transcriptomic breakpoints
+			     fusion->second.contig1 != fusion->second.contig2 || (abs(fusion->second.breakpoint2 - fusion->second.breakpoint1) > 1000000 && fusion->second.gene1 != fusion->second.gene2))) // distant translocation
 				fusion->second.confidence++;
 
 			// increase confidence, when there are multiple spliced events
@@ -275,11 +279,38 @@ unsigned int filter_no_genomic_support(fusions_t& fusions) {
 
 	unsigned int remaining = 0;
 	for (fusions_t::iterator fusion = fusions.begin(); fusion != fusions.end(); ++fusion) {
-		if (fusion->second.closest_genomic_breakpoint1 < 0 && // no genomic support
-		     fusion->second.confidence == CONFIDENCE_LOW)
-			fusion->second.filter = FILTERS.at("no_genomic_support");
-		else
+		if (fusion->second.filter == NULL) {
+			if (fusion->second.closest_genomic_breakpoint1 < 0 && // no genomic support
+			     fusion->second.confidence == CONFIDENCE_LOW)
+				fusion->second.filter = FILTERS.at("no_genomic_support");
+			else
+				remaining++;
+		}
+	}
+
+	return remaining;
+}
+
+unsigned int recover_genomic_support(fusions_t& fusions) {
+
+	unsigned int remaining = 0;
+	for (fusions_t::iterator fusion = fusions.begin(); fusion != fusions.end(); ++fusion) {
+
+		if (fusion->second.filter == NULL) {
 			remaining++;
+			continue; // no need to recover fusions that were not filtered
+		}
+
+		if (fusion->second.closest_genomic_breakpoint1 >= 0 && // fusion has genomic support
+		    (fusion->second.filter == FILTERS.at("end_to_end") ||
+		     fusion->second.filter == FILTERS.at("intronic") ||
+		     fusion->second.filter == FILTERS.at("mismappers") ||
+		     fusion->second.filter == FILTERS.at("non_expressed") ||
+		     fusion->second.filter == FILTERS.at("pcr_fusions") ||
+		     fusion->second.filter == FILTERS.at("promiscuous_genes"))) {
+			fusion->second.filter = NULL;
+			remaining++;
+		}
 	}
 
 	return remaining;

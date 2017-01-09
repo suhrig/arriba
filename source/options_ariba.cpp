@@ -195,7 +195,7 @@ void print_usage(const string& error_message) {
 	                  "the sequence of the fused genes as assembled from the supporting reads. "
 	                  "The following letters have special meanings:\n"
 	                  "lowercase letter = SNP/SNV, square brackets = insertion, dash = deletion, "
-	                  "ellipsis = intron/not covered bases, pipe = breakpoint, lowercase letters, "
+	                  "ellipsis = intron/not covered bases, pipe = breakpoint, lowercase letters "
 	                  "flanked by pipes = non-template bases.\nSpecify twice to also print the "
 	                  "fusion transcripts to the file containing discarded fusions (-O). "
 	                  "Note: SNVs/SNPs are not indicated in the file containing discarded fusions. "

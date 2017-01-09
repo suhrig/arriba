@@ -32,7 +32,7 @@
 #include "merge_adjacent_fusions.hpp"
 #include "select_best.hpp"
 #include "filter_short_anchor.hpp"
-#include "filter_no_genomic_support.hpp"
+#include "filter_genomic_support.hpp"
 #include "filter_mismappers.hpp"
 #include "filter_nonexpressed.hpp"
 #include "recover_isoforms.hpp""
@@ -61,9 +61,10 @@ unordered_map<string,filter_t> FILTERS({
 	{"merge_adjacent", NULL},
 	{"select_best", NULL},
 	{"short_anchor", NULL},
+	{"no_genomic_support", NULL},
 	{"non_expressed", NULL},
 	{"uninteresting_contigs", NULL},
-	{"no_genomic_support", NULL},
+	{"genomic_support", NULL},
 	{"isoforms", NULL},
 	{"low_entropy", NULL}
 });
@@ -309,34 +310,38 @@ int main(int argc, char **argv) {
 	// this step must come after the 'merge_adjacent' filter,
 	// because STAR clips reads supporting the same breakpoints at different position
 	// and that spreads the supporting reads over multiple breakpoints
-	// this step must also come after the 'genomic_breakpoints' filter
 	cout << "Estimating expected number of fusions by random chance (e-value)" << endl << flush;
 	estimate_expected_fusions(fusions, mapped_reads);
-	if (options.filters.at("promiscuous_genes")) {
-		cout << "Filtering fusions with an e-value >=" << options.evalue_cutoff << flush;
-		cout << " (remaining=" << filter_promiscuous_genes(fusions, options.evalue_cutoff) << ")" << endl;
-	}
 
-	if (options.filters.at("intronic")) {
-		cout << "Filtering fusions with both breakpoints in intronic/intergenic regions" << flush;
-		cout << " (remaining=" << filter_both_intronic(fusions) << ")" << endl;
-	}
-
+	// this step must come before all filters that are potentially undone by the 'genomic_support' filter
 	if (options.filters.at("novel")) {
 		cout << "Filtering fusions with both breakpoints in novel/intergenic regions" << flush;
 		cout << " (remaining=" << filter_both_novel(fusions) << ")" << endl;
 	}
 
+	// this step must come before all filters that are potentially undone by the 'genomic_support' filter
 	if (options.filters.at("intragenic_exonic")) {
 		cout << "Filtering intragenic fusions with both breakpoints in exonic regions" << flush;
 		cout << " (remaining=" << filter_intragenic_both_exonic(fusions) << ")" << endl;
 	}
 
-	// this step must come after the 'promiscuous_genes' filter,
-	// because fusions with low support are used to find promiscuous genes
+	// this step must come after e-value calculation,
+	// because fusions with few supporting reads heavily influence the e-value
+	// it must come before all filters that are potentially undone by the 'genomic_support' filter
 	if (options.filters.at("min_support")) {
 		cout << "Filtering fusions with <" << options.min_support << " supporting reads" << flush;
 		cout << " (remaining=" << filter_min_support(fusions, options.min_support) << ")" << endl;
+	}
+
+	if (options.filters.at("promiscuous_genes")) {
+		cout << "Filtering fusions with an e-value >=" << options.evalue_cutoff << flush;
+		cout << " (remaining=" << filter_promiscuous_genes(fusions, options.evalue_cutoff) << ")" << endl;
+	}
+
+	// this step must come before all filters that are potentially undone by the 'genomic_support' filter
+	if (options.filters.at("intronic")) {
+		cout << "Filtering fusions with both breakpoints in intronic/intergenic regions" << flush;
+		cout << " (remaining=" << filter_both_intronic(fusions) << ")" << endl;
 	}
 
 	// this step must come right after the 'promiscuous_genes' and 'min_support' filters
@@ -375,12 +380,12 @@ int main(int argc, char **argv) {
 		cout << " (remaining=" << filter_short_anchor(fusions, options.min_anchor_length) << ")" << endl;
 	}
 
-	// this step must come after assigning confidence scores
 	if (!options.genomic_breakpoints_file.empty() && options.filters.at("no_genomic_support")) {
 		cout << "Assigning confidence scores to events" << endl << flush;
 		assign_confidence(fusions);
 
-		cout << "Removing low-confidence events with no support from WGS" << flush;
+		// this step must come after assigning confidence scores
+		cout << "Filtering low-confidence events with no support from WGS" << flush;
 		cout << " (remaining=" << filter_no_genomic_support(fusions) << ")" << endl;
 	}
 
@@ -406,6 +411,18 @@ int main(int argc, char **argv) {
 	if (options.filters.at("non_expressed")) {
 		cout << "Filtering fusions with no expression in '" << options.rna_bam_file << "'" << flush;
 		cout << " (remaining=" << filter_nonexpressed(fusions, options.rna_bam_file, chimeric_alignments, exon_annotation, max_mate_gap) << ")" << endl;
+	}
+
+	// this step must come after all heuristic filters, to undo them
+	if (!options.genomic_breakpoints_file.empty() && options.filters.at("genomic_support")) {
+		cout << "Recovering fusions with support from WGS" << flush;
+		cout << " (remaining=" << recover_genomic_support(fusions) << ")" << endl;
+
+		// the 'select_best' filter needs to be run again, to remove redundant events recovered by the 'genomic_support' filter
+		if (options.filters.at("select_best")) {
+			cout << "Selecting best breakpoints from genes with multiple breakpoints" << flush;
+			cout << " (remaining=" << select_most_supported_breakpoints(fusions) << ")" << endl;
+		}
 	}
 
 	// this filter must come last, because it should only recover isoforms of fusions which pass all other filters
