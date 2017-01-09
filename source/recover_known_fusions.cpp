@@ -12,7 +12,7 @@
 
 using namespace std;
 
-unsigned int recover_known_fusions(fusions_t& fusions, const string& known_fusions_file_path, const unordered_map<string,gene_t>& genes, const bool low_tumor_content) {
+unsigned int recover_known_fusions(fusions_t& fusions, const string& known_fusions_file_path, const unordered_map<string,gene_t>& genes) {
 
 	// load known fusions from file
 	stringstream known_fusions_file;
@@ -48,7 +48,7 @@ unsigned int recover_known_fusions(fusions_t& fusions, const string& known_fusio
 		    i->second.filter != FILTERS.at("promiscuous_genes") && i->second.filter != FILTERS.at("min_support")) // reason is not low support
 			continue; // we won't recover fusions which were not discarded due to low support
 
-		if ((i->second.supporting_reads() >= 2 || low_tumor_content) && // we still require at least two reads, otherwise there will be too many false positives
+		if (i->second.supporting_reads() >= 2 && // we still require at least two reads, otherwise there will be too many false positives
 		    known_fusions.find(make_tuple(i->second.gene1, i->second.gene2)) != known_fusions.end()) // fusion is known
 			i->second.filter = NULL;
 	}

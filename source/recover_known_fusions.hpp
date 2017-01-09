@@ -8,6 +8,6 @@
 
 using namespace std;
 
-unsigned int recover_known_fusions(fusions_t& fusions, const string& known_fusions_file_path, const unordered_map<string,gene_t>& genes, const bool low_tumor_content);
+unsigned int recover_known_fusions(fusions_t& fusions, const string& known_fusions_file_path, const unordered_map<string,gene_t>& genes);
 
 #endif /* _RECOVER_KNOWN_FUSIONS_H */

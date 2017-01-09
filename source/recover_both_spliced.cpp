@@ -6,7 +6,7 @@
 
 using namespace std;
 
-unsigned int recover_both_spliced(fusions_t& fusions, const unsigned int max_fusions_to_recover, const bool low_tumor_content) {
+unsigned int recover_both_spliced(fusions_t& fusions, const unsigned int max_fusions_to_recover) {
 
 	// look for any supporting reads between two genes
 	map< tuple<gene_t,gene_t,direction_t,direction_t>, vector<fusion_t*> > fusions_by_gene_pair;
@@ -54,7 +54,7 @@ unsigned int recover_both_spliced(fusions_t& fusions, const unsigned int max_fus
 				for (auto another_fusion = fusions_of_given_gene_pair->second.begin(); another_fusion != fusions_of_given_gene_pair->second.end(); ++another_fusion)
 					sum_of_supporting_reads += max((unsigned int) 1, (**another_fusion).supporting_reads());
 
-				if (sum_of_supporting_reads >= 2 || low_tumor_content) { // require at least two reads or else the false positive rate sky-rockets
+				if (sum_of_supporting_reads >= 2) { // require at least two reads or else the false positive rate sky-rockets
 					if (mode == MODE_RECOVER) { // we are in recover mode => actually recover the fusion by clearing the filters
 						if (fusion->second.supporting_reads() >= min_supporting_reads && !fusion->second.is_read_through()) {
 							fusion->second.filter = NULL;

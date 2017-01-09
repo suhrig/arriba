@@ -27,7 +27,6 @@ options_t get_default_options() {
 	options.print_supporting_reads_for_discarded_fusions = false;
 	options.print_fusion_sequence = false;
 	options.print_fusion_sequence_for_discarded_fusions = false;
-	options.low_tumor_content = false;
 	options.single_end = false;
 	options.max_kmer_content = 0.6;
 	options.fragment_length = 200;
@@ -147,13 +146,6 @@ void print_usage(const string& error_message) {
 	     << wrap_help("-s MIN_SUPPORTING_READS", "The 'min_support' filter discards all fusions "
 	                  "with fewer than this many supporting reads (split reads and discordant "
 	                  "mates combined). Default: " + to_string(default_options.min_support))
-	     << wrap_help("-l", "This switch increases sensitivity in samples with low tumor content "
-	                  "or subclonal fusions. When sequencing depth is high, the 'promiscuous_genes' filter "
-	                  "removes fusions with few supporting reads. This may lead to true fusions "
-	                  "being missed in samples with low tumor content. When this switch is set, "
-	                  "fusions with fewer supporting reads than would be expected from the given "
-	                  "sequencing depth will not be discarded. Sensitivity can be improved further by "
-	                  "increasing the value of the parameter -s. Default: " + string((default_options.low_tumor_content) ? "on" : "off"))
 	     << wrap_help("-m MAX_MISMAPPERS", "When more than this fraction of supporting reads "
 	                  "turns out to be mismappers, the 'mismapper' filter "
 	                  "discards the fusion. Default: " + to_string(default_options.max_mismapper_fraction))
@@ -217,7 +209,7 @@ options_t parse_arguments(int argc, char **argv) {
 	// parse arguments
 	opterr = 0;
 	int c;
-	while ((c = getopt(argc, argv, "c:r:x:d:g:o:O:a:k:b:1i:f:E:s:lm:H:D:R:A:K:F:W:SIh")) != -1) {
+	while ((c = getopt(argc, argv, "c:r:x:d:g:o:O:a:k:b:1i:f:E:s:m:H:D:R:A:K:F:W:SIh")) != -1) {
 		switch (c) {
 			case 'c':
 				options.chimeric_bam_file = optarg;
@@ -322,9 +314,6 @@ options_t parse_arguments(int argc, char **argv) {
 				break;
 			case 's':
 				options.min_support = atoi(optarg);
-				break;
-			case 'l':
-				options.low_tumor_content = true;
 				break;
 			case 'm':
 				options.max_mismapper_fraction = atof(optarg);

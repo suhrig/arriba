@@ -301,11 +301,9 @@ int main(int argc, char **argv) {
 	}
 
 	unsigned long int mapped_reads = 0;
-	if (!options.low_tumor_content) {
-		cout << "Counting mapped reads on interesting contigs" << flush;
-		mapped_reads = count_mapped_reads(options.rna_bam_file, interesting_contigs);
-		cout << " (total=" << mapped_reads << ")" << endl;
-	}
+	cout << "Counting mapped reads on interesting contigs" << flush;
+	mapped_reads = count_mapped_reads(options.rna_bam_file, interesting_contigs);
+	cout << " (total=" << mapped_reads << ")" << endl;
 
 	// this step must come after the 'merge_adjacent' filter,
 	// because STAR clips reads supporting the same breakpoints at different position
@@ -347,13 +345,13 @@ int main(int argc, char **argv) {
 	// this step must come right after the 'promiscuous_genes' and 'min_support' filters
 	if (!options.known_fusions_file.empty() && options.filters.at("known_fusions")) {
 		cout << "Searching for known fusions in '" << options.known_fusions_file << "'" << flush;
-		cout << " (remaining=" << recover_known_fusions(fusions, options.known_fusions_file, gene_names, options.low_tumor_content) << ")" << endl;
+		cout << " (remaining=" << recover_known_fusions(fusions, options.known_fusions_file, gene_names) << ")" << endl;
 	}
 
 	// this step must come right after the 'promiscuous_genes' and 'min_support' filters
 	if (options.filters.at("spliced")) {
 		cout << "Searching for fusions with spliced split reads" << flush;
-		cout << " (remaining=" << recover_both_spliced(fusions, 200, options.low_tumor_content) << ")" << endl;
+		cout << " (remaining=" << recover_both_spliced(fusions, 200) << ")" << endl;
 	}
 
 	if (options.filters.at("end_to_end")) {
