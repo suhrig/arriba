@@ -12,9 +12,9 @@
 
 using namespace std;
 
-const bool FORWARD = true;
-const bool REVERSE = false;
 typedef bool strand_t;
+const strand_t FORWARD = true;
+const strand_t REVERSE = false;
 
 typedef const string* filter_t;
 extern unordered_map<string,filter_t> FILTERS;
@@ -61,6 +61,7 @@ typedef unsigned int transcript_t;
 struct exon_annotation_record_t: public annotation_record_t {
 	gene_t gene;
 	transcript_t transcript;
+	bool is_transcript_start, is_transcript_end;
 };
 typedef exon_annotation_record_t* exon_t;
 typedef annotation_set_t<exon_t> exon_set_t;
@@ -81,13 +82,15 @@ struct alignment_t {
 	bool first_in_pair;
 	bool exonic;
 	strand_t strand;
+	strand_t predicted_strand;
+	bool predicted_strand_ambiguous;
 	contig_t contig;
 	position_t start;
 	position_t end;
+	cigar_t cigar;
 	string sequence;
 	gene_set_t genes;
-	cigar_t cigar;
-	alignment_t(): supplementary(false), first_in_pair(false), exonic(false) {};
+	alignment_t(): supplementary(false), first_in_pair(false), exonic(false), predicted_strand_ambiguous(true) {};
 	unsigned int preclipping() { return (cigar.operation(0) & (BAM_CSOFT_CLIP | BAM_CHARD_CLIP)) ? cigar.op_length(0) : 0; };
 	unsigned int postclipping() { return (cigar.operation(cigar.size()-1) & (BAM_CSOFT_CLIP | BAM_CHARD_CLIP)) ? cigar.op_length(cigar.size()-1) : 0; };
 };
@@ -108,14 +111,23 @@ const confidence_t CONFIDENCE_LOW = 0;
 const confidence_t CONFIDENCE_MEDIUM = 1;
 const confidence_t CONFIDENCE_HIGH = 2;
 
-const bool UPSTREAM = true;
-const bool DOWNSTREAM = false;
 typedef bool direction_t;
+const direction_t UPSTREAM = true;
+const direction_t DOWNSTREAM = false;
+
+typedef bool transcript_start_t;
+const transcript_start_t TRANSCRIPT_START_GENE1 = true;
+const transcript_start_t TRANSCRIPT_START_GENE2 = false;
+
 struct fusion_t {
 	gene_t gene1, gene2;
 	contig_t contig1, contig2;
 	position_t breakpoint1, breakpoint2;
 	direction_t direction1, direction2;
+	strand_t predicted_strand1, predicted_strand2;
+	bool predicted_strands_ambiguous:1;
+	transcript_start_t transcript_start;
+	bool transcript_start_ambiguous:1;
 	bool exonic1:1, exonic2:1;
 	bool overlap_duplicate1:1, overlap_duplicate2:1;
 	bool spliced1:1, spliced2:1;

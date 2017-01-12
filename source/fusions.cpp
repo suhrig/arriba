@@ -12,6 +12,182 @@
 
 using namespace std;
 
+void predict_fusion_strands(fusion_t& fusion) {
+
+	// count the number of reads which imply that strand1 is positive/negative
+	// strand2 can be inferred from strand1
+	unsigned int strand1_forward = 0;
+	unsigned int strand1_reverse = 0;
+
+	for (auto split_read1 = fusion.split_read1_list.begin(); split_read1 != fusion.split_read1_list.end(); ++split_read1) {
+		if (!(**split_read1)[SPLIT_READ].predicted_strand_ambiguous) {
+			if ((**split_read1)[SPLIT_READ].predicted_strand == FORWARD) {
+				++strand1_forward;
+			} else {
+				++strand1_reverse;
+			}
+		}
+	}
+
+	for (auto split_read2 = fusion.split_read2_list.begin(); split_read2 != fusion.split_read2_list.end(); ++split_read2) {
+		if (!(**split_read2)[SUPPLEMENTARY].predicted_strand_ambiguous) {
+			if ((**split_read2)[SUPPLEMENTARY].predicted_strand == FORWARD) {
+				++strand1_forward;
+			} else {
+				++strand1_reverse;
+			}
+		}
+	}
+
+	for (auto discordant_mate = fusion.discordant_mate_list.begin(); discordant_mate != fusion.discordant_mate_list.end(); ++discordant_mate) {
+		if (!(**discordant_mate)[MATE1].predicted_strand_ambiguous &&
+		    (**discordant_mate).filter != FILTERS.at("hairpin")) { // skip discordant mates arising from hairpin structures, because they are usually ambiguous
+
+			// find out which mate supports breakpoint1
+			alignment_t* mate1 = &(**discordant_mate)[MATE1];
+			alignment_t* mate2 = &(**discordant_mate)[MATE2];
+			if (mate1->contig != fusion.contig1 || // it is clear which mate supports which breakpoint, when the contigs of the breakpoints are different
+			    (mate1->strand == FORWARD) != /*xor*/ (fusion.direction1 == DOWNSTREAM)) { // or when the mates point in different directions
+				swap(mate1, mate2);
+			} else // determine association based on proximity to breakpoint
+			if (mate1->strand == mate2->strand) {
+				// if we get here, the mates are on the same contig and point in identical directions
+				// => find out which is nearer to which breakpoint
+				position_t mate1_end, mate2_end;
+				if (fusion.direction1 == DOWNSTREAM) {
+					mate1_end = mate1->end;
+					mate2_end = mate2->end;
+				} else {
+					mate1_end = mate1->start;
+					mate2_end = mate2->start;
+				}
+				unsigned int distance1 = abs(fusion.breakpoint1 - mate1_end) + abs(fusion.breakpoint2 - mate2_end);
+				unsigned int distance2 = abs(fusion.breakpoint2 - mate1_end) + abs(fusion.breakpoint1 - mate2_end);
+				if (distance1 == distance2) { // it's a tie => unclear which mate supports which breakpoint
+					continue;
+				} else if (distance2 < distance1) { // mate1 is closer to breakpoint2 and mate2 closer to breakpoint1 => swap
+					swap(mate1, mate2);
+				}
+			}
+
+			if (mate1->predicted_strand == FORWARD) {
+				++strand1_forward;
+			} else {
+				++strand1_reverse;
+			}
+		}
+	}
+
+	if (strand1_forward == strand1_reverse) { // there are as many reads supporting strand1==FORWARD as there are reads supporting strand1==REVERSE
+		fusion.predicted_strands_ambiguous = true;
+	} else {
+		fusion.predicted_strands_ambiguous = false;
+		fusion.predicted_strand1 = (strand1_forward > strand1_reverse) ? FORWARD : REVERSE;
+		fusion.predicted_strand2 = complement_strand_if(fusion.predicted_strand1, fusion.direction1 == fusion.direction2);
+	}
+
+}
+
+// try to determine which gene makes the 5' end of the transcript by
+// looking at which promoter likely drives transcription
+void predict_transcript_start(fusion_t& fusion) {
+
+	fusion.transcript_start_ambiguous = false;
+
+	if (fusion.spliced1 ||
+	    !fusion.predicted_strands_ambiguous && fusion.predicted_strand1 == fusion.gene1->strand) {
+
+		if (fusion.gene1->strand == FORWARD && fusion.direction1 == DOWNSTREAM) {
+			fusion.transcript_start = TRANSCRIPT_START_GENE1;
+		} else if (fusion.gene1->strand == FORWARD && fusion.direction1 == UPSTREAM) {
+			fusion.transcript_start = TRANSCRIPT_START_GENE2;
+		} else if (fusion.gene1->strand == REVERSE && fusion.direction1 == UPSTREAM) {
+			fusion.transcript_start = TRANSCRIPT_START_GENE1;
+		} else { // fusion.gene1->strand == REVERSE && fusion.direction1 == DOWNSTREAM
+			fusion.transcript_start = TRANSCRIPT_START_GENE2;
+		}
+
+	} else if (fusion.spliced2 ||
+	           !fusion.predicted_strands_ambiguous && fusion.predicted_strand2 == fusion.gene2->strand) {
+
+		if (fusion.gene2->strand == FORWARD && fusion.direction2 == DOWNSTREAM) {
+			fusion.transcript_start = TRANSCRIPT_START_GENE2;
+		} else if (fusion.gene2->strand == FORWARD && fusion.direction2 == UPSTREAM) {
+			fusion.transcript_start = TRANSCRIPT_START_GENE1;
+		} else if (fusion.gene2->strand == REVERSE && fusion.direction2 == UPSTREAM) {
+			fusion.transcript_start = TRANSCRIPT_START_GENE2;
+		} else { // fusion.gene2->strand == REVERSE && fusion.direction2 == DOWNSTREAM
+			fusion.transcript_start = TRANSCRIPT_START_GENE1;
+		}
+
+	} else if (!fusion.exonic1 && !fusion.exonic2 ||
+	           !fusion.predicted_strands_ambiguous) { // this can happen, if both strands could be predicted successfully, but were both predicted to be on opposite strands of the genes of the fusion
+
+		fusion.transcript_start_ambiguous = true;
+
+	} else // when we get here, the strands could not be predicted at all => make an educated guess based on whether the breakpoints are in exons or introns
+	if (!fusion.exonic1 && fusion.exonic2) { // if breakpoint1 is intronic/intergenic, then gene2 has priority
+
+		if (fusion.gene2->strand == FORWARD && fusion.direction2 == DOWNSTREAM) { // transcript = gene2(+) -> gene1(+/-)
+			fusion.transcript_start = TRANSCRIPT_START_GENE2;
+		} else if (fusion.gene2->strand == REVERSE && fusion.direction2 == UPSTREAM) { // transcript = gene2(-) -> gene1(+/-)
+			fusion.transcript_start = TRANSCRIPT_START_GENE2;
+		} else if (fusion.split_reads1 + fusion.split_reads2 == 0 && // no split reads => precise breakpoint unknown (could be spliced)
+		           fusion.is_read_through() &&
+		           (fusion.gene2->strand == FORWARD && fusion.direction2 == UPSTREAM ||
+		            fusion.gene2->strand == REVERSE && fusion.direction2 == DOWNSTREAM)) {
+				fusion.transcript_start = TRANSCRIPT_START_GENE1;
+		} else { // ambiguous, since strand of intronic/intergenic region is unclear
+			fusion.transcript_start_ambiguous = true;
+		}
+
+	} else if (!fusion.exonic2 && fusion.exonic1) { // if breakpoint1 is intronic/intergenic, then gene1 has priority
+
+		if (fusion.gene1->strand == FORWARD && fusion.direction1 == DOWNSTREAM) { // transcript = gene1(+) -> gene2(+/-)
+			fusion.transcript_start = TRANSCRIPT_START_GENE1;
+		} else if (fusion.gene1->strand == REVERSE && fusion.direction1 == UPSTREAM) { // transcript = gene1(-) -> gene2(+/-)
+			fusion.transcript_start = TRANSCRIPT_START_GENE1;
+		} else if (fusion.split_reads1 + fusion.split_reads2 == 0 && // no split reads => precise breakpoint unknown (could be spliced)
+		           fusion.is_read_through() &&
+		           (fusion.gene1->strand == FORWARD && fusion.direction1 == UPSTREAM ||
+		            fusion.gene1->strand == REVERSE && fusion.direction1 == DOWNSTREAM)) {
+				fusion.transcript_start = TRANSCRIPT_START_GENE1;
+		} else { // ambiguous, since strand of intronic/intergenic region is unclear
+			fusion.transcript_start_ambiguous = true;
+		}
+
+	} else { // in all other cases gene1 has priority
+
+		if (fusion.gene1->strand == FORWARD && fusion.direction1 == DOWNSTREAM || // transcript = gene1(+) -> gene2(+/-)
+		    fusion.gene1->strand == REVERSE && fusion.direction1 == UPSTREAM) { // transcript = gene1(-) -> gene2(+/-)
+			fusion.transcript_start = TRANSCRIPT_START_GENE1;
+		} else if (fusion.gene2->strand == FORWARD && fusion.direction2 == DOWNSTREAM || // transcript = gene2(+) -> gene1(+/-)
+		           fusion.gene2->strand == REVERSE && fusion.direction2 == UPSTREAM) { // transcript = gene2(-) -> gene1(+/-)
+			fusion.transcript_start = TRANSCRIPT_START_GENE2;
+		} else { // end-to-end-fused genes
+			fusion.transcript_start_ambiguous = true;
+		}
+
+	}
+
+	if (fusion.transcript_start_ambiguous) {
+		fusion.transcript_start = TRANSCRIPT_START_GENE1; // this guarantees deterministic behavior and makes sure the transcript sequences are printed in correct order
+}
+
+	// predict strands from gene orientations, if they could not be predicted from splice patterns
+	if (!fusion.transcript_start_ambiguous && fusion.predicted_strands_ambiguous) {
+		fusion.predicted_strands_ambiguous = false;
+		if (fusion.transcript_start == TRANSCRIPT_START_GENE1) {
+			fusion.predicted_strand1 = fusion.gene1->strand;
+			fusion.predicted_strand2 = complement_strand_if(fusion.predicted_strand1, fusion.direction1 == fusion.direction2);
+		} else { // fusion.transcript_start == TRANSCRIPT_START_GENE2
+			fusion.predicted_strand2 = fusion.gene2->strand;
+			fusion.predicted_strand1 = complement_strand_if(fusion.predicted_strand2, fusion.direction1 == fusion.direction2);
+		}
+	}
+}
+
+
 unsigned int find_fusions(chimeric_alignments_t& chimeric_alignments, fusions_t& fusions, exon_annotation_index_t& exon_annotation_index, const int max_mate_gap) {
 
 	typedef unordered_map< tuple<gene_t/*gene1*/,gene_t/*gene2*/>, vector<chimeric_alignments_t::iterator> > discordant_mates_by_gene_pair_t;
@@ -68,14 +244,6 @@ unsigned int find_fusions(chimeric_alignments_t& chimeric_alignments, fusions_t&
 					fusion.contig1 = contig1; fusion.contig2 = contig2;
 					fusion.breakpoint1 = breakpoint1; fusion.breakpoint2 = breakpoint2;
 					fusion.exonic1 = exonic1; fusion.exonic2 = exonic2;
-
-					if (!exonic1 && !exonic2) {
-						fusion.spliced1 = false;
-						fusion.spliced2 = false;
-					} else {
-						fusion.spliced1 = is_breakpoint_spliced(*gene1, direction1, contig1, breakpoint1, exon_annotation_index);
-						fusion.spliced2 = is_breakpoint_spliced(*gene2, direction2, contig2, breakpoint2, exon_annotation_index);
-					}
 
 					if (fusion.split_reads1 + fusion.split_reads2 + fusion.discordant_mates == 0) {
 						if (i->second.filter == NULL)
@@ -157,7 +325,6 @@ unsigned int find_fusions(chimeric_alignments_t& chimeric_alignments, fusions_t&
 					fusion.contig1 = contig1; fusion.contig2 = contig2;
 					fusion.breakpoint1 = breakpoint1; fusion.breakpoint2 = breakpoint2;
 					fusion.exonic1 = exonic1; fusion.exonic2 = exonic2;
-					fusion.spliced1 = false; fusion.spliced2 = false;
 
 					if (i->second.filter == NULL) {
 						fusion.filter = NULL;
@@ -251,11 +418,35 @@ unsigned int find_fusions(chimeric_alignments_t& chimeric_alignments, fusions_t&
 	if (subsampled_fusions > 0)
 		cerr << "WARNING: " << subsampled_fusions << " fusions were subsampled, because they have more than 1000 discordant mates" << endl;
 
-	// count fusions
 	unsigned int remaining = 0;
-	for (fusions_t::iterator i = fusions.begin(); i != fusions.end(); ++i)
-		if (i->second.filter == NULL)
+	for (fusions_t::iterator fusion = fusions.begin(); fusion != fusions.end(); ++fusion) {
+
+		// predict strands from predicted strands of supporting reads
+		predict_fusion_strands(fusion->second);
+
+		// check if breakpoints are at splice-sites
+		// (must come after strand prediction)
+		if (fusion->second.split_read1_list.size() + fusion->second.split_read2_list.size() == 0 || // fusions with only discordant mates cannot be spliced
+		    fusion->second.predicted_strands_ambiguous) {
+			fusion->second.spliced1 = false;
+			fusion->second.spliced2 = false;
+		} else {
+			fusion->second.spliced1 = fusion->second.exonic1 &&
+			                          fusion->second.gene1->strand == fusion->second.predicted_strand1 &&
+			                          is_breakpoint_spliced(fusion->second.gene1, fusion->second.direction1, fusion->second.contig1, fusion->second.breakpoint1, exon_annotation_index);
+			fusion->second.spliced2 = fusion->second.exonic2 &&
+			                          fusion->second.gene2->strand == fusion->second.predicted_strand2 &&
+			                          is_breakpoint_spliced(fusion->second.gene2, fusion->second.direction2, fusion->second.contig2, fusion->second.breakpoint2, exon_annotation_index);
+		}
+
+		// predict which gene makes the 5' end from strands or splice-sites or gene orientations
+		// (must come after splice-site prediction)
+		predict_transcript_start(fusion->second);
+
+		// count fusions which have at least one non-filtered read
+		if (fusion->second.filter == NULL)
 			remaining++;
+	}
 
 	return remaining;
 }

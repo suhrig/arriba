@@ -15,105 +15,6 @@
 
 using namespace std;
 
-// try to determine which gene makes the 5' end of the transcript by
-// looking at which promoter likely drives transcription
-enum transcript_start_t { TRANSCRIPT_START_GENE1, TRANSCRIPT_START_GENE2, TRANSCRIPT_START_AMBIGUOUS };
-void get_start_of_transcript(const fusion_t& fusion, transcript_start_t& start, strand_t& strand1, strand_t& strand2) {
-
-	if (fusion.spliced1) {
-
-		if (fusion.gene1->strand == FORWARD && fusion.direction1 == DOWNSTREAM) {
-			start = TRANSCRIPT_START_GENE1;
-		} else if (fusion.gene1->strand == FORWARD && fusion.direction1 == UPSTREAM) {
-			start = TRANSCRIPT_START_GENE2;
-		} else if (fusion.gene1->strand == REVERSE && fusion.direction1 == UPSTREAM) {
-			start = TRANSCRIPT_START_GENE1;
-		} else { // fusion.gene1->strand == REVERSE && fusion.direction1 == DOWNSTREAM
-			start = TRANSCRIPT_START_GENE2;
-		}
-
-		strand1 = fusion.gene1->strand;
-		strand2 = complement_strand_if(strand1, fusion.direction1 == fusion.direction2);
-
-	} else if (fusion.spliced2) {
-
-		if (fusion.gene2->strand == FORWARD && fusion.direction2 == DOWNSTREAM) {
-			start = TRANSCRIPT_START_GENE2;
-		} else if (fusion.gene2->strand == FORWARD && fusion.direction2 == UPSTREAM) {
-			start = TRANSCRIPT_START_GENE1;
-		} else if (fusion.gene2->strand == REVERSE && fusion.direction2 == UPSTREAM) {
-			start = TRANSCRIPT_START_GENE2;
-		} else { // fusion.gene2->strand == REVERSE && fusion.direction2 == DOWNSTREAM
-			start = TRANSCRIPT_START_GENE1;
-		}
-
-		strand2 = fusion.gene2->strand;
-		strand1 = complement_strand_if(strand2, fusion.direction1 == fusion.direction2);
-
-	} else if (!fusion.exonic1 && !fusion.exonic2) {
-
-		start = TRANSCRIPT_START_AMBIGUOUS;
-		// strand1 and strand2 are not set, because they are meaningless
-
-	} else if (!fusion.exonic1 && fusion.exonic2) { // if breakpoint1 is intronic/intergenic, then gene2 has priority
-
-		// TODO this branch needs a make-over when we support strand-specific libraries
-		if (fusion.gene2->strand == FORWARD && fusion.direction2 == DOWNSTREAM) { // transcript = gene2(+) -> gene1(+/-)
-			start = TRANSCRIPT_START_GENE2;
-		} else if (fusion.gene2->strand == REVERSE && fusion.direction2 == UPSTREAM) { // transcript = gene2(-) -> gene1(+/-)
-			start = TRANSCRIPT_START_GENE2;
-		} else if (fusion.split_reads1 + fusion.split_reads2 == 0 && // no split reads => precise breakpoint unknown (could be spliced)
-		           fusion.is_read_through() &&
-		           (fusion.gene2->strand == FORWARD && fusion.direction2 == UPSTREAM ||
-		            fusion.gene2->strand == REVERSE && fusion.direction2 == DOWNSTREAM)) {
-				start = TRANSCRIPT_START_GENE1;
-		} else { // ambiguous, since strand of intronic/intergenic region is unclear
-			start = TRANSCRIPT_START_AMBIGUOUS;
-		}
-
-		strand2 = fusion.gene2->strand;
-		strand1 = complement_strand_if(strand2, fusion.direction1 == fusion.direction2);
-
-	} else if (!fusion.exonic2 && fusion.exonic1) { // if breakpoint1 is intronic/intergenic, then gene1 has priority
-
-		// TODO this branch needs a make-over when we support strand-specific libraries
-		if (fusion.gene1->strand == FORWARD && fusion.direction1 == DOWNSTREAM) { // transcript = gene1(+) -> gene2(+/-)
-			start = TRANSCRIPT_START_GENE1;
-		} else if (fusion.gene1->strand == REVERSE && fusion.direction1 == UPSTREAM) { // transcript = gene1(-) -> gene2(+/-)
-			start = TRANSCRIPT_START_GENE1;
-		} else if (fusion.split_reads1 + fusion.split_reads2 == 0 && // no split reads => precise breakpoint unknown (could be spliced)
-		           fusion.is_read_through() &&
-		           (fusion.gene1->strand == FORWARD && fusion.direction1 == UPSTREAM ||
-		            fusion.gene1->strand == REVERSE && fusion.direction1 == DOWNSTREAM)) {
-				start = TRANSCRIPT_START_GENE1;
-		} else { // ambiguous, since strand of intronic/intergenic region is unclear
-			start = TRANSCRIPT_START_AMBIGUOUS;
-		}
-
-		strand1 = fusion.gene1->strand;
-		strand2 = complement_strand_if(strand1, fusion.direction1 == fusion.direction2);
-
-	} else { // in all other cases gene1 has priority
-
-		if (fusion.gene1->strand == FORWARD && fusion.direction1 == DOWNSTREAM || // transcript = gene1(+) -> gene2(+/-)
-		    fusion.gene1->strand == REVERSE && fusion.direction1 == UPSTREAM) { // transcript = gene1(-) -> gene2(+/-)
-			start = TRANSCRIPT_START_GENE1;
-			strand1 = fusion.gene1->strand;
-			strand2 = complement_strand_if(strand1, fusion.direction1 == fusion.direction2);
-		} else if (fusion.gene2->strand == FORWARD && fusion.direction2 == DOWNSTREAM || // transcript = gene2(+) -> gene1(+/-)
-		           fusion.gene2->strand == REVERSE && fusion.direction2 == UPSTREAM) { // transcript = gene2(-) -> gene1(+/-)
-			start = TRANSCRIPT_START_GENE2;
-			strand2 = fusion.gene2->strand;
-			strand1 = complement_strand_if(strand2, fusion.direction1 == fusion.direction2);
-		} else { // end-to-end-fused genes
-			start = TRANSCRIPT_START_AMBIGUOUS;
-			// strand1 and strand2 are not set, because they are meaningless
-		}
-
-	}
-
-}
-
 typedef map< position_t, map<string/*base*/,unsigned int/*frequency*/> > pileup_t;
 
 void pileup_chimeric_alignments(vector<mates_t*>& chimeric_alignments, const unsigned int mate, const bool reverse_complement, const direction_t direction, const position_t breakpoint, pileup_t& pileup) {
@@ -220,9 +121,9 @@ void get_sequence_from_pileup(const pileup_t& pileup, const position_t breakpoin
 	}
 }
 
-string get_fusion_transcript_sequence(fusion_t& fusion, const transcript_start_t transcript_start) {
+string get_fusion_transcript_sequence(fusion_t& fusion) {
 
-	if (transcript_start == TRANSCRIPT_START_AMBIGUOUS)
+	if (fusion.predicted_strands_ambiguous)
 		return "."; // sequence is unknown, because the strands cannot be determined
 
 	// get the sequences next to the breakpoints
@@ -334,14 +235,14 @@ string get_fusion_transcript_sequence(fusion_t& fusion, const transcript_start_t
 		}
 	}
 
-	string concatenated_sequence = ".";
-	if (transcript_start == TRANSCRIPT_START_GENE1) {
-		concatenated_sequence = ((fusion.gene1->strand == FORWARD) ? sequence1 : dna_to_reverse_complement(sequence1));
+	string concatenated_sequence;
+	if (fusion.transcript_start == TRANSCRIPT_START_GENE1) {
+		concatenated_sequence = ((fusion.predicted_strand1 == FORWARD) ? sequence1 : dna_to_reverse_complement(sequence1));
 		if (!sequence1_has_non_template_bases || !sequence2_has_non_template_bases) // otherwise the concatenated sequence might have three pipes
 			concatenated_sequence += "|";
 		concatenated_sequence += ((fusion.direction2 == UPSTREAM) ? sequence2 : dna_to_reverse_complement(sequence2));
-	} else { // transcript_start == TRANSCRIPT_START_GENE2)
-		concatenated_sequence = ((fusion.gene2->strand == FORWARD) ? sequence2 : dna_to_reverse_complement(sequence2));
+	} else { // fusion.transcript_start == TRANSCRIPT_START_GENE2)
+		concatenated_sequence = ((fusion.predicted_strand2 == FORWARD) ? sequence2 : dna_to_reverse_complement(sequence2));
 		if (!sequence2_has_non_template_bases || !sequence1_has_non_template_bases) // otherwise the concatenated sequence might have three pipes
 			concatenated_sequence += "|";
 		concatenated_sequence += ((fusion.direction1 == UPSTREAM) ? sequence1 : dna_to_reverse_complement(sequence1));
@@ -488,7 +389,7 @@ string get_fusion_type(const fusion_t& fusion) {
 	}
 }
 
-string get_fusion_strand(const strand_t strand, const gene_t gene, const transcript_start_t& transcript_start) {
+string get_fusion_strand(const strand_t strand, const gene_t gene, const bool predicted_strands_ambiguous) {
 	string result;
 
 	// determine strand of gene as per annotation
@@ -500,8 +401,8 @@ string get_fusion_strand(const strand_t strand, const gene_t gene, const transcr
 	// separator between gene strand and fusion strand
 	result += "/";
 
-	// determine most likely strand of fusion from the directions of the fusion
-	if (transcript_start == TRANSCRIPT_START_AMBIGUOUS)
+	// output strand of fusion, if it could be predicted
+	if (predicted_strands_ambiguous)
 		result += ".";
 	else
 		result += (strand == FORWARD) ? "+" : "-";
@@ -515,9 +416,9 @@ void write_fusions_to_file(fusions_t& fusions, const string& output_file, gene_a
 	// make a vector of pointers to all fusions
 	// the vector will hold the fusions in sorted order
 	vector<fusion_t*> sorted_fusions;
-	for (fusions_t::iterator i = fusions.begin(); i != fusions.end(); ++i) {
-		if (write_discarded_fusions || i->second.filter == NULL)
-			sorted_fusions.push_back(&(i->second));
+	for (fusions_t::iterator fusion = fusions.begin(); fusion != fusions.end(); ++fusion) {
+		if (write_discarded_fusions || fusion->second.filter == NULL)
+			sorted_fusions.push_back(&(fusion->second));
 	}
 
 	// don't sort the discarded fusions
@@ -531,17 +432,17 @@ void write_fusions_to_file(fusions_t& fusions, const string& output_file, gene_a
 		//    we store these breakpoints in a sorting object (sort_fusions_by_rank_of_best),
 		//    which we use as a parameter to the sort function later
 		sort_fusions_by_rank_of_best_t sort_fusions_by_rank_of_best;
-		for (fusions_t::iterator i = fusions.begin(); i != fusions.end(); ++i) {
-			if (i->second.filter != NULL)
+		for (fusions_t::iterator fusion = fusions.begin(); fusion != fusions.end(); ++fusion) {
+			if (fusion->second.filter != NULL)
 				continue; // skip discarded fusions
 
-			gene_pair_t gene_pair = make_tuple(i->second.gene1, i->second.gene2);
+			gene_pair_t gene_pair = make_tuple(fusion->second.gene1, fusion->second.gene2);
 			if (sort_fusions_by_rank_of_best.best.find(gene_pair) == sort_fusions_by_rank_of_best.best.end()) {
-				sort_fusions_by_rank_of_best.best[gene_pair] = &(i->second);
+				sort_fusions_by_rank_of_best.best[gene_pair] = &(fusion->second);
 			} else {
 				fusion_t*& current_best = sort_fusions_by_rank_of_best.best[gene_pair];
-				if (sort_fusions_by_support(&(i->second), current_best))
-					current_best = &(i->second);
+				if (sort_fusions_by_support(&(fusion->second), current_best))
+					current_best = &(fusion->second);
 			}
 		}
 
@@ -556,32 +457,27 @@ void write_fusions_to_file(fusions_t& fusions, const string& output_file, gene_a
 		exit(1);
 	}
 	out << "#gene1\tgene2\tstrand1(gene/fusion)\tstrand2(gene/fusion)\tbreakpoint1\tbreakpoint2\tsite1\tsite2\ttype\tdirection1\tdirection2\tsplit_reads1\tsplit_reads2\tdiscordant_mates\tconfidence\tclosest_genomic_breakpoint1\tclosest_genomic_breakpoint2\tfilters\tfusion_transcript\tread_identifiers" << endl;
-	for (vector<fusion_t*>::iterator i = sorted_fusions.begin(); i != sorted_fusions.end(); ++i) {
+	for (vector<fusion_t*>::iterator fusion = sorted_fusions.begin(); fusion != sorted_fusions.end(); ++fusion) {
 
-		if (((**i).filter == NULL) == write_discarded_fusions) // write either filtered or unfiltered fusions, but not both
+		if (((**fusion).filter == NULL) == write_discarded_fusions) // write either filtered or unfiltered fusions, but not both
 			continue;
-
-		// get the gene which likely makes the 5' end of the transcript first
-		transcript_start_t transcript_start;
-		strand_t strand1, strand2;
-		get_start_of_transcript(**i, transcript_start, strand1, strand2);
 
 		// describe site of breakpoint
 		string site1, site2;
-		if ((**i).gene1->is_dummy) {
+		if ((**fusion).gene1->is_dummy) {
 			site1 = "intergenic";
-		} else if ((**i).spliced1) {
+		} else if ((**fusion).spliced1) {
 			site1 = "splice-site";
-		} else if ((**i).exonic1) {
+		} else if ((**fusion).exonic1) {
 			site1 = "exonic";
 		} else {
 			site1 = "intronic";
 		}
-		if ((**i).gene2->is_dummy) {
+		if ((**fusion).gene2->is_dummy) {
 			site2 = "intergenic";
-		} else if ((**i).spliced2) {
+		} else if ((**fusion).spliced2) {
 			site2 = "splice-site";
-		} else if ((**i).exonic2) {
+		} else if ((**fusion).exonic2) {
 			site2 = "exonic";
 		} else {
 			site2 = "intronic";
@@ -589,20 +485,20 @@ void write_fusions_to_file(fusions_t& fusions, const string& output_file, gene_a
 
 		// convert closest genomic breakpoints to strings of the format <chr>:<position>(<distance to transcriptomic breakpoint>)
 		string closest_genomic_breakpoint1, closest_genomic_breakpoint2;
-		if ((**i).closest_genomic_breakpoint1 >= 0) {
-			closest_genomic_breakpoint1 = contigs_by_id[(**i).contig1] + ":" + to_string((**i).closest_genomic_breakpoint1+1) + "(" + to_string(abs((**i).breakpoint1 - (**i).closest_genomic_breakpoint1)) + ")";
+		if ((**fusion).closest_genomic_breakpoint1 >= 0) {
+			closest_genomic_breakpoint1 = contigs_by_id[(**fusion).contig1] + ":" + to_string((**fusion).closest_genomic_breakpoint1+1) + "(" + to_string(abs((**fusion).breakpoint1 - (**fusion).closest_genomic_breakpoint1)) + ")";
 		} else {
 			closest_genomic_breakpoint1 = ".";
 		}
-		if ((**i).closest_genomic_breakpoint2 >= 0) {
-			closest_genomic_breakpoint2 = contigs_by_id[(**i).contig2] + ":" + to_string((**i).closest_genomic_breakpoint2+1) + "(" + to_string(abs((**i).breakpoint2 - (**i).closest_genomic_breakpoint2)) + ")";
+		if ((**fusion).closest_genomic_breakpoint2 >= 0) {
+			closest_genomic_breakpoint2 = contigs_by_id[(**fusion).contig2] + ":" + to_string((**fusion).closest_genomic_breakpoint2+1) + "(" + to_string(abs((**fusion).breakpoint2 - (**fusion).closest_genomic_breakpoint2)) + ")";
 		} else {
 			closest_genomic_breakpoint2 = ".";
 		}
 
 		// assign confidence scores
 		string confidence;
-		switch ((**i).confidence) {
+		switch ((**fusion).confidence) {
 			case CONFIDENCE_LOW:
 				confidence = "low";
 				break;
@@ -615,12 +511,13 @@ void write_fusions_to_file(fusions_t& fusions, const string& output_file, gene_a
 		}
 
 		// the 5' gene should always come first => swap columns, if necessary
-		gene_t gene1 = (**i).gene1; gene_t gene2 = (**i).gene2;
-		contig_t contig1 = (**i).contig1; contig_t contig2 = (**i).contig2;
-		position_t breakpoint1 = (**i).breakpoint1; position_t breakpoint2 = (**i).breakpoint2;
-		direction_t direction1 = (**i).direction1; direction_t direction2 = (**i).direction2;
-		unsigned int split_reads1 = (**i).split_reads1; unsigned int split_reads2 = (**i).split_reads2;
-		if (transcript_start == TRANSCRIPT_START_GENE2) {
+		gene_t gene1 = (**fusion).gene1; gene_t gene2 = (**fusion).gene2;
+		contig_t contig1 = (**fusion).contig1; contig_t contig2 = (**fusion).contig2;
+		position_t breakpoint1 = (**fusion).breakpoint1; position_t breakpoint2 = (**fusion).breakpoint2;
+		direction_t direction1 = (**fusion).direction1; direction_t direction2 = (**fusion).direction2;
+		strand_t strand1 = (**fusion).predicted_strand1; strand_t strand2 = (**fusion).predicted_strand2;
+		unsigned int split_reads1 = (**fusion).split_reads1; unsigned int split_reads2 = (**fusion).split_reads2;
+		if ((**fusion).transcript_start == TRANSCRIPT_START_GENE2) {
 			swap(gene1, gene2);
 			swap(direction1, direction2);
 			swap(contig1, contig2);
@@ -633,22 +530,22 @@ void write_fusions_to_file(fusions_t& fusions, const string& output_file, gene_a
 
 		// write line to output file
 		out << gene_to_name(gene1, contig1, breakpoint1, gene_annotation_index) << "\t" << gene_to_name(gene2, contig2, breakpoint2, gene_annotation_index) << "\t"
-		    << get_fusion_strand(strand1, gene1, transcript_start) << "\t" << get_fusion_strand(strand2, gene2, transcript_start) << "\t"
+		    << get_fusion_strand(strand1, gene1, (**fusion).predicted_strands_ambiguous) << "\t" << get_fusion_strand(strand2, gene2, (**fusion).predicted_strands_ambiguous) << "\t"
 		    << contigs_by_id[contig1] << ":" << (breakpoint1+1) << "\t" << contigs_by_id[contig2] << ":" << (breakpoint2+1) << "\t"
 		    << site1 << "\t" << site2 << "\t"
-		    << get_fusion_type(**i) << "\t" << ((direction1 == UPSTREAM) ? "upstream" : "downstream") << "\t" << ((direction2 == UPSTREAM) ? "upstream" : "downstream") << "\t"
-		    << split_reads1 << "\t" << split_reads2 << "\t" << (**i).discordant_mates << "\t"
+		    << get_fusion_type(**fusion) << "\t" << ((direction1 == UPSTREAM) ? "upstream" : "downstream") << "\t" << ((direction2 == UPSTREAM) ? "upstream" : "downstream") << "\t"
+		    << split_reads1 << "\t" << split_reads2 << "\t" << (**fusion).discordant_mates << "\t"
 		    << confidence << "\t"
 		    << closest_genomic_breakpoint1 << "\t" << closest_genomic_breakpoint2;
 
 		// count the number of reads discarded by a given filter
 		map<string,unsigned int> filters;
-		if ((**i).filter != NULL)
-			filters[*(**i).filter] = 0;
+		if ((**fusion).filter != NULL)
+			filters[*(**fusion).filter] = 0;
 		vector<mates_t*> all_supporting_reads;
-		all_supporting_reads.insert(all_supporting_reads.end(), (**i).split_read1_list.begin(), (**i).split_read1_list.end());
-		all_supporting_reads.insert(all_supporting_reads.end(), (**i).split_read2_list.begin(), (**i).split_read2_list.end());
-		all_supporting_reads.insert(all_supporting_reads.end(), (**i).discordant_mate_list.begin(), (**i).discordant_mate_list.end());
+		all_supporting_reads.insert(all_supporting_reads.end(), (**fusion).split_read1_list.begin(), (**fusion).split_read1_list.end());
+		all_supporting_reads.insert(all_supporting_reads.end(), (**fusion).split_read2_list.begin(), (**fusion).split_read2_list.end());
+		all_supporting_reads.insert(all_supporting_reads.end(), (**fusion).discordant_mate_list.begin(), (**fusion).discordant_mate_list.end());
 		for (auto chimeric_alignment = all_supporting_reads.begin(); chimeric_alignment != all_supporting_reads.end(); ++chimeric_alignment)
 			if ((**chimeric_alignment).filter != NULL)
 				filters[*(**chimeric_alignment).filter]++;
@@ -670,7 +567,7 @@ void write_fusions_to_file(fusions_t& fusions, const string& output_file, gene_a
 		// print a fusion-spanning sequence
 		out << "\t";
 		if (print_fusion_sequence) {
-			out << get_fusion_transcript_sequence(**i, transcript_start);
+			out << get_fusion_transcript_sequence(**fusion);
 		} else {
 			out << ".";
 		}
@@ -678,10 +575,10 @@ void write_fusions_to_file(fusions_t& fusions, const string& output_file, gene_a
 		// if requested, print identifiers of supporting reads
 		out << "\t";
 		if (print_supporting_reads) {
-			for (auto j = all_supporting_reads.begin(); j != all_supporting_reads.end(); ++j) {
-				if (j != all_supporting_reads.begin())
+			for (auto read = all_supporting_reads.begin(); read != all_supporting_reads.end(); ++read) {
+				if (read != all_supporting_reads.begin())
 					out << ",";
-				out << (**j).name;
+				out << (**read).name;
 			}
 		} else {
 			out << ".";

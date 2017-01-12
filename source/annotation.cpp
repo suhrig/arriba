@@ -8,6 +8,7 @@
 #include <set>
 #include <unordered_map>
 #include "sam.h"
+#include "common.hpp"
 #include "annotation.hpp"
 #include "read_compressed_file.hpp"
 #include "htslib/faidx.h"
@@ -114,6 +115,8 @@ void read_annotation_gtf(const string& filename, const contigs_t& contigs, const
 					// make exon annotation record
 					exon_annotation_record_t exon_annotation_record;
 					exon_annotation_record.copy(annotation_record);
+					exon_annotation_record.is_transcript_start = false; // is set further down
+					exon_annotation_record.is_transcript_end = false; // is set further down
 
 					// extract transcript ID from attributes
 					string transcript_id;
@@ -149,51 +152,108 @@ void read_annotation_gtf(const string& filename, const contigs_t& contigs, const
 		}
 	}
 
+	// mark first/last exons of a transcript as transcript_start/transcript_end
+	unordered_map< transcript_t,exon_annotation_record_t*> first_exon_by_transcript;
+	unordered_map< transcript_t,exon_annotation_record_t*> last_exon_by_transcript;
+	for (exon_annotation_t::iterator exon = exon_annotation.begin(); exon != exon_annotation.end(); ++exon) {
+
+		// for each transcript, find the first exon
+		exon_annotation_record_t** old_first_exon = &(first_exon_by_transcript[exon->transcript]);
+		if (*old_first_exon == NULL ||
+		    exon->strand == FORWARD && (**old_first_exon).start > exon->start ||
+		    exon->strand == REVERSE && (**old_first_exon).end   < exon->end)
+			*old_first_exon = &(*exon);
+
+		// for each transcript, find the last exon
+		exon_annotation_record_t** old_last_exon = &(last_exon_by_transcript[exon->transcript]);
+		if (*old_last_exon == NULL ||
+		    exon->strand == FORWARD && (**old_last_exon).end   < exon->end ||
+		    exon->strand == REVERSE && (**old_last_exon).start > exon->start)
+			*old_last_exon = &(*exon);
+
+	}
+
+	// mark all first exons
+	for (auto first_exon = first_exon_by_transcript.begin(); first_exon != first_exon_by_transcript.end(); ++first_exon)
+		first_exon->second->is_transcript_start = true;
+
+	// mark all last exons
+	for (auto last_exon = last_exon_by_transcript.begin(); last_exon != last_exon_by_transcript.end(); ++last_exon)
+		last_exon->second->is_transcript_end = true;
+
+	// don't mark exons of genes with just one exon as transcript_start/transcript_end (i.e., undo marking)
+	// these are often predicted genes, which are often involved in splicing
+	for (exon_annotation_t::iterator exon = exon_annotation.begin(); exon != exon_annotation.end(); ++exon)
+		if (exon->is_transcript_start && exon->is_transcript_end)
+			exon->is_transcript_start = exon->is_transcript_end = false;
 }
 
-gene_multiset_t get_genes_from_exons(const exon_multiset_t& exons) {
-	gene_multiset_t result;
-	for (exon_multiset_t::const_iterator exon = exons.begin(); exon != exons.end(); ++exon)
-		result.insert((**exon).gene);
-	return result;
-}
-
-// check if a breakpoint is near an annotated splice site
+// given a coordinate, return all exons, if the coordinate is a splice-site
 exon_multiset_t get_exons_from_splice_site(const gene_t gene, const direction_t direction, const contig_t contig, const position_t breakpoint, const exon_annotation_index_t& exon_annotation_index) {
 
-	// find overlapping exons
+	// nothing to do, if there are no exons on the given contig
+	exon_multiset_t empty_set;
+	if (exon_annotation_index[contig].empty())
+		return empty_set;
+
+	// find exons at the breakpoint
 	exon_contig_annotation_index_t::const_iterator exons_at_breakpoint = exon_annotation_index[contig].lower_bound(breakpoint);
+
+	// find exons before the breakpoint
 	exon_contig_annotation_index_t::const_iterator exons_before_breakpoint = exons_at_breakpoint;
-	if (exons_before_breakpoint != exon_annotation_index[contig].begin() && exon_annotation_index[contig].size() > 0)
+	if (exons_before_breakpoint != exon_annotation_index[contig].begin())
 		--exons_before_breakpoint;
 
-	// count how many of the overlapping exons belong to <gene>
-	unsigned int genes_at_breakpoint = (exons_at_breakpoint != exon_annotation_index[contig].end()) ? get_genes_from_exons(exons_at_breakpoint->second).count(gene) : 0;
-	unsigned int genes_before_breakpoint = (exons_before_breakpoint != exon_annotation_index[contig].end()) ? get_genes_from_exons(exons_before_breakpoint->second).count(gene) : 0;
+	if (breakpoint - exons_before_breakpoint->first <= MAX_SPLICE_SITE_DISTANCE || exons_at_breakpoint == exon_annotation_index[contig].begin()) {
 
-	if (exons_before_breakpoint != exon_annotation_index[contig].end() && breakpoint - exons_before_breakpoint->first <= MAX_SPLICE_SITE_DISTANCE) {
-		if (direction == UPSTREAM && exons_at_breakpoint != exon_annotation_index[contig].end() && genes_at_breakpoint > genes_before_breakpoint)
-			return exons_at_breakpoint->second;
+		// get all exons at the breakpoint that are not a transcript start and belong to <gene>
+		exon_multiset_t exons_of_gene_at_breakpoint;
+		if (exons_at_breakpoint != exon_annotation_index[contig].end())
+			for (exon_multiset_t::const_iterator exon = exons_at_breakpoint->second.begin(); exon != exons_at_breakpoint->second.end(); ++exon)
+				if ((**exon).gene == gene && // exon must belong to given gene
+				    !(((**exon).is_transcript_start && (**exon).strand == FORWARD || (**exon).is_transcript_end && (**exon).strand == REVERSE) && (**exon).start > exons_before_breakpoint->first && direction == UPSTREAM)) // when orientation is upstream, exon must not be terminal
+					exons_of_gene_at_breakpoint.insert(*exon);
 
-		if (direction == DOWNSTREAM && (exons_at_breakpoint == exon_annotation_index[contig].end() && genes_before_breakpoint > 0 || exons_at_breakpoint != exon_annotation_index[contig].end() && genes_before_breakpoint > genes_at_breakpoint))
-			return exons_before_breakpoint->second;
+		// get all exons before the breakpoint that are not a transcript end and belong to <gene>
+		exon_multiset_t exons_of_gene_before_breakpoint;
+		for (exon_multiset_t::const_iterator exon = exons_before_breakpoint->second.begin(); exon != exons_before_breakpoint->second.end(); ++exon)
+			if ((**exon).gene == gene && // exon must belong to given gene
+			    !(((**exon).is_transcript_end && (**exon).strand == FORWARD || (**exon).is_transcript_start && (**exon).strand == REVERSE) && (**exon).end <= exons_before_breakpoint->first && direction == DOWNSTREAM)) // when orientation is downstream, exon must not be terminal
+				exons_of_gene_before_breakpoint.insert(*exon);
+
+		// we are at a splice-site, if the number of exons before vs. at the breakpoint differ
+		if (direction == UPSTREAM && exons_of_gene_at_breakpoint.size() > exons_of_gene_before_breakpoint.size())
+			return exons_of_gene_at_breakpoint;
+		if (direction == DOWNSTREAM && exons_of_gene_before_breakpoint.size() > exons_of_gene_at_breakpoint.size())
+			return exons_of_gene_before_breakpoint;
 	}
 
-	exon_contig_annotation_index_t::const_iterator exons_after_breakpoint = exons_at_breakpoint;
-	if (exons_after_breakpoint != exon_annotation_index[contig].end())
+	if (exons_at_breakpoint->first - breakpoint <= MAX_SPLICE_SITE_DISTANCE && exons_at_breakpoint != exon_annotation_index[contig].end()) {
+
+		// get all exons at the breakpoint that are not a transcript end and belong to <gene>
+		exon_multiset_t exons_of_gene_at_breakpoint;
+		for (exon_multiset_t::const_iterator exon = exons_at_breakpoint->second.begin(); exon != exons_at_breakpoint->second.end(); ++exon)
+			if ((**exon).gene == gene && // exon must belong to given gene
+			    !(((**exon).is_transcript_end && (**exon).strand == FORWARD || (**exon).is_transcript_start && (**exon).strand == REVERSE) && (**exon).end <= exons_at_breakpoint->first && direction == DOWNSTREAM)) // when orientation is downstream, exon must not be terminal
+				exons_of_gene_at_breakpoint.insert(*exon);
+
+		// get all exons after the breakpoint that are not a transcript start and belong to <gene>
+		exon_contig_annotation_index_t::const_iterator exons_after_breakpoint = exons_at_breakpoint;
 		++exons_after_breakpoint;
+		exon_multiset_t exons_of_gene_after_breakpoint;
+		if (exons_after_breakpoint != exon_annotation_index[contig].end())
+			for (exon_multiset_t::const_iterator exon = exons_after_breakpoint->second.begin(); exon != exons_after_breakpoint->second.end(); ++exon)
+				if ((**exon).gene == gene && // exon must belong to given gene
+				    !(((**exon).is_transcript_start && (**exon).strand == FORWARD || (**exon).is_transcript_end && (**exon).strand == REVERSE) && (**exon).start > exons_at_breakpoint->first && direction == UPSTREAM)) // when orientation is upstream, exon must not be terminal
+					exons_of_gene_after_breakpoint.insert(*exon);
 
-	unsigned int genes_after_breakpoint = (exons_after_breakpoint != exon_annotation_index[contig].end()) ? get_genes_from_exons(exons_after_breakpoint->second).count(gene) : 0;
-
-	if (exons_at_breakpoint != exon_annotation_index[contig].end() && exons_at_breakpoint->first - breakpoint <= MAX_SPLICE_SITE_DISTANCE) {
-		if (direction == UPSTREAM && exons_after_breakpoint != exon_annotation_index[contig].end() && genes_after_breakpoint > genes_at_breakpoint)
-			return exons_after_breakpoint->second;
-
-		if (direction == DOWNSTREAM && (exons_after_breakpoint == exon_annotation_index[contig].end() && genes_at_breakpoint > 0 || exons_after_breakpoint != exon_annotation_index[contig].end() && genes_at_breakpoint > genes_after_breakpoint))
-			return exons_at_breakpoint->second;
+		// we are at a splice-site, if the number of exons after vs. at the breakpoint differ
+		if (direction == UPSTREAM && exons_of_gene_after_breakpoint.size() > exons_of_gene_at_breakpoint.size())
+			return exons_of_gene_after_breakpoint;
+		if (direction == DOWNSTREAM && exons_of_gene_at_breakpoint.size() > exons_of_gene_after_breakpoint.size())
+			return exons_of_gene_at_breakpoint;
 	}
 
-	exon_multiset_t empty_set;
 	return empty_set;
 }
 
@@ -202,7 +262,7 @@ bool is_breakpoint_spliced(const gene_t gene, const direction_t direction, const
 	return get_exons_from_splice_site(gene, direction, contig, breakpoint, exon_annotation_index).size() > 0;
 }
 
-void get_annotation_by_alignment(const alignment_t& alignment, gene_set_t& gene_set, const exon_annotation_index_t& exon_annotation_index) {
+void annotate_alignment(alignment_t& alignment, gene_set_t& gene_set, const exon_annotation_index_t& exon_annotation_index) {
 
 	// first, try to annotate based on the boundaries (start+end) of the alignment
 	exon_set_t exon_set;
@@ -212,34 +272,34 @@ void get_annotation_by_alignment(const alignment_t& alignment, gene_set_t& gene_
 	for (auto exon = exon_set.begin(); exon != exon_set.end(); ++exon)
 		gene_set.insert((**exon).gene);
 
-	// when the alignment overlaps with multiple genes, try to resolve the ambiguity by looking for splice sites that are specific for one gene
-	if (gene_set.size() > 1) {
+	// try to resolve ambiguity and strand by looking for splice sites that are specific for one gene
+	if (alignment.predicted_strand_ambiguous && alignment.cigar.size() > 1) {
+
 		// cycle through CIGAR string and look for introns
-		gene_set_t gene_set_supported_by_splicing = gene_set;
+		gene_set_t gene_set_supported_by_splicing;
 		position_t reference_position = alignment.start;
-		for (unsigned int i = 0; i < alignment.cigar.size() && gene_set_supported_by_splicing.size() > 1; ++i) {
+		for (unsigned int i = 0; i < alignment.cigar.size() && gene_set_supported_by_splicing.empty(); ++i) {
+
 			switch (alignment.cigar.operation(i)) {
 				case BAM_CSOFT_CLIP:
 				case BAM_CHARD_CLIP:
 				case BAM_CREF_SKIP:
 
 					// whenever we hit an intron (or clipped segment) in the CIGAR string, check if it aligns with splice sites for each gene
+					gene_set_supported_by_splicing = gene_set;
 					for (gene_set_t::iterator gene = gene_set_supported_by_splicing.begin(); gene != gene_set_supported_by_splicing.end();) {
-						if ((alignment.cigar.operation(i) == BAM_CSOFT_CLIP || alignment.cigar.operation(i) == BAM_CHARD_CLIP) &&
-						    (i == 0 && !is_breakpoint_spliced(*gene, UPSTREAM, alignment.contig, reference_position, exon_annotation_index) || // preclipped segment aligns with exon start
-						     i != 0 && !is_breakpoint_spliced(*gene, DOWNSTREAM, alignment.contig, reference_position, exon_annotation_index)) || // postclipped segment aligns with exon end
-						    alignment.cigar.operation(i) == BAM_CREF_SKIP &&
-						    !is_breakpoint_spliced(*gene, DOWNSTREAM, alignment.contig, reference_position, exon_annotation_index) && // intron aligns with exon start
-						    !is_breakpoint_spliced(*gene, UPSTREAM, alignment.contig, reference_position + alignment.cigar.op_length(i), exon_annotation_index)) // intron aligns with exon end
+						if ((alignment.predicted_strand_ambiguous || alignment.predicted_strand == (**gene).strand) &&
+						    ((alignment.cigar.operation(i) == BAM_CSOFT_CLIP || alignment.cigar.operation(i) == BAM_CHARD_CLIP) &&
+						     (i == 0 && !is_breakpoint_spliced(*gene, UPSTREAM, alignment.contig, reference_position, exon_annotation_index) || // preclipped segment aligns with exon start
+						      i != 0 && !is_breakpoint_spliced(*gene, DOWNSTREAM, alignment.contig, reference_position, exon_annotation_index)) || // postclipped segment aligns with exon end
+						     alignment.cigar.operation(i) == BAM_CREF_SKIP &&
+						     !is_breakpoint_spliced(*gene, DOWNSTREAM, alignment.contig, reference_position, exon_annotation_index) && // intron aligns with exon start
+						     !is_breakpoint_spliced(*gene, UPSTREAM, alignment.contig, reference_position + alignment.cigar.op_length(i), exon_annotation_index))) { // intron aligns with exon end
 							gene = gene_set_supported_by_splicing.erase(gene);
+}
 						else
 							++gene;
 					}
-
-					// none of the genes match the splice pattern of the alignment
-					// => it's a tie, so we hope to find another intron in the CIGAR string
-					if (gene_set_supported_by_splicing.empty())
-						gene_set_supported_by_splicing = gene_set;
 			}
 
 			switch (alignment.cigar.operation(i)) {
@@ -250,12 +310,80 @@ void get_annotation_by_alignment(const alignment_t& alignment, gene_set_t& gene_
 			}
 		}
 
-		// if none of the genes match the splice pattern of the alignment, return all genes,
-		// otherwise, only return the matching genes
-		if (!gene_set_supported_by_splicing.empty() && gene_set_supported_by_splicing.size() < gene_set.size())
-			gene_set = gene_set_supported_by_splicing;
+		if (!gene_set_supported_by_splicing.empty()) {
+
+			// if none of the genes match the splice pattern of the alignment, return all genes,
+			// otherwise, only return the matching genes
+			if (gene_set_supported_by_splicing.size() < gene_set.size())
+				gene_set = gene_set_supported_by_splicing;
+
+			// try to get the strand of the alignment from the strand of the gene,
+			// if this is unstranded data
+			if (alignment.predicted_strand_ambiguous) { // this is unstranded data
+				strand_t predicted_strand = (**gene_set_supported_by_splicing.begin()).strand;
+				alignment.predicted_strand_ambiguous = false;
+				for (gene_set_t::iterator gene = gene_set_supported_by_splicing.begin(); gene != gene_set_supported_by_splicing.end() && !alignment.predicted_strand_ambiguous; ++gene)
+					if ((**gene).strand != predicted_strand)
+						alignment.predicted_strand_ambiguous = true;
+
+				if (!alignment.predicted_strand_ambiguous)
+					alignment.predicted_strand = predicted_strand;
+			}
+		}
 	}
 
+}
+
+void annotate_alignments(mates_t& mates, const exon_annotation_index_t& exon_annotation_index) {
+
+	// annotate each mate individually
+	for (mates_t::iterator mate = mates.begin(); mate != mates.end(); ++mate) {
+		annotate_alignment(*mate, mate->genes, exon_annotation_index);
+		mate->exonic = !mate->genes.empty();
+	}
+
+	// try to resolve ambiguous strand of one mate by infering from other mate
+	if (mates[MATE1].predicted_strand_ambiguous && !mates[MATE2].predicted_strand_ambiguous) { // infer strand of MATE1 from MATE2
+		mates[MATE1].predicted_strand = complement_strand_if(mates[MATE2].predicted_strand, mates[MATE1].strand == mates[MATE2].strand);
+		mates[MATE1].predicted_strand_ambiguous = false;
+	} else if (!mates[MATE1].predicted_strand_ambiguous && mates[MATE2].predicted_strand_ambiguous) { // infer strand of MATE2 from MATE1
+		mates[MATE2].predicted_strand = complement_strand_if(mates[MATE1].predicted_strand, mates[MATE1].strand == mates[MATE2].strand);
+		mates[MATE2].predicted_strand_ambiguous = false;
+	} else if (!mates[MATE1].predicted_strand_ambiguous && !mates[MATE2].predicted_strand_ambiguous) { // both mates claim they know from which strand they come
+		if ((mates[MATE1].predicted_strand != mates[MATE2].predicted_strand) != /*xor*/ (mates[MATE1].strand == mates[MATE2].strand)) { // contradiction => set to ambiguous
+			mates[MATE1].predicted_strand_ambiguous = true;
+			mates[MATE2].predicted_strand_ambiguous = true;
+		}
+	}
+
+	if (mates.size() == 3) { // split read
+
+		// try to resolve ambiguous mappings using mapping information from mate
+		gene_set_t combined;
+		combine_annotations(mates[SPLIT_READ].genes, mates[MATE1].genes, combined);
+		if (mates[MATE1].genes.empty() || combined.size() < mates[MATE1].genes.size())
+			mates[MATE1].genes = combined;
+		if (mates[SPLIT_READ].genes.empty() || combined.size() < mates[SPLIT_READ].genes.size())
+			mates[SPLIT_READ].genes = combined;
+
+		// try to resolve ambiguous strand of split read or supplementary by infering from each other
+		if (mates[SPLIT_READ].predicted_strand_ambiguous && !mates[SUPPLEMENTARY].predicted_strand_ambiguous) { // infer MATE1 and SPLIT_READ from SUPPLEMENTARY
+			mates[MATE1].predicted_strand = complement_strand_if(mates[SUPPLEMENTARY].predicted_strand, mates[SUPPLEMENTARY].strand != mates[SPLIT_READ].strand);
+			mates[MATE1].predicted_strand_ambiguous = false;
+			mates[SPLIT_READ].predicted_strand = mates[MATE1].predicted_strand;
+			mates[SPLIT_READ].predicted_strand_ambiguous = false;
+		} else if (!mates[SPLIT_READ].predicted_strand_ambiguous && mates[SUPPLEMENTARY].predicted_strand_ambiguous) { // infer SUPPLEMENTARY from SPLIT_READ
+			mates[SUPPLEMENTARY].predicted_strand = complement_strand_if(mates[SPLIT_READ].predicted_strand, mates[SUPPLEMENTARY].strand != mates[SPLIT_READ].strand);
+			mates[SUPPLEMENTARY].predicted_strand_ambiguous = false;
+		} else if (!mates[SPLIT_READ].predicted_strand_ambiguous && !mates[SUPPLEMENTARY].predicted_strand_ambiguous) { // both mates claim they know from which strand they come
+			if ((mates[SPLIT_READ].predicted_strand != mates[SUPPLEMENTARY].predicted_strand) != /*xor*/ (mates[SPLIT_READ].strand != mates[SUPPLEMENTARY].strand)) { // contradiction => set to ambiguous
+				mates[MATE1].predicted_strand_ambiguous = true;
+				mates[SPLIT_READ].predicted_strand_ambiguous = true;
+				mates[SUPPLEMENTARY].predicted_strand_ambiguous = true;
+			}
+		}
+
+	}
 }
 
 // when a read overlaps with multiple genes, this function returns the boundaries of the biggest one
@@ -351,6 +479,12 @@ void get_unique_transcripts_from_exons(const exon_multiset_t& exons, set<transcr
 		transcripts.insert((**exon).transcript);
 }
 
+gene_multiset_t get_genes_from_exons(const exon_multiset_t& exons) {
+	gene_multiset_t result;
+	for (exon_multiset_t::const_iterator exon = exons.begin(); exon != exons.end(); ++exon)
+		result.insert((**exon).gene);
+	return result;
+}
 
 // get the distance between two positions after splicing (i.e., ignoring introns)
 int get_spliced_distance(const contig_t contig, position_t position1, position_t position2, direction_t direction1, direction_t direction2, const gene_t gene, const exon_annotation_index_t& exon_annotation_index) {
@@ -430,3 +564,4 @@ int get_spliced_distance(const contig_t contig, position_t position1, position_t
 
 	return distance * negate;
 }
+

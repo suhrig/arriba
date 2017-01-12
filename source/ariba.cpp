@@ -171,21 +171,8 @@ int main(int argc, char **argv) {
 			gene->exonic_length = gene->end - gene->start; // use total gene length, if the gene has no exons
 
 	// first, try to annotate with exons
-	for (chimeric_alignments_t::iterator i = chimeric_alignments.begin(); i != chimeric_alignments.end(); ++i) {
-		for (mates_t::iterator mate = i->second.begin(); mate != i->second.end(); ++mate) {
-			get_annotation_by_alignment(*mate, mate->genes, exon_annotation_index);
-			mate->exonic = !mate->genes.empty();
-		}
-		// try to resolve ambiguous mappings using mapping information from mate
-		if (i->second.size() == 3) {
-			gene_set_t combined;
-			combine_annotations(i->second[SPLIT_READ].genes, i->second[MATE1].genes, combined);
-			if (i->second[MATE1].genes.empty() || combined.size() < i->second[MATE1].genes.size())
-				i->second[MATE1].genes = combined;
-			if (i->second[SPLIT_READ].genes.empty() || combined.size() < i->second[SPLIT_READ].genes.size())
-				i->second[SPLIT_READ].genes = combined;
-		}
-	}
+	for (chimeric_alignments_t::iterator mates = chimeric_alignments.begin(); mates != chimeric_alignments.end(); ++mates)
+		annotate_alignments(mates->second, exon_annotation_index);
 
 	// if the alignment does not map to an exon, try to map it to a gene
 	for (chimeric_alignments_t::iterator i = chimeric_alignments.begin(); i != chimeric_alignments.end(); ++i) {

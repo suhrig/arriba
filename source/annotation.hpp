@@ -29,7 +29,7 @@ template <class T> void combine_annotations(const annotation_set_t<T>& genes1, c
 
 template <class T> void get_annotation_by_coordinate(const contig_t contig, const position_t start, const position_t end, annotation_set_t<T>& annotation_set, const annotation_index_t<T>& annotation_index);
 
-void get_annotation_by_alignment(const alignment_t& alignment, gene_set_t& gene_set, const exon_annotation_index_t& exon_annotation_index);
+void annotate_alignments(mates_t& mates, const exon_annotation_index_t& exon_annotation_index);
 
 void get_boundaries_of_biggest_gene(gene_set_t& genes, position_t& start, position_t& end);
 
