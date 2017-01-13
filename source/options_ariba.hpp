@@ -36,7 +36,7 @@ struct options_t {
 	bool single_end;
 	float max_kmer_content;
 	unsigned int fragment_length;
-	string known_gene_keyword;
+	string gtf_features;
 };
 
 options_t get_default_options();

@@ -15,6 +15,42 @@
 
 using namespace std;
 
+bool parse_gtf_features(string gtf_features_string, gtf_features_t& gtf_features) {
+	replace(gtf_features_string.begin(), gtf_features_string.end(), ',', ' ');
+	replace(gtf_features_string.begin(), gtf_features_string.end(), '=', ' ');
+	istringstream iss(gtf_features_string);
+	while (iss) {
+		string feature, value;
+		iss >> feature >> value;
+		if (feature != "" && value == "")
+			return false;
+		if (feature == "gene_name") {
+			gtf_features.gene_name = value;
+		} else if (feature == "gene_id") {
+			gtf_features.gene_id = value;
+		} else if (feature == "transcript_id") {
+			gtf_features.transcript_id = value;
+		} else if (feature == "gene_status") {
+			gtf_features.gene_status = value;
+		} else if (feature == "status_KNOWN") {
+			gtf_features.keyword_known = value;
+		} else if (feature == "feature_exon") {
+			gtf_features.feature_exon = value;
+		} else if (feature == "feature_UTR") {
+			gtf_features.feature_utr = value;
+		} else if (feature == "feature_gene") {
+			gtf_features.feature_gene = value;
+		} else if (feature == "") {
+			// the last feature has been processed
+		} else {
+			return false;
+		}
+	}
+
+	return true;
+}
+
+
 string removeChr(string contig) {
 	if (contig.substr(0, 3) == "chr")
 		contig = contig.substr(3);
@@ -54,7 +90,10 @@ bool get_gtf_attribute(const string& attributes, const string& attribute_name, s
 	return true;
 }
 
-void read_annotation_gtf(const string& filename, const contigs_t& contigs, const string& known_gene_keyword, gene_annotation_t& gene_annotation, exon_annotation_t& exon_annotation, unordered_map<string,gene_t>& gene_names) {
+void read_annotation_gtf(const string& filename, const contigs_t& contigs, const string& gtf_features_string, gene_annotation_t& gene_annotation, exon_annotation_t& exon_annotation, unordered_map<string,gene_t>& gene_names) {
+
+	gtf_features_t gtf_features;
+	parse_gtf_features(gtf_features_string, gtf_features);
 
 	unordered_map<string,transcript_t> transcripts; // translates transcript IDs to numeric IDs
 	unordered_map<string,gene_t> gene_by_gene_id; // maps gene IDs to genes (used to map exons to genes)
@@ -79,8 +118,8 @@ void read_annotation_gtf(const string& filename, const contigs_t& contigs, const
 			getline(iss, attributes);
 
 			// extract gene name and ID from attributes
-			if (!get_gtf_attribute(attributes, "gene_name", gene_name) ||
-			    !get_gtf_attribute(attributes, "gene_id", gene_id))
+			if (!get_gtf_attribute(attributes, gtf_features.gene_name, gene_name) ||
+			    !get_gtf_attribute(attributes, gtf_features.gene_id, gene_id))
 				continue;
 
 			contig = removeChr(contig);
@@ -95,7 +134,7 @@ void read_annotation_gtf(const string& filename, const contigs_t& contigs, const
 				annotation_record.end--; // GTF files are one-based
 				annotation_record.strand = (strand[0] == '+') ? FORWARD : REVERSE;
 
-				if (feature == "gene") {
+				if (feature == gtf_features.feature_gene) {
 
 					// make gene annotation record
 					gene_annotation_record_t gene_annotation_record;
@@ -104,13 +143,16 @@ void read_annotation_gtf(const string& filename, const contigs_t& contigs, const
 					gene_annotation_record.name = gene_name;
 					gene_annotation_record.exonic_length = 0; // is calculated later in ariba.cpp
 					gene_annotation_record.is_dummy = false;
-					gene_annotation_record.is_known = attributes.find(known_gene_keyword) != string::npos;
+					string gene_status;
+					if (!get_gtf_attribute(attributes, gtf_features.gene_status, gene_status))
+						continue;
+					gene_annotation_record.is_known = gene_status == gtf_features.keyword_known;
 					gene_annotation.push_back(gene_annotation_record);
 
 					// remember ID of gene, so we can map exons to genes later
 					gene_by_gene_id[gene_id] = &(gene_annotation[gene_annotation.size()-1]);
 
-				} else if (feature == "exon" || feature == "UTR") {
+				} else if (feature == gtf_features.feature_exon || feature == gtf_features.feature_utr) {
 
 					// make exon annotation record
 					exon_annotation_record_t exon_annotation_record;
@@ -120,7 +162,7 @@ void read_annotation_gtf(const string& filename, const contigs_t& contigs, const
 
 					// extract transcript ID from attributes
 					string transcript_id;
-					if (!get_gtf_attribute(attributes, "transcript_id", transcript_id))
+					if (!get_gtf_attribute(attributes, gtf_features.transcript_id, transcript_id))
 						continue;
 					exon_annotation_record.transcript = transcripts[transcript_id];
 					if (exon_annotation_record.transcript == 0) // this is the first time we encounter this transcript ID => give it a numeric ID
@@ -142,13 +184,14 @@ void read_annotation_gtf(const string& filename, const contigs_t& contigs, const
 		gene_names[gene->name] = &(*gene);
 
 	// assign exons to genes
-	for (exon_annotation_t::iterator exon = exon_annotation.begin(); exon != exon_annotation.end(); ++exon) {
+	for (exon_annotation_t::iterator exon = exon_annotation.begin(); exon != exon_annotation.end();) {
 		auto gene_id = gene_by_gene_id.find(gene_id_by_exon[&(*exon)]);
 		if (gene_id == gene_by_gene_id.end()) {
-			cerr << "ERROR: exon belongs to unknown gene with ID: " << gene_id_by_exon[&(*exon)] << endl;
-			exit(1);
+			cerr << "WARNING: exon belongs to unknown gene with ID: " << gene_id_by_exon[&(*exon)] << endl;
+			exon = exon_annotation.erase(exon);
 		} else {
 			exon->gene = gene_id->second;
+			++exon;
 		}
 	}
 

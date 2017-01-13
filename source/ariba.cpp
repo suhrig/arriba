@@ -142,7 +142,7 @@ int main(int argc, char **argv) {
 	gene_annotation_t gene_annotation;
 	exon_annotation_t exon_annotation;
 	unordered_map<string,gene_t> gene_names;
-	read_annotation_gtf(options.gene_annotation_file, contigs, options.known_gene_keyword, gene_annotation, exon_annotation, gene_names);
+	read_annotation_gtf(options.gene_annotation_file, contigs, options.gtf_features, gene_annotation, exon_annotation, gene_names);
 
 	// sort genes and exons by coordinate (make index)
 	exon_annotation_index_t exon_annotation_index;

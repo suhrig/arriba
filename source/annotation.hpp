@@ -13,10 +13,23 @@ using namespace std;
 // coordinates that are at most this far away from a splice-site are considered to be at the splice-site
 const unsigned int MAX_SPLICE_SITE_DISTANCE = 2;
 
+struct gtf_features_t {
+	string gene_name;
+	string gene_id;
+	string transcript_id;
+	string gene_status;
+	string keyword_known;
+	string feature_exon;
+	string feature_utr;
+	string feature_gene;
+};
+
+bool parse_gtf_features(string gtf_features_string, gtf_features_t& gtf_features);
+
 string removeChr(string contig);
 string addChr(string contig);
 
-void read_annotation_gtf(const string& filename, const contigs_t& contigs, const string& known_gene_keyword, gene_annotation_t& gene_annotation, exon_annotation_t& exon_annotation, unordered_map<string,gene_t>& gene_names);
+void read_annotation_gtf(const string& filename, const contigs_t& contigs, const string& gtf_features_string, gene_annotation_t& gene_annotation, exon_annotation_t& exon_annotation, unordered_map<string,gene_t>& gene_names);
 
 template <class T> void make_annotation_index(annotation_t<T>& annotation, annotation_index_t<T*>& annotation_index, const contigs_t& contigs);
 

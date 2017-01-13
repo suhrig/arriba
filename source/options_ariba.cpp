@@ -5,6 +5,7 @@
 #include <unistd.h>
 #include <algorithm>
 #include "common.hpp"
+#include "annotation.hpp"
 #include "options.hpp"
 #include "options_ariba.hpp"
 
@@ -30,7 +31,7 @@ options_t get_default_options() {
 	options.single_end = false;
 	options.max_kmer_content = 0.6;
 	options.fragment_length = 200;
-	options.known_gene_keyword = "KNOWN";
+	options.gtf_features = "gene_name=gene_name gene_id=gene_id transcript_id=transcript_id gene_status=gene_status status_KNOWN=KNOWN feature_exon=exon feature_UTR=UTR feature_gene=gene";
 
 	return options;
 }
@@ -81,6 +82,8 @@ void print_usage(const string& error_message) {
 	                  "direction2: whether the 1st partner is fused 'upstream' (at a coordinate lower than breakpoint2) or 'downstream' (at a coordinate higher than breakpoint2)\n"
 	                  "Positions are 1-based.")
 	     << wrap_help("-g FILE", "GTF file with gene annotation. The file may be gzip-compressed.")
+	     << wrap_help("-G GTF_FEATURES", "Comma-/space-separated list of names of GTF features.\n"
+	                  "Default: " + default_options.gtf_features)
 	     << wrap_help("-o FILE", "Output file with fusions that have passed all filters. The "
 	                  "file contains the following columns separated by tabs:\n"
 	                  "gene1: name of the gene that makes the 5' end\n"
@@ -180,9 +183,6 @@ void print_usage(const string& error_message) {
 	                  "single-end data is given, the mean fragment length should be specified "
 	                  "to effectively filter fusions that arise from hairpin structures. "
 	                  "Default: " + to_string(default_options.fragment_length))
-	     << wrap_help("-W KNOWN_KEYWORD", "Consider annotation records in the GTF file with the "
-	                  "given keyword as known (non-novel) genes. The filter 'both_novel' discards "
-	                  "fusions between genes that are both novel. Default: " + default_options.known_gene_keyword)
 	     << wrap_help("-S", "When set, the column 'fusion_transcript' is populated with "
 	                  "the sequence of the fused genes as assembled from the supporting reads. "
 	                  "The following letters have special meanings:\n"
@@ -203,13 +203,11 @@ void print_usage(const string& error_message) {
 
 options_t parse_arguments(int argc, char **argv) {
 	options_t options = get_default_options();
-	string disabled_filters;
-	istringstream disabled_filters_ss;
 
 	// parse arguments
 	opterr = 0;
 	int c;
-	while ((c = getopt(argc, argv, "c:r:x:d:g:o:O:a:k:b:1i:f:E:s:m:H:D:R:A:K:F:W:SIh")) != -1) {
+	while ((c = getopt(argc, argv, "c:r:x:d:g:G:o:O:a:k:b:1i:f:E:s:m:H:D:R:A:K:F:SIh")) != -1) {
 		switch (c) {
 			case 'c':
 				options.chimeric_bam_file = optarg;
@@ -248,6 +246,16 @@ options_t parse_arguments(int argc, char **argv) {
 				if (access(options.gene_annotation_file.c_str(), R_OK) != 0) {
 					cerr << "ERROR: File '" << options.gene_annotation_file << "' not found." << endl;
 					exit(1);
+				}
+				break;
+			case 'G':
+				options.gtf_features = optarg;
+				{
+					gtf_features_t gtf_features;
+					if (!parse_gtf_features(options.gtf_features, gtf_features)) {
+						cerr << "ERROR: Malformed GTF features: " << options.gtf_features << endl;
+						exit(1);
+					}
 				}
 				break;
 			case 'o':
@@ -297,16 +305,20 @@ options_t parse_arguments(int argc, char **argv) {
 				replace(options.interesting_contigs.begin(), options.interesting_contigs.end(), ',', ' ');
 				break;
 			case 'f':
-				disabled_filters = optarg;
-				replace(disabled_filters.begin(), disabled_filters.end(), ',', ' ');
-				disabled_filters_ss.str(disabled_filters);
-				while (disabled_filters_ss) {
-					string disabled_filter;
-					disabled_filters_ss >> disabled_filter;
-					if (!disabled_filter.empty() && options.filters.find(disabled_filter) == options.filters.end()) {
-						print_usage("Invalid argument to option -f: " + disabled_filter);
-					} else
-						options.filters[disabled_filter] = false;
+				{
+					string disabled_filters;
+					disabled_filters = optarg;
+					replace(disabled_filters.begin(), disabled_filters.end(), ',', ' ');
+					istringstream disabled_filters_ss;
+					disabled_filters_ss.str(disabled_filters);
+					while (disabled_filters_ss) {
+						string disabled_filter;
+						disabled_filters_ss >> disabled_filter;
+						if (!disabled_filter.empty() && options.filters.find(disabled_filter) == options.filters.end()) {
+							print_usage("Invalid argument to option -f: " + disabled_filter);
+						} else
+							options.filters[disabled_filter] = false;
+					}
 				}
 				break;
 			case 'E':
@@ -338,9 +350,6 @@ options_t parse_arguments(int argc, char **argv) {
 			case 'F':
 				options.fragment_length = atoi(optarg);
 				break;
-			case 'W':
-				options.known_gene_keyword = optarg;
-				break;
 			case 'S':
 				if (!options.print_fusion_sequence)
 					options.print_fusion_sequence = true;
@@ -355,7 +364,7 @@ options_t parse_arguments(int argc, char **argv) {
 				break;
 			case '?':
 				switch (optopt) {
-					case 'c': case 'r': case 'x': case 'd': case 'g': case 'o': case 'O': case 'a': case 'k': case 'b': case 'i': case 'f': case 'E': case 's': case 'm': case 'H': case 'D': case 'R': case 'A': case 'K': case 'F': case 'W':
+					case 'c': case 'r': case 'x': case 'd': case 'g': case 'G': case 'o': case 'O': case 'a': case 'k': case 'b': case 'i': case 'f': case 'E': case 's': case 'm': case 'H': case 'D': case 'R': case 'A': case 'K': case 'F':
 						print_usage(string("Option -") + ((char) optopt) + " requires an argument.");
 						break;
 					default:
