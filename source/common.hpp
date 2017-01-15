@@ -150,6 +150,11 @@ struct fusion_t {
 };
 typedef unordered_map< tuple<gene_t /*gene1*/, gene_t /*gene2*/, contig_t /*contig1*/, contig_t /*contig2*/, position_t /*breakpoint1*/, position_t /*breakpoint2*/, direction_t /*direction1*/, direction_t /*direction2*/>,fusion_t > fusions_t;
 
+typedef char strandedness_t;
+const strandedness_t STRANDEDNESS_NO = 0;
+const strandedness_t STRANDEDNESS_YES = 1;
+const strandedness_t STRANDEDNESS_REVERSE = 2;
+
 namespace std{
     namespace
     {

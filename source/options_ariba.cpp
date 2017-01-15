@@ -31,6 +31,7 @@ options_t get_default_options() {
 	options.single_end = false;
 	options.max_kmer_content = 0.6;
 	options.fragment_length = 200;
+	options.strandedness = STRANDEDNESS_NO;
 	options.gtf_features = "gene_name=gene_name gene_id=gene_id transcript_id=transcript_id gene_status=gene_status status_KNOWN=KNOWN feature_exon=exon feature_UTR=UTR feature_gene=gene";
 
 	return options;
@@ -132,6 +133,10 @@ void print_usage(const string& error_message) {
 	                  "split_read_acceptor, split_read_any, discordant_mates. The file may be "
 	                  "gzip-compressed.")
 	     << wrap_help("-1", "Single-end data. Default: " + string((default_options.single_end) ? "single-end" : "paired-end"))
+	     << wrap_help("-s STRANDEDNESS", "Whether a strand-specific protocol was used for library preparation, and if so, "
+	                  "the type of strandedness (yes/no/reverse). When unstranded data is processed, the strand "
+	                  "can sometimes be inferred from splice-patterns. Stranded data helps resolve "
+	                  "ambiguities. Default: " + string((default_options.strandedness == STRANDEDNESS_NO) ? "no" : ((default_options.strandedness == STRANDEDNESS_YES) ? "yes" : "reverse")))
 	     << wrap_help("-i CONTIGS", "A comma-/space-separated list of interesting contigs. Fusions "
 	                  "between genes on other contigs are ignored. Contigs can be specified with "
 	                  "or without the prefix \"chr\".\nDefault: " + default_options.interesting_contigs)
@@ -146,7 +151,7 @@ void print_usage(const string& error_message) {
 	                  "of time-consuming steps, most notably the 'mismappers' "
 	                  "and 'no_expression' filters. Fractional values are "
 	                  "possible. Default: " + to_string(default_options.evalue_cutoff))
-	     << wrap_help("-s MIN_SUPPORTING_READS", "The 'min_support' filter discards all fusions "
+	     << wrap_help("-S MIN_SUPPORTING_READS", "The 'min_support' filter discards all fusions "
 	                  "with fewer than this many supporting reads (split reads and discordant "
 	                  "mates combined). Default: " + to_string(default_options.min_support))
 	     << wrap_help("-m MAX_MISMAPPERS", "When more than this fraction of supporting reads "
@@ -183,7 +188,7 @@ void print_usage(const string& error_message) {
 	                  "single-end data is given, the mean fragment length should be specified "
 	                  "to effectively filter fusions that arise from hairpin structures. "
 	                  "Default: " + to_string(default_options.fragment_length))
-	     << wrap_help("-S", "When set, the column 'fusion_transcript' is populated with "
+	     << wrap_help("-T", "When set, the column 'fusion_transcript' is populated with "
 	                  "the sequence of the fused genes as assembled from the supporting reads. "
 	                  "The following letters have special meanings:\n"
 	                  "lowercase letter = SNP/SNV, square brackets = insertion, dash = deletion, "
@@ -207,7 +212,7 @@ options_t parse_arguments(int argc, char **argv) {
 	// parse arguments
 	opterr = 0;
 	int c;
-	while ((c = getopt(argc, argv, "c:r:x:d:g:G:o:O:a:k:b:1i:f:E:s:m:H:D:R:A:K:F:SIh")) != -1) {
+	while ((c = getopt(argc, argv, "c:r:x:d:g:G:o:O:a:k:b:1s:i:f:E:s:m:H:D:R:A:K:F:TIh")) != -1) {
 		switch (c) {
 			case 'c':
 				options.chimeric_bam_file = optarg;
@@ -300,6 +305,18 @@ options_t parse_arguments(int argc, char **argv) {
 			case '1':
 				options.single_end = true;
 				break;
+			case 's':
+				if (string(optarg) == "yes") {
+					options.strandedness = STRANDEDNESS_YES;
+				} else if (string(optarg) == "no") {
+					options.strandedness = STRANDEDNESS_NO;
+				} else if (string(optarg) == "reverse") {
+					options.strandedness = STRANDEDNESS_REVERSE;
+				} else {
+					cerr << "ERROR: Invalid type of strandedness: " << optarg << endl;
+					exit(1);
+				}
+				break;
 			case 'i':
 				options.interesting_contigs = optarg;
 				replace(options.interesting_contigs.begin(), options.interesting_contigs.end(), ',', ' ');
@@ -324,7 +341,7 @@ options_t parse_arguments(int argc, char **argv) {
 			case 'E':
 				options.evalue_cutoff = atof(optarg);
 				break;
-			case 's':
+			case 'S':
 				options.min_support = atoi(optarg);
 				break;
 			case 'm':
@@ -350,7 +367,7 @@ options_t parse_arguments(int argc, char **argv) {
 			case 'F':
 				options.fragment_length = atoi(optarg);
 				break;
-			case 'S':
+			case 'T':
 				if (!options.print_fusion_sequence)
 					options.print_fusion_sequence = true;
 				else
@@ -364,7 +381,7 @@ options_t parse_arguments(int argc, char **argv) {
 				break;
 			case '?':
 				switch (optopt) {
-					case 'c': case 'r': case 'x': case 'd': case 'g': case 'G': case 'o': case 'O': case 'a': case 'k': case 'b': case 'i': case 'f': case 'E': case 's': case 'm': case 'H': case 'D': case 'R': case 'A': case 'K': case 'F':
+					case 'c': case 'r': case 'x': case 'd': case 'g': case 'G': case 'o': case 'O': case 'a': case 'k': case 'b': case 'i': case 'f': case 'E': case 's': case 'm': case 'H': case 'D': case 'R': case 'A': case 'K': case 'F': case 'S':
 						print_usage(string("Option -") + ((char) optopt) + " requires an argument.");
 						break;
 					default:

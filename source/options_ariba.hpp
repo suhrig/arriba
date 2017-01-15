@@ -37,6 +37,7 @@ struct options_t {
 	float max_kmer_content;
 	unsigned int fragment_length;
 	string gtf_features;
+	strandedness_t strandedness;
 };
 
 options_t get_default_options();

@@ -311,12 +311,14 @@ void annotate_alignment(alignment_t& alignment, gene_set_t& gene_set, const exon
 	exon_set_t exon_set;
 	get_annotation_by_coordinate(alignment.contig, alignment.start, alignment.end, exon_set, exon_annotation_index);
 
+
 	// translate exons to genes
 	for (auto exon = exon_set.begin(); exon != exon_set.end(); ++exon)
 		gene_set.insert((**exon).gene);
 
 	// try to resolve ambiguity and strand by looking for splice sites that are specific for one gene
-	if (alignment.predicted_strand_ambiguous && alignment.cigar.size() > 1) {
+	if (alignment.cigar.size() > 1 && // if there are no CIGAR operations, there is nothing we can do
+	    (gene_set.size() > 1 || alignment.predicted_strand_ambiguous)) { // if the strand and mapped genes are clear, there is nothing we need to do
 
 		// cycle through CIGAR string and look for introns
 		gene_set_t gene_set_supported_by_splicing;
@@ -331,15 +333,13 @@ void annotate_alignment(alignment_t& alignment, gene_set_t& gene_set, const exon
 					// whenever we hit an intron (or clipped segment) in the CIGAR string, check if it aligns with splice sites for each gene
 					gene_set_supported_by_splicing = gene_set;
 					for (gene_set_t::iterator gene = gene_set_supported_by_splicing.begin(); gene != gene_set_supported_by_splicing.end();) {
-						if ((alignment.predicted_strand_ambiguous || alignment.predicted_strand == (**gene).strand) &&
-						    ((alignment.cigar.operation(i) == BAM_CSOFT_CLIP || alignment.cigar.operation(i) == BAM_CHARD_CLIP) &&
+						if (((alignment.cigar.operation(i) == BAM_CSOFT_CLIP || alignment.cigar.operation(i) == BAM_CHARD_CLIP) &&
 						     (i == 0 && !is_breakpoint_spliced(*gene, UPSTREAM, alignment.contig, reference_position, exon_annotation_index) || // preclipped segment aligns with exon start
 						      i != 0 && !is_breakpoint_spliced(*gene, DOWNSTREAM, alignment.contig, reference_position, exon_annotation_index)) || // postclipped segment aligns with exon end
 						     alignment.cigar.operation(i) == BAM_CREF_SKIP &&
 						     !is_breakpoint_spliced(*gene, DOWNSTREAM, alignment.contig, reference_position, exon_annotation_index) && // intron aligns with exon start
-						     !is_breakpoint_spliced(*gene, UPSTREAM, alignment.contig, reference_position + alignment.cigar.op_length(i), exon_annotation_index))) { // intron aligns with exon end
+						     !is_breakpoint_spliced(*gene, UPSTREAM, alignment.contig, reference_position + alignment.cigar.op_length(i), exon_annotation_index))) // intron aligns with exon end
 							gene = gene_set_supported_by_splicing.erase(gene);
-}
 						else
 							++gene;
 					}
@@ -586,7 +586,11 @@ int get_spliced_distance(const contig_t contig, position_t position1, position_t
 	while (p1 != p2) {
 		position_t boundary = p1->first;
 		++p1;
-		if (get_genes_from_exons(p1->second).count(gene) > 0) {
+		unsigned int exons_of_gene = 0;
+		for (exon_multiset_t::const_iterator exon = p1->second.begin(); exon != p1->second.end() && exons_of_gene == 0; ++exon)
+			if ((**exon).gene == gene)
+				exons_of_gene++;
+		if (exons_of_gene > 0) {
 			// calculate distance considering all exons
 			distance += p1->first - boundary;
 			// calculate distance considering only exons of transcripts common to position1 and 2

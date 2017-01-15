@@ -103,6 +103,11 @@ int main(int argc, char **argv) {
 	cout << "Filtering multi-mappers and single mates" << flush;
 	cout << " (remaining=" << filter_multi_mappers(chimeric_alignments, options.single_end) << ")" << endl;
 
+	if (options.strandedness != STRANDEDNESS_NO) {
+		cout << "Assigning strands to alignments" << endl << flush;
+		assign_strands_from_strandedness(chimeric_alignments, options.strandedness);
+	}
+
 	vector<bool> interesting_contigs(contigs.size());
 	if (options.filters.at("uninteresting_contigs") && !options.interesting_contigs.empty()) {
 		istringstream iss(options.interesting_contigs);
