@@ -18,19 +18,19 @@ using namespace std;
 typedef map< position_t, map<string/*base*/,unsigned int/*frequency*/> > pileup_t;
 
 void pileup_chimeric_alignments(vector<mates_t*>& chimeric_alignments, const unsigned int mate, const bool reverse_complement, const direction_t direction, const position_t breakpoint, pileup_t& pileup) {
-	for (auto i = chimeric_alignments.begin(); i != chimeric_alignments.end(); ++i) {
+	for (auto chimeric_alignment = chimeric_alignments.begin(); chimeric_alignment != chimeric_alignments.end(); ++chimeric_alignment) {
 
-		if ((**i).filter == FILTERS.at("duplicates"))
+		if ((**chimeric_alignment).filter == FILTERS.at("duplicates"))
 			continue; // skip duplicates
 
-		alignment_t& read = (**i)[mate]; // introduce alias for cleaner code
+		alignment_t& read = (**chimeric_alignment)[mate]; // introduce alias for cleaner code
 
-		if ((**i).size() == 2) // discordant mate
+		if ((**chimeric_alignment).size() == 2) // discordant mate
 			if (!(direction == DOWNSTREAM && read.strand == FORWARD && read.end   <= breakpoint+2 && read.end   >= breakpoint-200 ||
 			      direction == UPSTREAM   && read.strand == REVERSE && read.start >= breakpoint-2 && read.start <= breakpoint+200)) // only consider discordant mates close to the breakpoints (we don't care about the ones in other exons)
 				continue;
 
-		string read_sequence = (mate == SUPPLEMENTARY) ? (**i)[SPLIT_READ].sequence : read.sequence;
+		string read_sequence = (mate == SUPPLEMENTARY) ? (**chimeric_alignment)[SPLIT_READ].sequence : read.sequence;
 		if (reverse_complement)
 			read_sequence = dna_to_reverse_complement(read_sequence);
 
@@ -55,7 +55,7 @@ void pileup_chimeric_alignments(vector<mates_t*>& chimeric_alignments, const uns
 					subtract_from_next_element = 0;
 					break;
 				case BAM_CSOFT_CLIP:
-					if (mate == SPLIT_READ &&
+					if ((**chimeric_alignment).size() == 3 && mate == SPLIT_READ &&
 					    (cigar_element == 0 && read.strand == FORWARD || cigar_element == read.cigar.size()-1 && read.strand == REVERSE)) {
 						if (cigar_element == 0 && read.strand == FORWARD)
 							reference_offset -= read.cigar.op_length(cigar_element);
