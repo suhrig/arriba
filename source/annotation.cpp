@@ -196,33 +196,45 @@ void read_annotation_gtf(const string& filename, const contigs_t& contigs, const
 	}
 
 	// mark first/last exons of a transcript as transcript_start/transcript_end
-	unordered_map< transcript_t,exon_annotation_record_t*> first_exon_by_transcript;
-	unordered_map< transcript_t,exon_annotation_record_t*> last_exon_by_transcript;
+	unordered_map< transcript_t,vector<exon_annotation_record_t*> > first_exons_by_transcript;
+	unordered_map< transcript_t,vector<exon_annotation_record_t*> > last_exons_by_transcript;
 	for (exon_annotation_t::iterator exon = exon_annotation.begin(); exon != exon_annotation.end(); ++exon) {
 
 		// for each transcript, find the first exon
-		exon_annotation_record_t** old_first_exon = &(first_exon_by_transcript[exon->transcript]);
-		if (*old_first_exon == NULL ||
-		    exon->strand == FORWARD && (**old_first_exon).start > exon->start ||
-		    exon->strand == REVERSE && (**old_first_exon).end   < exon->end)
-			*old_first_exon = &(*exon);
+		auto old_first_exons = &(first_exons_by_transcript[exon->transcript]);
+		if (old_first_exons->empty() ||
+		    exon->strand == FORWARD && (**old_first_exons->begin()).start > exon->start ||
+		    exon->strand == REVERSE && (**old_first_exons->begin()).end   < exon->end) {
+			old_first_exons->clear();
+			old_first_exons->push_back(&(*exon));
+		} else if (exon->strand == FORWARD && (**old_first_exons->begin()).start == exon->start ||
+		           exon->strand == REVERSE && (**old_first_exons->begin()).end   == exon->end) {
+			old_first_exons->push_back(&(*exon));
+		}
 
 		// for each transcript, find the last exon
-		exon_annotation_record_t** old_last_exon = &(last_exon_by_transcript[exon->transcript]);
-		if (*old_last_exon == NULL ||
-		    exon->strand == FORWARD && (**old_last_exon).end   < exon->end ||
-		    exon->strand == REVERSE && (**old_last_exon).start > exon->start)
-			*old_last_exon = &(*exon);
+		auto old_last_exons = &(last_exons_by_transcript[exon->transcript]);
+		if (old_last_exons->empty() ||
+		    exon->strand == FORWARD && (**old_last_exons->begin()).end   < exon->end ||
+		    exon->strand == REVERSE && (**old_last_exons->begin()).start > exon->start) {
+			old_last_exons->clear();
+			old_last_exons->push_back(&(*exon));
+		} else if (exon->strand == FORWARD && (**old_last_exons->begin()).end   == exon->end ||
+		           exon->strand == REVERSE && (**old_last_exons->begin()).start == exon->start) {
+			old_last_exons->push_back(&(*exon));
+		}
 
 	}
 
 	// mark all first exons
-	for (auto first_exon = first_exon_by_transcript.begin(); first_exon != first_exon_by_transcript.end(); ++first_exon)
-		first_exon->second->is_transcript_start = true;
+	for (auto first_exons = first_exons_by_transcript.begin(); first_exons != first_exons_by_transcript.end(); ++first_exons)
+		for (auto first_exon = first_exons->second.begin(); first_exon != first_exons->second.end(); ++first_exon)
+			(**first_exon).is_transcript_start = true;
 
 	// mark all last exons
-	for (auto last_exon = last_exon_by_transcript.begin(); last_exon != last_exon_by_transcript.end(); ++last_exon)
-		last_exon->second->is_transcript_end = true;
+	for (auto last_exons = last_exons_by_transcript.begin(); last_exons != last_exons_by_transcript.end(); ++last_exons)
+		for (auto last_exon = last_exons->second.begin(); last_exon != last_exons->second.end(); ++last_exon)
+			(**last_exon).is_transcript_end = true;
 
 	// don't mark exons of genes with just one exon as transcript_start/transcript_end (i.e., undo marking)
 	// these are often predicted genes, which are often involved in splicing
@@ -232,12 +244,13 @@ void read_annotation_gtf(const string& filename, const contigs_t& contigs, const
 }
 
 // given a coordinate, return all exons, if the coordinate is a splice-site
-exon_multiset_t get_exons_from_splice_site(const gene_t gene, const direction_t direction, const contig_t contig, const position_t breakpoint, const exon_annotation_index_t& exon_annotation_index) {
+void get_exons_from_splice_site(const gene_t gene, const direction_t direction, const contig_t contig, const position_t breakpoint, const exon_annotation_index_t& exon_annotation_index, exon_multiset_t& exons) {
 
 	// nothing to do, if there are no exons on the given contig
-	exon_multiset_t empty_set;
-	if (exon_annotation_index[contig].empty())
-		return empty_set;
+	if (exon_annotation_index[contig].empty()) {
+		exons.clear();
+		return;
+	}
 
 	// find exons at the breakpoint
 	exon_contig_annotation_index_t::const_iterator exons_at_breakpoint = exon_annotation_index[contig].lower_bound(breakpoint);
@@ -265,10 +278,14 @@ exon_multiset_t get_exons_from_splice_site(const gene_t gene, const direction_t 
 				exons_of_gene_before_breakpoint.insert(*exon);
 
 		// we are at a splice-site, if the number of exons before vs. at the breakpoint differ
-		if (direction == UPSTREAM && exons_of_gene_at_breakpoint.size() > exons_of_gene_before_breakpoint.size())
-			return exons_of_gene_at_breakpoint;
-		if (direction == DOWNSTREAM && exons_of_gene_before_breakpoint.size() > exons_of_gene_at_breakpoint.size())
-			return exons_of_gene_before_breakpoint;
+		if (direction == UPSTREAM && exons_of_gene_at_breakpoint.size() > exons_of_gene_before_breakpoint.size()) {
+			exons = exons_of_gene_at_breakpoint;
+			return;
+		}
+		if (direction == DOWNSTREAM && exons_of_gene_before_breakpoint.size() > exons_of_gene_at_breakpoint.size()) {
+			exons = exons_of_gene_before_breakpoint;
+			return;
+		}
 	}
 
 	if (exons_at_breakpoint->first - breakpoint <= MAX_SPLICE_SITE_DISTANCE && exons_at_breakpoint != exon_annotation_index[contig].end()) {
@@ -291,18 +308,24 @@ exon_multiset_t get_exons_from_splice_site(const gene_t gene, const direction_t 
 					exons_of_gene_after_breakpoint.insert(*exon);
 
 		// we are at a splice-site, if the number of exons after vs. at the breakpoint differ
-		if (direction == UPSTREAM && exons_of_gene_after_breakpoint.size() > exons_of_gene_at_breakpoint.size())
-			return exons_of_gene_after_breakpoint;
-		if (direction == DOWNSTREAM && exons_of_gene_at_breakpoint.size() > exons_of_gene_after_breakpoint.size())
-			return exons_of_gene_at_breakpoint;
+		if (direction == UPSTREAM && exons_of_gene_after_breakpoint.size() > exons_of_gene_at_breakpoint.size()) {
+			exons = exons_of_gene_after_breakpoint;
+			return;
+		}
+		if (direction == DOWNSTREAM && exons_of_gene_at_breakpoint.size() > exons_of_gene_after_breakpoint.size()) {
+			exons = exons_of_gene_at_breakpoint;
+			return;
+		}
 	}
 
-	return empty_set;
+	exons.clear(); // if we get here, the breakpoint is not at a splice-site
 }
 
 // check if a breakpoint is near an annotated splice site
 bool is_breakpoint_spliced(const gene_t gene, const direction_t direction, const contig_t contig, const position_t breakpoint, const exon_annotation_index_t& exon_annotation_index) {
-	return get_exons_from_splice_site(gene, direction, contig, breakpoint, exon_annotation_index).size() > 0;
+	exon_multiset_t exons;
+	get_exons_from_splice_site(gene, direction, contig, breakpoint, exon_annotation_index, exons);
+	return !exons.empty();
 }
 
 void annotate_alignment(alignment_t& alignment, gene_set_t& gene_set, const exon_annotation_index_t& exon_annotation_index) {
@@ -310,7 +333,6 @@ void annotate_alignment(alignment_t& alignment, gene_set_t& gene_set, const exon
 	// first, try to annotate based on the boundaries (start+end) of the alignment
 	exon_set_t exon_set;
 	get_annotation_by_coordinate(alignment.contig, alignment.start, alignment.end, exon_set, exon_annotation_index);
-
 
 	// translate exons to genes
 	for (auto exon = exon_set.begin(); exon != exon_set.end(); ++exon)
@@ -551,14 +573,14 @@ int get_spliced_distance(const contig_t contig, position_t position1, position_t
 	// (i.e., from position1/position2 to next exon boundary)
 	position_t distance = 0;
 	exon_multiset_t exons_at_position1, exons_at_position2;
-	exons_at_position1 = get_exons_from_splice_site(gene, direction1, contig, position1, exon_annotation_index);
+	get_exons_from_splice_site(gene, direction1, contig, position1, exon_annotation_index, exons_at_position1);
 	if (exons_at_position1.size() == 0) { // position is not at a splice site
 		if (p1 != exon_annotation_index[contig].end())
 			exons_at_position1 = p1->second;
 		// add distance from position1 to next higher exon boundary
 		distance += p1->first - position1;
 	}
-	exons_at_position2 = get_exons_from_splice_site(gene, direction2, contig, position2, exon_annotation_index);
+	get_exons_from_splice_site(gene, direction2, contig, position2, exon_annotation_index, exons_at_position2);
 	if (exons_at_position2.size() > 0) {
 		--p2;
 	} else {

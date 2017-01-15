@@ -170,9 +170,8 @@ void predict_transcript_start(fusion_t& fusion) {
 
 	}
 
-	if (fusion.transcript_start_ambiguous) {
+	if (fusion.transcript_start_ambiguous)
 		fusion.transcript_start = TRANSCRIPT_START_GENE1; // this guarantees deterministic behavior and makes sure the transcript sequences are printed in correct order
-}
 
 	// predict strands from gene orientations, if they could not be predicted from splice patterns
 	if (!fusion.transcript_start_ambiguous && fusion.predicted_strands_ambiguous) {
