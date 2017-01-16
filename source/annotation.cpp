@@ -167,6 +167,7 @@ void read_annotation_gtf(const string& filename, const contigs_t& contigs, const
 					exon_annotation_record.copy(annotation_record);
 					exon_annotation_record.is_transcript_start = false; // is set further down
 					exon_annotation_record.is_transcript_end = false; // is set further down
+					exon_annotation_record.is_utr = feature == gtf_features.feature_utr;
 
 					// extract transcript ID from attributes
 					string transcript_id;

@@ -63,6 +63,7 @@ struct exon_annotation_record_t: public annotation_record_t {
 	gene_t gene;
 	transcript_t transcript;
 	bool is_transcript_start, is_transcript_end;
+	bool is_utr;
 };
 typedef exon_annotation_record_t* exon_t;
 typedef annotation_set_t<exon_t> exon_set_t;

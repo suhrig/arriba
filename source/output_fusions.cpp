@@ -410,6 +410,62 @@ string get_fusion_strand(const strand_t strand, const gene_t gene, const bool pr
 	return result;
 }
 
+string get_fusion_site(const gene_t gene, const bool spliced, const bool exonic, const contig_t contig, const position_t breakpoint, const exon_annotation_index_t& exon_annotation_index) {
+	string site;
+	if (gene->is_dummy) {
+		site = "intergenic";
+	} else if (spliced) {
+		site = "splice-site";
+	} else if (exonic) {
+		// re-annotate exonic breakpoints
+		if (breakpoint < gene->start) {
+			if (gene->strand == FORWARD)
+				site = "5'UTR";
+			else
+				site = "3'UTR";
+		} else if (breakpoint > gene->end) {
+			if (gene->strand == FORWARD)
+				site = "3'UTR";
+			else
+				site = "5'UTR";
+		} else {
+			exon_set_t exons;
+			get_annotation_by_coordinate(contig, breakpoint, breakpoint, exons, exon_annotation_index);
+			bool has_overlapping_exon = false;
+			bool is_utr = false;
+			unsigned int is_3_end = 0;
+			unsigned int is_5_end = 0;
+			for (exon_set_t::iterator exon = exons.begin(); exon != exons.end(); ++exon) {
+				if ((**exon).gene == gene) {
+					has_overlapping_exon = true;
+					if ((**exon).is_utr)
+						is_utr = true;
+					if ((**exon).is_transcript_end)
+						++is_3_end;
+					if ((**exon).is_transcript_start)
+						++is_5_end;
+				}
+			}
+			if (!has_overlapping_exon) {
+				site = "intron";
+			} else if (is_utr) {
+				if (is_3_end > is_5_end) {
+					site = "3'UTR";
+				} else if (is_3_end < is_5_end) {
+					site = "5'UTR";
+				} else {
+					site = "UTR";
+				}
+			} else {
+				site = "exon";
+			}
+		}
+	} else {
+		site = "intron";
+	}
+	return site;
+}
+
 void write_fusions_to_file(fusions_t& fusions, const string& output_file, gene_annotation_index_t& gene_annotation_index, exon_annotation_index_t& exon_annotation_index, vector<string> contigs_by_id, const bool print_supporting_reads, const bool print_fusion_sequence, const bool write_discarded_fusions) {
 //TODO add "chr", if necessary
 
@@ -463,26 +519,9 @@ void write_fusions_to_file(fusions_t& fusions, const string& output_file, gene_a
 			continue;
 
 		// describe site of breakpoint
-		string site1, site2;
-		if ((**fusion).gene1->is_dummy) {
-			site1 = "intergenic";
-		} else if ((**fusion).spliced1) {
-			site1 = "splice-site";
-		} else if ((**fusion).exonic1) {
-			site1 = "exonic";
-		} else {
-			site1 = "intronic";
-		}
-		if ((**fusion).gene2->is_dummy) {
-			site2 = "intergenic";
-		} else if ((**fusion).spliced2) {
-			site2 = "splice-site";
-		} else if ((**fusion).exonic2) {
-			site2 = "exonic";
-		} else {
-			site2 = "intronic";
-		}
-
+		string site1 = get_fusion_site((**fusion).gene1, (**fusion).spliced1, (**fusion).exonic1, (**fusion).contig1, (**fusion).breakpoint1, exon_annotation_index);
+		string site2 = get_fusion_site((**fusion).gene2, (**fusion).spliced2, (**fusion).exonic2, (**fusion).contig2, (**fusion).breakpoint2, exon_annotation_index);
+		
 		// convert closest genomic breakpoints to strings of the format <chr>:<position>(<distance to transcriptomic breakpoint>)
 		string closest_genomic_breakpoint1, closest_genomic_breakpoint2;
 		if ((**fusion).closest_genomic_breakpoint1 >= 0) {
