@@ -25,6 +25,7 @@ struct gtf_features_t {
 	string feature_utr;
 	string feature_gene;
 };
+const string DEFAULT_GTF_FEATURES = "gene_name=gene_name gene_id=gene_id transcript_id=transcript_id gene_status=gene_status status_KNOWN=KNOWN gene_type=gene_type type_protein_coding=protein_coding feature_exon=exon feature_UTR=UTR feature_gene=gene";
 
 bool parse_gtf_features(string gtf_features_string, gtf_features_t& gtf_features);
 

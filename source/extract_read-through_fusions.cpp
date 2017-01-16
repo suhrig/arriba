@@ -101,7 +101,7 @@ int main(int argc, char **argv) {
 	gene_annotation_t gene_annotation;
 	exon_annotation_t exon_annotation;
 	unordered_map<string,gene_t> gene_names;
-	read_annotation_gtf(options.gene_annotation_file, contigs, "KNOWN", gene_annotation, exon_annotation, gene_names);
+	read_annotation_gtf(options.gene_annotation_file, contigs, options.gtf_features, gene_annotation, exon_annotation, gene_names);
 	exon_annotation.clear(); // we don't need exon information
 	gene_names.clear(); // we don't need gene names
 	gene_annotation_index_t gene_annotation_index;

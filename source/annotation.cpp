@@ -51,6 +51,17 @@ bool parse_gtf_features(string gtf_features_string, gtf_features_t& gtf_features
 		}
 	}
 
+	if (gtf_features.gene_name.empty()) return false;
+	if (gtf_features.gene_id.empty()) return false;
+	if (gtf_features.transcript_id.empty()) return false;
+	if (gtf_features.gene_status.empty()) return false;
+	if (gtf_features.status_known.empty()) return false;
+	if (gtf_features.gene_type.empty()) return false;
+	if (gtf_features.type_protein_coding.empty()) return false;
+	if (gtf_features.feature_exon.empty()) return false;
+	if (gtf_features.feature_utr.empty()) return false;
+	if (gtf_features.feature_gene.empty()) return false;
+
 	return true;
 }
 

@@ -11,6 +11,7 @@ struct options_t {
 	string input_bam_file;
 	string output_bam_file;
 	bool single_end;
+	string gtf_features;
 };
 
 options_t get_default_options();

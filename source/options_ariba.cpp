@@ -32,7 +32,7 @@ options_t get_default_options() {
 	options.max_kmer_content = 0.6;
 	options.fragment_length = 200;
 	options.strandedness = STRANDEDNESS_NO;
-	options.gtf_features = "gene_name=gene_name gene_id=gene_id transcript_id=transcript_id gene_status=gene_status status_KNOWN=KNOWN gene_type=gene_type type_protein_coding=protein_coding feature_exon=exon feature_UTR=UTR feature_gene=gene";
+	options.gtf_features = DEFAULT_GTF_FEATURES;
 
 	return options;
 }
