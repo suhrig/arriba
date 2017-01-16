@@ -18,7 +18,9 @@ struct gtf_features_t {
 	string gene_id;
 	string transcript_id;
 	string gene_status;
-	string keyword_known;
+	string status_known;
+	string gene_type;
+	string type_protein_coding;
 	string feature_exon;
 	string feature_utr;
 	string feature_gene;

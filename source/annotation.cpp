@@ -33,7 +33,11 @@ bool parse_gtf_features(string gtf_features_string, gtf_features_t& gtf_features
 		} else if (feature == "gene_status") {
 			gtf_features.gene_status = value;
 		} else if (feature == "status_KNOWN") {
-			gtf_features.keyword_known = value;
+			gtf_features.status_known = value;
+		} else if (feature == "gene_type") {
+			gtf_features.gene_type = value;
+		} else if (feature == "type_protein_coding") {
+			gtf_features.type_protein_coding = value;
 		} else if (feature == "feature_exon") {
 			gtf_features.feature_exon = value;
 		} else if (feature == "feature_UTR") {
@@ -146,7 +150,11 @@ void read_annotation_gtf(const string& filename, const contigs_t& contigs, const
 					string gene_status;
 					if (!get_gtf_attribute(attributes, gtf_features.gene_status, gene_status))
 						continue;
-					gene_annotation_record.is_known = gene_status == gtf_features.keyword_known;
+					gene_annotation_record.is_known = gene_status == gtf_features.status_known;
+					string gene_type;
+					if (!get_gtf_attribute(attributes, gtf_features.gene_type, gene_type))
+						continue;
+					gene_annotation_record.is_protein_coding = gene_type == gtf_features.type_protein_coding;
 					gene_annotation.push_back(gene_annotation_record);
 
 					// remember ID of gene, so we can map exons to genes later
@@ -235,12 +243,6 @@ void read_annotation_gtf(const string& filename, const contigs_t& contigs, const
 	for (auto last_exons = last_exons_by_transcript.begin(); last_exons != last_exons_by_transcript.end(); ++last_exons)
 		for (auto last_exon = last_exons->second.begin(); last_exon != last_exons->second.end(); ++last_exon)
 			(**last_exon).is_transcript_end = true;
-
-	// don't mark exons of genes with just one exon as transcript_start/transcript_end (i.e., undo marking)
-	// these are often predicted genes, which are often involved in splicing
-	for (exon_annotation_t::iterator exon = exon_annotation.begin(); exon != exon_annotation.end(); ++exon)
-		if (exon->is_transcript_start && exon->is_transcript_end)
-			exon->is_transcript_start = exon->is_transcript_end = false;
 }
 
 // given a coordinate, return all exons, if the coordinate is a splice-site
@@ -267,14 +269,22 @@ void get_exons_from_splice_site(const gene_t gene, const direction_t direction, 
 		if (exons_at_breakpoint != exon_annotation_index[contig].end())
 			for (exon_multiset_t::const_iterator exon = exons_at_breakpoint->second.begin(); exon != exons_at_breakpoint->second.end(); ++exon)
 				if ((**exon).gene == gene && // exon must belong to given gene
-				    !(((**exon).is_transcript_start && (**exon).strand == FORWARD || (**exon).is_transcript_end && (**exon).strand == REVERSE) && (**exon).start > exons_before_breakpoint->first && direction == UPSTREAM)) // when orientation is upstream, exon must not be terminal
+				    !(((**exon).is_transcript_start && (**exon).strand == FORWARD || (**exon).is_transcript_end && (**exon).strand == REVERSE) && // exon is not terminal
+				      (**exon).is_transcript_start != (**exon).is_transcript_end && // exon is not start AND end (i.e., transcript has more than 1 exon)
+				      (**exon).gene->is_protein_coding && // exon belongs to protein coding gene
+				      (**exon).start > exons_before_breakpoint->first && // exon does not span breakpoint
+				      direction == UPSTREAM)) // only skip terminal exons, if we are possibly at the beginning of the gene
 					exons_of_gene_at_breakpoint.insert(*exon);
 
 		// get all exons before the breakpoint that are not a transcript end and belong to <gene>
 		exon_multiset_t exons_of_gene_before_breakpoint;
 		for (exon_multiset_t::const_iterator exon = exons_before_breakpoint->second.begin(); exon != exons_before_breakpoint->second.end(); ++exon)
 			if ((**exon).gene == gene && // exon must belong to given gene
-			    !(((**exon).is_transcript_end && (**exon).strand == FORWARD || (**exon).is_transcript_start && (**exon).strand == REVERSE) && (**exon).end <= exons_before_breakpoint->first && direction == DOWNSTREAM)) // when orientation is downstream, exon must not be terminal
+			    !(((**exon).is_transcript_end && (**exon).strand == FORWARD || (**exon).is_transcript_start && (**exon).strand == REVERSE) && // exon is not terminal
+			      (**exon).is_transcript_start != (**exon).is_transcript_end && // exon is not start AND end (i.e., transcript has more than 1 exon)
+			      (**exon).gene->is_protein_coding && // exon belongs to protein coding gene
+			      (**exon).end <= exons_before_breakpoint->first && // exon does not span breakpoint
+			      direction == DOWNSTREAM)) // only skip terminal exons, if we are possibly at the end of the gene
 				exons_of_gene_before_breakpoint.insert(*exon);
 
 		// we are at a splice-site, if the number of exons before vs. at the breakpoint differ
@@ -294,7 +304,11 @@ void get_exons_from_splice_site(const gene_t gene, const direction_t direction, 
 		exon_multiset_t exons_of_gene_at_breakpoint;
 		for (exon_multiset_t::const_iterator exon = exons_at_breakpoint->second.begin(); exon != exons_at_breakpoint->second.end(); ++exon)
 			if ((**exon).gene == gene && // exon must belong to given gene
-			    !(((**exon).is_transcript_end && (**exon).strand == FORWARD || (**exon).is_transcript_start && (**exon).strand == REVERSE) && (**exon).end <= exons_at_breakpoint->first && direction == DOWNSTREAM)) // when orientation is downstream, exon must not be terminal
+			    !(((**exon).is_transcript_end && (**exon).strand == FORWARD || (**exon).is_transcript_start && (**exon).strand == REVERSE) && // exon is not terminal
+			      (**exon).is_transcript_start != (**exon).is_transcript_end && // exon is not start AND end (i.e., transcript has more than 1 exon)
+			      (**exon).gene->is_protein_coding && // exon belongs to protein coding gene
+			      (**exon).end <= exons_at_breakpoint->first && // exon does not span breakpoint
+			      direction == DOWNSTREAM)) // only skip terminal exons, if we are possibly at the end of the gene
 				exons_of_gene_at_breakpoint.insert(*exon);
 
 		// get all exons after the breakpoint that are not a transcript start and belong to <gene>
@@ -304,7 +318,11 @@ void get_exons_from_splice_site(const gene_t gene, const direction_t direction, 
 		if (exons_after_breakpoint != exon_annotation_index[contig].end())
 			for (exon_multiset_t::const_iterator exon = exons_after_breakpoint->second.begin(); exon != exons_after_breakpoint->second.end(); ++exon)
 				if ((**exon).gene == gene && // exon must belong to given gene
-				    !(((**exon).is_transcript_start && (**exon).strand == FORWARD || (**exon).is_transcript_end && (**exon).strand == REVERSE) && (**exon).start > exons_at_breakpoint->first && direction == UPSTREAM)) // when orientation is upstream, exon must not be terminal
+				    !(((**exon).is_transcript_start && (**exon).strand == FORWARD || (**exon).is_transcript_end && (**exon).strand == REVERSE) && // exon is not terminal
+				      (**exon).is_transcript_start != (**exon).is_transcript_end && // exon is not start AND end (i.e., transcript has more than 1 exon)
+				      (**exon).gene->is_protein_coding && // exon belongs to protein coding gene
+				      (**exon).start > exons_at_breakpoint->first && // exon does not span breakpoint
+				      direction == UPSTREAM)) // only skip terminal exons, if we are possibly at the beginning of the gene
 					exons_of_gene_after_breakpoint.insert(*exon);
 
 		// we are at a splice-site, if the number of exons after vs. at the breakpoint differ

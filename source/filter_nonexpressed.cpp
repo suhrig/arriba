@@ -34,42 +34,7 @@ bool region_has_non_chimeric_reads(BGZF* bam_file, bam_index_t* bam_index, const
 	return result;
 }
 
-unsigned int filter_nonexpressed(fusions_t& fusions, const string& bam_file_path, chimeric_alignments_t& chimeric_alignments, exon_annotation_t& exon_annotation, const int max_mate_gap) {
-
-	// When the breakpoint is close to the start/end of a transcript, then
-	// there might not be any reads in the normal rna.bam file around the breakpoint
-	// other than the chimeric reads.
-	// For this reason, we do not filter these breakpoints, when there is no expression
-	// in their vicinity. But we need to determine which exons are the first/last
-	// exons of a gene.
-	unordered_map< gene_t,vector<exon_annotation_record_t*> > terminal_exons_by_gene;
-	for (exon_annotation_t::iterator exon = exon_annotation.begin(); exon != exon_annotation.end(); ++exon) {
-
-		if (terminal_exons_by_gene[exon->gene].size() == 0) { // we encounter the first exon of this gene => simply add it
-			terminal_exons_by_gene[exon->gene].push_back(&(*exon));
-		} else if (terminal_exons_by_gene[exon->gene].size() == 1) { // we encounter the second exon of this gene => simply add it
-			if (exon->start < terminal_exons_by_gene[exon->gene][0]->start || exon->end > terminal_exons_by_gene[exon->gene][0]->end) { // ignore exons which are encompassed by other exons
-				if (exon->start <= terminal_exons_by_gene[exon->gene][0]->start && exon->end >= terminal_exons_by_gene[exon->gene][0]->end) {
-					terminal_exons_by_gene[exon->gene][0] = &(*exon);
-				} else {
-					terminal_exons_by_gene[exon->gene].push_back(&(*exon));
-					if (terminal_exons_by_gene[exon->gene][0]->start > terminal_exons_by_gene[exon->gene][1]->start ||
-					    terminal_exons_by_gene[exon->gene][0]->end > terminal_exons_by_gene[exon->gene][1]->end)
-						swap(terminal_exons_by_gene[exon->gene][0], terminal_exons_by_gene[exon->gene][1]); // make sure exons are sorted by coordinate
-				}
-			}
-
-		} else { // we encounter the third (or more) exon of this gene => check if it is a terminal exon
-			if (terminal_exons_by_gene[exon->gene][0]->start > exon->start ||
-			    terminal_exons_by_gene[exon->gene][0]->start == exon->start && terminal_exons_by_gene[exon->gene][0]->end < exon->end) {
-				terminal_exons_by_gene[exon->gene][0] = &(*exon);
-			} else if (terminal_exons_by_gene[exon->gene][1]->end < exon->end ||
-			           terminal_exons_by_gene[exon->gene][1]->end == exon->end && terminal_exons_by_gene[exon->gene][1]->start > exon->start) {
-				terminal_exons_by_gene[exon->gene][1] = &(*exon);
-			}
-		}
-
-	}
+unsigned int filter_nonexpressed(fusions_t& fusions, const string& bam_file_path, chimeric_alignments_t& chimeric_alignments, exon_annotation_index_t& exon_annotation_index, const int max_mate_gap) {
 
 	// open BAM file and load index
 	BGZF* bam_file = bam_open(bam_file_path.c_str(), "rb");
@@ -77,22 +42,22 @@ unsigned int filter_nonexpressed(fusions_t& fusions, const string& bam_file_path
 
 	// for each fusion, check if there is any expression around the breakpoint
 	unsigned int remaining = 0;
-	for (fusions_t::iterator i = fusions.begin(); i != fusions.end(); ++i) {
+	for (fusions_t::iterator fusion = fusions.begin(); fusion != fusions.end(); ++fusion) {
 
-		if (i->second.filter != NULL)
+		if (fusion->second.filter != NULL)
 			continue; // fusion has already been filtered
 
 		
-		if (!i->second.is_read_through()) {
+		if (!fusion->second.is_read_through()) {
 
-			if (i->second.split_reads1 + i->second.split_reads2 != 0 &&
-			    i->second.split_reads1 + i->second.discordant_mates != 0 &&
-			    i->second.split_reads2 + i->second.discordant_mates != 0) {
+			if (fusion->second.split_reads1 + fusion->second.split_reads2 != 0 &&
+			    fusion->second.split_reads1 + fusion->second.discordant_mates != 0 &&
+			    fusion->second.split_reads2 + fusion->second.discordant_mates != 0) {
 				++remaining;
 				continue; // don't filter fusions with high support
 			}
 
-			if (i->second.spliced1 || i->second.spliced2) {
+			if (fusion->second.spliced1 || fusion->second.spliced2) {
 				++remaining;
 				continue; // don't filter spliced breakpoints (they are more credible)
 			}
@@ -102,51 +67,55 @@ unsigned int filter_nonexpressed(fusions_t& fusions, const string& bam_file_path
 		bool is_in_terminal_exon;
 
 		// check if breakpoint1 is in a terminal exon
+		exon_set_t exons;
+		get_annotation_by_coordinate(fusion->second.contig1, fusion->second.breakpoint1, fusion->second.breakpoint1, exons, exon_annotation_index);
 		is_in_terminal_exon = false;
-		for (auto exon = terminal_exons_by_gene[i->second.gene1].begin(); exon != terminal_exons_by_gene[i->second.gene1].end() && !is_in_terminal_exon; ++exon)
-			if (i->second.breakpoint1 >= (**exon).start && i->second.breakpoint1 <= (**exon).end)
+		for (auto exon = exons.begin(); exon != exons.end() && !is_in_terminal_exon; ++exon)
+			if ((**exon).gene == fusion->second.gene1 && ((**exon).is_transcript_start || (**exon).is_transcript_end))
 				is_in_terminal_exon = true;
 
 		if (!is_in_terminal_exon) {
 			// check if there is coverage around breakpoint1
-			if (i->second.direction1 == UPSTREAM) {
-				start = i->second.breakpoint1;
-				if (i->second.split_reads1 + i->second.split_reads2 == 0)
+			if (fusion->second.direction1 == UPSTREAM) {
+				start = fusion->second.breakpoint1;
+				if (fusion->second.split_reads1 + fusion->second.split_reads2 == 0)
 					start -= max_mate_gap;
-				end = max(i->second.breakpoint1 + max_mate_gap, i->second.anchor_start1);
+				end = max(fusion->second.breakpoint1 + max_mate_gap, fusion->second.anchor_start1);
 			} else {
-				start = min(i->second.breakpoint1 - max_mate_gap, i->second.anchor_start1);
-				end = i->second.breakpoint1;
-				if (i->second.split_reads1 + i->second.split_reads2 == 0)
+				start = min(fusion->second.breakpoint1 - max_mate_gap, fusion->second.anchor_start1);
+				end = fusion->second.breakpoint1;
+				if (fusion->second.split_reads1 + fusion->second.split_reads2 == 0)
 					end += max_mate_gap;
 			}
-			if (!region_has_non_chimeric_reads(bam_file, bam_index, i->second.contig1, start, end, i->second.direction1, chimeric_alignments, i->second.exonic1)) {
-				i->second.filter = FILTERS.at("non_expressed");
+			if (!region_has_non_chimeric_reads(bam_file, bam_index, fusion->second.contig1, start, end, fusion->second.direction1, chimeric_alignments, fusion->second.exonic1)) {
+				fusion->second.filter = FILTERS.at("non_expressed");
 				continue;
 			}
 		}
 
 		// check if breakpoint2 is in a terminal exon
+		exons.clear();
+		get_annotation_by_coordinate(fusion->second.contig2, fusion->second.breakpoint2, fusion->second.breakpoint2, exons, exon_annotation_index);
 		is_in_terminal_exon = false;
-		for (auto exon = terminal_exons_by_gene[i->second.gene2].begin(); exon != terminal_exons_by_gene[i->second.gene2].end() && !is_in_terminal_exon; ++exon)
-			if (i->second.breakpoint2 >= (**exon).start && i->second.breakpoint2 <= (**exon).end)
+		for (auto exon = exons.begin(); exon != exons.end() && !is_in_terminal_exon; ++exon)
+			if ((**exon).gene == fusion->second.gene2 && ((**exon).is_transcript_start || (**exon).is_transcript_end))
 				is_in_terminal_exon = true;
 
 		if (!is_in_terminal_exon) {
 			// check if there is coverage around breakpoint2
-			if (i->second.direction2 == UPSTREAM) {
-				start = i->second.breakpoint2;
-				if (i->second.split_reads1 + i->second.split_reads2 == 0)
+			if (fusion->second.direction2 == UPSTREAM) {
+				start = fusion->second.breakpoint2;
+				if (fusion->second.split_reads1 + fusion->second.split_reads2 == 0)
 					start -= max_mate_gap;
-				end = max(i->second.breakpoint2 + max_mate_gap, i->second.anchor_start2);
+				end = max(fusion->second.breakpoint2 + max_mate_gap, fusion->second.anchor_start2);
 			} else {
-				start = min(i->second.breakpoint2 - max_mate_gap, i->second.anchor_start2);
-				end = i->second.breakpoint2;
-				if (i->second.split_reads1 + i->second.split_reads2 == 0)
+				start = min(fusion->second.breakpoint2 - max_mate_gap, fusion->second.anchor_start2);
+				end = fusion->second.breakpoint2;
+				if (fusion->second.split_reads1 + fusion->second.split_reads2 == 0)
 					end += max_mate_gap;
 			}
-			if (!region_has_non_chimeric_reads(bam_file, bam_index, i->second.contig2, start, end, i->second.direction2, chimeric_alignments, i->second.exonic2)) {
-				i->second.filter = FILTERS.at("non_expressed");
+			if (!region_has_non_chimeric_reads(bam_file, bam_index, fusion->second.contig2, start, end, fusion->second.direction2, chimeric_alignments, fusion->second.exonic2)) {
+				fusion->second.filter = FILTERS.at("non_expressed");
 				continue;
 			}
 		}

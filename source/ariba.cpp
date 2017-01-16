@@ -400,7 +400,7 @@ int main(int argc, char **argv) {
 	// this step must come near the end, because random BAM file accesses are slow
 	if (options.filters.at("non_expressed")) {
 		cout << "Filtering fusions with no expression in '" << options.rna_bam_file << "'" << flush;
-		cout << " (remaining=" << filter_nonexpressed(fusions, options.rna_bam_file, chimeric_alignments, exon_annotation, max_mate_gap) << ")" << endl;
+		cout << " (remaining=" << filter_nonexpressed(fusions, options.rna_bam_file, chimeric_alignments, exon_annotation_index, max_mate_gap) << ")" << endl;
 	}
 
 	// this step must come after all heuristic filters, to undo them
