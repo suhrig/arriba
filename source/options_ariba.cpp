@@ -75,7 +75,7 @@ void print_usage(const string& error_message) {
 	                  "and to filter fusions with no expression around the "
 	                  "breakpoints, which are likely false positives.")
 	     << wrap_help("-d FILE", "Tab-separated file with coordinates of structural variants "
-	                  "found using whole-genome sequencing data. These coordinates server to "
+	                  "found using whole-genome sequencing data. These coordinates serve to "
 	                  "increase sensitivity towards weakly expressed fusions and to eliminate "
 	                  "fusions with low evidence. The file must contain the following columns:\n"
 	                  "breakpoint1: chromosome and position of 1st breakpoint separated by a colon\n"
@@ -90,12 +90,12 @@ void print_usage(const string& error_message) {
 	                  "file contains the following columns separated by tabs:\n"
 	                  "gene1: name of the gene that makes the 5' end\n"
 	                  "gene2: name of the gene that makes the 3' end\n"
-	                  "strand1: strand of gene1 as per annotation and fusion\n"
-	                  "strand2: strand of gene2 as per annotation and fusion\n"
+	                  "strand1: strand of gene1 as per annotation and as predicted for the fusion\n"
+	                  "strand2: strand of gene2 as per annotation and as predicted for the fusion\n"
 	                  "breakpoint1: coordinate of breakpoint in gene1\n"
 	                  "breakpoint2: coordinate of breakpoint in gene2\n"
-	                  "site1: site in gene1 (intergenic / exonic / intronic / splice-site)\n"
-	                  "site2: site in gene2 (intergenic / exonic / intronic / splice-site)\n"
+	                  "site1: site in gene1 (intergenic / exon / intron / splice-site / UTR)\n"
+	                  "site2: site in gene2 (intergenic / exon / intron / splice-site / UTR)\n"
 	                  "direction1: whether gene2 is fused to gene1 upstream (at a coordinate lower than breakpoint1) or downstream (at a coordinate higher than breakpoint1)\n"
 	                  "direction2: whether gene1 is fused to gene2 upstream (at a coordinate lower than breakpoint2) or downstream (at a coordinate higher than breakpoint2)\n"
 	                  "split_reads1: number of split reads with anchor in gene1\n"
@@ -105,7 +105,7 @@ void print_usage(const string& error_message) {
 	                  "closest_genomic_breakpoint1: if -d is given, the closest genomic breakpoint to transcriptomic breakpoint1\n"
 	                  "closest_genomic_breakpoint2: if -d is given, the closest genomic breakpoint to transcriptomic breakpoint2\n"
 	                  "filters: why the fusion or some of its reads were discarded, numbers in paranthesis indicate the number of reads removed by the respective filter\n"
-	                  "fusion_transcript: if -a is given, the sequence of a transcript which spans the fusion breakpoints (may be empty, when the breakpoint is close to an exon boundary)\n"
+	                  "fusion_transcript: if -T is given, the sequence of a transcript which spans the fusion breakpoints (may be empty, when the strands are unclear)\n"
 	                  "read_identifiers: if -I is given, the names of supporting reads")
 	     << wrap_help("-O FILE", "Output file with fusions that were discarded due to "
 	                  "filtering. See parameter -o for a description of the format.") 
@@ -115,33 +115,31 @@ void print_usage(const string& error_message) {
 	                  "a different gene by STAR. A segment is thought to be a "
 	                  "mismapper, if it also maps somewhere within the donor gene "
 	                  "albeit with lower mapping quality. The assembly file is used "
-	                  "to extract the sequence of the donor gene. Moreover, the output "
-	                  "file will contain the sequence of a transcript spanning the "
-	                  "fusion breakpoints.")
+	                  "to extract the sequence of the donor gene.\nMoreover, when an assembly "
+	                  "is provided, Ariba can indicate reference mismatches in the fusion "
+	                  "transcript (see  -T).")
 	     << wrap_help("-k FILE", "File containing known/recurrent fusions. Some cancer "
 	                  "entities are often characterized by fusions between the same pair of genes. "
 	                  "In order to boost sensitivity, a list of known fusions can be supplied using this parameter. "
 	                  "The list must contain two columns with the names of the fused genes, "
-	                  "separated by tabs. The 'promiscuous_genes' filter will be "
-	                  "disabled for these pairs of genes, such that fusions are detected even "
-	                  "in the presence of a level of noise (provided that no other filter "
-	                  "discards the fusion). A useful list of recurrent fusions by cancer entity can "
+	                  "separated by tabs.\n"
+	                  "A useful list of recurrent fusions by cancer entity can "
 	                  "be obtained from CancerGeneCensus. The file may be gzip-compressed.")
 	     << wrap_help("-b FILE", "File containing blacklisted ranges. The file has two tab-separated "
 	                  "columns. Both columns contain a genomic coordinate of the "
 	                  "format 'contig:position' or 'contig:start-end'. Alternatively, the second "
 	                  "column can contain one of the following keywords: any, split_read_donor, "
-	                  "split_read_acceptor, split_read_any, discordant_mates. The file may be "
-	                  "gzip-compressed.")
+	                  "split_read_acceptor, split_read_any, discordant_mates, low_support, "
+	                  "read_through, filter_spliced. The file may be gzip-compressed.")
 	     << wrap_help("-1", "Single-end data. Default: " + string((default_options.single_end) ? "single-end" : "paired-end"))
 	     << wrap_help("-s STRANDEDNESS", "Whether a strand-specific protocol was used for library preparation, and if so, "
 	                  "the type of strandedness (yes/no/reverse). When unstranded data is processed, the strand "
-	                  "can sometimes be inferred from splice-patterns. Stranded data helps resolve "
-	                  "ambiguities. Default: " + string((default_options.strandedness == STRANDEDNESS_NO) ? "no" : ((default_options.strandedness == STRANDEDNESS_YES) ? "yes" : "reverse")))
-	     << wrap_help("-i CONTIGS", "A comma-/space-separated list of interesting contigs. Fusions "
+	                  "can sometimes be inferred from splice-patterns. But in unclear situations, stranded "
+	                  "data helps resolve ambiguities. Default: " + string((default_options.strandedness == STRANDEDNESS_NO) ? "no" : ((default_options.strandedness == STRANDEDNESS_YES) ? "yes" : "reverse")))
+	     << wrap_help("-i CONTIGS", "Comma-/space-separated list of interesting contigs. Fusions "
 	                  "between genes on other contigs are ignored. Contigs can be specified with "
 	                  "or without the prefix \"chr\".\nDefault: " + default_options.interesting_contigs)
-	     << wrap_help("-f FILTERS", "A comma-/space-separated list of filters to disable. By default "
+	     << wrap_help("-f FILTERS", "Comma-/space-separated list of filters to disable. By default "
 	                  "all filters are enabled. Valid values: " + valid_filters)
 	     << wrap_help("-E MAX_E-VALUE", "Ariba estimates the number of fusions with a given "
 	                  "number of supporting reads which one would expect to see by random chance. "
@@ -149,9 +147,7 @@ void print_usage(const string& error_message) {
 	                  "the fusion is discarded by the 'promiscuous_genes' filter. Note: "
 	                  "Increasing this threshold can dramatically increase the "
 	                  "number of false positives and may increase the runtime "
-	                  "of time-consuming steps, most notably the 'mismappers' "
-	                  "and 'no_expression' filters. Fractional values are "
-	                  "possible. Default: " + to_string(default_options.evalue_cutoff))
+	                  "of resource-intensive steps. Fractional values are possible. Default: " + to_string(default_options.evalue_cutoff))
 	     << wrap_help("-S MIN_SUPPORTING_READS", "The 'min_support' filter discards all fusions "
 	                  "with fewer than this many supporting reads (split reads and discordant "
 	                  "mates combined). Default: " + to_string(default_options.min_support))
@@ -162,20 +158,14 @@ void print_usage(const string& error_message) {
 	                  "adjacent to homopolymers of the given length or more. Default: " + to_string(default_options.homopolymer_length))
 	     << wrap_help("-D MAX_GENOMIC_BREAKPOINT_DISTANCE", "When a file with genomic breakpoints "
 	                  "obtained via whole-genome sequencing is supplied via the -d parameter, "
-	                  "This parameter determines how far genomic breakpoints may be away from "
-	                  "a transcriptomic breakpoint to still consider is as the same event. "
+	                  "this parameter determines how far a genomic breakpoint may be away from "
+	                  "a transcriptomic breakpoint to consider it as a related event. "
 	                  "For events inside genes, the distance is added to the end of the gene; "
 	                  "for intergenic events, the distance threshold is applied as is. Default: " +
 	                  to_string(default_options.max_genomic_breakpoint_distance))
-	     << wrap_help("-R READ_THROUGH_DISTANCE", "The executable 'extract_read-through_fusions' extracts "
-	                  "chimeric alignments from the BAM file with RNA-Seq data which could "
-	                  "potentially originate from read-through fusions (fusions of neighboring "
-	                  "genes). Any pair of mates where one of the mates does not map to the "
-	                  "same gene as the other mate is considered a potential read-through fusion. "
-	                  "Most of these alignments map to the UTRs of a gene, however, and are "
-	                  "therefore false positives. The 'read_through' filter removes mates "
-	                  "that map less than the given distance away from the gene of the other "
-	                  "mate. Default: " + to_string(default_options.min_read_through_distance))
+	     << wrap_help("-R READ_THROUGH_DISTANCE", "The 'read_through' filter removes read-through fusions "
+	                  "where the breakpoints are less than the given distance away from each other. "
+	                  "Default: " + to_string(default_options.min_read_through_distance))
 	     << wrap_help("-A MIN_ANCHOR_LENGTH", "Alignment artifacts are often characterized by "
 	                  "split reads coming from only gene and no discordant mates. Moreover, the split reads only "
 	                  "align to a short stretch in one of the genes. The 'short_anchor' "
@@ -196,7 +186,7 @@ void print_usage(const string& error_message) {
 	                  "The following letters have special meanings:\n"
 	                  "lowercase letter = SNP/SNV, square brackets = insertion, dash = deletion, "
 	                  "ellipsis = intron/not covered bases, pipe = breakpoint, lowercase letters "
-	                  "flanked by pipes = non-template bases.\nSpecify twice to also print the "
+	                  "flanked by pipes = non-template bases.\nSpecify the flag twice to also print the "
 	                  "fusion transcripts to the file containing discarded fusions (-O). "
 	                  "Note: SNVs/SNPs are not indicated in the file containing discarded fusions. "
 	                  "Default: " + string((default_options.print_fusion_sequence) ? "on" : "off"))
