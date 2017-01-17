@@ -37,12 +37,20 @@ pdfWidth <- as.integer(parseStringParameter("pdfWidth", args, "11"))
 pdfHeight <- as.integer(parseStringParameter("pdfHeight", args, "7"))
 
 # read fusions
-fusions <- read.table(fusionsFile, stringsAsFactors=F, sep="\t", header=T, comment.char="")
+fusions <- read.table(fusionsFile, stringsAsFactors=F, sep="\t", header=T, comment.char="", quote="")
 colnames(fusions)[colnames(fusions) == "X.gene1"] <- "gene1"
 fusions$contig1 <- sub(":.*", "", fusions$breakpoint1)
 fusions$breakpoint1 <- as.numeric(sub(".*:", "", fusions$breakpoint1, perl=T))
 fusions$contig2 <- sub(":.*", "", fusions$breakpoint2)
 fusions$breakpoint2 <- as.numeric(sub(".*:", "", fusions$breakpoint2, perl=T))
+
+pdf(outputFile, onefile=T, paper=pdfPaper, width=pdfWidth, height=pdfHeight, title=fusionsFile)
+if (nrow(fusions) == 0) {
+	plot(0, 0, type="l", xaxt="n", yaxt="n", xlab="", ylab="")
+	text(0, 0, "Error: empty input file\n")
+	dev.off()
+	quit("no")
+}
 
 # read exon annotation
 exons <- read.table(exonsFile, header=F, sep="\t", comment.char="#", quote="", stringsAsFactors=F)[,c(1, 3, 4, 5, 7, 9)]
@@ -87,8 +95,6 @@ drawStrands <- function(start, end, y, col, strand, scalingFactor, drawLabels=T,
 	}
 }
 
-pdf(outputFile, onefile=T, paper=pdfPaper, width=pdfWidth, height=pdfHeight, title=fusionsFile)
-
 findExons <- function(exons, gene, direction, contig, breakpoint) {
 	# look for exon with breakpoint as splice site
 	transcripts <- exons[exons$geneName == gene & exons$contig == contig & (direction == "downstream" & abs(exons$end - breakpoint) <= 2 | direction == "upstream" & abs(exons$start - breakpoint) <= 2),"transcript"]
@@ -104,9 +110,9 @@ findExons <- function(exons, gene, direction, contig, breakpoint) {
 
 for (fusion in 1:nrow(fusions)) {
 	exons1 <- findExons(exons, fusions[fusion,"gene1"], fusions[fusion,"direction1"], fusions[fusion,"contig1"], fusions[fusion,"breakpoint1"])
-	if (nrow(exons1) == 0) { plot(0, 0, type="l", xaxt="n", yaxt="n"); text(0, 0, paste0("Error: exon coordinates of ", fusions[fusion,"gene1"], " not found in\n", exonsFile)); next }
+	if (nrow(exons1) == 0) { plot(0, 0, type="l", xaxt="n", yaxt="n", xlab="", ylab=""); text(0, 0, paste0("Error: exon coordinates of ", fusions[fusion,"gene1"], " not found in\n", exonsFile)); next }
 	exons2 <- findExons(exons, fusions[fusion,"gene2"], fusions[fusion,"direction2"], fusions[fusion,"contig2"], fusions[fusion,"breakpoint2"])
-	if (nrow(exons2) == 0) { plot(0, 0, type="l", xaxt="n", yaxt="n"); text(0, 0, paste0("Error: exon coordinates of ", fusions[fusion,"gene2"], " not found in\n", exonsFile)); next }
+	if (nrow(exons2) == 0) { plot(0, 0, type="l", xaxt="n", yaxt="n", xlab="", ylab=""); text(0, 0, paste0("Error: exon coordinates of ", fusions[fusion,"gene2"], " not found in\n", exonsFile)); next }
 
 	# insert dummy exons, if breakpoints are outside the gene (e.g., in UTRs)
 	# this avoids plotting artifacts
