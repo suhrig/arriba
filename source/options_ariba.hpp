@@ -38,6 +38,7 @@ struct options_t {
 	unsigned int fragment_length;
 	string gtf_features;
 	strandedness_t strandedness;
+	unsigned int min_spliced_events;
 };
 
 options_t get_default_options();

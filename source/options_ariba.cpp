@@ -33,6 +33,7 @@ options_t get_default_options() {
 	options.fragment_length = 200;
 	options.strandedness = STRANDEDNESS_NO;
 	options.gtf_features = DEFAULT_GTF_FEATURES;
+	options.min_spliced_events = 4;
 
 	return options;
 }
@@ -180,6 +181,8 @@ void print_usage(const string& error_message) {
 	                  "align to a short stretch in one of the genes. The 'short_anchor' "
 	                  "filter removes these fusions. This parameter sets the threshold in bp for "
 	                  "what the filter considers short. Default: " + to_string(default_options.min_anchor_length))
+	     << wrap_help("-M MANY_SPLICED_EVENTS", "The 'many_spliced' filter recovers fusions "
+	                  "between genes that have at least this many spliced breakpoints. Default: " + to_string(default_options.min_spliced_events))
 	     << wrap_help("-K MAX_KMER_CONTENT", "The 'low_entropy' filter removes reads with "
 	                  "repetitive 3-mers. If the 3-mers make up more than the given fraction "
 	                  "of the sequence, then the read is discarded. Default: " + to_string(default_options.max_kmer_content))
@@ -212,7 +215,7 @@ options_t parse_arguments(int argc, char **argv) {
 	// parse arguments
 	opterr = 0;
 	int c;
-	while ((c = getopt(argc, argv, "c:r:x:d:g:G:o:O:a:k:b:1s:i:f:E:s:m:H:D:R:A:K:F:TIh")) != -1) {
+	while ((c = getopt(argc, argv, "c:r:x:d:g:G:o:O:a:k:b:1s:i:f:E:s:m:H:D:R:A:M:K:F:TIh")) != -1) {
 		switch (c) {
 			case 'c':
 				options.chimeric_bam_file = optarg;
@@ -361,6 +364,9 @@ options_t parse_arguments(int argc, char **argv) {
 			case 'A':
 				options.min_anchor_length = atoi(optarg);
 				break;
+			case 'M':
+				options.min_spliced_events = atoi(optarg);
+				break;
 			case 'K':
 				options.max_kmer_content = atof(optarg);
 				break;
@@ -381,7 +387,7 @@ options_t parse_arguments(int argc, char **argv) {
 				break;
 			case '?':
 				switch (optopt) {
-					case 'c': case 'r': case 'x': case 'd': case 'g': case 'G': case 'o': case 'O': case 'a': case 'k': case 'b': case 'i': case 'f': case 'E': case 's': case 'm': case 'H': case 'D': case 'R': case 'A': case 'K': case 'F': case 'S':
+					case 'c': case 'r': case 'x': case 'd': case 'g': case 'G': case 'o': case 'O': case 'a': case 'k': case 'b': case 'i': case 'f': case 'E': case 's': case 'm': case 'H': case 'D': case 'R': case 'A': case 'M': case 'K': case 'F': case 'S':
 						print_usage(string("Option -") + ((char) optopt) + " requires an argument.");
 						break;
 					default:

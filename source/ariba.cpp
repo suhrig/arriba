@@ -27,14 +27,15 @@
 #include "recover_known_fusions.hpp"
 #include "recover_both_spliced.hpp"
 #include "filter_blacklisted_ranges.hpp"
-#include "filter_end_to_end.hpp"
 #include "filter_pcr_fusions.hpp"
 #include "merge_adjacent_fusions.hpp"
 #include "select_best.hpp"
+#include "filter_end_to_end.hpp"
 #include "filter_short_anchor.hpp"
-#include "filter_genomic_support.hpp"
 #include "filter_mismappers.hpp"
 #include "filter_nonexpressed.hpp"
+#include "filter_genomic_support.hpp"
+#include "recover_many_spliced.hpp"
 #include "recover_isoforms.hpp""
 #include "output_fusions.hpp"
 
@@ -61,8 +62,9 @@ unordered_map<string,filter_t> FILTERS({
 	{"merge_adjacent", NULL},
 	{"select_best", NULL},
 	{"short_anchor", NULL},
-	{"no_genomic_support", NULL},
 	{"non_expressed", NULL},
+	{"many_spliced", NULL},
+	{"no_genomic_support", NULL},
 	{"uninteresting_contigs", NULL},
 	{"genomic_support", NULL},
 	{"isoforms", NULL},
@@ -346,11 +348,6 @@ int main(int argc, char **argv) {
 		cout << " (remaining=" << recover_both_spliced(fusions, 200) << ")" << endl;
 	}
 
-	if (options.filters.at("end_to_end")) {
-		cout << "Filtering end-to-end fusions with low support" << flush;
-		cout << " (remaining=" << filter_end_to_end_fusions(fusions) << ")" << endl;
-	}
-
 	// this step must come after the 'merge_adjacent' filter,
 	// or else adjacent breakpoints will be counted several times
 	if (options.filters.at("pcr_fusions")) {
@@ -363,11 +360,6 @@ int main(int argc, char **argv) {
 	if (options.filters.at("select_best")) {
 		cout << "Selecting best breakpoints from genes with multiple breakpoints" << flush;
 		cout << " (remaining=" << select_most_supported_breakpoints(fusions) << ")" << endl;
-	}
-
-	if (options.filters.at("short_anchor")) {
-		cout << "Filtering fusions with anchors <=" << options.min_anchor_length << "nt" << flush;
-		cout << " (remaining=" << filter_short_anchor(fusions, options.min_anchor_length) << ")" << endl;
 	}
 
 	if (!options.genomic_breakpoints_file.empty() && options.filters.at("no_genomic_support")) {
@@ -386,6 +378,19 @@ int main(int argc, char **argv) {
 		cout << " (remaining=" << filter_blacklisted_ranges(fusions, options.blacklist_file, contigs, gene_names, options.evalue_cutoff, max_mate_gap) << ")" << endl;
 	}
 
+	// this must come after the 'select_best' filter, so that the 'many_spliced' filter can recover it
+	if (options.filters.at("short_anchor")) {
+		cout << "Filtering fusions with anchors <=" << options.min_anchor_length << "nt" << flush;
+		cout << " (remaining=" << filter_short_anchor(fusions, options.min_anchor_length) << ")" << endl;
+	}
+
+	// this must come after the 'select_best' filter, so that the 'many_spliced' filter can recover it
+	if (options.filters.at("end_to_end")) {
+		cout << "Filtering end-to-end fusions with low support" << flush;
+		cout << " (remaining=" << filter_end_to_end_fusions(fusions) << ")" << endl;
+	}
+
+	// this must come after the 'select_best' filter, so that the 'many_spliced' filter can recover it
 	if (!options.assembly_file.empty()) {
 		cout << "Fetching sequences of genes from '" << options.assembly_file << "'" << endl << flush;
 		fetch_gene_sequences_from_fasta(options.assembly_file, fusions, contigs_by_id);
@@ -398,14 +403,22 @@ int main(int argc, char **argv) {
 	}
 
 	// this step must come near the end, because random BAM file accesses are slow
+	// this must come after the 'select_best' filter, so that the 'many_spliced' filter can recover it
 	if (options.filters.at("non_expressed")) {
 		cout << "Filtering fusions with no expression in '" << options.rna_bam_file << "'" << flush;
 		cout << " (remaining=" << filter_nonexpressed(fusions, options.rna_bam_file, chimeric_alignments, exon_annotation_index, max_mate_gap) << ")" << endl;
 	}
 
+	// this step must come directly after the filters 'non_expressed', 'mismappers', 'end_to_end' and 'short_anchor',
+	// because it undoes them
+	if (options.filters.at("many_spliced")) {
+		cout << "Searching for fusions with >=" << options.min_spliced_events << " spliced events" << flush;
+		cout << " (remaining=" << recover_many_spliced(fusions, options.min_spliced_events) << ")" << endl;
+	}
+
 	// this step must come after all heuristic filters, to undo them
 	if (!options.genomic_breakpoints_file.empty() && options.filters.at("genomic_support")) {
-		cout << "Recovering fusions with support from WGS" << flush;
+		cout << "Searching for fusions with support from WGS" << flush;
 		cout << " (remaining=" << recover_genomic_support(fusions) << ")" << endl;
 
 		// the 'select_best' filter needs to be run again, to remove redundant events recovered by the 'genomic_support' filter
