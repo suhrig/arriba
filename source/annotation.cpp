@@ -156,7 +156,7 @@ void read_annotation_gtf(const string& filename, const contigs_t& contigs, const
 					gene_annotation_record.copy(annotation_record);
 
 					gene_annotation_record.name = gene_name;
-					gene_annotation_record.exonic_length = 0; // is calculated later in ariba.cpp
+					gene_annotation_record.exonic_length = 0; // is calculated later in arriba.cpp
 					gene_annotation_record.is_dummy = false;
 					string gene_status;
 					if (!get_gtf_attribute(attributes, gtf_features.gene_status, gene_status))

@@ -6,7 +6,7 @@
 #include <algorithm>
 #include "common.hpp"
 #include "annotation.hpp"
-#include "options_ariba.hpp"
+#include "options_arriba.hpp"
 #include "read_stats.hpp"
 #include "read_chimeric_alignments.hpp"
 #include "filter_multi_mappers.hpp"

@@ -1,10 +1,10 @@
 .PHONY: all
-all: ariba extract_read-through_fusions
+all: arriba extract_read-through_fusions
 
-.PHONY: ariba
-ariba:
-	$(MAKE) -C source ariba
-	cp source/ariba .
+.PHONY: arriba
+arriba:
+	$(MAKE) -C source arriba
+	cp source/arriba .
 
 .PHONY: extract_read-through_fusions
 extract_read-through_fusions:

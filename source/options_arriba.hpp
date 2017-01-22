@@ -1,5 +1,5 @@
-#ifndef _OPTIONS_ARIBA_H
-#define _OPTIONS_ARIBA_H 1
+#ifndef _OPTIONS_ARRIBA_H
+#define _OPTIONS_ARRIBA_H 1
 
 #include <iostream>
 #include <unordered_map>
@@ -47,4 +47,4 @@ void print_usage(const string& error_message = "");
 
 options_t parse_arguments(int argc, char **argv);
 
-#endif /* _OPTIONS_ARIBA_H */
+#endif /* _OPTIONS_ARRIBA_H */

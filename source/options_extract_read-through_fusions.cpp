@@ -28,13 +28,13 @@ void print_usage(const string& error_message) {
 	options_t default_options = get_default_options();
 
 	cerr << endl
-	     << "Ariba RNA fusion detector - extract_read-through_fusions" << endl
-	     << "--------------------------------------------------------" << endl
-	     << "Version: " << ARIBA_VERSION << endl << endl
-	     << "This is a helper utility of Ariba. The STAR RNA-Seq aligner does " << endl
+	     << "Arriba RNA fusion detector - extract_read-through_fusions" << endl
+	     << "---------------------------------------------------------" << endl
+	     << "Version: " << ARRIBA_VERSION << endl << endl
+	     << "This is a helper utility of Arriba. The STAR RNA-Seq aligner does " << endl
 	     << "not report read-through fusions in the chimeric BAM file. This program " << endl
 	     << "extracts reads supporting read-through fusions from the RNA BAM file. " << endl
-	     << "The output file should be passed to Ariba via the parameter -r." << endl
+	     << "The output file should be passed to Arriba via the parameter -r." << endl
 	     << "For optimal performance extract_read-through_fusions should be run " << endl
 	     << "while STAR is running (see usage)." << endl << endl
 	     << "Usage: extract_read-through_fusions -g annotation.gtf -i rna.bam -o read_through.bam" << endl
