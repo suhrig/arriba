@@ -331,8 +331,8 @@ string get_fusion_type(const fusion_t& fusion) {
 		         fusion.direction1 != fusion.direction2 && fusion.gene1->strand == fusion.gene2->strand) {
 			return "translocation"; // orderly fusion yielding a hybrid protein
 		} else {
-			if (fusion.direction1 == UPSTREAM && fusion.direction2 == UPSTREAM && fusion.gene1->strand == FORWARD && fusion.gene2->strand == FORWARD ||
-			    fusion.direction1 == DOWNSTREAM && fusion.direction2 == DOWNSTREAM && fusion.gene1->strand == REVERSE && fusion.gene2->strand == REVERSE) {
+			if ((fusion.direction1 == UPSTREAM && fusion.gene1->strand == FORWARD || fusion.direction1 == DOWNSTREAM && fusion.gene1->strand == REVERSE) &&
+			    (fusion.direction2 == UPSTREAM && fusion.gene2->strand == FORWARD || fusion.direction2 == DOWNSTREAM && fusion.gene2->strand == REVERSE)) {
 				return "translocation/3'-3'"; // tail-to-tail fusion
 			} else {
 				return "translocation/5'-5'"; // head-to-head fusion
