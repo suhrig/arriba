@@ -138,7 +138,8 @@ bool align_both_strands(const string& read_sequence, const position_t alignment_
 			string reverse_complement;
 			string original = read_sequence;
 			dna_to_reverse_complement(original, reverse_complement);
-			return align(0, reverse_complement, 0, (**gene).sequence, 0, (**gene).start, (**gene).end, kmer_indices[(**gene).contig], kmer_length, min_score, 1);
+			if (align(0, reverse_complement, 0, (**gene).sequence, 0, (**gene).start, (**gene).end, kmer_indices[(**gene).contig], kmer_length, min_score, 1))
+				return true;
 		}
 	}
 	return false;
