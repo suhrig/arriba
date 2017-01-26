@@ -12,6 +12,7 @@ unsigned int filter_end_to_end_fusions(fusions_t& fusions) {
 			continue; // fusion has already been filtered
 
 		if (!fusion->second.is_read_through() &&
+		    fusion->second.gene1 != fusion->second.gene2 &&
 		    (fusion->second.spliced1 || fusion->second.spliced2)) { // spliced breakpoints are likely true
 			++remaining;
 			continue;
