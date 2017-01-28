@@ -146,10 +146,10 @@ bool align_both_strands(const string& read_sequence, const position_t alignment_
 }
 
 void count_mismappers(vector<mates_t*>& chimeric_alignments_list, unsigned int& mismappers, unsigned int& total_reads, unsigned int& supporting_reads) {
-	for (auto i = chimeric_alignments_list.begin(); i != chimeric_alignments_list.end(); ++i) {
-		if ((**i).filter == NULL) {
+	for (auto chimeric_alignment = chimeric_alignments_list.begin(); chimeric_alignment != chimeric_alignments_list.end(); ++chimeric_alignment) {
+		if ((**chimeric_alignment).filter == NULL) {
 			total_reads++;
-		} else if ((**i).filter == FILTERS.at("mismappers")) {
+		} else if ((**chimeric_alignment).filter == FILTERS.at("mismappers")) {
 			total_reads++;
 			mismappers++;
 			if (supporting_reads > 0)
@@ -177,56 +177,66 @@ unsigned int filter_mismappers(fusions_t& fusions, const gene_annotation_t& gene
 		for (kmer_index_t::iterator kmer_hits = kmer_index->begin(); kmer_hits != kmer_index->end(); ++kmer_hits)
 			sort(kmer_hits->second.begin(), kmer_hits->second.end());
 
+	// find all gene pairs that need to be checked for mismappers
+	unordered_map< tuple<gene_t,gene_t>, bool > non_discarded_gene_pairs;
+	for (fusions_t::iterator fusion = fusions.begin(); fusion != fusions.end(); ++fusion)
+		if (fusion->second.filter != NULL)
+			non_discarded_gene_pairs[make_tuple(fusion->second.gene1, fusion->second.gene2)] = true;
+
 	// align discordnat mate / clipped segment in gene of origin
 	for (fusions_t::iterator fusion = fusions.begin(); fusion != fusions.end(); ++fusion) {
 
-		if (fusion->second.filter != NULL)
-			continue; // fusion has already been filtered
-
 		if (fusion->second.gene1 == fusion->second.gene2)
 			continue; // re-aligning the read only makes sense between different genes
+
+		if (fusion->second.filter != NULL && // fusion has already been filtered
+		    !((fusion->second.spliced1 || fusion->second.spliced2) && 
+		      non_discarded_gene_pairs.find(make_tuple(fusion->second.gene1, fusion->second.gene2)) != non_discarded_gene_pairs.end())) // if one of the breakpoints is spliced and there is at least one other non-discarded fusion,
+		                                                                                                                                // then we need to check all spliced breakpoints for mismappers,
+		                                                                                                                                // the 'many_spliced' filter might otherwise recover fusions between homologous genes
+			continue;
 
 		// re-align split reads
 		vector<mates_t*> all_split_reads;
 		all_split_reads.insert(all_split_reads.end(), fusion->second.split_read1_list.begin(), fusion->second.split_read1_list.end());
 		all_split_reads.insert(all_split_reads.end(), fusion->second.split_read2_list.begin(), fusion->second.split_read2_list.end());
-		for (auto i = all_split_reads.begin(); i != all_split_reads.end(); ++i) {
+		for (auto chimeric_alignment = all_split_reads.begin(); chimeric_alignment != all_split_reads.end(); ++chimeric_alignment) {
 
-			if ((**i).filter != NULL)
+			if ((**chimeric_alignment).filter != NULL)
 				continue; // read has already been filtered
 
 			// introduce aliases for cleaner code
-			alignment_t& split_read = (**i)[SPLIT_READ];
-			alignment_t& supplementary = (**i)[SUPPLEMENTARY];
-			alignment_t& mate1 = (**i)[MATE1];
+			alignment_t& split_read = (**chimeric_alignment)[SPLIT_READ];
+			alignment_t& supplementary = (**chimeric_alignment)[SUPPLEMENTARY];
+			alignment_t& mate1 = (**chimeric_alignment)[MATE1];
 
 			if (split_read.strand == FORWARD) {
 				if (align_both_strands(split_read.sequence.substr(0, split_read.preclipping()), supplementary.start, supplementary.end, kmer_indices, split_read.genes, kmer_length, max_score, min_align_percent) || // clipped segment aligns to donor
 				    align_both_strands(mate1.sequence.substr(mate1.preclipping()), mate1.start, mate1.end, kmer_indices, supplementary.genes, kmer_length, max_score, min_align_percent)) { // non-spliced mate aligns to acceptor
-					(**i).filter = FILTERS.at("mismappers");
+					(**chimeric_alignment).filter = FILTERS.at("mismappers");
 				}
 			} else { // split_read.strand == REVERSE
 				if (align_both_strands(split_read.sequence.substr(split_read.sequence.length() - split_read.postclipping()), supplementary.start, supplementary.end, kmer_indices, split_read.genes, kmer_length, max_score, min_align_percent) || // clipped segment aligns to donor
 				    align_both_strands(mate1.sequence.substr(0, mate1.sequence.length() - mate1.postclipping()), mate1.start, mate1.end, kmer_indices, supplementary.genes, kmer_length, max_score, min_align_percent)) { // non-spliced mate aligns to acceptor
-					(**i).filter = FILTERS.at("mismappers");
+					(**chimeric_alignment).filter = FILTERS.at("mismappers");
 				}
 			}
 		}
 
 		// re-align discordant mates
-		for (auto i = fusion->second.discordant_mate_list.begin(); i != fusion->second.discordant_mate_list.end(); ++i) {
-			if ((**i).filter != NULL)
+		for (auto chimeric_alignment = fusion->second.discordant_mate_list.begin(); chimeric_alignment != fusion->second.discordant_mate_list.end(); ++chimeric_alignment) {
+			if ((**chimeric_alignment).filter != NULL)
 				continue; // read has already been filtered
 
-			if ((**i).size() == 2) { // discordant mates
+			if ((**chimeric_alignment).size() == 2) { // discordant mates
 
 				// introduce aliases for cleaner code
-				alignment_t& mate1 = (**i)[MATE1];
-				alignment_t& mate2 = (**i)[MATE2];
+				alignment_t& mate1 = (**chimeric_alignment)[MATE1];
+				alignment_t& mate2 = (**chimeric_alignment)[MATE2];
 
 				if (align_both_strands(mate1.sequence, mate1.start, mate1.end, kmer_indices, mate2.genes, kmer_length, max_score, min_align_percent) ||
 				    align_both_strands(mate2.sequence, mate2.start, mate2.end, kmer_indices, mate1.genes, kmer_length, max_score, min_align_percent))
-					(**i).filter = FILTERS.at("mismappers");
+					(**chimeric_alignment).filter = FILTERS.at("mismappers");
 			}
 		}
 

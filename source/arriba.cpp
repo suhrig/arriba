@@ -420,8 +420,10 @@ int main(int argc, char **argv) {
 	if (!options.genomic_breakpoints_file.empty() && options.filters.at("genomic_support")) {
 		cout << "Searching for fusions with support from WGS" << flush;
 		cout << " (remaining=" << recover_genomic_support(fusions) << ")" << endl;
+	}
 
-		// the 'select_best' filter needs to be run again, to remove redundant events recovered by the 'genomic_support' filter
+	if (!options.genomic_breakpoints_file.empty() && options.filters.at("genomic_support") || options.filters.at("many_spliced")) {
+		// the 'select_best' filter needs to be run again, to remove redundant events recovered by the 'genomic_support' and 'many_spliced' filters
 		if (options.filters.at("select_best")) {
 			cout << "Selecting best breakpoints from genes with multiple breakpoints" << flush;
 			cout << " (remaining=" << select_most_supported_breakpoints(fusions) << ")" << endl;
