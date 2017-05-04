@@ -39,7 +39,7 @@ template <class T> void make_annotation_index(annotation_t<T>& annotation, annot
 template <class T> void annotation_multiset_to_set(annotation_multiset_t<T> annotation_multiset, annotation_set_t<T>& annotation_set);
 template <class T> annotation_set_t<T> annotation_multiset_to_set(annotation_multiset_t<T> annotation_multiset);
 
-bool is_breakpoint_spliced(const gene_t gene, const direction_t direction, const contig_t contig, const position_t breakpoint, const exon_annotation_index_t& exon_annotation_index);
+bool is_breakpoint_spliced(const gene_t gene, const direction_t direction, const position_t breakpoint, const exon_annotation_index_t& exon_annotation_index);
 
 template <class T> void combine_annotations(const annotation_set_t<T>& genes1, const annotation_set_t<T>& genes2, annotation_set_t<T>& combined, bool make_union = true);
 

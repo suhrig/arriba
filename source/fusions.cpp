@@ -432,10 +432,10 @@ unsigned int find_fusions(chimeric_alignments_t& chimeric_alignments, fusions_t&
 		} else {
 			fusion->second.spliced1 = fusion->second.exonic1 &&
 			                          fusion->second.gene1->strand == fusion->second.predicted_strand1 &&
-			                          is_breakpoint_spliced(fusion->second.gene1, fusion->second.direction1, fusion->second.contig1, fusion->second.breakpoint1, exon_annotation_index);
+			                          is_breakpoint_spliced(fusion->second.gene1, fusion->second.direction1, fusion->second.breakpoint1, exon_annotation_index);
 			fusion->second.spliced2 = fusion->second.exonic2 &&
 			                          fusion->second.gene2->strand == fusion->second.predicted_strand2 &&
-			                          is_breakpoint_spliced(fusion->second.gene2, fusion->second.direction2, fusion->second.contig2, fusion->second.breakpoint2, exon_annotation_index);
+			                          is_breakpoint_spliced(fusion->second.gene2, fusion->second.direction2, fusion->second.breakpoint2, exon_annotation_index);
 		}
 
 		// predict which gene makes the 5' end from strands or splice-sites or gene orientations
