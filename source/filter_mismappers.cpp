@@ -26,11 +26,15 @@ kmer_as_int_t kmer_to_int(const string& kmer, const string::size_type position, 
 	return result;
 }
 
-bool align(int score, const string& read_sequence, string::size_type read_pos, const string& gene_sequence, const string::size_type gene_pos, const position_t gene_start, const position_t gene_end, const kmer_index_t& kmer_index, const char kmer_length, const int min_score, unsigned int segment_count) {
+bool align(int score, const string& read_sequence, string::size_type read_pos, const string& gene_sequence, const string::size_type gene_pos, const position_t gene_start, const position_t gene_end, const kmer_index_t& kmer_index, const char kmer_length, const int min_score, int max_deletions) {
 
-	const string::size_type max_extend_left = read_pos; // we must not extend the alignment beyond this left boundary
+	unsigned int skipped_bases = 0;
 
-	for (/* read_pos comes from parameters */; read_pos + kmer_length < read_sequence.length() && read_pos + min_score < read_sequence.length() + score; ++read_pos, score--) {
+	for (/* read_pos comes from parameters */;
+	     read_pos + kmer_length < read_sequence.length() && // don't run over end of read
+	     read_pos + min_score <= read_sequence.length() + score + 2*kmer_length; // give up, when we can impossibly get above min_score, because we are near the end of the read
+	                                                                             // 2*kmer_length takes into account that the score can improve, if we can extend to the left (up to kmer_length)
+	     read_pos++, score--, skipped_bases++) { // if a base cannot be aligned, go to the next, but give -1 penalty and increase the number of skipped bases
 
 		auto kmer_hits = kmer_index.find(kmer_to_int(read_sequence, read_pos, kmer_length));
 		if (kmer_hits == kmer_index.end())
@@ -39,25 +43,28 @@ bool align(int score, const string& read_sequence, string::size_type read_pos, c
 		for (auto kmer_hit = lower_bound(kmer_hits->second.begin(), kmer_hits->second.end(), gene_start + gene_pos); kmer_hit != kmer_hits->second.end() && *kmer_hit < gene_end; ++kmer_hit) {
 
 			int extended_score = score + kmer_length;
+			if (read_pos == skipped_bases) // so far, all bases at the beginning of the read have been skipped
+				extended_score += skipped_bases; // this effectively removes any penalties on leading mismatches (as in local alignment)
 			if (extended_score >= min_score)
 				return true;
 
 			// extend match locally to the left
-			// (if this is the first segment and we are not near the left end of the read / gene)
-			string::size_type extended_left = *kmer_hit - gene_start; // keeps track of how far we can extend to the left
-			if (read_pos > max_extend_left + 2 && gene_pos > 2) {
-				string::size_type extended_read_pos = read_pos - 1;
-				string::size_type extended_gene_pos = *kmer_hit - gene_start - 1;
+			{
+				int extended_read_pos = read_pos - 1;
+				int extended_gene_pos = *kmer_hit - gene_start - 1;
 				unsigned int mismatch_count = 0;
-				while (extended_read_pos >= max_extend_left && extended_gene_pos >= 0) {
+				while (extended_read_pos >= read_pos - skipped_bases && // only align yet unaligned bases
+				       extended_gene_pos >= 0) { // don't go beyond start of gene
 
 					if (read_sequence[extended_read_pos] == gene_sequence[extended_gene_pos]) {
 
 						// read and gene sequences match => increase score and go the next base
-						extended_score++;
+						if (read_pos == skipped_bases)
+							extended_score += 1; // increase by 1, because leading skipped bases are not penalized in the main for-loop
+						else
+							extended_score += 2; // increase by 2, because intermittent skipped bases are already penalized in the main for-loop
 						if (extended_score >= min_score)
 							return true;
-						extended_left--;
 
 					} else { // there is a mismatch
 
@@ -65,8 +72,7 @@ bool align(int score, const string& read_sequence, string::size_type read_pos, c
 						mismatch_count++;
 						if (mismatch_count > 1)
 							break;
-						extended_score--;
-						extended_left--;
+						//extended_score--; // no need to penalize the score, because this is already done in the main for-loop
 					}
 					extended_read_pos--;
 					extended_gene_pos--;
@@ -75,8 +81,8 @@ bool align(int score, const string& read_sequence, string::size_type read_pos, c
 
 			// extend match locally to the right
 			{
-				string::size_type extended_read_pos = read_pos + kmer_length;
-				string::size_type extended_gene_pos = *kmer_hit - gene_start + kmer_length;
+				int extended_read_pos = read_pos + kmer_length;
+				int extended_gene_pos = *kmer_hit - gene_start + kmer_length;
 				unsigned int mismatch_count = 0;
 				while (extended_read_pos < read_sequence.length() && extended_gene_pos < gene_sequence.length()) {
 
@@ -91,18 +97,13 @@ bool align(int score, const string& read_sequence, string::size_type read_pos, c
 
 						// allow one mismatch
 						mismatch_count++;
-						if (mismatch_count > 1) {
-							if (read_sequence.length() >= 30 && (segment_count == 1 || extended_left <= gene_pos+1)) { // when there is more than one mismatch, try to align the other part of the read (but only allow one intron/indel)
-								if (align(extended_score, read_sequence, extended_read_pos, gene_sequence, extended_gene_pos, gene_start, gene_end, kmer_index, kmer_length, min_score, segment_count+1)) {
-									return true;
-								} else {
-									break;
-								}
-							} else {
-								break;
+						if (mismatch_count == 1) { // when there is more than one mismatch, do another k-mer lookup
+							if (max_deletions > 0 && read_sequence.length() >= 30 && // do not allow too many deletions/introns and only if the read is reasonably long
+							    align(extended_score, read_sequence, extended_read_pos, gene_sequence, extended_gene_pos, gene_start, gene_end, kmer_index, kmer_length, min_score, max_deletions-1)) {
+								return true;
 							}
 						}
-						extended_score--;
+						extended_score--; // penalize mismatch
 					}
 
 					extended_read_pos++;
@@ -116,10 +117,8 @@ bool align(int score, const string& read_sequence, string::size_type read_pos, c
 	return false;
 }
 
-bool align_both_strands(const string& read_sequence, const position_t alignment_start, const position_t alignment_end, kmer_indices_t& kmer_indices, gene_set_t& genes, const char kmer_length, const int max_score, const float min_align_percent) {
-	int min_score = min_align_percent * read_sequence.size();
-	if (min_score > max_score)
-		min_score = max_score;
+bool align_both_strands(const string& read_sequence, const position_t alignment_start, const position_t alignment_end, kmer_indices_t& kmer_indices, gene_set_t& genes, const char kmer_length, const float min_align_percent, int min_score) {
+	min_score = min(min_score, (int) (min_align_percent * read_sequence.size() + 0.5));
 	for (gene_set_t::iterator gene = genes.begin(); gene != genes.end(); ++gene) {
 
 		if ((**gene).sequence.empty())
@@ -133,6 +132,7 @@ bool align_both_strands(const string& read_sequence, const position_t alignment_
 			continue;
 
 		if (align(0, read_sequence, 0, (**gene).sequence, 0, (**gene).start, (**gene).end, kmer_indices[(**gene).contig], kmer_length, min_score, 1)) { // align on forward strand
+
 			return true;
 		} else { // align on reverse strand
 			string reverse_complement;
@@ -160,9 +160,9 @@ void count_mismappers(vector<mates_t*>& chimeric_alignments_list, unsigned int& 
 
 unsigned int filter_mismappers(fusions_t& fusions, const gene_annotation_t& gene_annotation, const contigs_t& contigs, const float max_mismapper_fraction) {
 
-	const char kmer_length = 8; // must not be bigger than 32 or else conversion to int will fail
-	const int max_score = 30; // maximum amount of nucleotides which need to align to consider alignment good
-	const float min_align_percent = 0.8; // allow ~1 mismatch for every six matches
+	const char kmer_length = 8; // must not be bigger than 16 or else conversion to int will fail
+	const float min_align_percent = 0.8; // allow ~1 mismatch for every 10 matches
+	const int min_score = 35; // consider this score or higher a match (even if less than min_align_percent match)
 
 	// make kmer indices from gene sequences
 	kmer_indices_t kmer_indices(contigs.size()); // contains a kmer index for every contig
@@ -170,18 +170,13 @@ unsigned int filter_mismappers(fusions_t& fusions, const gene_annotation_t& gene
 		if (!gene->sequence.empty()) {
 			// store positions of kmers in hash
 			for (string::size_type pos = 0; pos + kmer_length < gene->sequence.length(); pos++)
-				kmer_indices[gene->contig][kmer_to_int(gene->sequence, pos, kmer_length)].push_back(pos + gene->start);
+				if (gene->sequence[pos] != 'N') // don't index masked regions, as long stretches of N's cause alignment to take forever
+					kmer_indices[gene->contig][kmer_to_int(gene->sequence, pos, kmer_length)].push_back(pos + gene->start);
 		}
 	}
 	for (kmer_indices_t::iterator kmer_index = kmer_indices.begin(); kmer_index != kmer_indices.end(); ++kmer_index)
 		for (kmer_index_t::iterator kmer_hits = kmer_index->begin(); kmer_hits != kmer_index->end(); ++kmer_hits)
 			sort(kmer_hits->second.begin(), kmer_hits->second.end());
-
-	// find all gene pairs that need to be checked for mismappers
-	unordered_map< tuple<gene_t,gene_t>, bool > non_discarded_gene_pairs;
-	for (fusions_t::iterator fusion = fusions.begin(); fusion != fusions.end(); ++fusion)
-		if (fusion->second.filter != NULL)
-			non_discarded_gene_pairs[make_tuple(fusion->second.gene1, fusion->second.gene2)] = true;
 
 	// align discordnat mate / clipped segment in gene of origin
 	for (fusions_t::iterator fusion = fusions.begin(); fusion != fusions.end(); ++fusion) {
@@ -189,11 +184,7 @@ unsigned int filter_mismappers(fusions_t& fusions, const gene_annotation_t& gene
 		if (fusion->second.gene1 == fusion->second.gene2)
 			continue; // re-aligning the read only makes sense between different genes
 
-		if (fusion->second.filter != NULL && // fusion has already been filtered
-		    !((fusion->second.spliced1 || fusion->second.spliced2) && 
-		      non_discarded_gene_pairs.find(make_tuple(fusion->second.gene1, fusion->second.gene2)) != non_discarded_gene_pairs.end())) // if one of the breakpoints is spliced and there is at least one other non-discarded fusion,
-		                                                                                                                                // then we need to check all spliced breakpoints for mismappers,
-		                                                                                                                                // the 'many_spliced' filter might otherwise recover fusions between homologous genes
+		if (fusion->second.filter != NULL)
 			continue;
 
 		// re-align split reads
@@ -211,13 +202,13 @@ unsigned int filter_mismappers(fusions_t& fusions, const gene_annotation_t& gene
 			alignment_t& mate1 = (**chimeric_alignment)[MATE1];
 
 			if (split_read.strand == FORWARD) {
-				if (align_both_strands(split_read.sequence.substr(0, split_read.preclipping()), supplementary.start, supplementary.end, kmer_indices, split_read.genes, kmer_length, max_score, min_align_percent) || // clipped segment aligns to donor
-				    align_both_strands(mate1.sequence.substr(mate1.preclipping()), mate1.start, mate1.end, kmer_indices, supplementary.genes, kmer_length, max_score, min_align_percent)) { // non-spliced mate aligns to acceptor
+				if (align_both_strands(split_read.sequence.substr(0, split_read.preclipping()), supplementary.start, supplementary.end, kmer_indices, split_read.genes, kmer_length, min_align_percent, min_score) || // clipped segment aligns to donor
+				    align_both_strands(mate1.sequence.substr(mate1.preclipping()), mate1.start, mate1.end, kmer_indices, supplementary.genes, kmer_length, min_align_percent, min_score)) { // non-spliced mate aligns to acceptor
 					(**chimeric_alignment).filter = FILTERS.at("mismappers");
 				}
 			} else { // split_read.strand == REVERSE
-				if (align_both_strands(split_read.sequence.substr(split_read.sequence.length() - split_read.postclipping()), supplementary.start, supplementary.end, kmer_indices, split_read.genes, kmer_length, max_score, min_align_percent) || // clipped segment aligns to donor
-				    align_both_strands(mate1.sequence.substr(0, mate1.sequence.length() - mate1.postclipping()), mate1.start, mate1.end, kmer_indices, supplementary.genes, kmer_length, max_score, min_align_percent)) { // non-spliced mate aligns to acceptor
+				if (align_both_strands(split_read.sequence.substr(split_read.sequence.length() - split_read.postclipping()), supplementary.start, supplementary.end, kmer_indices, split_read.genes, kmer_length, min_align_percent, min_score) || // clipped segment aligns to donor
+				    align_both_strands(mate1.sequence.substr(0, mate1.sequence.length() - mate1.postclipping()), mate1.start, mate1.end, kmer_indices, supplementary.genes, kmer_length, min_align_percent, min_score)) { // non-spliced mate aligns to acceptor
 					(**chimeric_alignment).filter = FILTERS.at("mismappers");
 				}
 			}
@@ -234,9 +225,10 @@ unsigned int filter_mismappers(fusions_t& fusions, const gene_annotation_t& gene
 				alignment_t& mate1 = (**chimeric_alignment)[MATE1];
 				alignment_t& mate2 = (**chimeric_alignment)[MATE2];
 
-				if (align_both_strands(mate1.sequence, mate1.start, mate1.end, kmer_indices, mate2.genes, kmer_length, max_score, min_align_percent) ||
-				    align_both_strands(mate2.sequence, mate2.start, mate2.end, kmer_indices, mate1.genes, kmer_length, max_score, min_align_percent))
+				if (align_both_strands(mate1.sequence, mate1.start, mate1.end, kmer_indices, mate2.genes, kmer_length, min_align_percent, min_score) ||
+				    align_both_strands(mate2.sequence, mate2.start, mate2.end, kmer_indices, mate1.genes, kmer_length, min_align_percent, min_score)) {
 					(**chimeric_alignment).filter = FILTERS.at("mismappers");
+				}
 			}
 		}
 
@@ -265,5 +257,4 @@ unsigned int filter_mismappers(fusions_t& fusions, const gene_annotation_t& gene
 
 	return remaining;
 }
-
 
