@@ -355,7 +355,7 @@ string get_fusion_type(const fusion_t& fusion) {
 				}
 			} else {
 				if (fusion.is_read_through()) {
-					return "deletion/read_through/3'-3'";
+					return "deletion/read-through/3'-3'";
 				} else {
 					return "deletion/3'-3'"; // tail-to-tail fusion
 				}
