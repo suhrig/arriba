@@ -2,15 +2,36 @@
 #include <set>
 #include <string>
 #include <unordered_map>
+#include <vector>
 #include "common.hpp"
 #include "annotation.hpp"
 #include "filter_mismappers.hpp"
 
 using namespace std;
 
-typedef unsigned int kmer_as_int_t;
-typedef unordered_map< kmer_as_int_t, vector<string::size_type> > kmer_index_t;
-typedef vector<kmer_index_t> kmer_indices_t;
+typedef unsigned int kmer_as_int_t; // represent kmer as integer
+typedef unordered_map< kmer_as_int_t, vector<string::size_type> > kmer_index_t; // store coordinates of kmers
+typedef vector<kmer_index_t> kmer_indices_t; // one index per contig
+
+typedef set<position_t> splice_sites_t;
+typedef unordered_map<gene_t,splice_sites_t> splice_sites_by_gene_t;
+
+void get_downstream_splice_sites(const gene_t gene, const exon_annotation_index_t& exon_annotation_index, splice_sites_t& splice_sites) {
+
+	// nothing to do, if there are no exons on the given contig
+	if (exon_annotation_index[gene->contig].empty()) {
+		splice_sites.clear();
+		return;
+	}
+
+	// find all downstream-oriented splice-sites of the given gene (because alignment is oriented downstream)
+	exon_contig_annotation_index_t::const_iterator exons = exon_annotation_index[gene->contig].lower_bound(gene->start);
+	while (exons != exon_annotation_index[gene->contig].end() && exons->first <= gene->end) {
+		if (is_breakpoint_spliced(gene, DOWNSTREAM, exons->first, exon_annotation_index))
+			splice_sites.insert(exons->first - gene->start);
+		++exons;
+	}
+}
 
 kmer_as_int_t kmer_to_int(const string& kmer, const string::size_type position, const char kmer_length) {
 	unsigned int result = 0;
@@ -26,7 +47,7 @@ kmer_as_int_t kmer_to_int(const string& kmer, const string::size_type position, 
 	return result;
 }
 
-bool align(int score, const string& read_sequence, string::size_type read_pos, const string& gene_sequence, const string::size_type gene_pos, const position_t gene_start, const position_t gene_end, const kmer_index_t& kmer_index, const char kmer_length, const int min_score, int max_deletions) {
+bool align(int score, const string& read_sequence, string::size_type read_pos, const string& gene_sequence, const string::size_type gene_pos, const position_t gene_start, const position_t gene_end, const kmer_index_t& kmer_index, const char kmer_length, const splice_sites_t& splice_sites, const int min_score, int max_deletions) {
 
 	unsigned int skipped_bases = 0;
 
@@ -84,7 +105,17 @@ bool align(int score, const string& read_sequence, string::size_type read_pos, c
 				int extended_read_pos = read_pos + kmer_length;
 				int extended_gene_pos = *kmer_hit - gene_start + kmer_length;
 				unsigned int mismatch_count = 0;
+				splice_sites_t::const_iterator next_splice_site = splice_sites.lower_bound(extended_gene_pos - 1);
 				while (extended_read_pos < read_sequence.length() && extended_gene_pos < gene_sequence.length()) {
+
+					// try a spliced alignment, if we run over a splice-site
+					if (next_splice_site != splice_sites.end()) {
+						if (extended_gene_pos - 1 > *next_splice_site)
+							++next_splice_site;
+						if (next_splice_site != splice_sites.end() && extended_gene_pos - 1 == *next_splice_site)
+							if (align(extended_score, read_sequence, extended_read_pos, gene_sequence, extended_gene_pos, gene_start, gene_end, kmer_index, kmer_length, splice_sites, min_score, max_deletions))
+								return true;
+					}
 
 					if (read_sequence[extended_read_pos] == gene_sequence[extended_gene_pos]) {
 
@@ -99,7 +130,7 @@ bool align(int score, const string& read_sequence, string::size_type read_pos, c
 						mismatch_count++;
 						if (mismatch_count == 1) { // when there is more than one mismatch, do another k-mer lookup
 							if (max_deletions > 0 && read_sequence.length() >= 30 && // do not allow too many deletions/introns and only if the read is reasonably long
-							    align(extended_score, read_sequence, extended_read_pos, gene_sequence, extended_gene_pos, gene_start, gene_end, kmer_index, kmer_length, min_score, max_deletions-1)) {
+							    align(extended_score, read_sequence, extended_read_pos, gene_sequence, extended_gene_pos, gene_start, gene_end, kmer_index, kmer_length, splice_sites, min_score, max_deletions-1)) {
 								return true;
 							}
 						}
@@ -117,12 +148,16 @@ bool align(int score, const string& read_sequence, string::size_type read_pos, c
 	return false;
 }
 
-bool align_both_strands(const string& read_sequence, const position_t alignment_start, const position_t alignment_end, kmer_indices_t& kmer_indices, gene_set_t& genes, const char kmer_length, const float min_align_percent, int min_score) {
+bool align_both_strands(const string& read_sequence, const position_t alignment_start, const position_t alignment_end, kmer_indices_t& kmer_indices, const exon_annotation_index_t& exon_annotation_index, splice_sites_by_gene_t& splice_sites_by_gene, gene_set_t& genes, const char kmer_length, const float min_align_percent, int min_score) {
 	min_score = min(min_score, (int) (min_align_percent * read_sequence.size() + 0.5));
 	for (gene_set_t::iterator gene = genes.begin(); gene != genes.end(); ++gene) {
 
 		if ((**gene).sequence.empty())
 			continue;
+
+		// find all splice sites in the genes
+		if (splice_sites_by_gene.find(*gene) == splice_sites_by_gene.end())
+			get_downstream_splice_sites(*gene, exon_annotation_index, splice_sites_by_gene[*gene]);
 
 		// in the case of intragenic events or overlapping genes,
 		// both, the donor AND the acceptor gene overlap the breakpoint
@@ -131,14 +166,14 @@ bool align_both_strands(const string& read_sequence, const position_t alignment_
 		    alignment_end   >= (**gene).start && alignment_end   <= (**gene).end)
 			continue;
 
-		if (align(0, read_sequence, 0, (**gene).sequence, 0, (**gene).start, (**gene).end, kmer_indices[(**gene).contig], kmer_length, min_score, 1)) { // align on forward strand
+		if (align(0, read_sequence, 0, (**gene).sequence, 0, (**gene).start, (**gene).end, kmer_indices[(**gene).contig], kmer_length, splice_sites_by_gene.at(*gene), min_score, 1)) { // align on forward strand
 
 			return true;
 		} else { // align on reverse strand
 			string reverse_complement;
 			string original = read_sequence;
 			dna_to_reverse_complement(original, reverse_complement);
-			if (align(0, reverse_complement, 0, (**gene).sequence, 0, (**gene).start, (**gene).end, kmer_indices[(**gene).contig], kmer_length, min_score, 1))
+			if (align(0, reverse_complement, 0, (**gene).sequence, 0, (**gene).start, (**gene).end, kmer_indices[(**gene).contig], kmer_length, splice_sites_by_gene.at(*gene), min_score, 1))
 				return true;
 		}
 	}
@@ -158,11 +193,13 @@ void count_mismappers(vector<mates_t*>& chimeric_alignments_list, unsigned int& 
 	}
 }
 
-unsigned int filter_mismappers(fusions_t& fusions, const gene_annotation_t& gene_annotation, const contigs_t& contigs, const float max_mismapper_fraction) {
+unsigned int filter_mismappers(fusions_t& fusions, const gene_annotation_t& gene_annotation, const exon_annotation_index_t& exon_annotation_index, const contigs_t& contigs, const float max_mismapper_fraction) {
 
 	const char kmer_length = 8; // must not be bigger than 16 or else conversion to int will fail
 	const float min_align_percent = 0.8; // allow ~1 mismatch for every 10 matches
-	const int min_score = 35; // consider this score or higher a match (even if less than min_align_percent match)
+	const int min_score = 40; // consider this score or higher a match (even if less than min_align_percent match)
+
+	splice_sites_by_gene_t splice_sites_by_gene;
 
 	// make kmer indices from gene sequences
 	kmer_indices_t kmer_indices(contigs.size()); // contains a kmer index for every contig
@@ -202,13 +239,13 @@ unsigned int filter_mismappers(fusions_t& fusions, const gene_annotation_t& gene
 			alignment_t& mate1 = (**chimeric_alignment)[MATE1];
 
 			if (split_read.strand == FORWARD) {
-				if (align_both_strands(split_read.sequence.substr(0, split_read.preclipping()), supplementary.start, supplementary.end, kmer_indices, split_read.genes, kmer_length, min_align_percent, min_score) || // clipped segment aligns to donor
-				    align_both_strands(mate1.sequence.substr(mate1.preclipping()), mate1.start, mate1.end, kmer_indices, supplementary.genes, kmer_length, min_align_percent, min_score)) { // non-spliced mate aligns to acceptor
+				if (align_both_strands(split_read.sequence.substr(0, split_read.preclipping()), supplementary.start, supplementary.end, kmer_indices, exon_annotation_index, splice_sites_by_gene, split_read.genes, kmer_length, min_align_percent, min_score) || // clipped segment aligns to donor
+				    align_both_strands(mate1.sequence.substr(mate1.preclipping()), mate1.start, mate1.end, kmer_indices, exon_annotation_index, splice_sites_by_gene, supplementary.genes, kmer_length, min_align_percent, min_score)) { // non-spliced mate aligns to acceptor
 					(**chimeric_alignment).filter = FILTERS.at("mismappers");
 				}
 			} else { // split_read.strand == REVERSE
-				if (align_both_strands(split_read.sequence.substr(split_read.sequence.length() - split_read.postclipping()), supplementary.start, supplementary.end, kmer_indices, split_read.genes, kmer_length, min_align_percent, min_score) || // clipped segment aligns to donor
-				    align_both_strands(mate1.sequence.substr(0, mate1.sequence.length() - mate1.postclipping()), mate1.start, mate1.end, kmer_indices, supplementary.genes, kmer_length, min_align_percent, min_score)) { // non-spliced mate aligns to acceptor
+				if (align_both_strands(split_read.sequence.substr(split_read.sequence.length() - split_read.postclipping()), supplementary.start, supplementary.end, kmer_indices, exon_annotation_index, splice_sites_by_gene, split_read.genes, kmer_length, min_align_percent, min_score) || // clipped segment aligns to donor
+				    align_both_strands(mate1.sequence.substr(0, mate1.sequence.length() - mate1.postclipping()), mate1.start, mate1.end, kmer_indices, exon_annotation_index, splice_sites_by_gene, supplementary.genes, kmer_length, min_align_percent, min_score)) { // non-spliced mate aligns to acceptor
 					(**chimeric_alignment).filter = FILTERS.at("mismappers");
 				}
 			}
@@ -225,8 +262,8 @@ unsigned int filter_mismappers(fusions_t& fusions, const gene_annotation_t& gene
 				alignment_t& mate1 = (**chimeric_alignment)[MATE1];
 				alignment_t& mate2 = (**chimeric_alignment)[MATE2];
 
-				if (align_both_strands(mate1.sequence, mate1.start, mate1.end, kmer_indices, mate2.genes, kmer_length, min_align_percent, min_score) ||
-				    align_both_strands(mate2.sequence, mate2.start, mate2.end, kmer_indices, mate1.genes, kmer_length, min_align_percent, min_score)) {
+				if (align_both_strands(mate1.sequence, mate1.start, mate1.end, kmer_indices, exon_annotation_index, splice_sites_by_gene, mate2.genes, kmer_length, min_align_percent, min_score) ||
+				    align_both_strands(mate2.sequence, mate2.start, mate2.end, kmer_indices, exon_annotation_index, splice_sites_by_gene, mate1.genes, kmer_length, min_align_percent, min_score)) {
 					(**chimeric_alignment).filter = FILTERS.at("mismappers");
 				}
 			}
