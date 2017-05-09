@@ -364,7 +364,8 @@ string get_fusion_type(const fusion_t& fusion) {
 				}
 			}
 		} else if (fusion.direction1 == fusion.direction2) {
-			if (fusion.gene1->strand != fusion.gene2->strand) {
+			if (fusion.gene1->is_dummy || fusion.gene2->is_dummy ||
+			    (fusion.gene1->strand != fusion.gene2->strand)) {
 				return "inversion";
 			} else {
 				if (fusion.direction1 == UPSTREAM && fusion.gene1->strand == REVERSE ||
@@ -375,7 +376,8 @@ string get_fusion_type(const fusion_t& fusion) {
 				}
 			}
 		} else { // fusion.direction1 == UPSTREAM && fusion.direction2 == DOWNSTREAM
-			if (fusion.gene1->strand == fusion.gene2->strand) {
+			if (fusion.gene1->is_dummy || fusion.gene2->is_dummy ||
+			    (fusion.gene1->strand == fusion.gene2->strand)) {
 				if (fusion.gene1 == fusion.gene2 && fusion.spliced1 && fusion.spliced2) {
 					return "duplication/non-canonical_splicing";
 				} else {
