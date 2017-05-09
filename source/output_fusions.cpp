@@ -283,7 +283,7 @@ string gene_to_name(const gene_t gene, const contig_t contig, const position_t b
 		return gene->name;
 	} else { // is a dummy gene => find flanking genes and report distances to them
 
-		string result = ".";
+		string result;
 
 		// lookup position in gene annotation index
 		gene_contig_annotation_index_t::iterator index_hit2 = gene_annotation_index[contig].lower_bound(breakpoint);
@@ -318,6 +318,9 @@ string gene_to_name(const gene_t gene, const contig_t contig, const position_t b
 				}
 			}
 		}
+
+		if (result.empty())
+			result = ".";
 
 		return result;
 	}
