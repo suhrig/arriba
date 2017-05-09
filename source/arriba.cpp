@@ -6,6 +6,7 @@
 #include <algorithm>
 #include "common.hpp"
 #include "annotation.hpp"
+#include "assembly.hpp"
 #include "options_arriba.hpp"
 #include "read_stats.hpp"
 #include "read_chimeric_alignments.hpp"
@@ -17,6 +18,7 @@
 #include "filter_proximal_read_through.hpp"
 #include "filter_same_gene.hpp"
 #include "filter_hairpin.hpp"
+#include "filter_mismatches.hpp"
 #include "filter_low_entropy.hpp"
 #include "fusions.hpp"
 #include "filter_promiscuous_genes.hpp"
@@ -48,6 +50,7 @@ unordered_map<string,filter_t> FILTERS({
 	{"read_through", NULL},
 	{"same_gene", NULL},
 	{"hairpin", NULL},
+	{"mismatches", NULL},
 	{"mismappers", NULL},
 	{"promiscuous_genes", NULL},
 	{"intronic", NULL},
@@ -273,6 +276,18 @@ int main(int argc, char **argv) {
 	if (options.filters.at("hairpin")) {
 		cout << "Filtering fusions arising from hairpin structures" << flush;
 		cout << " (remaining=" << filter_hairpin(chimeric_alignments, exon_annotation_index, max_mate_gap) << ")" << endl;
+	}
+
+	cout << "Loading assembly from '" << options.assembly_file << "'" << endl;
+	assembly_t assembly;
+	load_assembly(assembly, options.assembly_file, contigs, interesting_contigs);
+
+	if (options.filters.at("mismatches")) {
+		cout << "Estimating mismatch probability" << flush;
+		float mismatch_probability = estimate_mismatch_probability(chimeric_alignments, assembly);
+		cout << " (probability=" << mismatch_probability << ")" << endl;
+		cout << "Filtering reads with a mismatch p-value <=" << options.mismatch_pvalue_cutoff << flush;
+		cout << " (remaining=" << filter_mismatches(chimeric_alignments, assembly, mismatch_probability, options.mismatch_pvalue_cutoff) << ")" << endl;
 	}
 
 	if (options.filters.at("low_entropy")) {

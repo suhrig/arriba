@@ -19,9 +19,11 @@ const strand_t REVERSE = false;
 typedef const string* filter_t;
 extern unordered_map<string,filter_t> FILTERS;
 
-typedef unsigned short int contig_t;
+typedef short int contig_t;
 typedef unordered_map<string,contig_t> contigs_t;
 typedef int position_t;
+
+typedef unordered_map<contig_t,string> assembly_t;
 
 struct annotation_record_t {
 	contig_t contig;

@@ -34,6 +34,7 @@ options_t get_default_options() {
 	options.strandedness = STRANDEDNESS_NO;
 	options.gtf_features = DEFAULT_GTF_FEATURES;
 	options.min_spliced_events = 4;
+	options.mismatch_pvalue_cutoff = 0.01;
 
 	return options;
 }
@@ -176,6 +177,9 @@ void print_usage(const string& error_message) {
 	     << wrap_help("-K MAX_KMER_CONTENT", "The 'low_entropy' filter removes reads with "
 	                  "repetitive 3-mers. If the 3-mers make up more than the given fraction "
 	                  "of the sequence, then the read is discarded. Default: " + to_string(default_options.max_kmer_content))
+	     << wrap_help("-V MAX_MISMATCH_PVALUE", "The 'mismatches' filter uses a binomial model "
+	                  "to calculate a p-value for observing a given number of mismatches in a read. "
+	                  "If the number of mismatches is too high, the read is discarded. Default: " + to_string(default_options.mismatch_pvalue_cutoff))
 	     << wrap_help("-F FRAGMENT_LENGTH", "When paired-end data is given, the fragment length "
 	                  "is estimated automatically and this parameter has no effect. But when "
 	                  "single-end data is given, the mean fragment length should be specified "
@@ -360,6 +364,11 @@ options_t parse_arguments(int argc, char **argv) {
 			case 'K':
 				options.max_kmer_content = atof(optarg);
 				break;
+			case 'V':
+				options.mismatch_pvalue_cutoff = atof(optarg);
+				if (options.mismatch_pvalue_cutoff <= 0)
+					print_usage(string("Argument to -") + ((char) optopt) + " must be greater than 0.");
+				break;
 			case 'F':
 				options.fragment_length = atoi(optarg);
 				break;
@@ -377,7 +386,7 @@ options_t parse_arguments(int argc, char **argv) {
 				break;
 			case '?':
 				switch (optopt) {
-					case 'c': case 'r': case 'x': case 'd': case 'g': case 'G': case 'o': case 'O': case 'a': case 'k': case 'b': case 'i': case 'f': case 'E': case 's': case 'm': case 'H': case 'D': case 'R': case 'A': case 'M': case 'K': case 'F': case 'S':
+					case 'c': case 'r': case 'x': case 'd': case 'g': case 'G': case 'o': case 'O': case 'a': case 'k': case 'b': case 'i': case 'f': case 'E': case 's': case 'm': case 'H': case 'D': case 'R': case 'A': case 'M': case 'K': case 'V': case 'F': case 'S':
 						print_usage(string("Option -") + ((char) optopt) + " requires an argument.");
 						break;
 					default:
@@ -401,8 +410,8 @@ options_t parse_arguments(int argc, char **argv) {
 		print_usage("Missing mandatory option: -g");
 	if (options.output_file.empty())
 		print_usage("Missing mandatory option: -o");
-	if (options.filters["mismappers"] && options.assembly_file.empty())
-        	print_usage("Filter 'mismappers' enabled, but missing option: -a");
+	if (options.assembly_file.empty())
+        	print_usage("Missing mandatory option: -a");
 	if (options.filters["blacklist"] && options.blacklist_file.empty())
 		print_usage("Filter 'blacklist' enabled, but missing option: -b");
 
