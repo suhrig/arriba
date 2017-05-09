@@ -328,11 +328,10 @@ string gene_to_name(const gene_t gene, const contig_t contig, const position_t b
 
 string get_fusion_type(const fusion_t& fusion) {
 	if (fusion.contig1 != fusion.contig2) {
-		if (fusion.gene1->is_dummy || fusion.gene2->is_dummy) {
-			return "translocation/truncation"; // fusion ends up in intergenic region => gene is truncated
-		} else if (fusion.direction1 == fusion.direction2 && fusion.gene1->strand != fusion.gene2->strand ||
-		         fusion.direction1 != fusion.direction2 && fusion.gene1->strand == fusion.gene2->strand) {
-			return "translocation"; // orderly fusion yielding a hybrid protein
+		if (fusion.gene1->is_dummy || fusion.gene2->is_dummy ||
+		    fusion.direction1 == fusion.direction2 && fusion.gene1->strand != fusion.gene2->strand ||
+		    fusion.direction1 != fusion.direction2 && fusion.gene1->strand == fusion.gene2->strand) {
+			return "translocation";
 		} else {
 			if ((fusion.direction1 == UPSTREAM && fusion.gene1->strand == FORWARD || fusion.direction1 == DOWNSTREAM && fusion.gene1->strand == REVERSE) &&
 			    (fusion.direction2 == UPSTREAM && fusion.gene2->strand == FORWARD || fusion.direction2 == DOWNSTREAM && fusion.gene2->strand == REVERSE)) {
