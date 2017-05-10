@@ -283,11 +283,8 @@ int main(int argc, char **argv) {
 	load_assembly(assembly, options.assembly_file, contigs, interesting_contigs);
 
 	if (options.filters.at("mismatches")) {
-		cout << "Estimating mismatch probability" << flush;
-		float mismatch_probability = estimate_mismatch_probability(chimeric_alignments, assembly);
-		cout << " (probability=" << mismatch_probability << ")" << endl;
 		cout << "Filtering reads with a mismatch p-value <=" << options.mismatch_pvalue_cutoff << flush;
-		cout << " (remaining=" << filter_mismatches(chimeric_alignments, assembly, mismatch_probability, options.mismatch_pvalue_cutoff) << ")" << endl;
+		cout << " (remaining=" << filter_mismatches(chimeric_alignments, assembly, 0.01, options.mismatch_pvalue_cutoff) << ")" << endl;
 	}
 
 	if (options.filters.at("low_entropy")) {

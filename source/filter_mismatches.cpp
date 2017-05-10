@@ -97,34 +97,3 @@ unsigned int filter_mismatches(chimeric_alignments_t& chimeric_alignments, const
 	return remaining;
 }
 
-float estimate_mismatch_probability(const chimeric_alignments_t& chimeric_alignments, const assembly_t& assembly) {
-
-	// calculate mismatch probability based on the frequency of mismatches in MATE1 of split reads
-	// (these reads align more reliably than MATE2 or SUPPLEMENTARY)
-	unsigned int sum_of_mismatches = 0;
-	unsigned int sum_of_alignment_lengths = 0;
-	for (chimeric_alignments_t::const_iterator chimeric_alignment = chimeric_alignments.begin(); chimeric_alignment != chimeric_alignments.end(); ++chimeric_alignment) {
-
-		if (chimeric_alignment->second.filter != NULL)
-			continue; // ignore filtered reads, they could be bogus in various ways
-
-		if (chimeric_alignment->second.size() == 3) { // split read
-			unsigned int mismatches, alignment_length;
-			count_mismatches(chimeric_alignment->second[MATE1], assembly, mismatches, alignment_length);
-			sum_of_mismatches += mismatches;
-			sum_of_alignment_lengths += alignment_length;
-			if (sum_of_alignment_lengths > 100000000)
-				break; // estimate should be close enough
-		}
-	}
-
-	if (sum_of_alignment_lengths < 1000000) {
-		cerr << "WARNING: not enough reads to estimate mismatch probability, using default value" << endl;
-		return 0.01;
-	} else if ((float) sum_of_mismatches / sum_of_alignment_lengths < 0.005) {
-		return 0.005; // make sure not to underestimate the mismatch probability or else SNPs will be penalized too hard
-	} else {
-		return (float) sum_of_mismatches / sum_of_alignment_lengths;
-	}
-}
-
