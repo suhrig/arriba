@@ -28,8 +28,8 @@ void print_usage(const string& error_message) {
 	options_t default_options = get_default_options();
 
 	cerr << endl
-	     << "Arriba RNA fusion detector - extract_read-through_fusions" << endl
-	     << "---------------------------------------------------------" << endl
+	     << "Arriba gene fusion detector - extract_read-through_fusions" << endl
+	     << "----------------------------------------------------------" << endl
 	     << "Version: " << ARRIBA_VERSION << endl << endl
 	     << "This is a helper utility of Arriba. The STAR RNA-Seq aligner does " << endl
 	     << "not report read-through fusions in the chimeric BAM file. This program " << endl
@@ -37,8 +37,11 @@ void print_usage(const string& error_message) {
 	     << "The output file should be passed to Arriba via the parameter -r." << endl
 	     << "For optimal performance extract_read-through_fusions should be run " << endl
 	     << "while STAR is running (see usage)." << endl << endl
-	     << "Usage: extract_read-through_fusions -g annotation.gtf -i rna.bam -o read_through.bam" << endl
-	     << "Usage: STAR --outStd BAM [...] | tee rna.bam | extract_read-through_fusions -g annotation.gtf > read_through.bam" << endl << endl
+	     << "Usage: # run on existing BAM file:" << endl
+	     << "       extract_read-through_fusions -g annotation.gtf -i rna.bam -o read_through.bam" << endl
+	     << "Usage: # run during alignment and produce sorted BAM file:" << endl
+	     << "       STAR --outStd BAM_Unsorted --outSAMtype BAM Unsorted SortedByCoordinate [...] |" << endl
+	     << "       extract_read-through_fusions -g annotation.gtf > read_through.bam" << endl << endl
 	     << wrap_help("-i FILE", "Input file in BAM format containing alignments from STAR. "
 	                  "The file need not be sorted. Default: " + default_options.input_bam_file)
 	     << wrap_help("-o FILE", "Output file in BAM format containing reads which support "
@@ -99,10 +102,12 @@ options_t parse_arguments(int argc, char **argv) {
 			case '?':
 				switch (optopt) {
 					case 'g': case 'i': case 'o':
-						print_usage(string("Option -") + ((char) optopt) + " requires an argument.");
+						cerr << "ERROR: " << string("Option -") + ((char) optopt) + " requires an argument." << endl;
+						exit(1);
 						break;
 					default:
-						print_usage(string("Unknown option: -") + ((char) optopt));
+						cerr << "ERROR: " << string("Unknown option: -") + ((char) optopt) << endl;
+						exit(1);
 						break;
 				}
 			case 'h':
@@ -112,12 +117,18 @@ options_t parse_arguments(int argc, char **argv) {
 	}
 
 	// check for mandatory arguments
-	if (options.input_bam_file.empty())
-		print_usage("Missing mandatory option: -i");
-	if (options.output_bam_file.empty())
-		print_usage("Missing mandatory option: -o");
-	if (options.gene_annotation_file.empty())
-		print_usage("Missing mandatory option: -g");
+	if (options.input_bam_file.empty()) {
+		cerr << "ERROR: Missing mandatory option: -i" << endl;
+		exit(1);
+	}
+	if (options.output_bam_file.empty()) {
+		cerr << "ERROR: Missing mandatory option: -o" << endl;
+		exit(1);
+	}
+	if (options.gene_annotation_file.empty()) {
+		cerr << "ERROR: Missing mandatory option: -g" << endl;
+		exit(1);
+	}
 
 	return options;
 }
