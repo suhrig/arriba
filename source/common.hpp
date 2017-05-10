@@ -47,7 +47,6 @@ template <class T> class annotation_index_t: public vector< contig_annotation_in
 
 struct gene_annotation_record_t: public annotation_record_t {
 	string name;
-	string sequence;
 	int exonic_length; // sum of the length of all exons in a gene
 	bool is_dummy;
 	bool is_known;

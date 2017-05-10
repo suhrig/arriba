@@ -493,45 +493,6 @@ void get_boundaries_of_biggest_gene(gene_set_t& genes, position_t& start, positi
 	}
 }
 
-void fetch_gene_sequences_from_fasta(const string& assembly_file_path, fusions_t& fusions, const vector<string>& contigs_by_id) {
-
-	// open FastA file and index
-	faidx_t* genome_fa_index = fai_load(assembly_file_path.c_str());
-
-	// fetch sequences of non-discarded fusions from FastA file
-	for (fusions_t::iterator i = fusions.begin(); i != fusions.end(); ++i) {
-
-		if (i->second.filter != NULL)
-			continue; // skip discarded fusions
-
-		vector<gene_t> genes = { i->second.gene1, i->second.gene2 };
-		for (vector<gene_t>::iterator gene = genes.begin(); gene != genes.end(); ++gene) {
-
-			if ((**gene).sequence.empty()) { // if we have not already fetched the sequence
-				char* sequence;
-				int length;
-				string region_string = contigs_by_id[(**gene).contig] + ":" + to_string((**gene).start+1) + "-" + to_string((**gene).end+1);
-				sequence = fai_fetch(genome_fa_index, region_string.c_str(), &length);
-				if (length == 0) { // fetching failed
-					// maybe the FastA file has "chr" in contig names => try again
-					sequence = fai_fetch(genome_fa_index, addChr(region_string).c_str(), &length);
-					if (length == 0) { // fetching failed again => give up
-						cerr << "WARNING: Failed to fetch sequence of feature '" << (**gene).name << "' from '" << assembly_file_path << "'.";
-						return;
-					}
-				}
-				(**gene).sequence = string(sequence, sequence + length);
-				// convert to uppercase
-				std::transform((**gene).sequence.begin(), (**gene).sequence.end(), (**gene).sequence.begin(), (int (*)(int))std::toupper);
-				free(sequence);
-			}
-		}
-	}
-
-	// close FastA file and index
-	fai_destroy(genome_fa_index);
-}
-
 void dna_to_reverse_complement(string& dna, string& reverse_complement) {
 	if (!reverse_complement.empty())
 		reverse_complement.clear();

@@ -74,7 +74,7 @@ void pileup_chimeric_alignments(vector<mates_t*>& chimeric_alignments, const uns
 	}
 }
 
-void get_sequence_from_pileup(const pileup_t& pileup, const position_t breakpoint, const direction_t direction, const gene_t gene,  string& sequence, string& clipped_sequence) {
+void get_sequence_from_pileup(const pileup_t& pileup, const position_t breakpoint, const direction_t direction, const gene_t gene, const assembly_t& assembly, string& sequence, string& clipped_sequence) {
 
 	// for each position, find the most frequent allele in the pileup
 	position_t previous_position;
@@ -86,9 +86,9 @@ void get_sequence_from_pileup(const pileup_t& pileup, const position_t breakpoin
 
 		// find out base in reference to mark SNPs/SNVs
 		string reference_base = "N";
-		if (position->first >= gene->start && // check if we have the sequence for the given position
-		    gene->sequence.size() > position->first - gene->start)
-			reference_base = gene->sequence[position->first - gene->start];
+		assembly_t::const_iterator contig_sequence = assembly.find(gene->contig);
+		if (contig_sequence != assembly.end())
+			reference_base = contig_sequence->second[position->first];
 
 		// find most frequent allele at current position and compute coverage
 		auto base = position->second.begin();
@@ -121,7 +121,7 @@ void get_sequence_from_pileup(const pileup_t& pileup, const position_t breakpoin
 	}
 }
 
-string get_fusion_transcript_sequence(fusion_t& fusion) {
+string get_fusion_transcript_sequence(fusion_t& fusion, const assembly_t& assembly) {
 
 	if (fusion.predicted_strands_ambiguous)
 		return "."; // sequence is unknown, because the strands cannot be determined
@@ -165,8 +165,8 @@ string get_fusion_transcript_sequence(fusion_t& fusion) {
 
 	// determine most frequent bases in pileup
 	string sequence1, sequence2, clipped_sequence1, clipped_sequence2;
-	get_sequence_from_pileup(pileup1, fusion.breakpoint1, fusion.direction1, fusion.gene1, sequence1, clipped_sequence1);
-	get_sequence_from_pileup(pileup2, fusion.breakpoint2, fusion.direction2, fusion.gene2, sequence2, clipped_sequence2);
+	get_sequence_from_pileup(pileup1, fusion.breakpoint1, fusion.direction1, fusion.gene1, assembly, sequence1, clipped_sequence1);
+	get_sequence_from_pileup(pileup2, fusion.breakpoint2, fusion.direction2, fusion.gene2, assembly, sequence2, clipped_sequence2);
 
 	// if we have no split reads, the exact breakpoints are unknown => use ellipsis to indicate uncertainty
 	if (fusion.split_read1_list.size() + fusion.split_read2_list.size() == 0) {
@@ -470,7 +470,7 @@ string get_fusion_site(const gene_t gene, const bool spliced, const bool exonic,
 	return site;
 }
 
-void write_fusions_to_file(fusions_t& fusions, const string& output_file, gene_annotation_index_t& gene_annotation_index, exon_annotation_index_t& exon_annotation_index, vector<string> contigs_by_id, const bool print_supporting_reads, const bool print_fusion_sequence, const bool write_discarded_fusions) {
+void write_fusions_to_file(fusions_t& fusions, const string& output_file, const assembly_t& assembly, gene_annotation_index_t& gene_annotation_index, exon_annotation_index_t& exon_annotation_index, vector<string> contigs_by_id, const bool print_supporting_reads, const bool print_fusion_sequence, const bool write_discarded_fusions) {
 //TODO add "chr", if necessary
 
 	// make a vector of pointers to all fusions
@@ -610,7 +610,7 @@ void write_fusions_to_file(fusions_t& fusions, const string& output_file, gene_a
 		// print a fusion-spanning sequence
 		out << "\t";
 		if (print_fusion_sequence) {
-			out << get_fusion_transcript_sequence(**fusion);
+			out << get_fusion_transcript_sequence(**fusion, assembly);
 		} else {
 			out << ".";
 		}

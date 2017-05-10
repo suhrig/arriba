@@ -49,8 +49,6 @@ void annotate_alignments(mates_t& mates, const exon_annotation_index_t& exon_ann
 
 void get_boundaries_of_biggest_gene(gene_set_t& genes, position_t& start, position_t& end);
 
-void fetch_gene_sequences_from_fasta(const string& assembly_file_path, fusions_t& fusions, const vector<string>& contigs_by_id);
-
 void dna_to_reverse_complement(string& dna, string& reverse_complement);
 
 string dna_to_reverse_complement(string& dna);

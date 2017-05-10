@@ -408,15 +408,10 @@ int main(int argc, char **argv) {
 		cout << " (remaining=" << filter_end_to_end_fusions(fusions) << ")" << endl;
 	}
 
-	if (!options.assembly_file.empty()) {
-		cout << "Fetching sequences of genes from '" << options.assembly_file << "'" << endl << flush;
-		fetch_gene_sequences_from_fasta(options.assembly_file, fusions, contigs_by_id);
-
-		// this step must come near the end, because it is computationally expensive
-		if (options.filters.at("mismappers")) {
-			cout << "Re-aligning chimeric reads to filter fusions with >=" << (options.max_mismapper_fraction*100) << "% mis-mappers" << flush;
-			cout << " (remaining=" << filter_mismappers(fusions, gene_annotation, exon_annotation_index, contigs, options.max_mismapper_fraction) << ")" << endl;
-		}
+	// this step must come near the end, because it is computationally expensive
+	if (options.filters.at("mismappers")) {
+		cout << "Re-aligning chimeric reads to filter fusions with >=" << (options.max_mismapper_fraction*100) << "% mis-mappers" << flush;
+		cout << " (remaining=" << filter_mismappers(fusions, assembly, gene_annotation, exon_annotation_index, contigs, options.max_mismapper_fraction) << ")" << endl;
 	}
 
 	// this step must come near the end, because random BAM file accesses are slow
@@ -451,11 +446,11 @@ int main(int argc, char **argv) {
 	assign_confidence(fusions);
 
 	cout << "Writing fusions to file '" << options.output_file << "'" << endl;
-	write_fusions_to_file(fusions, options.output_file, gene_annotation_index, exon_annotation_index, contigs_by_id, options.print_supporting_reads, options.print_fusion_sequence, false);
+	write_fusions_to_file(fusions, options.output_file, assembly, gene_annotation_index, exon_annotation_index, contigs_by_id, options.print_supporting_reads, options.print_fusion_sequence, false);
 
 	if (options.discarded_output_file != "") {
 		cout << "Writing discarded fusions to file '" << options.discarded_output_file << "'" << endl;
-		write_fusions_to_file(fusions, options.discarded_output_file, gene_annotation_index, exon_annotation_index, contigs_by_id, options.print_supporting_reads_for_discarded_fusions, options.print_fusion_sequence_for_discarded_fusions, true);
+		write_fusions_to_file(fusions, options.discarded_output_file, assembly, gene_annotation_index, exon_annotation_index, contigs_by_id, options.print_supporting_reads_for_discarded_fusions, options.print_fusion_sequence_for_discarded_fusions, true);
 	}
 
 	return 0;
