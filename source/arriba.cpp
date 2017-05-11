@@ -411,7 +411,7 @@ int main(int argc, char **argv) {
 	// this step must come near the end, because it is computationally expensive
 	if (options.filters.at("mismappers")) {
 		cout << "Re-aligning chimeric reads to filter fusions with >=" << (options.max_mismapper_fraction*100) << "% mis-mappers" << flush;
-		cout << " (remaining=" << filter_mismappers(fusions, assembly, gene_annotation, exon_annotation_index, contigs, options.max_mismapper_fraction) << ")" << endl;
+		cout << " (remaining=" << filter_mismappers(fusions, assembly, gene_annotation, exon_annotation_index, contigs, options.max_mismapper_fraction, max_mate_gap) << ")" << endl;
 	}
 
 	// this step must come near the end, because random BAM file accesses are slow
