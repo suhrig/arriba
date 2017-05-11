@@ -90,7 +90,8 @@ void estimate_expected_fusions(fusions_t& fusions, const unsigned long int mappe
 		i->second.evalue = max_fusion_partners * max(1.0, mapped_reads / 20000000.0 * pow(0.02, supporting_reads-2));
 
 		// intergenic and intragenic fusions are scored differently, because they have different frequencies
-		if (!i->second.breakpoint_overlaps_both_genes()) {
+		if (!(i->second.breakpoint1 >= i->second.gene2->start - 10000 && i->second.breakpoint1 <= i->second.gene2->end + 10000 &&
+		      i->second.breakpoint2 >= i->second.gene1->start - 10000 && i->second.breakpoint2 <= i->second.gene1->end + 10000)) {
 
 			// the more fusion partners a gene has, the less likely a fusion is true (hence we multiply the e-value by max_fusion_partners)
 			// but the likehood of a false positive decreases near-exponentially with the number of supporting reads (hence we multiply by x^(supporting_reads-2) )
