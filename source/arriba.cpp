@@ -17,6 +17,7 @@
 #include "filter_duplicates.hpp"
 #include "filter_proximal_read_through.hpp"
 #include "filter_same_gene.hpp"
+#include "filter_small_insert_size.hpp"
 #include "filter_hairpin.hpp"
 #include "filter_mismatches.hpp"
 #include "filter_low_entropy.hpp"
@@ -49,6 +50,7 @@ unordered_map<string,filter_t> FILTERS({
 	{"duplicates", NULL},
 	{"read_through", NULL},
 	{"same_gene", NULL},
+	{"small_insert_size", NULL},
 	{"hairpin", NULL},
 	{"mismatches", NULL},
 	{"mismappers", NULL},
@@ -266,6 +268,11 @@ int main(int argc, char **argv) {
 	if (options.filters.at("read_through")) {
 		cout << "Filtering read-through fragments with a distance <=" << options.min_read_through_distance << "bp" << flush;
 		cout << " (remaining=" << filter_proximal_read_through(chimeric_alignments, options.min_read_through_distance) << ")" << endl;
+	}
+
+	if (options.filters.at("small_insert_size")) {
+		cout << "Filtering fragments with small insert size" << flush;
+		cout << " (remaining=" << filter_small_insert_size(chimeric_alignments, 5) << ")" << endl;
 	}
 
 	if (options.filters.at("same_gene")) {
