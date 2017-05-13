@@ -630,5 +630,9 @@ void write_fusions_to_file(fusions_t& fusions, const string& output_file, const 
 		out << endl;
 	}
 	out.close();
+	if (out.bad()) {
+		cerr << "ERROR: Failed to write to file" << endl;
+		exit(1);
+	}
 }
 
