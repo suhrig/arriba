@@ -94,7 +94,10 @@ options_t parse_arguments(int argc, char **argv) {
 					}
 				}
 				break;
-			case '?':
+			case 'h':
+				print_usage();
+				break;
+			default:
 				switch (optopt) {
 					case 'g': case 'i': case 'o':
 						cerr << "ERROR: " << string("Option -") + ((char) optopt) + " requires an argument." << endl;
@@ -105,9 +108,6 @@ options_t parse_arguments(int argc, char **argv) {
 						exit(1);
 						break;
 				}
-			case 'h':
-			default:
-				print_usage();
 		}
 	}
 
