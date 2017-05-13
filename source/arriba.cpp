@@ -108,7 +108,7 @@ int main(int argc, char **argv) {
 		contigs_by_id[i->second] = i->first;
 
 	cout << "Filtering multi-mappers and single mates" << flush;
-	cout << " (remaining=" << filter_multi_mappers(chimeric_alignments, options.single_end) << ")" << endl;
+	cout << " (remaining=" << filter_multi_mappers(chimeric_alignments) << ")" << endl;
 
 	if (options.strandedness != STRANDEDNESS_NO) {
 		cout << "Assigning strands to alignments" << endl << flush;
@@ -247,13 +247,10 @@ int main(int argc, char **argv) {
 
 	float mate_gap_mean, mate_gap_stddev;
 	int max_mate_gap;
-	if (!options.single_end) {
-		cout << "Estimating mate gap distribution" << flush;
-		if (estimate_mate_gap_distribution(chimeric_alignments, mate_gap_mean, mate_gap_stddev, gene_annotation_index, exon_annotation_index)) {
-			cout << " (mean=" << mate_gap_mean << ", stddev=" << mate_gap_stddev << ")" << endl;
-			max_mate_gap = max(0, (int) (mate_gap_mean + 3*mate_gap_stddev));
-		} else
-			max_mate_gap = options.fragment_length;
+	cout << "Estimating mate gap distribution" << flush;
+	if (estimate_mate_gap_distribution(chimeric_alignments, mate_gap_mean, mate_gap_stddev, gene_annotation_index, exon_annotation_index)) {
+		cout << " (mean=" << mate_gap_mean << ", stddev=" << mate_gap_stddev << ")" << endl;
+		max_mate_gap = max(0, (int) (mate_gap_mean + 3*mate_gap_stddev));
 	} else
 		max_mate_gap = options.fragment_length;
 	
@@ -262,7 +259,7 @@ int main(int argc, char **argv) {
 		cout << " (remaining=" << filter_proximal_read_through(chimeric_alignments, options.min_read_through_distance) << ")" << endl;
 	}
 
-	if (!options.single_end && options.filters.at("inconsistently_clipped")) {
+	if (options.filters.at("inconsistently_clipped")) {
 		cout << "Filtering inconsistently clipped mates" << flush;
 		cout << " (remaining=" << filter_inconsistently_clipped_mates(chimeric_alignments) << ")" << endl;
 	}
@@ -427,7 +424,7 @@ int main(int argc, char **argv) {
 	// this must come after the 'select_best' filter, so that the 'many_spliced' filter can recover it
 	if (options.filters.at("non_expressed")) {
 		cout << "Filtering fusions with no expression in '" << options.rna_bam_file << "'" << flush;
-		cout << " (remaining=" << filter_nonexpressed(fusions, options.rna_bam_file, chimeric_alignments, exon_annotation_index, max_mate_gap, options.single_end) << ")" << endl;
+		cout << " (remaining=" << filter_nonexpressed(fusions, options.rna_bam_file, chimeric_alignments, exon_annotation_index, max_mate_gap) << ")" << endl;
 	}
 
 	// this step must come after all heuristic filters, to undo them

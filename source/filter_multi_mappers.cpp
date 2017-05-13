@@ -4,11 +4,11 @@
 
 using namespace std;
 
-unsigned int filter_multi_mappers(chimeric_alignments_t& chimeric_alignments, const bool single_end) {
+unsigned int filter_multi_mappers(chimeric_alignments_t& chimeric_alignments) {
 
 	for (chimeric_alignments_t::iterator chimeric_alignment = chimeric_alignments.begin(); chimeric_alignment != chimeric_alignments.end();) {
 
-		if (single_end) {
+		if (chimeric_alignment->second.single_end) {
 			if (chimeric_alignment->second.size() == 2) {
 
 				// use the alignment with the shorter anchor as the SUPPLEMENTARY and the longer one as the SPLIT_READ

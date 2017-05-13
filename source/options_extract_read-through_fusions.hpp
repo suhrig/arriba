@@ -10,7 +10,6 @@ struct options_t {
 	string gene_annotation_file;
 	string input_bam_file;
 	string output_bam_file;
-	bool single_end;
 	string gtf_features;
 };
 

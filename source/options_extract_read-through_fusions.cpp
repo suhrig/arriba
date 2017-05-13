@@ -15,7 +15,6 @@ options_t get_default_options() {
 
 	options.input_bam_file = "/dev/stdin";
 	options.output_bam_file = "/dev/stdout";
-	options.single_end = false;
 	options.gtf_features = DEFAULT_GTF_FEATURES;
 
 	return options;
@@ -49,7 +48,6 @@ void print_usage(const string& error_message) {
 	     << wrap_help("-g FILE", "GTF file with gene annotation. The file may be gzip compressed.")
 	     << wrap_help("-G GTF_FEATURES", "Comma-/space-separated list of names of GTF features.\n"
 	                  "Default: " + default_options.gtf_features)
-	     << wrap_help("-1", "Single-end data. Default: " + string((default_options.single_end) ? "single-end" : "paired-end"))
 	     << wrap_help("-h", "Print help and exit.")
 	     << "Questions or problems may be sent to: " << HELP_CONTACT << endl;
 	exit(1);
@@ -95,9 +93,6 @@ options_t parse_arguments(int argc, char **argv) {
 						exit(1);
 					}
 				}
-				break;
-			case '1':
-				options.single_end = true;
 				break;
 			case '?':
 				switch (optopt) {

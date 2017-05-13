@@ -120,14 +120,16 @@ int main(int argc, char **argv) {
 	buffered_bam_records_t buffered_bam_records; // holds the first mate until we have found the second
 	while (bam_read1(input_bam_file, bam_record) > 0) {
 
-		if (!options.single_end &&
+		bool single_end = !(bam_record->core.flag & BAM_FPAIRED);
+
+		if (!single_end &&
 		    (!(bam_record->core.flag & BAM_FPROPER_PAIR) || // ignore discordant mates, they are in the chimeric.bam file already
 		     (bam_record->core.flag & BAM_FUNMAP) || (bam_record->core.flag & BAM_FMUNMAP)) || // ignore single mates
 		    (bam_record->core.flag & BAM_FSECONDARY)) // ignore secondary alignments
 			continue;
 
 		// when single-end data is given, fake paired-end data by creating a fake mate
-		if (options.single_end) {
+		if (single_end) {
 			bam1_t* fake_mate = bam_dup1(bam_record);
 			fake_mate->core.flag ^= BAM_FREVERSE; // invert strand
 			buffered_bam_records[(char*) bam1_qname(fake_mate)] = fake_mate;
@@ -190,13 +192,13 @@ int main(int argc, char **argv) {
 				unsigned int cigar_op;
 				position_t read_pos;
 				position_t gene2_pos;
-				if (find_spanning_intron(forward_mate, forward_gene_end, reverse_gene_start, cigar_op, read_pos, gene2_pos) && (!options.single_end || !(bam_record->core.flag & BAM_FREVERSE))) {
+				if (find_spanning_intron(forward_mate, forward_gene_end, reverse_gene_start, cigar_op, read_pos, gene2_pos) && (!single_end || !(bam_record->core.flag & BAM_FREVERSE))) {
 
 					// make split read and supplementary from forward mate
 					clip_start(output_bam_file, forward_mate, cigar_op, read_pos, gene2_pos, false); // split read
 					clip_end(output_bam_file, forward_mate, cigar_op, read_pos, true); // supplementary
 					
-					if (!options.single_end) {
+					if (!single_end) {
 						if (reverse_mate->core.pos >= bam_endpos(forward_mate)) {
 							// write reverse mate to output as is
 							bam_write1(output_bam_file, reverse_mate);
@@ -210,13 +212,13 @@ int main(int argc, char **argv) {
 						}
 					}
 
-				} else if (find_spanning_intron(reverse_mate, forward_gene_end, reverse_gene_start, cigar_op, read_pos, gene2_pos) && (!options.single_end || bam_record->core.flag & BAM_FREVERSE)) {
+				} else if (find_spanning_intron(reverse_mate, forward_gene_end, reverse_gene_start, cigar_op, read_pos, gene2_pos) && (!single_end || bam_record->core.flag & BAM_FREVERSE)) {
 
 					// make split read and supplementary from reverse mate
 					clip_start(output_bam_file, reverse_mate, cigar_op, read_pos, gene2_pos, true); // supplementary
 					clip_end(output_bam_file, reverse_mate, cigar_op, read_pos, false); // split read
 
-					if (!options.single_end) {
+					if (!single_end) {
 						if (bam_endpos(forward_mate) <= reverse_mate->core.pos) {
 							// write forward mate to output as is
 							bam_write1(output_bam_file, forward_mate);

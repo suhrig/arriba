@@ -7,7 +7,7 @@
 
 using namespace std;
 
-bool region_has_non_chimeric_reads(BGZF* bam_file, bam_index_t* bam_index, const contig_t contig, const position_t start, const position_t end, const direction_t direction, const chimeric_alignments_t& chimeric_alignments, const bool exonic, const bool single_end) {
+bool region_has_non_chimeric_reads(BGZF* bam_file, bam_index_t* bam_index, const contig_t contig, const position_t start, const position_t end, const direction_t direction, const chimeric_alignments_t& chimeric_alignments, const bool exonic) {
 	bam1_t* bam_record = bam_init1();
 	bool result = false;
 
@@ -19,8 +19,8 @@ bool region_has_non_chimeric_reads(BGZF* bam_file, bam_index_t* bam_index, const
 				      // ignore reads which span OVER the given region due to splicing
 				      // we only count those that start or end near the breakpoint
 
-			    (direction == UPSTREAM   && !(bam_record->core.flag & BAM_FREVERSE) && bam_record->core.pos   >= start && bam_record->core.pos   <  end && (bam_record->core.mpos                         >= start || single_end)) ||
-			    (direction == DOWNSTREAM &&  (bam_record->core.flag & BAM_FREVERSE) && bam_endpos(bam_record) >  start && bam_endpos(bam_record) <= end && (bam_record->core.mpos+bam_record->core.l_qseq <= end   || single_end))) {
+			    (direction == UPSTREAM   && !(bam_record->core.flag & BAM_FREVERSE) && bam_record->core.pos   >= start && bam_record->core.pos   <  end && (bam_record->core.mpos                         >= start || !(bam_record->core.flag & BAM_FPAIRED))) ||
+			    (direction == DOWNSTREAM &&  (bam_record->core.flag & BAM_FREVERSE) && bam_endpos(bam_record) >  start && bam_endpos(bam_record) <= end && (bam_record->core.mpos+bam_record->core.l_qseq <= end   || !(bam_record->core.flag & BAM_FPAIRED)))) {
 			                                                                                                                                            // ^quick and dirty way of calculating the end of the mate
 				result = true;
 				break;
@@ -34,7 +34,7 @@ bool region_has_non_chimeric_reads(BGZF* bam_file, bam_index_t* bam_index, const
 	return result;
 }
 
-unsigned int filter_nonexpressed(fusions_t& fusions, const string& bam_file_path, const chimeric_alignments_t& chimeric_alignments, const exon_annotation_index_t& exon_annotation_index, const int max_mate_gap, const bool single_end) {
+unsigned int filter_nonexpressed(fusions_t& fusions, const string& bam_file_path, const chimeric_alignments_t& chimeric_alignments, const exon_annotation_index_t& exon_annotation_index, const int max_mate_gap) {
 
 	// open BAM file and load index
 	BGZF* bam_file = bam_open(bam_file_path.c_str(), "rb");
@@ -87,7 +87,7 @@ unsigned int filter_nonexpressed(fusions_t& fusions, const string& bam_file_path
 				if (fusion->second.split_reads1 + fusion->second.split_reads2 == 0)
 					end += max_mate_gap;
 			}
-			if (!region_has_non_chimeric_reads(bam_file, bam_index, fusion->second.contig1, start, end, fusion->second.direction1, chimeric_alignments, fusion->second.exonic1, single_end)) {
+			if (!region_has_non_chimeric_reads(bam_file, bam_index, fusion->second.contig1, start, end, fusion->second.direction1, chimeric_alignments, fusion->second.exonic1)) {
 				fusion->second.filter = FILTERS.at("non_expressed");
 				continue;
 			}
@@ -114,7 +114,7 @@ unsigned int filter_nonexpressed(fusions_t& fusions, const string& bam_file_path
 				if (fusion->second.split_reads1 + fusion->second.split_reads2 == 0)
 					end += max_mate_gap;
 			}
-			if (!region_has_non_chimeric_reads(bam_file, bam_index, fusion->second.contig2, start, end, fusion->second.direction2, chimeric_alignments, fusion->second.exonic2, single_end)) {
+			if (!region_has_non_chimeric_reads(bam_file, bam_index, fusion->second.contig2, start, end, fusion->second.direction2, chimeric_alignments, fusion->second.exonic2)) {
 				fusion->second.filter = FILTERS.at("non_expressed");
 				continue;
 			}

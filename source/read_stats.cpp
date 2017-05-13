@@ -21,14 +21,17 @@ bool estimate_mate_gap_distribution(const chimeric_alignments_t& chimeric_alignm
 	list<int> mate_gaps;
 	unsigned int count = 0;
 	for (chimeric_alignments_t::const_iterator chimeric_alignment = chimeric_alignments.begin(); chimeric_alignment != chimeric_alignments.end(); ++chimeric_alignment) {
-		if (chimeric_alignment->second.filter != NULL)
+		if (chimeric_alignment->second.filter != NULL || chimeric_alignment->second.single_end)
 			continue;
 		if (chimeric_alignment->second.size() == 3) { // split read
+
 			alignment_t const* forward_mate = &(chimeric_alignment->second[MATE1]);
 			alignment_t const* reverse_mate = &(chimeric_alignment->second[SPLIT_READ]);
 			if (forward_mate->strand == REVERSE)
 				swap(forward_mate, reverse_mate);
+
 			mate_gaps.push_back(get_spliced_distance(forward_mate->contig, forward_mate->end, reverse_mate->start, DOWNSTREAM, UPSTREAM, *forward_mate->genes.begin(), exon_annotation_index));
+
 			count++;
 			if (count > 100000)
 				break; // the sample size should be big enough

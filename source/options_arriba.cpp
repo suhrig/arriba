@@ -28,7 +28,6 @@ options_t get_default_options() {
 	options.print_supporting_reads_for_discarded_fusions = false;
 	options.print_fusion_sequence = false;
 	options.print_fusion_sequence_for_discarded_fusions = false;
-	options.single_end = false;
 	options.max_kmer_content = 0.6;
 	options.fragment_length = 200;
 	options.strandedness = STRANDEDNESS_NO;
@@ -129,7 +128,6 @@ void print_usage(const string& error_message) {
 	                  "column can contain one of the following keywords: any, split_read_donor, "
 	                  "split_read_acceptor, split_read_any, discordant_mates, low_support, "
 	                  "read_through, filter_spliced. The file may be gzip-compressed.")
-	     << wrap_help("-1", "Single-end data. Default: " + string((default_options.single_end) ? "single-end" : "paired-end"))
 	     << wrap_help("-s STRANDEDNESS", "Whether a strand-specific protocol was used for library preparation, and if so, "
 	                  "the type of strandedness (yes/no/reverse). When unstranded data is processed, the strand "
 	                  "can sometimes be inferred from splice-patterns. But in unclear situations, stranded "
@@ -291,9 +289,6 @@ options_t parse_arguments(int argc, char **argv) {
 					cerr << "ERROR: File '" << options.known_fusions_file << "' not found." << endl;
 					exit(1);
 				}
-				break;
-			case '1':
-				options.single_end = true;
 				break;
 			case 's':
 				if (string(optarg) == "yes") {

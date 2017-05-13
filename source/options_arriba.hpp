@@ -33,7 +33,6 @@ struct options_t {
 	bool print_supporting_reads_for_discarded_fusions;
 	bool print_fusion_sequence;
 	bool print_fusion_sequence_for_discarded_fusions;
-	bool single_end;
 	float max_kmer_content;
 	unsigned int fragment_length;
 	string gtf_features;

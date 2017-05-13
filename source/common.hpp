@@ -105,6 +105,7 @@ class mates_t: public vector<alignment_t> {
 	public:
 		string name;
 		filter_t filter; // name of the filter which discarded the reads (NULL means not discarded)
+		bool single_end;
 		mates_t(): filter(NULL) {};
 };
 typedef unordered_map<string,mates_t> chimeric_alignments_t;
