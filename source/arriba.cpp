@@ -132,16 +132,6 @@ int main(int argc, char **argv) {
 			*i = true;
 	}
 
-	if (!options.single_end && options.filters.at("inconsistently_clipped")) {
-		cout << "Filtering inconsistently clipped mates" << flush;
-		cout << " (remaining=" << filter_inconsistently_clipped_mates(chimeric_alignments) << ")" << endl;
-	}
-
-	if (options.filters.at("homopolymer")) {
-		cout << "Filtering breakpoints adjacent to homopolymers >=" << options.homopolymer_length << "nt" << flush;
-		cout << " (remaining=" << filter_homopolymer(chimeric_alignments, options.homopolymer_length) << ")" << endl;
-	}
-
 	if (options.filters.at("duplicates")) {
 		cout << "Filtering duplicates" << flush;
 		cout << " (remaining=" << filter_duplicates(chimeric_alignments) << ")" << endl;
@@ -259,15 +249,27 @@ int main(int argc, char **argv) {
 	int max_mate_gap;
 	if (!options.single_end) {
 		cout << "Estimating mate gap distribution" << flush;
-		estimate_mate_gap_distribution(options.rna_bam_file, mate_gap_mean, mate_gap_stddev, gene_annotation_index, exon_annotation_index, 200000);
-		cout << " (mean=" << mate_gap_mean << ", stddev=" << mate_gap_stddev << ")" << endl;
-		max_mate_gap = max(0, (int) (mate_gap_mean + 3*mate_gap_stddev));
+		if (estimate_mate_gap_distribution(chimeric_alignments, mate_gap_mean, mate_gap_stddev, gene_annotation_index, exon_annotation_index)) {
+			cout << " (mean=" << mate_gap_mean << ", stddev=" << mate_gap_stddev << ")" << endl;
+			max_mate_gap = max(0, (int) (mate_gap_mean + 3*mate_gap_stddev));
+		} else
+			max_mate_gap = options.fragment_length;
 	} else
 		max_mate_gap = options.fragment_length;
 	
 	if (options.filters.at("read_through")) {
 		cout << "Filtering read-through fragments with a distance <=" << options.min_read_through_distance << "bp" << flush;
 		cout << " (remaining=" << filter_proximal_read_through(chimeric_alignments, options.min_read_through_distance) << ")" << endl;
+	}
+
+	if (!options.single_end && options.filters.at("inconsistently_clipped")) {
+		cout << "Filtering inconsistently clipped mates" << flush;
+		cout << " (remaining=" << filter_inconsistently_clipped_mates(chimeric_alignments) << ")" << endl;
+	}
+
+	if (options.filters.at("homopolymer")) {
+		cout << "Filtering breakpoints adjacent to homopolymers >=" << options.homopolymer_length << "nt" << flush;
+		cout << " (remaining=" << filter_homopolymer(chimeric_alignments, options.homopolymer_length) << ")" << endl;
 	}
 
 	if (options.filters.at("small_insert_size")) {

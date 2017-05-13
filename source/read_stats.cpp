@@ -1,5 +1,4 @@
 #include <list>
-#include "sam.h"
 #include "common.hpp"
 #include "annotation.hpp"
 #include "read_stats.hpp"
@@ -16,46 +15,30 @@ unsigned long int count_mapped_reads(const string& bam_file_path, const vector<b
 	return result;
 }
 
-void estimate_mate_gap_distribution(const string& bam_file_path, float& mate_gap_mean, float& mate_gap_stddev, const gene_annotation_index_t& gene_annotation_index, const exon_annotation_index_t& exon_annotation_index, const unsigned int sample_size) {
+bool estimate_mate_gap_distribution(const chimeric_alignments_t& chimeric_alignments, float& mate_gap_mean, float& mate_gap_stddev, const gene_annotation_index_t& gene_annotation_index, const exon_annotation_index_t& exon_annotation_index) {
 
-	// open BAM file
-	BGZF* bam_file = bam_open(bam_file_path.c_str(), "rb");
-	bam_header_t* bam_header = bam_header_read(bam_file);
-
-	// cycle through BAM file and note down mate gaps
-	bam1_t* bam_record = bam_init1();
-	unsigned int count = 0;
+	// use MATE1 and MATE2 from split reads to calculate insert size distribution
 	list<int> mate_gaps;
-	while (
-	       count <= sample_size &&		   // read at most <sample_size> reads
-	       bam_read1(bam_file, bam_record) > 0 // or until the end of the file is reached
-	      ) {
-
-		// ignore secondary alignments and mates which aren't paired properly
-		// also, we only use mates on the forward strand in order to not count the same mate gap twice
-		if ((bam_record->core.flag & BAM_FPROPER_PAIR) && !(bam_record->core.flag & BAM_FSECONDARY) && !(bam_record->core.flag & BAM_FREVERSE)) {
-
-			position_t mate1_end = bam_endpos(bam_record);
-
-			// check if both mates map to exons of the same gene
-			// (if not then the alignment might be strange and mate gap calculation would be skewed)
-			gene_set_t mate1_genes, mate2_genes, combined_genes;
-			get_annotation_by_coordinate(bam_record->core.tid, bam_record->core.pos, mate1_end, mate1_genes, gene_annotation_index);
-			get_annotation_by_coordinate(bam_record->core.mtid, bam_record->core.mpos, bam_record->core.mpos, mate2_genes, gene_annotation_index);
-			combine_annotations(mate1_genes, mate2_genes, combined_genes, false);
-
-			if (combined_genes.size() == 1 && // both mates map to exons of one (and only one) gene
-			    !(**combined_genes.begin()).is_dummy) { // ignore intergenic regions
-				mate_gaps.push_back(get_spliced_distance(bam_record->core.tid, mate1_end, bam_record->core.mpos, DOWNSTREAM, UPSTREAM, *combined_genes.begin(), exon_annotation_index));
-				count++;
-			}
+	unsigned int count = 0;
+	for (chimeric_alignments_t::const_iterator chimeric_alignment = chimeric_alignments.begin(); chimeric_alignment != chimeric_alignments.end(); ++chimeric_alignment) {
+		if (chimeric_alignment->second.filter != NULL)
+			continue;
+		if (chimeric_alignment->second.size() == 3) { // split read
+			alignment_t const* forward_mate = &(chimeric_alignment->second[MATE1]);
+			alignment_t const* reverse_mate = &(chimeric_alignment->second[SPLIT_READ]);
+			if (forward_mate->strand == REVERSE)
+				swap(forward_mate, reverse_mate);
+			mate_gaps.push_back(get_spliced_distance(forward_mate->contig, forward_mate->end, reverse_mate->start, DOWNSTREAM, UPSTREAM, *forward_mate->genes.begin(), exon_annotation_index));
+			count++;
+			if (count > 100000)
+				break; // the sample size should be big enough
 		}
 	}
 
-	// close BAM file
-	bam_destroy1(bam_record);
-	bam_header_destroy(bam_header);
-	bam_close(bam_file);
+	if (count < 10000) {
+		cerr << "WARNING: not enough chimeric reads to estimate mate gap distribution, using default values" << endl;
+		return false;
+	}
 
 	bool no_more_outliers = false;
 	while (true) {
@@ -93,5 +76,7 @@ void estimate_mate_gap_distribution(const string& bam_file_path, float& mate_gap
 			}
 		}
 	}
+
+	return true;
 }
 
