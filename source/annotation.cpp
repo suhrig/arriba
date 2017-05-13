@@ -198,6 +198,11 @@ void read_annotation_gtf(const string& filename, const contigs_t& contigs, const
 		}
 	}
 
+	if (gene_annotation.empty()) {
+		cerr << "ERROR: failed to parse GTF file, please consider using -G" << endl;
+		exit(1);
+	}
+
 	// make a map of gene_name -> gene
 	//TODO this can cause collisions, because gene names are not unique
 	for (gene_annotation_t::iterator gene = gene_annotation.begin(); gene != gene_annotation.end(); ++gene)
