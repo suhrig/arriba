@@ -105,6 +105,7 @@ bool align(int score, const string& read_sequence, string::size_type read_pos, c
 				int extended_read_pos = read_pos + kmer_length;
 				int extended_gene_pos = *kmer_hit + kmer_length;
 				unsigned int mismatch_count = 0;
+				unsigned int consecutive_mismatches = 0;
 				splice_sites_t::const_iterator next_splice_site = splice_sites.lower_bound(extended_gene_pos - 1);
 				while (extended_read_pos < read_sequence.length() && extended_gene_pos <= gene_end) {
 
@@ -123,10 +124,10 @@ bool align(int score, const string& read_sequence, string::size_type read_pos, c
 						extended_score++;
 						if (extended_score >= min_score)
 							return true;
+						consecutive_mismatches = 0;
 
 					} else { // there is a mismatch
 
-						// allow one mismatch
 						mismatch_count++;
 						if (mismatch_count == 1) { // when there is more than one mismatch, do another k-mer lookup
 							if (max_deletions > 0 && read_sequence.length() >= 30 && // do not allow too many deletions/introns and only if the read is reasonably long
@@ -135,6 +136,9 @@ bool align(int score, const string& read_sequence, string::size_type read_pos, c
 							}
 						}
 						extended_score--; // penalize mismatch
+						consecutive_mismatches++;
+						if (consecutive_mismatches >= 4)
+							break;
 					}
 
 					extended_read_pos++;
