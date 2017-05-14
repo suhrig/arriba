@@ -158,6 +158,7 @@ typedef char strandedness_t;
 const strandedness_t STRANDEDNESS_NO = 0;
 const strandedness_t STRANDEDNESS_YES = 1;
 const strandedness_t STRANDEDNESS_REVERSE = 2;
+const strandedness_t STRANDEDNESS_AUTO = 3;
 
 namespace std{
     namespace

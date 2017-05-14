@@ -1,4 +1,5 @@
 #include <list>
+#include <string>
 #include "common.hpp"
 #include "annotation.hpp"
 #include "read_stats.hpp"
@@ -7,7 +8,7 @@ unsigned long int count_mapped_reads(const string& bam_file_path, const vector<b
 	unsigned long int result = 0;
 	bam_index_t* bam_index = bam_index_load(bam_file_path.c_str());
 	for (unsigned int i = 0; i < interesting_contigs.size(); ++i) {
-        	unsigned long int mapped, unmapped;
+		unsigned long int mapped, unmapped;
 		hts_idx_get_stat(bam_index, i, &mapped, &unmapped);
 		if (interesting_contigs[i]) // only count reads on interesting contigs
 			result += mapped;
@@ -83,3 +84,30 @@ bool estimate_mate_gap_distribution(const chimeric_alignments_t& chimeric_alignm
 	return true;
 }
 
+strandedness_t detect_strandedness(const chimeric_alignments_t& chimeric_alignments, const gene_annotation_index_t& gene_annotation_index) {
+	unsigned int count = 0;
+	unsigned int matching_strand = 0;
+	for (chimeric_alignments_t::const_iterator chimeric_alignment = chimeric_alignments.begin(); chimeric_alignment != chimeric_alignments.end(); ++chimeric_alignment) {
+		if (chimeric_alignment->second.filter == NULL) {
+			gene_set_t genes;
+			alignment_t const* first_in_pair = (chimeric_alignment->second[MATE1].first_in_pair) ? &(chimeric_alignment->second[MATE1]) : &(chimeric_alignment->second[MATE2]);
+			get_annotation_by_coordinate(first_in_pair->contig, first_in_pair->start, first_in_pair->end, genes, gene_annotation_index);
+			if (genes.size() == 1) {
+				if (first_in_pair->strand == (**genes.begin()).strand)
+					matching_strand++;
+				count++;
+				if (count >= 100000)
+					break; // the sample size should be sufficient
+			}
+		}
+	}
+
+	if (count < 10000) {
+		return STRANDEDNESS_NO; // not enough statistical power => assume no
+	} else if (matching_strand < 0.3 * count) {
+		return STRANDEDNESS_REVERSE;
+	} else if (matching_strand > 0.7 * count) {
+		return STRANDEDNESS_YES;
+	} else
+		return STRANDEDNESS_NO; // not enough signal => assume no
+}

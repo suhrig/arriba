@@ -30,7 +30,7 @@ options_t get_default_options() {
 	options.print_fusion_sequence_for_discarded_fusions = false;
 	options.max_kmer_content = 0.6;
 	options.fragment_length = 200;
-	options.strandedness = STRANDEDNESS_NO;
+	options.strandedness = STRANDEDNESS_AUTO;
 	options.gtf_features = DEFAULT_GTF_FEATURES;
 	options.min_spliced_events = 4;
 	options.mismatch_pvalue_cutoff = 0.01;
@@ -129,9 +129,9 @@ void print_usage(const string& error_message) {
 	                  "split_read_acceptor, split_read_any, discordant_mates, low_support, "
 	                  "read_through, filter_spliced. The file may be gzip-compressed.")
 	     << wrap_help("-s STRANDEDNESS", "Whether a strand-specific protocol was used for library preparation, and if so, "
-	                  "the type of strandedness (yes/no/reverse). When unstranded data is processed, the strand "
+	                  "the type of strandedness (auto/yes/no/reverse). When unstranded data is processed, the strand "
 	                  "can sometimes be inferred from splice-patterns. But in unclear situations, stranded "
-	                  "data helps resolve ambiguities. Default: " + string((default_options.strandedness == STRANDEDNESS_NO) ? "no" : ((default_options.strandedness == STRANDEDNESS_YES) ? "yes" : "reverse")))
+	                  "data helps resolve ambiguities. Default: " + string((default_options.strandedness == STRANDEDNESS_NO) ? "no" : ((default_options.strandedness == STRANDEDNESS_YES) ? "yes" : ((default_options.strandedness == STRANDEDNESS_REVERSE) ? "reverse" : "auto"))))
 	     << wrap_help("-i CONTIGS", "Comma-/space-separated list of interesting contigs. Fusions "
 	                  "between genes on other contigs are ignored. Contigs can be specified with "
 	                  "or without the prefix \"chr\".\nDefault: " + default_options.interesting_contigs)
@@ -290,7 +290,9 @@ options_t parse_arguments(int argc, char **argv) {
 				}
 				break;
 			case 's':
-				if (string(optarg) == "yes") {
+				if (string(optarg) == "auto") {
+					options.strandedness = STRANDEDNESS_AUTO;
+				} else if (string(optarg) == "yes") {
 					options.strandedness = STRANDEDNESS_YES;
 				} else if (string(optarg) == "no") {
 					options.strandedness = STRANDEDNESS_NO;

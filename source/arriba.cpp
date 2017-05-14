@@ -110,36 +110,7 @@ int main(int argc, char **argv) {
 	cout << "Filtering multi-mappers and single mates" << flush;
 	cout << " (remaining=" << filter_multi_mappers(chimeric_alignments) << ")" << endl;
 
-	if (options.strandedness != STRANDEDNESS_NO) {
-		cout << "Assigning strands to alignments" << endl << flush;
-		assign_strands_from_strandedness(chimeric_alignments, options.strandedness);
-	}
-
-	vector<bool> interesting_contigs(contigs.size());
-	if (options.filters.at("uninteresting_contigs") && !options.interesting_contigs.empty()) {
-		istringstream iss(options.interesting_contigs);
-		while (iss) {
-			string contig;
-			iss >> contig;
-			contig = removeChr(contig);
-			if (contigs.find(contig) != contigs.end())
-				interesting_contigs[contigs[contig]] = true;
-		}
-		cout << "Filtering mates which do not map to interesting contigs (" << options.interesting_contigs << ")" << flush;
-		cout << " (remaining=" << filter_uninteresting_contigs(chimeric_alignments, interesting_contigs) << ")" << endl;
-	} else { // all contigs are interesting
-		for (vector<bool>::iterator i = interesting_contigs.begin(); i != interesting_contigs.end(); ++i)
-			*i = true;
-	}
-
-	if (options.filters.at("duplicates")) {
-		cout << "Filtering duplicates" << flush;
-		cout << " (remaining=" << filter_duplicates(chimeric_alignments) << ")" << endl;
-	}
-
-	
-
-	cout << "Annotating alignments using genes from '" << options.gene_annotation_file << "'" << endl << flush;
+	cout << "Loading annotating from '" << options.gene_annotation_file << "'" << endl << flush;
 	// load GTF file
 	gene_annotation_t gene_annotation;
 	exon_annotation_t exon_annotation;
@@ -152,6 +123,22 @@ int main(int argc, char **argv) {
 	gene_annotation_index_t gene_annotation_index;
 	make_annotation_index(gene_annotation, gene_annotation_index, contigs);
 
+	strandedness_t strandedness = options.strandedness;
+	if (options.strandedness == STRANDEDNESS_AUTO) {
+		cout << "Detecting strandedness" << flush;
+		strandedness = detect_strandedness(chimeric_alignments, gene_annotation_index);
+		switch (strandedness) {
+			case STRANDEDNESS_YES: cout << " (yes)" << endl; break;
+			case STRANDEDNESS_REVERSE: cout << " (reverse)" << endl; break;
+			default: cout << " (no)" << endl;
+		}
+	}
+	if (strandedness != STRANDEDNESS_NO) {
+		cout << "Assigning strands to alignments" << endl << flush;
+		assign_strands_from_strandedness(chimeric_alignments, strandedness);
+	}
+
+	cout << "Annotating alignments" << flush << endl;
 	// calculate sum of the lengths of all exons for each gene
 	// we will need this to normalize the number of events over the gene length
 	for (exon_annotation_index_t::iterator contig = exon_annotation_index.begin(); contig != exon_annotation_index.end(); ++contig) {
@@ -245,9 +232,31 @@ int main(int argc, char **argv) {
 		}
 	}
 
+	vector<bool> interesting_contigs(contigs.size());
+	if (options.filters.at("uninteresting_contigs") && !options.interesting_contigs.empty()) {
+		istringstream iss(options.interesting_contigs);
+		while (iss) {
+			string contig;
+			iss >> contig;
+			contig = removeChr(contig);
+			if (contigs.find(contig) != contigs.end())
+				interesting_contigs[contigs[contig]] = true;
+		}
+		cout << "Filtering mates which do not map to interesting contigs (" << options.interesting_contigs << ")" << flush;
+		cout << " (remaining=" << filter_uninteresting_contigs(chimeric_alignments, interesting_contigs) << ")" << endl;
+	} else { // all contigs are interesting
+		for (vector<bool>::iterator i = interesting_contigs.begin(); i != interesting_contigs.end(); ++i)
+			*i = true;
+	}
+
+	if (options.filters.at("duplicates")) {
+		cout << "Filtering duplicates" << flush;
+		cout << " (remaining=" << filter_duplicates(chimeric_alignments) << ")" << endl;
+	}
+
+	cout << "Estimating mate gap distribution" << flush;
 	float mate_gap_mean, mate_gap_stddev;
 	int max_mate_gap;
-	cout << "Estimating mate gap distribution" << flush;
 	if (estimate_mate_gap_distribution(chimeric_alignments, mate_gap_mean, mate_gap_stddev, gene_annotation_index, exon_annotation_index)) {
 		cout << " (mean=" << mate_gap_mean << ", stddev=" << mate_gap_stddev << ")" << endl;
 		max_mate_gap = max(0, (int) (mate_gap_mean + 3*mate_gap_stddev));
