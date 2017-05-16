@@ -110,7 +110,7 @@ int main(int argc, char **argv) {
 	cout << "Filtering multi-mappers and single mates" << flush;
 	cout << " (remaining=" << filter_multi_mappers(chimeric_alignments) << ")" << endl;
 
-	cout << "Loading annotating from '" << options.gene_annotation_file << "'" << endl << flush;
+	cout << "Loading annotation from '" << options.gene_annotation_file << "'" << endl << flush;
 	// load GTF file
 	gene_annotation_t gene_annotation;
 	exon_annotation_t exon_annotation;
