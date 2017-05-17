@@ -396,8 +396,6 @@ unsigned int find_fusions(chimeric_alignments_t& chimeric_alignments, fusions_t&
 
 					if ((*discordant_mate)->second.filter == NULL)
 						fusion->second.discordant_mates++;
-					else if (fusion->second.filter != NULL)
-						fusion->second.filter = (**discordant_mate).second.filter;
 
 					// expand the size of the anchor
 					if (fusion->second.direction1 == DOWNSTREAM && (mate1->start < fusion->second.anchor_start1 || fusion->second.anchor_start1 == 0)) {
