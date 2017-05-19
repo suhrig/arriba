@@ -65,6 +65,55 @@ bool parse_gtf_features(string gtf_features_string, gtf_features_t& gtf_features
 	return true;
 }
 
+void remove_gene(const gene_t gene_to_remove, gene_annotation_t& gene_annotation, exon_annotation_t& exon_annotation) {
+	// remove all exons belonging to gene
+	for (exon_annotation_t::iterator exon = exon_annotation.begin(); exon != exon_annotation.end();) {
+		if (exon->gene == gene_to_remove) {
+			exon = exon_annotation.erase(exon);
+		} else {
+			++exon;
+		}
+	}
+	// remove gene
+	for (gene_annotation_t::iterator gene = gene_annotation.begin(); gene != gene_annotation.end(); ++gene) {
+		if (&(*gene) == gene_to_remove) {
+			gene = gene_annotation.erase(gene);
+			break;
+		}
+	}
+}
+
+void remove_transcript(const transcript_t transcript_to_remove, gene_annotation_t& gene_annotation, exon_annotation_t& exon_annotation) {
+	gene_t gene;
+
+	// remove all exons belonging to transcript
+	for (exon_annotation_t::iterator exon = exon_annotation.begin(); exon != exon_annotation.end();) {
+		if (exon->transcript == transcript_to_remove) {
+			gene = exon->gene;
+			exon = exon_annotation.erase(exon);
+		} else {
+			++exon;
+		}
+	}
+
+	// shrink gene to boundaries of remaining transcripts
+	position_t new_start = -1;
+	position_t new_end = -1;
+	for (exon_annotation_t::iterator exon = exon_annotation.begin(); exon != exon_annotation.end(); ++exon) {
+		if (exon->gene == gene) {
+			if (new_start == -1 || new_start > exon->start)
+				new_start = exon->start;
+			if (new_end == -1 || new_end < exon->end)
+				new_end = exon->end;
+		}
+	}
+	if (new_start == -1) {
+		remove_gene(gene, gene_annotation, exon_annotation); // there are no exons left in the gene
+	} else {
+		gene->start = new_start;
+		gene->end = new_end;
+	}
+}
 
 string removeChr(string contig) {
 	if (contig.substr(0, 3) == "chr")
@@ -140,60 +189,59 @@ void read_annotation_gtf(const string& filename, const contigs_t& contigs, const
 			contig = removeChr(contig);
 			if (contigs.find(contig) == contigs.end()) {
 				cerr << "WARNING: unknown contig in GTF file: " << contig << endl;
+				continue;
+			}
 
-			} else {
+			// make annotation record
+			annotation_record.contig = contigs.at(contig);
+			annotation_record.start--; // GTF files are one-based
+			annotation_record.end--; // GTF files are one-based
+			annotation_record.strand = (strand[0] == '+') ? FORWARD : REVERSE;
 
-				// make annotation record
-				annotation_record.contig = contigs.at(contig);
-				annotation_record.start--; // GTF files are one-based
-				annotation_record.end--; // GTF files are one-based
-				annotation_record.strand = (strand[0] == '+') ? FORWARD : REVERSE;
+			if (feature == gtf_features.feature_gene) {
 
-				if (feature == gtf_features.feature_gene) {
+				// make gene annotation record
+				gene_annotation_record_t gene_annotation_record;
+				gene_annotation_record.copy(annotation_record);
 
-					// make gene annotation record
-					gene_annotation_record_t gene_annotation_record;
-					gene_annotation_record.copy(annotation_record);
+				gene_annotation_record.name = gene_name;
+				gene_annotation_record.exonic_length = 0; // is calculated later in arriba.cpp
+				gene_annotation_record.is_dummy = false;
+				string gene_status;
+				if (!get_gtf_attribute(attributes, gtf_features.gene_status, gene_status))
+					continue;
+				gene_annotation_record.is_known = gene_status == gtf_features.status_known;
+				string gene_type;
+				if (!get_gtf_attribute(attributes, gtf_features.gene_type, gene_type))
+					continue;
+				gene_annotation_record.is_protein_coding = gene_type == gtf_features.type_protein_coding;
+				gene_annotation.push_back(gene_annotation_record);
 
-					gene_annotation_record.name = gene_name;
-					gene_annotation_record.exonic_length = 0; // is calculated later in arriba.cpp
-					gene_annotation_record.is_dummy = false;
-					string gene_status;
-					if (!get_gtf_attribute(attributes, gtf_features.gene_status, gene_status))
-						continue;
-					gene_annotation_record.is_known = gene_status == gtf_features.status_known;
-					string gene_type;
-					if (!get_gtf_attribute(attributes, gtf_features.gene_type, gene_type))
-						continue;
-					gene_annotation_record.is_protein_coding = gene_type == gtf_features.type_protein_coding;
-					gene_annotation.push_back(gene_annotation_record);
+				// remember ID of gene, so we can map exons to genes later
+				gene_by_gene_id[gene_id] = &(*gene_annotation.rbegin());
 
-					// remember ID of gene, so we can map exons to genes later
-					gene_by_gene_id[gene_id] = &(gene_annotation[gene_annotation.size()-1]);
+			} else if (feature == gtf_features.feature_exon || feature == gtf_features.feature_utr) {
 
-				} else if (feature == gtf_features.feature_exon || feature == gtf_features.feature_utr) {
+				// make exon annotation record
+				exon_annotation_record_t exon_annotation_record;
+				exon_annotation_record.copy(annotation_record);
+				exon_annotation_record.is_transcript_start = false; // is set further down
+				exon_annotation_record.is_transcript_end = false; // is set further down
+				exon_annotation_record.is_utr = feature == gtf_features.feature_utr;
 
-					// make exon annotation record
-					exon_annotation_record_t exon_annotation_record;
-					exon_annotation_record.copy(annotation_record);
-					exon_annotation_record.is_transcript_start = false; // is set further down
-					exon_annotation_record.is_transcript_end = false; // is set further down
-					exon_annotation_record.is_utr = feature == gtf_features.feature_utr;
+				// extract transcript ID from attributes
+				string transcript_id;
+				if (!get_gtf_attribute(attributes, gtf_features.transcript_id, transcript_id))
+					continue;
+				exon_annotation_record.transcript = transcripts[transcript_id];
+				if (exon_annotation_record.transcript == 0) // this is the first time we encounter this transcript ID => give it a numeric ID
+					exon_annotation_record.transcript = transcripts[transcript_id] = transcripts.size();
 
-					// extract transcript ID from attributes
-					string transcript_id;
-					if (!get_gtf_attribute(attributes, gtf_features.transcript_id, transcript_id))
-						continue;
-					exon_annotation_record.transcript = transcripts[transcript_id];
-					if (exon_annotation_record.transcript == 0) // this is the first time we encounter this transcript ID => give it a numeric ID
-						exon_annotation_record.transcript = transcripts[transcript_id] = transcripts.size();
+				// give the record an ID (= a consecutive number)
+				exon_annotation.push_back(exon_annotation_record);
 
-					// give the record an ID (= a consecutive number)
-					exon_annotation.push_back(exon_annotation_record);
-
-					// remember ID of gene, so we can map exons to genes later
-					gene_id_by_exon[&(exon_annotation[exon_annotation.size()-1])] = gene_id;
-				}
+				// remember ID of gene, so we can map exons to genes later
+				gene_id_by_exon[&(*exon_annotation.rbegin())] = gene_id;
 			}
 		}
 	}
@@ -219,6 +267,21 @@ void read_annotation_gtf(const string& filename, const contigs_t& contigs, const
 			++exon;
 		}
 	}
+
+	// fix some errors in the Gencode annotation
+	// remove fusion transcript FIP1L1:PDGFRA
+	if (transcripts.find("ENST00000507166.1") != transcripts.end())
+		remove_transcript(transcripts.at("ENST00000507166.1"), gene_annotation, exon_annotation);
+	// remove fusion transcript GOPC:ROS1
+	if (transcripts.find("ENST00000467125.1") != transcripts.end())
+		remove_transcript(transcripts.at("ENST00000467125.1"), gene_annotation, exon_annotation);
+	// remove fusion transcripts MTAP:CDKN2B-AS1
+	if (transcripts.find("ENST00000404796.2") != transcripts.end())
+		remove_transcript(transcripts.at("ENST00000404796.2"), gene_annotation, exon_annotation);
+	if (transcripts.find("ENST00000577563.1") != transcripts.end())
+		remove_transcript(transcripts.at("ENST00000577563.1"), gene_annotation, exon_annotation);
+	if (transcripts.find("ENST00000580900.1") != transcripts.end())
+		remove_transcript(transcripts.at("ENST00000580900.1"), gene_annotation, exon_annotation);
 
 	// mark first/last exons of a transcript as transcript_start/transcript_end
 	unordered_map< transcript_t,vector<exon_annotation_record_t*> > first_exons_by_transcript;

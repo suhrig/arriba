@@ -1,7 +1,7 @@
 #ifndef _COMMON_H
 #define _COMMON_H 1
 
-#include <deque>
+#include <list>
 #include <map>
 #include <string>
 #include <set>
@@ -41,7 +41,7 @@ struct annotation_record_t {
 };
 template <class T> class annotation_set_t: public set<T> {};
 template <class T> class annotation_multiset_t: public multiset<T> {};
-template <class T> class annotation_t: public deque<T> {}; // must be a deque for stable pointers
+template <class T> class annotation_t: public list<T> {};
 template <class T> class contig_annotation_index_t: public map< position_t, annotation_multiset_t<T> > {};
 template <class T> class annotation_index_t: public vector< contig_annotation_index_t<T> > {};
 
