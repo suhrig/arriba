@@ -106,6 +106,12 @@ bool blacklist_fusion(const contig_t contig1, const position_t start1, const pos
 				return true;
 			}
 
+		} else if (range2 == "not_both_spliced") { // remove fusions which do not have both breakpoints at splice-sites
+			if (!fusion->spliced1 || !fusion->spliced2) {
+				fusion->filter = FILTERS.at("blacklist");
+				return true;
+			}
+
 		} else if (genes.find(range2) != genes.end()) { // remove fusions by name of gene
 			if (genes.at(range2) == gene2) {
 				fusion->filter = FILTERS.at("blacklist");
