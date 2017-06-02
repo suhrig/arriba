@@ -242,6 +242,10 @@ unsigned int filter_mismappers(fusions_t& fusions, const assembly_t& assembly, g
 		if (fusion->second.filter != NULL)
 			continue;
 
+		//TODO hotfix to prevent MTAP:CDKN2B-AS1 from being removed
+		if (fusion->second.gene1->name == "MTAP" && fusion->second.gene2->name == "CDKN2B-AS1")
+			continue;
+
 		// re-align split reads
 		vector<mates_t*> all_split_reads;
 		all_split_reads.insert(all_split_reads.end(), fusion->second.split_read1_list.begin(), fusion->second.split_read1_list.end());
