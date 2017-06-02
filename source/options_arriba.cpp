@@ -65,10 +65,7 @@ void print_usage(const string& error_message) {
 	                  "'extract_read-through_fusions'. STAR does not report read-through "
 	                  "fusions in the chimeric.bam file. Such fusions must be extracted "
 	                  "manually from the rna.bam file. This is accomplished with the help "
-	                  "of the utility 'extract_read-through_fusions'. For optimal "
-	                  "performance, this should be done while STAR is running. Example:\n"
-                          "STAR --outStd BAM [...] | tee rna.bam | \\\n"
-	                  "extract_read-through_fusions -g genes.bed > read_through.bam")
+	                  "of the utility 'extract_read-through_fusions'.")
 	     << wrap_help("-x FILE", "BAM file with RNA-Seq data. The file must be sorted by "
 	                  "coordinate and an index with the file extension .bai must be "
 	                  "present. The file is used to estimate the mate gap distribution "
