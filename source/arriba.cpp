@@ -35,6 +35,7 @@
 #include "select_best.hpp"
 #include "filter_end_to_end.hpp"
 #include "filter_short_anchor.hpp"
+#include "filter_homologs.hpp"
 #include "filter_mismappers.hpp"
 #include "filter_nonexpressed.hpp"
 #include "filter_genomic_support.hpp"
@@ -73,7 +74,8 @@ unordered_map<string,filter_t> FILTERS({
 	{"uninteresting_contigs", NULL},
 	{"genomic_support", NULL},
 	{"isoforms", NULL},
-	{"low_entropy", NULL}
+	{"low_entropy", NULL},
+	{"homologs", NULL}
 });
 
 int main(int argc, char **argv) {
@@ -425,11 +427,27 @@ int main(int argc, char **argv) {
 		cout << " (remaining=" << filter_end_to_end_fusions(fusions) << ")" << endl;
 	}
 
-	// this step must come near the end, because it is computationally expensive
+	// make kmer indices from gene sequences
+	kmer_indices_t kmer_indices;
+	const char kmer_length = 8; // must not be longer than 16 or else conversion to int will fail
+	if (options.filters.at("homologs") || options.filters.at("mismappers")) {
+		cout << "Indexing gene sequences" << endl << flush;
+		make_kmer_index(fusions, assembly, kmer_length, kmer_indices);
+	}
+
+	// this step must come near the end, because it is expensive in terms of memory consumption
+	if (options.filters.at("homologs")) {
+		cout << "Filtering genes with >=" << (options.max_homolog_identity*100) << "% identity" << flush;
+		cout << " (remaining=" << filter_homologs(fusions, kmer_indices, kmer_length, assembly, options.max_homolog_identity) << ")" << endl;
+	}
+
+	// this step must come near the end, because it is expensive in terms of memory and CPU consumption
 	if (options.filters.at("mismappers")) {
 		cout << "Re-aligning chimeric reads to filter fusions with >=" << (options.max_mismapper_fraction*100) << "% mis-mappers" << flush;
-		cout << " (remaining=" << filter_mismappers(fusions, assembly, gene_annotation, exon_annotation_index, contigs, options.max_mismapper_fraction, max_mate_gap) << ")" << endl;
+		cout << " (remaining=" << filter_mismappers(fusions, kmer_indices, kmer_length, assembly, exon_annotation_index, options.max_mismapper_fraction, max_mate_gap) << ")" << endl;
 	}
+
+	kmer_indices.clear(); // free memory
 
 	// this step must come near the end, because random BAM file accesses are slow
 	// this must come after the 'select_best' filter, so that the 'many_spliced' filter can recover it

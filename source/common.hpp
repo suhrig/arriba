@@ -35,9 +35,8 @@ struct annotation_record_t {
 		if (contig != x.contig) return contig < x.contig;
 		return end < x.end;
 	}
-	void copy(const annotation_record_t& x) {
-		*this = x;
-	}
+	void copy(const annotation_record_t& x) { *this = x; }
+	inline unsigned int length() const { return this->end - this->start; }
 };
 template <class T> class annotation_set_t: public set<T> {};
 template <class T> class annotation_multiset_t: public multiset<T> {};

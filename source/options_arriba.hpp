@@ -28,6 +28,7 @@ struct options_t {
 	float evalue_cutoff;
 	unsigned int min_support;
 	float max_mismapper_fraction;
+	float max_homolog_identity;
 	unsigned int min_anchor_length;
 	bool print_supporting_reads;
 	bool print_supporting_reads_for_discarded_fusions;

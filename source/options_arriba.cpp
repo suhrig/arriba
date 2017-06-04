@@ -20,6 +20,7 @@ options_t get_default_options() {
 	options.evalue_cutoff = 0.3;
 	options.min_support = 2;
 	options.max_mismapper_fraction = 0.8;
+	options.max_homolog_identity = 0.3;
 	options.min_anchor_length = 23;
 	options.homopolymer_length = 6;
 	options.max_genomic_breakpoint_distance = 100000;
@@ -106,12 +107,8 @@ void print_usage(const string& error_message) {
 	                  "read_identifiers: if -I is given, the names of supporting reads")
 	     << wrap_help("-O FILE", "Output file with fusions that were discarded due to "
 	                  "filtering. See parameter -o for a description of the format.") 
-	     << wrap_help("-a FILE", "FastA file with genome sequence (assembly). Arriba re-aligns reads to "
-	                  "identify chimeric segments which were erroneously mapped to "
-	                  "a different gene by STAR. A segment is thought to be a "
-	                  "mismapper, if it also maps somewhere within the donor gene "
-	                  "albeit with lower mapping quality. The assembly file is used "
-	                  "to extract the sequence of the donor gene.")
+	     << wrap_help("-a FILE", "FastA file with genome sequence (assembly). "
+	                  "The file may be gzip-compressed.")
 	     << wrap_help("-k FILE", "File containing known/recurrent fusions. Some cancer "
 	                  "entities are often characterized by fusions between the same pair of genes. "
 	                  "In order to boost sensitivity, a list of known fusions can be supplied using this parameter. "
@@ -145,8 +142,11 @@ void print_usage(const string& error_message) {
 	                  "with fewer than this many supporting reads (split reads and discordant "
 	                  "mates combined). Default: " + to_string(default_options.min_support))
 	     << wrap_help("-m MAX_MISMAPPERS", "When more than this fraction of supporting reads "
-	                  "turns out to be mismappers, the 'mismapper' filter "
+	                  "turns out to be mismappers, the 'mismappers' filter "
 	                  "discards the fusion. Default: " + to_string(default_options.max_mismapper_fraction))
+	     << wrap_help("-L MAX_HOMOLOG_IDENTITY", "Genes with more than the given fraction of "
+	                  "sequence identity are considered homologs and removed by the 'homologs' "
+	                  "filter. Default: " + to_string(default_options.max_homolog_identity))
 	     << wrap_help("-H HOMOPOLYMER_LENGTH", "The 'homopolymer' filter removes breakpoints "
 	                  "adjacent to homopolymers of the given length or more. Default: " + to_string(default_options.homopolymer_length))
 	     << wrap_help("-D MAX_GENOMIC_BREAKPOINT_DISTANCE", "When a file with genomic breakpoints "
@@ -200,7 +200,7 @@ options_t parse_arguments(int argc, char **argv) {
 	// parse arguments
 	opterr = 0;
 	int c;
-	while ((c = getopt(argc, argv, "c:r:x:d:g:G:o:O:a:k:b:1s:i:f:E:s:m:H:D:R:A:M:K:F:TIh")) != -1) {
+	while ((c = getopt(argc, argv, "c:r:x:d:g:G:o:O:a:k:b:1s:i:f:E:s:m:L:H:D:R:A:M:K:F:TIh")) != -1) {
 		switch (c) {
 			case 'c':
 				options.chimeric_bam_file = optarg;
@@ -336,7 +336,14 @@ options_t parse_arguments(int argc, char **argv) {
 				options.max_mismapper_fraction = atof(optarg);
 				if (options.max_mismapper_fraction < 0 || options.max_mismapper_fraction > 1) {
 					cerr << "ERROR: " << string("Argument to -") + ((char) optopt) + " must be between 0 and 1." << endl;
-					exit(0);
+					exit(1);
+				}
+				break;
+			case 'L':
+				options.max_homolog_identity = atof(optarg);
+				if (options.max_homolog_identity < 0 || options.max_homolog_identity > 1) {
+					cerr << "ERROR: " << string("Argument to -") + ((char) optopt) + " must be between 0 and 1." << endl;
+					exit(1);
 				}
 				break;
 			case 'H':

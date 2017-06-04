@@ -5,13 +5,10 @@
 #include <vector>
 #include "common.hpp"
 #include "annotation.hpp"
+#include "assembly.hpp"
 #include "filter_mismappers.hpp"
 
 using namespace std;
-
-typedef unsigned int kmer_as_int_t; // represent kmer as integer
-typedef unordered_map< kmer_as_int_t, vector<string::size_type> > kmer_index_t; // store coordinates of kmers
-typedef vector<kmer_index_t> kmer_indices_t; // one index per contig
 
 typedef set<position_t> splice_sites_t;
 typedef unordered_map<gene_t,splice_sites_t> splice_sites_by_gene_t;
@@ -45,6 +42,32 @@ kmer_as_int_t kmer_to_int(const string& kmer, const string::size_type position, 
 		}
 	}
 	return result;
+}
+
+void make_kmer_index(const fusions_t& fusions, const assembly_t& assembly, const char kmer_length, kmer_indices_t& kmer_indices) {
+
+	// find genes which are involved in fusions which have not been discarded yet
+	gene_set_t genes_to_filter;
+	for (fusions_t::const_iterator fusion = fusions.begin(); fusion != fusions.end(); ++fusion) {
+		if (fusion->second.filter != NULL)
+			continue;
+		if (fusion->second.gene1 == fusion->second.gene2)
+			continue; // comparing sequence similarity only makes sense between different genes
+		genes_to_filter.insert(fusion->second.gene1);
+		genes_to_filter.insert(fusion->second.gene2);
+	}
+
+	kmer_indices.resize(assembly.size());
+	for (gene_set_t::iterator gene = genes_to_filter.begin(); gene != genes_to_filter.end(); ++gene) {
+		// store positions of kmers in hash
+		const string& contig_sequence = assembly.at((**gene).contig);
+		for (position_t pos = (**gene).start; pos + kmer_length < (**gene).end; pos++)
+			if (contig_sequence[pos] != 'N') // don't index masked regions, as long stretches of N's inflate the number of hits
+				kmer_indices[(**gene).contig][kmer_to_int(contig_sequence, pos, kmer_length)].push_back(pos);
+	}
+	for (kmer_indices_t::iterator kmer_index = kmer_indices.begin(); kmer_index != kmer_indices.end(); ++kmer_index)
+		for (kmer_index_t::iterator kmer_hits = kmer_index->begin(); kmer_hits != kmer_index->end(); ++kmer_hits)
+			sort(kmer_hits->second.begin(), kmer_hits->second.end());
 }
 
 bool align(int score, const string& read_sequence, string::size_type read_pos, const string& contig_sequence, const string::size_type gene_pos, const position_t gene_start, const position_t gene_end, const kmer_index_t& kmer_index, const char kmer_length, const splice_sites_t& splice_sites, const int min_score, int max_deletions) {
@@ -152,7 +175,7 @@ bool align(int score, const string& read_sequence, string::size_type read_pos, c
 	return false;
 }
 
-bool align_both_strands(const string& read_sequence, const int read_length, const int max_mate_gap, const bool breakpoints_on_same_contig, const position_t alignment_start, const position_t alignment_end, kmer_indices_t& kmer_indices, const assembly_t& assembly, const exon_annotation_index_t& exon_annotation_index, splice_sites_by_gene_t& splice_sites_by_gene, gene_set_t& genes, const char kmer_length, const float min_align_percent, int min_score) {
+bool align_both_strands(const string& read_sequence, const int read_length, const int max_mate_gap, const bool breakpoints_on_same_contig, const position_t alignment_start, const position_t alignment_end, const kmer_indices_t& kmer_indices, const assembly_t& assembly, const exon_annotation_index_t& exon_annotation_index, splice_sites_by_gene_t& splice_sites_by_gene, gene_set_t& genes, const char kmer_length, const float min_align_percent, int min_score) {
 	min_score = min(min_score, (int) (min_align_percent * read_sequence.size() + 0.5));
 	for (gene_set_t::iterator gene = genes.begin(); gene != genes.end(); ++gene) {
 
@@ -198,40 +221,12 @@ void count_mismappers(vector<mates_t*>& chimeric_alignments_list, unsigned int& 
 	}
 }
 
-unsigned int filter_mismappers(fusions_t& fusions, const assembly_t& assembly, gene_annotation_t& gene_annotation, const exon_annotation_index_t& exon_annotation_index, const contigs_t& contigs, const float max_mismapper_fraction, const int max_mate_gap) {
+unsigned int filter_mismappers(fusions_t& fusions, const kmer_indices_t& kmer_indices, const char kmer_length, const assembly_t& assembly, const exon_annotation_index_t& exon_annotation_index, const float max_mismapper_fraction, const int max_mate_gap) {
 
-	const char kmer_length = 8; // must not be bigger than 16 or else conversion to int will fail
 	const float min_align_percent = 0.8; // allow ~1 mismatch for every 10 matches
 	const int min_score = 40; // consider this score or higher a match (even if less than min_align_percent match)
 
 	splice_sites_by_gene_t splice_sites_by_gene;
-
-	// find genes which are involved in fusions which have not been discarded yet
-	set<gene_t> genes_to_filter;
-	for (fusions_t::iterator fusion = fusions.begin(); fusion != fusions.end(); ++fusion) {
-		if (fusion->second.gene1 == fusion->second.gene2)
-			continue; // re-aligning the read only makes sense between different genes
-		if (fusion->second.filter != NULL)
-			continue;
-		genes_to_filter.insert(fusion->second.gene1);
-		genes_to_filter.insert(fusion->second.gene2);
-	}
-	
-
-	// make kmer indices from gene sequences
-	kmer_indices_t kmer_indices(contigs.size()); // contains a kmer index for every contig
-	for (gene_annotation_t::iterator gene = gene_annotation.begin(); gene != gene_annotation.end(); ++gene) {
-		if (genes_to_filter.find(&(*gene)) != genes_to_filter.end()) {
-			// store positions of kmers in hash
-			const string& contig_sequence = assembly.at(gene->contig);
-			for (position_t pos = gene->start; pos + kmer_length < gene->end; pos++)
-				if (contig_sequence[pos] != 'N') // don't index masked regions, as long stretches of N's cause alignment to take forever
-					kmer_indices[gene->contig][kmer_to_int(contig_sequence, pos, kmer_length)].push_back(pos);
-		}
-	}
-	for (kmer_indices_t::iterator kmer_index = kmer_indices.begin(); kmer_index != kmer_indices.end(); ++kmer_index)
-		for (kmer_index_t::iterator kmer_hits = kmer_index->begin(); kmer_hits != kmer_index->end(); ++kmer_hits)
-			sort(kmer_hits->second.begin(), kmer_hits->second.end());
 
 	// align discordnat mate / clipped segment in gene of origin
 	for (fusions_t::iterator fusion = fusions.begin(); fusion != fusions.end(); ++fusion) {
