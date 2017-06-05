@@ -186,6 +186,11 @@ void read_annotation_gtf(const string& filename, const contigs_t& contigs, const
 			    !get_gtf_attribute(attributes, gtf_features.gene_id, gene_id))
 				continue;
 
+			// if Gencode, remove version number from gene ID
+			string::size_type trim_position;
+			if (gene_id.substr(0, 3) == "ENS" && (trim_position = gene_id.find_last_of('.', string::npos)) != string::npos)
+				gene_id = gene_id.substr(0, trim_position);
+
 			contig = removeChr(contig);
 			if (contigs.find(contig) == contigs.end()) {
 				cerr << "WARNING: unknown contig in GTF file: " << contig << endl;
@@ -233,6 +238,9 @@ void read_annotation_gtf(const string& filename, const contigs_t& contigs, const
 				string transcript_id;
 				if (!get_gtf_attribute(attributes, gtf_features.transcript_id, transcript_id))
 					continue;
+				// if Gencode, remove version number from transcript ID
+				if (transcript_id.substr(0, 3) == "ENS" && (trim_position = transcript_id.find_last_of('.', string::npos)) != string::npos)
+					transcript_id = transcript_id.substr(0, trim_position);
 				exon_annotation_record.transcript = transcripts[transcript_id];
 				if (exon_annotation_record.transcript == 0) // this is the first time we encounter this transcript ID => give it a numeric ID
 					exon_annotation_record.transcript = transcripts[transcript_id] = transcripts.size();
@@ -270,18 +278,18 @@ void read_annotation_gtf(const string& filename, const contigs_t& contigs, const
 
 	// fix some errors in the Gencode annotation
 	// remove fusion transcript FIP1L1:PDGFRA
-	if (transcripts.find("ENST00000507166.1") != transcripts.end())
-		remove_transcript(transcripts.at("ENST00000507166.1"), gene_annotation, exon_annotation);
+	if (transcripts.find("ENST00000507166") != transcripts.end())
+		remove_transcript(transcripts.at("ENST00000507166"), gene_annotation, exon_annotation);
 	// remove fusion transcript GOPC:ROS1
-	if (transcripts.find("ENST00000467125.1") != transcripts.end())
-		remove_transcript(transcripts.at("ENST00000467125.1"), gene_annotation, exon_annotation);
+	if (transcripts.find("ENST00000467125") != transcripts.end())
+		remove_transcript(transcripts.at("ENST00000467125"), gene_annotation, exon_annotation);
 	// remove fusion transcripts MTAP:CDKN2B-AS1
-	if (transcripts.find("ENST00000404796.2") != transcripts.end())
-		remove_transcript(transcripts.at("ENST00000404796.2"), gene_annotation, exon_annotation);
-	if (transcripts.find("ENST00000577563.1") != transcripts.end())
-		remove_transcript(transcripts.at("ENST00000577563.1"), gene_annotation, exon_annotation);
-	if (transcripts.find("ENST00000580900.1") != transcripts.end())
-		remove_transcript(transcripts.at("ENST00000580900.1"), gene_annotation, exon_annotation);
+	if (transcripts.find("ENST00000404796") != transcripts.end())
+		remove_transcript(transcripts.at("ENST00000404796"), gene_annotation, exon_annotation);
+	if (transcripts.find("ENST00000577563") != transcripts.end())
+		remove_transcript(transcripts.at("ENST00000577563"), gene_annotation, exon_annotation);
+	if (transcripts.find("ENST00000580900") != transcripts.end())
+		remove_transcript(transcripts.at("ENST00000580900"), gene_annotation, exon_annotation);
 
 	// mark first/last exons of a transcript as transcript_start/transcript_end
 	unordered_map< transcript_t,vector<exon_annotation_record_t*> > first_exons_by_transcript;
