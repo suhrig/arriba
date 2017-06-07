@@ -109,6 +109,10 @@ int main(int argc, char **argv) {
 
 	// open output BAM file
 	BGZF* output_bam_file = bam_open(options.output_bam_file.c_str(), "w");
+	if (output_bam_file == 0) {
+		cerr << "ERROR: failed to open output file '" << options.output_bam_file << "'." << endl;
+		exit(1);
+	}
 	bam_header_write(output_bam_file, bam_header);
 
 	// read BAM records
