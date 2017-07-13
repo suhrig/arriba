@@ -5,12 +5,13 @@ using namespace std;
 
 unsigned int filter_both_novel(fusions_t& fusions) {
 	unsigned int remaining = 0;
-	for (fusions_t::iterator i = fusions.begin(); i != fusions.end(); ++i) {
-		if (i->second.filter != NULL)
+	for (fusions_t::iterator fusion = fusions.begin(); fusion != fusions.end(); ++fusion) {
+		if (fusion->second.filter != NULL)
 			continue; // read has already been filtered
 
-		if (!i->second.gene1->is_known && !i->second.gene2->is_known)
-			i->second.filter = FILTERS.at("novel");
+		if (!fusion->second.gene1->is_known && !fusion->second.gene2->is_known &&
+		    fusion->second.is_read_through())
+			fusion->second.filter = FILTERS.at("novel");
 		else
 			++remaining;
 	}
