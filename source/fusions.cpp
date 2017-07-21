@@ -193,6 +193,7 @@ unsigned int find_fusions(chimeric_alignments_t& chimeric_alignments, fusions_t&
 	discordant_mates_by_gene_pair_t discordant_mates_by_gene_pair; // contains the discordant mates for each pair of genes
 
 	bool subsampled_fusions = false;
+	const unsigned int max_subsampling = 1000; // start subsampling (i.e., ignoring reads), when a fusion has more than this many supporting reads
 
 	for (chimeric_alignments_t::iterator chimeric_alignment = chimeric_alignments.begin(); chimeric_alignment != chimeric_alignments.end(); ++chimeric_alignment) {
 
@@ -253,7 +254,7 @@ unsigned int find_fusions(chimeric_alignments_t& chimeric_alignments, fusions_t&
 							fusion.filter = chimeric_alignment->second.filter;
 					}
 
-					if (fusion.supporting_reads() >= 1000) {
+					if (fusion.supporting_reads() >= max_subsampling) {
 						subsampled_fusions = true;
 					} else {
 
@@ -415,7 +416,7 @@ unsigned int find_fusions(chimeric_alignments_t& chimeric_alignments, fusions_t&
 						fusion->second.anchor_start2 = mate2->end;
 					}
 
-					if (fusion->second.discordant_mates >= 1000) {
+					if (fusion->second.discordant_mates >= max_subsampling) {
 						subsampled_fusions = true;
 						break;
 					}
@@ -425,7 +426,7 @@ unsigned int find_fusions(chimeric_alignments_t& chimeric_alignments, fusions_t&
 	}
 
 	if (subsampled_fusions)
-		cerr << "WARNING: Some fusions were subsampled, because they have more than 1000 supporting reads" << endl;
+		cerr << "WARNING: Some fusions were subsampled, because they have more than " << max_subsampling << " supporting reads" << endl;
 
 	unsigned int remaining = 0;
 	for (fusions_t::iterator fusion = fusions.begin(); fusion != fusions.end(); ++fusion) {
