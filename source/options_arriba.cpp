@@ -408,6 +408,8 @@ options_t parse_arguments(int argc, char **argv) {
 	}
 
 	// check for mandatory arguments
+	if (argc == 1)
+		print_usage("No arguments given.");
 	if (options.chimeric_bam_file.empty()) {
 		cerr << "ERROR: Missing mandatory option: -c" << endl;
 		exit(1);

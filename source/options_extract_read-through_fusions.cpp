@@ -112,6 +112,8 @@ options_t parse_arguments(int argc, char **argv) {
 	}
 
 	// check for mandatory arguments
+	if (argc == 1)
+		print_usage("No arguments given.");
 	if (options.input_bam_file.empty()) {
 		cerr << "ERROR: Missing mandatory option: -i" << endl;
 		exit(1);
