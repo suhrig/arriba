@@ -81,7 +81,7 @@ void estimate_expected_fusions(fusions_t& fusions, const unsigned long int mappe
 		// the more reads there are in the rna.bam file, the more likely we find fusions supported by just a few reads (2-4)
 		// the likelihood increases linearly, therefore we scale up the e-value proportionately to the number of mapped reads
 		// for every 20 million reads, the scaling factor increases by 1 (this is an empirically determined value)
-		unsigned int supporting_reads;
+		int supporting_reads;
 		if (!i->second.breakpoint_overlaps_both_genes()) // for intergenic fusions we take the sum of all supporting reads (split reads + discordant mates)
 			supporting_reads = i->second.supporting_reads();
 		else // for intragenic fusions we ignore discordant mates, because they are very abundant
