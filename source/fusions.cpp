@@ -193,7 +193,7 @@ unsigned int find_fusions(chimeric_alignments_t& chimeric_alignments, fusions_t&
 	discordant_mates_by_gene_pair_t discordant_mates_by_gene_pair; // contains the discordant mates for each pair of genes
 
 	bool subsampled_fusions = false;
-	const unsigned int max_subsampling = 1000; // start subsampling (i.e., ignoring reads), when a fusion has more than this many supporting reads
+	const unsigned int max_subsampling = 300; // start subsampling (i.e., ignoring reads), when a fusion has more than this many supporting reads
 
 	for (chimeric_alignments_t::iterator chimeric_alignment = chimeric_alignments.begin(); chimeric_alignment != chimeric_alignments.end(); ++chimeric_alignment) {
 
@@ -254,8 +254,14 @@ unsigned int find_fusions(chimeric_alignments_t& chimeric_alignments, fusions_t&
 							fusion.filter = chimeric_alignment->second.filter;
 					}
 
-					if (fusion.supporting_reads() >= max_subsampling) {
+					if (fusion.split_reads1 >= max_subsampling && !swapped ||
+					    fusion.split_reads2 >= max_subsampling &&  swapped ||
+					    chimeric_alignment->second.filter != NULL && !swapped && fusion.split_read1_list.size() >= max_subsampling ||
+					    chimeric_alignment->second.filter != NULL &&  swapped && fusion.split_read2_list.size() >= max_subsampling) {
+
+						// subsampling improves performance, especially in multiple myeloma samples
 						subsampled_fusions = true;
+
 					} else {
 
 						// expand the size of the anchor
@@ -379,6 +385,12 @@ unsigned int find_fusions(chimeric_alignments_t& chimeric_alignments, fusions_t&
 
 			// discard those discordant mates which point in the wrong direction (away from the breakpoint)
 			for (auto discordant_mate = discordant_mates->second.begin(); discordant_mate != discordant_mates->second.end(); ++discordant_mate) {
+
+				// ignore discarded reads, if we already have a lot of supporting reads (improves performance in multiple myeloma samples)
+				if ((*discordant_mate)->second.filter != NULL && fusion->second.discordant_mate_list.size() >= max_subsampling) {
+					subsampled_fusions = true;
+					continue;
+				}
 
 				alignment_t* mate1 = &((**discordant_mate).second[MATE1]); // introduce some aliases for cleaner code
 				alignment_t* mate2 = &((**discordant_mate).second[MATE2]);
