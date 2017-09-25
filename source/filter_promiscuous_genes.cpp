@@ -60,7 +60,7 @@ void estimate_expected_fusions(fusions_t& fusions, const unsigned long int mappe
 		non_spliced_breakpoint_bonus[j] = (float) non_spliced_breakpoints[j] / (spliced_breakpoints[j] + non_spliced_breakpoints[j]);
 		// if there are not enough data points to estimate the bonuses, they might be 0
 		// in this case we use some reasonable default values
-		if (spliced_breakpoint_bonus[j] == 0 || non_spliced_breakpoint_bonus[j] == 0) {
+		if (spliced_breakpoint_bonus[j] == 0 || non_spliced_breakpoint_bonus[j] == 0 || spliced_breakpoints[j] + non_spliced_breakpoints[j] == 0) {
 			spliced_breakpoint_bonus[j] = 0.1;
 			non_spliced_breakpoint_bonus[j] = 0.9;
 		}
