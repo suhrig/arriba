@@ -3,10 +3,10 @@
 
 using namespace std;
 
-bool list_contains_exonic_reads(const vector<mates_t*>& read_list) {
-	for (auto i = read_list.begin(); i != read_list.end(); ++i)
-		if ((**i).filter == NULL)
-			for (mates_t::iterator mate = (**i).begin(); mate != (**i).end(); ++mate)
+bool list_contains_exonic_reads(const vector<chimeric_alignments_t::iterator>& read_list) {
+	for (auto chimeric_alignments = read_list.begin(); chimeric_alignments != read_list.end(); ++chimeric_alignments)
+		if ((**chimeric_alignments).second.filter == NULL)
+			for (mates_t::iterator mate = (**chimeric_alignments).second.begin(); mate != (**chimeric_alignments).second.end(); ++mate)
 				if (mate->exonic)
 					return true;
 	return false;

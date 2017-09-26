@@ -122,7 +122,6 @@ const unsigned int SPLIT_READ = 1;
 const unsigned int SUPPLEMENTARY = 2;
 class mates_t: public vector<alignment_t> {
 	public:
-		string name;
 		filter_t filter; // name of the filter which discarded the reads (NULL means not discarded)
 		bool single_end;
 		mates_t(): filter(NULL) {};
@@ -159,7 +158,7 @@ struct fusion_t {
 	unsigned int discordant_mates;
 	position_t closest_genomic_breakpoint1, closest_genomic_breakpoint2;
 	position_t anchor_start1, anchor_start2;
-	vector<mates_t*> split_read1_list, split_read2_list, discordant_mate_list;
+	vector<chimeric_alignments_t::iterator> split_read1_list, split_read2_list, discordant_mate_list;
 	float evalue; // expected number of fusions with the given properties by random chance
 	filter_t filter; // name of the filter which discarded the fusion (NULL means not discarded)
 	fusion_t(): split_reads1(0), split_reads2(0), discordant_mates(0), anchor_start1(0), anchor_start2(0), closest_genomic_breakpoint1(-1), closest_genomic_breakpoint2(-1), filter(NULL) {};

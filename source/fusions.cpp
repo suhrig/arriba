@@ -20,8 +20,8 @@ void predict_fusion_strands(fusion_t& fusion) {
 	unsigned int strand1_reverse = 0;
 
 	for (auto split_read1 = fusion.split_read1_list.begin(); split_read1 != fusion.split_read1_list.end(); ++split_read1) {
-		if (!(**split_read1)[SPLIT_READ].predicted_strand_ambiguous) {
-			if ((**split_read1)[SPLIT_READ].predicted_strand == FORWARD) {
+		if (!(**split_read1).second[SPLIT_READ].predicted_strand_ambiguous) {
+			if ((**split_read1).second[SPLIT_READ].predicted_strand == FORWARD) {
 				++strand1_forward;
 			} else {
 				++strand1_reverse;
@@ -30,8 +30,8 @@ void predict_fusion_strands(fusion_t& fusion) {
 	}
 
 	for (auto split_read2 = fusion.split_read2_list.begin(); split_read2 != fusion.split_read2_list.end(); ++split_read2) {
-		if (!(**split_read2)[SUPPLEMENTARY].predicted_strand_ambiguous) {
-			if ((**split_read2)[SUPPLEMENTARY].predicted_strand == FORWARD) {
+		if (!(**split_read2).second[SUPPLEMENTARY].predicted_strand_ambiguous) {
+			if ((**split_read2).second[SUPPLEMENTARY].predicted_strand == FORWARD) {
 				++strand1_forward;
 			} else {
 				++strand1_reverse;
@@ -40,12 +40,12 @@ void predict_fusion_strands(fusion_t& fusion) {
 	}
 
 	for (auto discordant_mate = fusion.discordant_mate_list.begin(); discordant_mate != fusion.discordant_mate_list.end(); ++discordant_mate) {
-		if (!(**discordant_mate)[MATE1].predicted_strand_ambiguous &&
-		    (**discordant_mate).filter != FILTERS.at("hairpin")) { // skip discordant mates arising from hairpin structures, because they are usually ambiguous
+		if (!(**discordant_mate).second[MATE1].predicted_strand_ambiguous &&
+		    (**discordant_mate).second.filter != FILTERS.at("hairpin")) { // skip discordant mates arising from hairpin structures, because they are usually ambiguous
 
 			// find out which mate supports breakpoint1
-			alignment_t* mate1 = &(**discordant_mate)[MATE1];
-			alignment_t* mate2 = &(**discordant_mate)[MATE2];
+			alignment_t* mate1 = &(**discordant_mate).second[MATE1];
+			alignment_t* mate2 = &(**discordant_mate).second[MATE2];
 			if (mate1->contig != fusion.contig1 || // it is clear which mate supports which breakpoint, when the contigs of the breakpoints are different
 			    (mate1->strand == FORWARD) != /*xor*/ (fusion.direction1 == DOWNSTREAM)) { // or when the mates point in different directions
 				swap(mate1, mate2);
@@ -284,11 +284,11 @@ unsigned int find_fusions(chimeric_alignments_t& chimeric_alignments, fusions_t&
 
 						// increase split read counters for the given fusion
 						if (swapped) {
-							fusion.split_read2_list.push_back(&(chimeric_alignment->second));
+							fusion.split_read2_list.push_back(chimeric_alignment);
 							if (chimeric_alignment->second.filter == NULL)
 								fusion.split_reads2++;
 						} else {
-							fusion.split_read1_list.push_back(&(chimeric_alignment->second));
+							fusion.split_read1_list.push_back(chimeric_alignment);
 							if (chimeric_alignment->second.filter == NULL)
 								fusion.split_reads1++;
 						}
@@ -411,9 +411,9 @@ unsigned int find_fusions(chimeric_alignments_t& chimeric_alignments, fusions_t&
 				    ((fusion->second.direction2 == DOWNSTREAM && mate2->strand == FORWARD && (!intragenic || mate2->start >= fusion->second.breakpoint2 - max_mate_gap) && (mate2->end-2 <= fusion->second.breakpoint2 && fusion->second.split_reads1 + fusion->second.split_reads2 > 0 || mate2->end-max_mate_gap <= fusion->second.breakpoint2 && fusion->second.split_reads1 + fusion->second.split_reads2 == 0)) ||
 				     (fusion->second.direction2 == UPSTREAM   && mate2->strand == REVERSE && (!intragenic || mate2->start <= fusion->second.breakpoint2 + max_mate_gap) && (mate2->start+2 >= fusion->second.breakpoint2 && fusion->second.split_reads1+fusion->second.split_reads2 > 0 || mate2->start+max_mate_gap >= fusion->second.breakpoint2 && fusion->second.split_reads1+fusion->second.split_reads2 == 0)))) {
 
-					fusion->second.discordant_mate_list.push_back(&(**discordant_mate).second);
+					fusion->second.discordant_mate_list.push_back(*discordant_mate);
 
-					if ((*discordant_mate)->second.filter == NULL)
+					if ((**discordant_mate).second.filter == NULL)
 						fusion->second.discordant_mates++;
 
 					// expand the size of the anchor

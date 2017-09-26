@@ -55,12 +55,10 @@ unsigned int read_chimeric_alignments(const string& bam_file_path, chimeric_alig
 		if (!read_through) {
 			mates_t& mates = chimeric_alignments[name];
 			mates.push_back(alignment);
-			mates.name = name;
 			mates.single_end = !(bam_record->core.flag & BAM_FPAIRED);
 		} else {
 			mates_t& mates = read_through_alignments[name];
 			mates.push_back(alignment);
-			mates.name = name;
 			mates.single_end = !(bam_record->core.flag & BAM_FPAIRED);
 		}
 	}

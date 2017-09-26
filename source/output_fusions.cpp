@@ -17,20 +17,20 @@ using namespace std;
 
 typedef map< position_t, map<string/*base*/,unsigned int/*frequency*/> > pileup_t;
 
-void pileup_chimeric_alignments(vector<mates_t*>& chimeric_alignments, const unsigned int mate, const bool reverse_complement, const direction_t direction, const position_t breakpoint, pileup_t& pileup) {
+void pileup_chimeric_alignments(vector<chimeric_alignments_t::iterator>& chimeric_alignments, const unsigned int mate, const bool reverse_complement, const direction_t direction, const position_t breakpoint, pileup_t& pileup) {
 	for (auto chimeric_alignment = chimeric_alignments.begin(); chimeric_alignment != chimeric_alignments.end(); ++chimeric_alignment) {
 
-		if ((**chimeric_alignment).filter == FILTERS.at("duplicates"))
+		if ((**chimeric_alignment).second.filter == FILTERS.at("duplicates"))
 			continue; // skip duplicates
 
-		alignment_t& read = (**chimeric_alignment)[mate]; // introduce alias for cleaner code
+		alignment_t& read = (**chimeric_alignment).second[mate]; // introduce alias for cleaner code
 
-		if ((**chimeric_alignment).size() == 2) // discordant mate
+		if ((**chimeric_alignment).second.size() == 2) // discordant mate
 			if (!(direction == DOWNSTREAM && read.strand == FORWARD && read.end   <= breakpoint+2 && read.end   >= breakpoint-200 ||
 			      direction == UPSTREAM   && read.strand == REVERSE && read.start >= breakpoint-2 && read.start <= breakpoint+200)) // only consider discordant mates close to the breakpoints (we don't care about the ones in other exons)
 				continue;
 
-		string read_sequence = (mate == SUPPLEMENTARY) ? (**chimeric_alignment)[SPLIT_READ].sequence : read.sequence;
+		string read_sequence = (mate == SUPPLEMENTARY) ? (**chimeric_alignment).second[SPLIT_READ].sequence : read.sequence;
 		if (reverse_complement)
 			read_sequence = dna_to_reverse_complement(read_sequence);
 
@@ -55,7 +55,7 @@ void pileup_chimeric_alignments(vector<mates_t*>& chimeric_alignments, const uns
 					subtract_from_next_element = 0;
 					break;
 				case BAM_CSOFT_CLIP:
-					if ((**chimeric_alignment).size() == 3 && mate == SPLIT_READ &&
+					if ((**chimeric_alignment).second.size() == 3 && mate == SPLIT_READ &&
 					    (cigar_element == 0 && read.strand == FORWARD || cigar_element == read.cigar.size()-1 && read.strand == REVERSE)) {
 						if (cigar_element == 0 && read.strand == FORWARD)
 							reference_offset -= read.cigar.op_length(cigar_element);
@@ -154,9 +154,9 @@ string get_fusion_transcript_sequence(fusion_t& fusion, const assembly_t& assemb
 			}
 
 			// there are non-template bases, if the sum of the clipped bases of split read and supplementary alignment are greater than the read length
-			int clipped_split_read = ((**read)[SPLIT_READ].strand == FORWARD) ? (**read)[SPLIT_READ].cigar.op_length(0) : (**read)[SPLIT_READ].cigar.op_length((**read)[SPLIT_READ].cigar.size()-1);
-			int clipped_supplementary = ((**read)[SUPPLEMENTARY].strand == FORWARD) ? (**read)[SUPPLEMENTARY].cigar.op_length((**read)[SUPPLEMENTARY].cigar.size()-1) : (**read)[SUPPLEMENTARY].cigar.op_length(0);
-			int unmapped_bases = clipped_split_read + clipped_supplementary - (**read)[SPLIT_READ].sequence.size();
+			int clipped_split_read = ((**read).second[SPLIT_READ].strand == FORWARD) ? (**read).second[SPLIT_READ].cigar.op_length(0) : (**read).second[SPLIT_READ].cigar.op_length((**read).second[SPLIT_READ].cigar.size()-1);
+			int clipped_supplementary = ((**read).second[SUPPLEMENTARY].strand == FORWARD) ? (**read).second[SUPPLEMENTARY].cigar.op_length((**read).second[SUPPLEMENTARY].cigar.size()-1) : (**read).second[SUPPLEMENTARY].cigar.op_length(0);
+			int unmapped_bases = clipped_split_read + clipped_supplementary - (**read).second[SPLIT_READ].sequence.size();
 			if (++non_template_bases_count[unmapped_bases] > non_template_bases_count[non_template_bases])
 				non_template_bases = unmapped_bases;
 		}
@@ -585,13 +585,13 @@ void write_fusions_to_file(fusions_t& fusions, const string& output_file, const 
 		map<string,unsigned int> filters;
 		if ((**fusion).filter != NULL)
 			filters[*(**fusion).filter] = 0;
-		vector<mates_t*> all_supporting_reads;
+		vector<chimeric_alignments_t::iterator> all_supporting_reads;
 		all_supporting_reads.insert(all_supporting_reads.end(), (**fusion).split_read1_list.begin(), (**fusion).split_read1_list.end());
 		all_supporting_reads.insert(all_supporting_reads.end(), (**fusion).split_read2_list.begin(), (**fusion).split_read2_list.end());
 		all_supporting_reads.insert(all_supporting_reads.end(), (**fusion).discordant_mate_list.begin(), (**fusion).discordant_mate_list.end());
 		for (auto chimeric_alignment = all_supporting_reads.begin(); chimeric_alignment != all_supporting_reads.end(); ++chimeric_alignment)
-			if ((**chimeric_alignment).filter != NULL)
-				filters[*(**chimeric_alignment).filter]++;
+			if ((**chimeric_alignment).second.filter != NULL)
+				filters[*(**chimeric_alignment).second.filter]++;
 
 		// output filters
 		out << "\t";
@@ -621,7 +621,7 @@ void write_fusions_to_file(fusions_t& fusions, const string& output_file, const 
 			for (auto read = all_supporting_reads.begin(); read != all_supporting_reads.end(); ++read) {
 				if (read != all_supporting_reads.begin())
 					out << ",";
-				out << (**read).name;
+				out << (**read).first;
 			}
 		} else {
 			out << ".";
