@@ -38,8 +38,28 @@ struct annotation_record_t {
 	void copy(const annotation_record_t& x) { *this = x; }
 	inline unsigned int length() const { return this->end - this->start; }
 };
-template <class T> class annotation_set_t: public set<T> {};
-template <class T> class annotation_multiset_t: public multiset<T> {};
+template <class T> class annotation_set_t: public vector<T> {
+	public:
+		typename annotation_set_t<T>::iterator insert(const T& value) {
+			typename annotation_set_t<T>::iterator existing_element = lower_bound(this->begin(), this->end(), value);
+			if (existing_element == this->end() || *existing_element != value)
+				return this->insert(upper_bound(this->begin(), this->end(), value), value);
+			else
+				return existing_element;
+		};
+		using vector<T>::insert;
+};
+template <class T> class annotation_multiset_t: public vector<T> {
+	public:
+		typename annotation_multiset_t<T>::iterator insert(const T& value) { return this->insert(upper_bound(this->begin(), this->end(), value), value); };
+		void insert(typename annotation_multiset_t<T>::const_iterator first, typename annotation_multiset_t<T>::const_iterator last) {
+			int middle = this->size();
+			this->reserve(this->size() + distance(first, last));
+			this->insert(this->end(), first, last);
+			inplace_merge(this->begin(), this->begin() + middle, this->end());
+		};
+		using vector<T>::insert;
+};
 template <class T> class annotation_t: public list<T> {};
 template <class T> class contig_annotation_index_t: public map< position_t, annotation_multiset_t<T> > {};
 template <class T> class annotation_index_t: public vector< contig_annotation_index_t<T> > {};
