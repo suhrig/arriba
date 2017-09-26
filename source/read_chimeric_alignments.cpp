@@ -42,15 +42,11 @@ unsigned int read_chimeric_alignments(const string& bam_file_path, chimeric_alig
 		alignment.start = bam_record->core.pos;
 		alignment.end = bam_endpos(bam_record);
 		alignment.cigar = bam_record;
-//		if (!alignment.supplementary) {
-			char sequence[bam_record->core.l_qseq+1];
-			sequence[bam_record->core.l_qseq] = '\0';
-			for (unsigned int i = 0; i < bam_record->core.l_qseq; ++i)
-				sequence[i] = bam_nt16_rev_table[bam1_seqi(bam1_seq(bam_record), i)];
-			alignment.sequence = sequence;
-			// convert to uppercase
-			std::transform(alignment.sequence.begin(), alignment.sequence.end(), alignment.sequence.begin(), (int (*)(int))std::toupper);
-//		}
+		char sequence[bam_record->core.l_qseq+1];
+		sequence[bam_record->core.l_qseq] = '\0';
+		for (unsigned int i = 0; i < bam_record->core.l_qseq; ++i)
+			sequence[i] = bam_nt16_rev_table[bam1_seqi(bam1_seq(bam_record), i)];
+		alignment.sequence = sequence;
 		
 		if (!read_through) {
 			mates_t& mates = chimeric_alignments[name];
