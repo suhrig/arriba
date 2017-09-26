@@ -33,8 +33,12 @@ unsigned int read_chimeric_alignments(const string& bam_file_path, chimeric_alig
 	bam1_t* bam_record = bam_init1();
 	while (bam_read1(bam_file, bam_record) > 0) {
 
-		alignment_t alignment;
 		string name = (char*) bam1_qname(bam_record);
+		mates_t* mates = (!read_through) ? &chimeric_alignments[name] : &read_through_alignments[name];
+		mates->single_end = !(bam_record->core.flag & BAM_FPAIRED);
+		mates->resize(mates->size()+1);
+
+		alignment_t& alignment = (*mates)[mates->size()-1];
 		alignment.supplementary = bam_record->core.flag & BAM_FSECONDARY;
 		alignment.strand = (bam_record->core.flag & BAM_FREVERSE) ? REVERSE : FORWARD;
 		alignment.first_in_pair = bam_record->core.flag & BAM_FREAD1;
@@ -42,21 +46,9 @@ unsigned int read_chimeric_alignments(const string& bam_file_path, chimeric_alig
 		alignment.start = bam_record->core.pos;
 		alignment.end = bam_endpos(bam_record);
 		alignment.cigar = bam_record;
-		char sequence[bam_record->core.l_qseq+1];
-		sequence[bam_record->core.l_qseq] = '\0';
+		alignment.sequence.resize(bam_record->core.l_qseq);
 		for (unsigned int i = 0; i < bam_record->core.l_qseq; ++i)
-			sequence[i] = bam_nt16_rev_table[bam1_seqi(bam1_seq(bam_record), i)];
-		alignment.sequence = sequence;
-		
-		if (!read_through) {
-			mates_t& mates = chimeric_alignments[name];
-			mates.push_back(alignment);
-			mates.single_end = !(bam_record->core.flag & BAM_FPAIRED);
-		} else {
-			mates_t& mates = read_through_alignments[name];
-			mates.push_back(alignment);
-			mates.single_end = !(bam_record->core.flag & BAM_FPAIRED);
-		}
+			alignment.sequence[i] = bam_nt16_rev_table[bam1_seqi(bam1_seq(bam_record), i)];
 	}
 
 	// close BAM file
