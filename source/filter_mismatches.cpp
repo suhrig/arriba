@@ -6,7 +6,7 @@
 
 using namespace std;
 
-void count_mismatches(const alignment_t& alignment, const assembly_t& assembly, unsigned int& mismatches, unsigned int& alignment_length) {
+void count_mismatches(const alignment_t& alignment, const string& sequence, const assembly_t& assembly, unsigned int& mismatches, unsigned int& alignment_length) {
 	// calculate template length and the number of mismatches
 	mismatches = 0;
 	alignment_length = 0;
@@ -34,8 +34,8 @@ void count_mismatches(const alignment_t& alignment, const assembly_t& assembly, 
 				break;
 			case BAM_CMATCH:
 				for (unsigned int operation_i = 1; operation_i <= alignment.cigar.op_length(i); ++operation_i) {
-					if (alignment.sequence[read_position] != 'N') {
-						if (alignment.sequence[read_position] != assembly.at(alignment.contig)[reference_position])
+					if (sequence[read_position] != 'N') {
+						if (sequence[read_position] != assembly.at(alignment.contig)[reference_position])
 							mismatches++;
 						alignment_length++;
 					}
@@ -63,10 +63,10 @@ float calculate_binomial(const unsigned int k, const unsigned int n, const float
 	return result;
 }
 
-bool test_mismatch_probability(const alignment_t& alignment, const assembly_t& assembly, const float mismatch_probability, const float pvalue_cutoff) {
+bool test_mismatch_probability(const alignment_t& alignment, const string& sequence, const assembly_t& assembly, const float mismatch_probability, const float pvalue_cutoff) {
 	// estimate probability of observing the given number of mismatches by chance using a binomial model
 	unsigned int mismatches, alignment_length;
-	count_mismatches(alignment, assembly, mismatches, alignment_length);
+	count_mismatches(alignment, sequence, assembly, mismatches, alignment_length);
 	return calculate_binomial(mismatches, alignment_length, mismatch_probability) < pvalue_cutoff;
 }
 
@@ -80,14 +80,14 @@ unsigned int filter_mismatches(chimeric_alignments_t& chimeric_alignments, const
 		// discard chimeric alignments which have too many mismatches
 		if (chimeric_alignment->second.size() == 2) { // discordant mates
 			
-			if (test_mismatch_probability(chimeric_alignment->second[MATE1], assembly, mismatch_probability, pvalue_cutoff) ||
-			    test_mismatch_probability(chimeric_alignment->second[MATE2], assembly, mismatch_probability, pvalue_cutoff)) {
+			if (test_mismatch_probability(chimeric_alignment->second[MATE1], chimeric_alignment->second[MATE1].sequence, assembly, mismatch_probability, pvalue_cutoff) ||
+			    test_mismatch_probability(chimeric_alignment->second[MATE2], chimeric_alignment->second[MATE2].sequence, assembly, mismatch_probability, pvalue_cutoff)) {
 				chimeric_alignment->second.filter = FILTERS.at("mismatches");
 				continue;
 			}
 		} else { // split read
-			if (test_mismatch_probability(chimeric_alignment->second[MATE1], assembly, mismatch_probability, pvalue_cutoff) ||
-			    test_mismatch_probability(chimeric_alignment->second[SUPPLEMENTARY], assembly, mismatch_probability, pvalue_cutoff)) {
+			if (test_mismatch_probability(chimeric_alignment->second[MATE1], chimeric_alignment->second[MATE1].sequence, assembly, mismatch_probability, pvalue_cutoff) ||
+			    test_mismatch_probability(chimeric_alignment->second[SUPPLEMENTARY], chimeric_alignment->second[SPLIT_READ].sequence, assembly, mismatch_probability, pvalue_cutoff)) {
 				chimeric_alignment->second.filter = FILTERS.at("mismatches");
 				continue;
 			}

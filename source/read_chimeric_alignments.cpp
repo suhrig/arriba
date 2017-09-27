@@ -39,16 +39,18 @@ unsigned int read_chimeric_alignments(const string& bam_file_path, chimeric_alig
 		mates->resize(mates->size()+1);
 
 		alignment_t& alignment = (*mates)[mates->size()-1];
-		alignment.supplementary = bam_record->core.flag & BAM_FSECONDARY;
 		alignment.strand = (bam_record->core.flag & BAM_FREVERSE) ? REVERSE : FORWARD;
 		alignment.first_in_pair = bam_record->core.flag & BAM_FREAD1;
 		alignment.contig = bam_record->core.tid;
 		alignment.start = bam_record->core.pos;
 		alignment.end = bam_endpos(bam_record);
 		alignment.cigar = bam_record;
-		alignment.sequence.resize(bam_record->core.l_qseq);
-		for (unsigned int i = 0; i < bam_record->core.l_qseq; ++i)
-			alignment.sequence[i] = bam_nt16_rev_table[bam1_seqi(bam1_seq(bam_record), i)];
+		alignment.supplementary = bam_record->core.flag & BAM_FSECONDARY;
+		if (!alignment.supplementary) {
+			alignment.sequence.resize(bam_record->core.l_qseq);
+			for (unsigned int i = 0; i < bam_record->core.l_qseq; ++i)
+				alignment.sequence[i] = bam_nt16_rev_table[bam1_seqi(bam1_seq(bam_record), i)];
+		}
 	}
 
 	// close BAM file
