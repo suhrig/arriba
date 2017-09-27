@@ -103,7 +103,7 @@ unsigned int mark_genomic_support(fusions_t& fusions, const string& genomic_brea
 
 	// for each fusion, check if it is supported by a genomic breakpoint
 	for (fusions_t::iterator fusion = fusions.begin(); fusion != fusions.end(); ++fusion) {
-		auto genomic_breakpoints_on_same_contigs = genomic_breakpoints.find(make_tuple(fusion->second.contig1, fusion->second.contig2, fusion->second.direction1, fusion->second.direction2));
+		auto genomic_breakpoints_on_same_contigs = genomic_breakpoints.find(make_tuple(fusion->second.contig1, fusion->second.contig2, (direction_t) fusion->second.direction1, (direction_t) fusion->second.direction2));
 		if (genomic_breakpoints_on_same_contigs != genomic_breakpoints.end()) {
 
 			auto closeby_genomic_breakpoints = genomic_breakpoints_on_same_contigs->second.lower_bound(fusion->second.breakpoint1 + ((fusion->second.direction1 == UPSTREAM) ? +5 : -5)); // +/-5 allows for some alignment flexibility

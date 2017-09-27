@@ -142,24 +142,23 @@ const transcript_start_t TRANSCRIPT_START_GENE1 = true;
 const transcript_start_t TRANSCRIPT_START_GENE2 = false;
 
 struct fusion_t {
-	gene_t gene1, gene2;
-	contig_t contig1, contig2;
-	position_t breakpoint1, breakpoint2;
-	direction_t direction1, direction2;
-	strand_t predicted_strand1, predicted_strand2;
+	direction_t direction1:1, direction2:1;
+	strand_t predicted_strand1:1, predicted_strand2:1;
 	bool predicted_strands_ambiguous:1;
-	transcript_start_t transcript_start;
+	transcript_start_t transcript_start:1;
 	bool transcript_start_ambiguous:1;
 	bool exonic1:1, exonic2:1;
 	bool overlap_duplicate1:1, overlap_duplicate2:1;
 	bool spliced1:1, spliced2:1;
 	confidence_t confidence:2;
-	unsigned int split_reads1, split_reads2;
-	unsigned int discordant_mates;
+	contig_t contig1, contig2;
+	short unsigned int split_reads1, split_reads2, discordant_mates;
+	float evalue; // expected number of fusions with the given properties by random chance
+	position_t breakpoint1, breakpoint2;
 	position_t closest_genomic_breakpoint1, closest_genomic_breakpoint2;
 	position_t anchor_start1, anchor_start2;
+	gene_t gene1, gene2;
 	vector<chimeric_alignments_t::iterator> split_read1_list, split_read2_list, discordant_mate_list;
-	float evalue; // expected number of fusions with the given properties by random chance
 	filter_t filter; // name of the filter which discarded the fusion (NULL means not discarded)
 	fusion_t(): split_reads1(0), split_reads2(0), discordant_mates(0), anchor_start1(0), anchor_start2(0), closest_genomic_breakpoint1(-1), closest_genomic_breakpoint2(-1), filter(NULL) {};
 	unsigned int supporting_reads() const { return split_reads1 + split_reads2 + discordant_mates; };

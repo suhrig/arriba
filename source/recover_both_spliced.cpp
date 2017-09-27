@@ -26,7 +26,7 @@ unsigned int recover_both_spliced(fusions_t& fusions, const unsigned int max_fus
 		    fusion->second.filter == FILTERS.at("intronic") ||
 		    fusion->second.filter == FILTERS.at("promiscuous_genes") ||
 		    fusion->second.filter == FILTERS.at("min_support")) {
-			fusions_by_gene_pair[make_tuple(fusion->second.gene1, fusion->second.gene2, fusion->second.direction1, fusion->second.direction2)].push_back(&fusion->second);
+			fusions_by_gene_pair[make_tuple(fusion->second.gene1, fusion->second.gene2, (direction_t) fusion->second.direction1, (direction_t) fusion->second.direction2)].push_back(&fusion->second);
 		}
 
 	unsigned int remaining = 0;
@@ -58,7 +58,7 @@ unsigned int recover_both_spliced(fusions_t& fusions, const unsigned int max_fus
 			unsigned int sum_of_supporting_reads = 0;
 
 			// look for other reads with the same orientation
-			auto fusions_of_given_gene_pair = fusions_by_gene_pair.find(make_tuple(fusion->second.gene1, fusion->second.gene2, fusion->second.direction1, fusion->second.direction2));
+			auto fusions_of_given_gene_pair = fusions_by_gene_pair.find(make_tuple(fusion->second.gene1, fusion->second.gene2, (direction_t) fusion->second.direction1, (direction_t) fusion->second.direction2));
 			if (fusions_of_given_gene_pair != fusions_by_gene_pair.end())
 				for (auto another_fusion = fusions_of_given_gene_pair->second.begin(); another_fusion != fusions_of_given_gene_pair->second.end(); ++another_fusion)
 					sum_of_supporting_reads += max((unsigned int) 1, (**another_fusion).supporting_reads());

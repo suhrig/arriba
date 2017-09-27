@@ -13,7 +13,7 @@ unsigned int recover_isoforms(fusions_t& fusions) {
 	map< tuple<gene_t,gene_t,direction_t,direction_t>, fusion_t* > fused_gene_pairs;
 	for (fusions_t::iterator fusion = fusions.begin(); fusion != fusions.end(); ++fusion)
 		if (fusion->second.filter == NULL)
-			fused_gene_pairs[make_tuple(fusion->second.gene1, fusion->second.gene2, fusion->second.direction1, fusion->second.direction2)] = &fusion->second;
+			fused_gene_pairs[make_tuple(fusion->second.gene1, fusion->second.gene2, (direction_t) fusion->second.direction1, (direction_t) fusion->second.direction2)] = &fusion->second;
 
 	unsigned int remaining = 0;
 	for (fusions_t::iterator fusion = fusions.begin(); fusion != fusions.end(); ++fusion) {
@@ -32,7 +32,7 @@ unsigned int recover_isoforms(fusions_t& fusions) {
 
 		// find all splice-variants
 		if (fusion->second.spliced1 && fusion->second.spliced2) {
-			auto fused_gene_pair = fused_gene_pairs.find(make_tuple(fusion->second.gene1, fusion->second.gene2, fusion->second.direction1, fusion->second.direction2));
+			auto fused_gene_pair = fused_gene_pairs.find(make_tuple(fusion->second.gene1, fusion->second.gene2, (direction_t) fusion->second.direction1, (direction_t) fusion->second.direction2));
 			if (fused_gene_pair != fused_gene_pairs.end() &&
 			    (abs(fused_gene_pair->second->breakpoint1 - fusion->second.breakpoint1) > MAX_SPLICE_SITE_DISTANCE || // don't recover alternative alignments
 			     abs(fused_gene_pair->second->breakpoint2 - fusion->second.breakpoint2) > MAX_SPLICE_SITE_DISTANCE)) {

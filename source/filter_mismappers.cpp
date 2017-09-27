@@ -208,7 +208,7 @@ bool align_both_strands(const string& read_sequence, const int read_length, cons
 	return false;
 }
 
-void count_mismappers(vector<chimeric_alignments_t::iterator>& chimeric_alignments_list, unsigned int& mismappers, unsigned int& total_reads, unsigned int& supporting_reads) {
+void count_mismappers(vector<chimeric_alignments_t::iterator>& chimeric_alignments_list, short unsigned int& mismappers, short unsigned int& total_reads, short unsigned int& supporting_reads) {
 	for (auto chimeric_alignment = chimeric_alignments_list.begin(); chimeric_alignment != chimeric_alignments_list.end(); ++chimeric_alignment) {
 		if ((**chimeric_alignment).second.filter == NULL) {
 			total_reads++;
@@ -295,8 +295,8 @@ unsigned int filter_mismappers(fusions_t& fusions, const kmer_indices_t& kmer_in
 		if (fusion->second.filter != NULL)
 			continue; // fusion has already been filtered
 
-		unsigned int total_reads = 0;
-		unsigned int mismappers = 0;
+		short unsigned int total_reads = 0;
+		short unsigned int mismappers = 0;
 		count_mismappers(fusion->second.split_read1_list, mismappers, total_reads, fusion->second.split_reads1);
 		count_mismappers(fusion->second.split_read2_list, mismappers, total_reads, fusion->second.split_reads2);
 		count_mismappers(fusion->second.discordant_mate_list, mismappers, total_reads, fusion->second.discordant_mates);
