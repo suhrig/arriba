@@ -331,7 +331,7 @@ options_t parse_arguments(int argc, char **argv) {
 			case 'E':
 				options.evalue_cutoff = atof(optarg);
 				if (options.evalue_cutoff <= 0) {
-					cerr << "ERROR: " << string("Argument to -") + ((char) optopt) + " must be greater than 0." << endl;
+					cerr << "ERROR: " << string("Argument to -") + ((char) c) + " must be greater than 0." << endl;
 					exit(1);
 				}
 				break;
@@ -341,14 +341,14 @@ options_t parse_arguments(int argc, char **argv) {
 			case 'm':
 				options.max_mismapper_fraction = atof(optarg);
 				if (options.max_mismapper_fraction < 0 || options.max_mismapper_fraction > 1) {
-					cerr << "ERROR: " << string("Argument to -") + ((char) optopt) + " must be between 0 and 1." << endl;
+					cerr << "ERROR: " << string("Argument to -") + ((char) c) + " must be between 0 and 1." << endl;
 					exit(1);
 				}
 				break;
 			case 'L':
 				options.max_homolog_identity = atof(optarg);
 				if (options.max_homolog_identity < 0 || options.max_homolog_identity > 1) {
-					cerr << "ERROR: " << string("Argument to -") + ((char) optopt) + " must be between 0 and 1." << endl;
+					cerr << "ERROR: " << string("Argument to -") + ((char) c) + " must be between 0 and 1." << endl;
 					exit(1);
 				}
 				break;
@@ -370,14 +370,14 @@ options_t parse_arguments(int argc, char **argv) {
 			case 'K':
 				options.max_kmer_content = atof(optarg);
 				if (options.max_kmer_content < 0 || options.max_kmer_content > 1) {
-					cerr << "ERROR: " << string("Argument to -") + ((char) optopt) + " must be between 0 and 1." << endl;
+					cerr << "ERROR: " << string("Argument to -") + ((char) c) + " must be between 0 and 1." << endl;
 					exit(1);
 				}
 				break;
 			case 'V':
 				options.mismatch_pvalue_cutoff = atof(optarg);
 				if (options.mismatch_pvalue_cutoff <= 0) {
-					cerr << "ERROR: " << string("Argument to -") + ((char) optopt) + " must be greater than 0." << endl;
+					cerr << "ERROR: " << string("Argument to -") + ((char) c) + " must be greater than 0." << endl;
 					exit(1);
 				}
 				break;
@@ -387,7 +387,7 @@ options_t parse_arguments(int argc, char **argv) {
 			case 'U':
 				options.subsampling_threshold = atoi(optarg);
 				if (options.subsampling_threshold <= 0) {
-					cerr << "ERROR: " << string("Argument to -") + ((char) optopt) + " must be greater than 0." << endl;
+					cerr << "ERROR: " << string("Argument to -") + ((char) c) + " must be greater than 0." << endl;
 					exit(1);
 				}
 				break;
