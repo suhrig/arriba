@@ -61,7 +61,7 @@ options_t parse_arguments(int argc, char **argv) {
 	// parse arguments
 	opterr = 0;
 	int c;
-	while ((c = getopt(argc, argv, "i:o:g:G:1h")) != -1) {
+	while ((c = getopt(argc, argv, "i:o:g:G:h")) != -1) {
 		switch (c) {
 			case 'i':
 				options.input_bam_file = optarg;

@@ -200,7 +200,7 @@ options_t parse_arguments(int argc, char **argv) {
 	// parse arguments
 	opterr = 0;
 	int c;
-	while ((c = getopt(argc, argv, "c:r:x:d:g:G:o:O:a:k:b:1s:i:f:E:s:m:L:H:D:R:A:M:K:F:TIh")) != -1) {
+	while ((c = getopt(argc, argv, "c:r:x:d:g:G:o:O:a:k:b:s:i:f:E:s:m:L:H:D:R:A:M:K:F:TIh")) != -1) {
 		switch (c) {
 			case 'c':
 				options.chimeric_bam_file = optarg;
