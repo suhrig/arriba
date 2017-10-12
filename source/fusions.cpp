@@ -187,13 +187,12 @@ void predict_transcript_start(fusion_t& fusion) {
 }
 
 
-unsigned int find_fusions(chimeric_alignments_t& chimeric_alignments, fusions_t& fusions, exon_annotation_index_t& exon_annotation_index, const int max_mate_gap) {
+unsigned int find_fusions(chimeric_alignments_t& chimeric_alignments, fusions_t& fusions, exon_annotation_index_t& exon_annotation_index, const int max_mate_gap, const unsigned int subsampling_threshold) {
 
 	typedef unordered_map< tuple<gene_t/*gene1*/,gene_t/*gene2*/>, vector<chimeric_alignments_t::iterator> > discordant_mates_by_gene_pair_t;
 	discordant_mates_by_gene_pair_t discordant_mates_by_gene_pair; // contains the discordant mates for each pair of genes
 
 	bool subsampled_fusions = false;
-	const unsigned int max_subsampling = 300; // start subsampling (i.e., ignoring reads), when a fusion has more than this many supporting reads
 
 	for (chimeric_alignments_t::iterator chimeric_alignment = chimeric_alignments.begin(); chimeric_alignment != chimeric_alignments.end(); ++chimeric_alignment) {
 
@@ -254,10 +253,10 @@ unsigned int find_fusions(chimeric_alignments_t& chimeric_alignments, fusions_t&
 							fusion.filter = chimeric_alignment->second.filter;
 					}
 
-					if (fusion.split_reads1 >= max_subsampling && !swapped ||
-					    fusion.split_reads2 >= max_subsampling &&  swapped ||
-					    chimeric_alignment->second.filter != NULL && !swapped && fusion.split_read1_list.size() >= max_subsampling ||
-					    chimeric_alignment->second.filter != NULL &&  swapped && fusion.split_read2_list.size() >= max_subsampling) {
+					if (fusion.split_reads1 >= subsampling_threshold && !swapped ||
+					    fusion.split_reads2 >= subsampling_threshold &&  swapped ||
+					    chimeric_alignment->second.filter != NULL && !swapped && fusion.split_read1_list.size() >= subsampling_threshold ||
+					    chimeric_alignment->second.filter != NULL &&  swapped && fusion.split_read2_list.size() >= subsampling_threshold) {
 
 						// subsampling improves performance, especially in multiple myeloma samples
 						subsampled_fusions = true;
@@ -387,7 +386,7 @@ unsigned int find_fusions(chimeric_alignments_t& chimeric_alignments, fusions_t&
 			for (auto discordant_mate = discordant_mates->second.begin(); discordant_mate != discordant_mates->second.end(); ++discordant_mate) {
 
 				// ignore discarded reads, if we already have a lot of supporting reads (improves performance in multiple myeloma samples)
-				if ((*discordant_mate)->second.filter != NULL && fusion->second.discordant_mate_list.size() >= max_subsampling) {
+				if ((*discordant_mate)->second.filter != NULL && fusion->second.discordant_mate_list.size() >= subsampling_threshold) {
 					subsampled_fusions = true;
 					continue;
 				}
@@ -428,7 +427,7 @@ unsigned int find_fusions(chimeric_alignments_t& chimeric_alignments, fusions_t&
 						fusion->second.anchor_start2 = mate2->end;
 					}
 
-					if (fusion->second.discordant_mates >= max_subsampling) {
+					if (fusion->second.discordant_mates >= subsampling_threshold) {
 						subsampled_fusions = true;
 						break;
 					}
@@ -438,7 +437,7 @@ unsigned int find_fusions(chimeric_alignments_t& chimeric_alignments, fusions_t&
 	}
 
 	if (subsampled_fusions)
-		cerr << "WARNING: Some fusions were subsampled, because they have more than " << max_subsampling << " supporting reads" << endl;
+		cerr << "WARNING: Some fusions were subsampled, because they have more than " << subsampling_threshold << " supporting reads" << endl;
 
 	unsigned int remaining = 0;
 	for (fusions_t::iterator fusion = fusions.begin(); fusion != fusions.end(); ++fusion) {

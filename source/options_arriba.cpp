@@ -35,6 +35,7 @@ options_t get_default_options() {
 	options.gtf_features = DEFAULT_GTF_FEATURES;
 	options.min_spliced_events = 4;
 	options.mismatch_pvalue_cutoff = 0.01;
+	options.subsampling_threshold = 300;
 
 	return options;
 }
@@ -177,6 +178,11 @@ void print_usage(const string& error_message) {
 	                  "single-end data is given, the mean fragment length should be specified "
 	                  "to effectively filter fusions that arise from hairpin structures. "
 	                  "Default: " + to_string(default_options.fragment_length))
+	     << wrap_help("-U MAX_READS", "Subsample fusions with more than the given number of "
+	                  "supporting reads. This improves performance without compromising sensitivity, "
+	                  "as long as the threshold is high. Counting of supporting reads beyond "
+	                  "the threshold is inaccurate, obviously. "
+	                  "Default: " + to_string(default_options.subsampling_threshold))
 	     << wrap_help("-T", "When set, the column 'fusion_transcript' is populated with "
 	                  "the sequence of the fused genes as assembled from the supporting reads. "
 	                  "The following letters have special meanings:\n"
@@ -200,7 +206,7 @@ options_t parse_arguments(int argc, char **argv) {
 	// parse arguments
 	opterr = 0;
 	int c;
-	while ((c = getopt(argc, argv, "c:r:x:d:g:G:o:O:a:k:b:s:i:f:E:s:m:L:H:D:R:A:M:K:F:TIh")) != -1) {
+	while ((c = getopt(argc, argv, "c:r:x:d:g:G:o:O:a:k:b:s:i:f:E:s:m:L:H:D:R:A:M:K:F:U:TIh")) != -1) {
 		switch (c) {
 			case 'c':
 				options.chimeric_bam_file = optarg;
@@ -378,6 +384,13 @@ options_t parse_arguments(int argc, char **argv) {
 			case 'F':
 				options.fragment_length = atoi(optarg);
 				break;
+			case 'U':
+				options.subsampling_threshold = atoi(optarg);
+				if (options.subsampling_threshold <= 0) {
+					cerr << "ERROR: " << string("Argument to -") + ((char) optopt) + " must be greater than 0." << endl;
+					exit(1);
+				}
+				break;
 			case 'T':
 				if (!options.print_fusion_sequence)
 					options.print_fusion_sequence = true;
@@ -395,7 +408,7 @@ options_t parse_arguments(int argc, char **argv) {
 				break;
 			default:
 				switch (optopt) {
-					case 'c': case 'r': case 'x': case 'd': case 'g': case 'G': case 'o': case 'O': case 'a': case 'k': case 'b': case 'i': case 'f': case 'E': case 's': case 'm': case 'H': case 'D': case 'R': case 'A': case 'M': case 'K': case 'V': case 'F': case 'S':
+					case 'c': case 'r': case 'x': case 'd': case 'g': case 'G': case 'o': case 'O': case 'a': case 'k': case 'b': case 'i': case 'f': case 'E': case 's': case 'm': case 'H': case 'D': case 'R': case 'A': case 'M': case 'K': case 'V': case 'F': case 'S': case 'U':
 						cerr << "ERROR: " << string("Option -") + ((char) optopt) + " requires an argument." << endl;
 						exit(1);
 						break;

@@ -313,7 +313,7 @@ int main(int argc, char **argv) {
 
 	cout << "Finding fusions and counting supporting reads" << flush;
 	fusions_t fusions;
-	cout << " (total=" << find_fusions(chimeric_alignments, fusions, exon_annotation_index, max_mate_gap) << ")" << endl;
+	cout << " (total=" << find_fusions(chimeric_alignments, fusions, exon_annotation_index, max_mate_gap, options.subsampling_threshold) << ")" << endl;
 
 	if (!options.genomic_breakpoints_file.empty()) {
 		cout << "Marking fusions with support from whole-genome sequencing in '" << options.genomic_breakpoints_file << "'" << flush;
