@@ -321,7 +321,7 @@ options_t parse_arguments(int argc, char **argv) {
 						string disabled_filter;
 						disabled_filters_ss >> disabled_filter;
 						if (!disabled_filter.empty() && options.filters.find(disabled_filter) == options.filters.end()) {
-							cerr << "ERROR: Invalid argument to option -f: " + disabled_filter << endl;
+							cerr << "ERROR: Invalid argument to option -f: " << disabled_filter << endl;
 							exit(1);
 						} else
 							options.filters[disabled_filter] = false;
@@ -329,65 +329,80 @@ options_t parse_arguments(int argc, char **argv) {
 				}
 				break;
 			case 'E':
-				options.evalue_cutoff = atof(optarg);
-				if (options.evalue_cutoff <= 0) {
-					cerr << "ERROR: " << string("Argument to -") + ((char) c) + " must be greater than 0." << endl;
+				if (!validate_float(optarg, options.evalue_cutoff) || options.evalue_cutoff <= 0) {
+					cerr << "ERROR: " << "Argument to -" << ((char) c) << " must be greater than 0." << endl;
 					exit(1);
 				}
 				break;
 			case 'S':
-				options.min_support = atoi(optarg);
+				if (!validate_int(optarg, options.min_support, 0)) {
+					cerr << "ERROR: " << "Invalid argument to -" << ((char) c) << "." << endl;
+					exit(1);
+				}
 				break;
 			case 'm':
-				options.max_mismapper_fraction = atof(optarg);
-				if (options.max_mismapper_fraction < 0 || options.max_mismapper_fraction > 1) {
-					cerr << "ERROR: " << string("Argument to -") + ((char) c) + " must be between 0 and 1." << endl;
+				if (!validate_float(optarg, options.max_mismapper_fraction, 0, 1)) {
+					cerr << "ERROR: " << "Argument to -" << ((char) c) << " must be between 0 and 1." << endl;
 					exit(1);
 				}
 				break;
 			case 'L':
-				options.max_homolog_identity = atof(optarg);
-				if (options.max_homolog_identity < 0 || options.max_homolog_identity > 1) {
-					cerr << "ERROR: " << string("Argument to -") + ((char) c) + " must be between 0 and 1." << endl;
+				if (!validate_float(optarg, options.max_homolog_identity, 0, 1)) {
+					cerr << "ERROR: " << "Argument to -" << ((char) c) << " must be between 0 and 1." << endl;
 					exit(1);
 				}
 				break;
 			case 'H':
-				options.homopolymer_length = atoi(optarg);
+				if (!validate_int(optarg, options.homopolymer_length, 2)) {
+					cerr << "ERROR: " << "Argument to -" << ((char) c) << " must be greater than 1." << endl;
+					exit(1);
+				}
 				break;
 			case 'D':
-				options.max_genomic_breakpoint_distance = atoi(optarg);
+				if (!validate_int(optarg, options.max_genomic_breakpoint_distance, 0)) {
+					cerr << "ERROR: " << "Invalid argument to -" << ((char) c) << "." << endl;
+					exit(1);
+				}
 				break;
 			case 'R':
-				options.min_read_through_distance = atoi(optarg);
+				if (!validate_int(optarg, options.min_read_through_distance, 0)) {
+					cerr << "ERROR: " << "Invalid argument to -" << ((char) c) << "." << endl;
+					exit(1);
+				}
 				break;
 			case 'A':
-				options.min_anchor_length = atoi(optarg);
+				if (!validate_int(optarg, options.min_anchor_length, 0)) {
+					cerr << "ERROR: " << "Invalid argument to -" << ((char) c) << "." << endl;
+					exit(1);
+				}
 				break;
 			case 'M':
-				options.min_spliced_events = atoi(optarg);
+				if (!validate_int(optarg, options.min_spliced_events, 0)) {
+					cerr << "ERROR: " << "Invalid argument to -" << ((char) c) << "." << endl;
+					exit(1);
+				}
 				break;
 			case 'K':
-				options.max_kmer_content = atof(optarg);
-				if (options.max_kmer_content < 0 || options.max_kmer_content > 1) {
-					cerr << "ERROR: " << string("Argument to -") + ((char) c) + " must be between 0 and 1." << endl;
+				if (!validate_float(optarg, options.max_kmer_content, 0, 1)) {
+					cerr << "ERROR: " << "Argument to -" << ((char) c) << " must be between 0 and 1." << endl;
 					exit(1);
 				}
 				break;
 			case 'V':
-				options.mismatch_pvalue_cutoff = atof(optarg);
-				if (options.mismatch_pvalue_cutoff <= 0) {
-					cerr << "ERROR: " << string("Argument to -") + ((char) c) + " must be greater than 0." << endl;
+				if (!validate_float(optarg, options.mismatch_pvalue_cutoff) || options.mismatch_pvalue_cutoff <= 0) {
+					cerr << "ERROR: " << "Argument to -" << ((char) c) << " must be greater than 0." << endl;
 					exit(1);
 				}
 				break;
 			case 'F':
-				options.fragment_length = atoi(optarg);
+				if (!validate_int(optarg, options.fragment_length, 1)) {
+					cerr << "ERROR: " << "Argument to -" << ((char) c) << " must be greater than 0." << endl;
+					exit(1);
+				}
 				break;
 			case 'U':
-				options.subsampling_threshold = atoi(optarg);
-				if (options.subsampling_threshold <= 0) {
-					cerr << "ERROR: " << string("Argument to -") + ((char) c) + " must be greater than 0." << endl;
+				if (!validate_int(optarg, options.subsampling_threshold, 1)) {
+					cerr << "ERROR: " << "Argument to -" << ((char) c) << " must be greater than 0." << endl;
 					exit(1);
 				}
 				break;
@@ -409,11 +424,11 @@ options_t parse_arguments(int argc, char **argv) {
 			default:
 				switch (optopt) {
 					case 'c': case 'r': case 'x': case 'd': case 'g': case 'G': case 'o': case 'O': case 'a': case 'k': case 'b': case 'i': case 'f': case 'E': case 's': case 'm': case 'H': case 'D': case 'R': case 'A': case 'M': case 'K': case 'V': case 'F': case 'S': case 'U':
-						cerr << "ERROR: " << string("Option -") + ((char) optopt) + " requires an argument." << endl;
+						cerr << "ERROR: " << "Option -" << ((char) optopt) << " requires an argument." << endl;
 						exit(1);
 						break;
 					default:
-						cerr << "ERROR: " << string("Unknown option: -") + ((char) optopt) << endl;
+						cerr << "ERROR: " << "Unknown option: -" << ((char) optopt) << endl;
 						exit(1);
 						break;
 				}

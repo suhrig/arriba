@@ -37,3 +37,22 @@ bool output_directory_exists(const string& output_file) {
 	return (stat(output_directory, &file_info) == 0 && (file_info.st_mode & S_IFDIR));
 }
 
+bool validate_int(const char* optarg, int& value, const int min_value, const int max_value) {
+	value = atoi(optarg);
+	if (optarg != "0" && value == 0)
+		return false;
+	return value >= min_value && value <= max_value;
+}
+
+bool validate_int(const char* optarg, unsigned int& value, const unsigned int min_value, const unsigned int max_value) {
+	int signed_int;
+	return validate_int(optarg, signed_int, min_value, max_value);
+}
+
+bool validate_float(const char* optarg, float& value, const float min_value, const float max_value) {
+	value = atof(optarg);
+	if (optarg != "0" && value == 0)
+		return false;
+	return value >= min_value && value <= max_value;
+}
+
