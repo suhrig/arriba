@@ -1,6 +1,7 @@
 #include <cmath>
 #include <string>
 #include "sam.h"
+#include "annotation.hpp"
 #include "common.hpp"
 #include "filter_mismatches.hpp"
 
@@ -87,7 +88,7 @@ unsigned int filter_mismatches(chimeric_alignments_t& chimeric_alignments, const
 			}
 		} else { // split read
 			if (test_mismatch_probability(chimeric_alignment->second[MATE1], chimeric_alignment->second[MATE1].sequence, assembly, mismatch_probability, pvalue_cutoff) ||
-			    test_mismatch_probability(chimeric_alignment->second[SUPPLEMENTARY], chimeric_alignment->second[SPLIT_READ].sequence, assembly, mismatch_probability, pvalue_cutoff)) {
+			    test_mismatch_probability(chimeric_alignment->second[SUPPLEMENTARY], (chimeric_alignment->second[SUPPLEMENTARY].strand == chimeric_alignment->second[SPLIT_READ].strand) ? chimeric_alignment->second[SPLIT_READ].sequence : dna_to_reverse_complement(chimeric_alignment->second[SPLIT_READ].sequence), assembly, mismatch_probability, pvalue_cutoff)) {
 				chimeric_alignment->second.filter = FILTERS.at("mismatches");
 				continue;
 			}
