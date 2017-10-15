@@ -14,18 +14,18 @@ using namespace std;
 const unsigned int MAX_SPLICE_SITE_DISTANCE = 2;
 
 struct gtf_features_t {
-	string gene_name;
-	string gene_id;
-	string transcript_id;
-	string gene_status;
-	string status_known;
-	string gene_type;
-	string type_protein_coding;
-	string feature_exon;
-	string feature_utr;
-	string feature_gene;
+	vector<string> gene_name;
+	vector<string> gene_id;
+	vector<string> transcript_id;
+	vector<string> gene_status;
+	vector<string> status_known;
+	vector<string> gene_type;
+	vector<string> type_protein_coding;
+	vector<string> feature_exon;
+	vector<string> feature_utr;
+	vector<string> feature_gene;
 };
-const string DEFAULT_GTF_FEATURES = "gene_name=gene_name gene_id=gene_id transcript_id=transcript_id gene_status=gene_status status_KNOWN=KNOWN gene_type=gene_type type_protein_coding=protein_coding feature_exon=exon feature_UTR=UTR feature_gene=gene";
+const string DEFAULT_GTF_FEATURES = "gene_name=gene_name gene_id=gene_id transcript_id=transcript_id gene_status=gene_status|gene_type status_KNOWN=KNOWN|protein_coding gene_type=gene_type type_protein_coding=protein_coding feature_exon=exon feature_UTR=UTR feature_gene=gene";
 
 bool parse_gtf_features(string gtf_features_string, gtf_features_t& gtf_features);
 

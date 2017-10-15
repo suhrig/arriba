@@ -15,6 +15,14 @@
 
 using namespace std;
 
+void split_string(const string& unsplit, const char separator, vector<string>& split) {
+	stringstream ss(unsplit);
+	string value;
+	while (getline(ss, value, separator))
+		if (!value.empty())
+			split.push_back(value);
+}
+
 bool parse_gtf_features(string gtf_features_string, gtf_features_t& gtf_features) {
 	replace(gtf_features_string.begin(), gtf_features_string.end(), ',', ' ');
 	replace(gtf_features_string.begin(), gtf_features_string.end(), '=', ' ');
@@ -25,25 +33,25 @@ bool parse_gtf_features(string gtf_features_string, gtf_features_t& gtf_features
 		if (feature != "" && value == "")
 			return false;
 		if (feature == "gene_name") {
-			gtf_features.gene_name = value;
+			split_string(value, '|', gtf_features.gene_name);
 		} else if (feature == "gene_id") {
-			gtf_features.gene_id = value;
+			split_string(value, '|', gtf_features.gene_id);
 		} else if (feature == "transcript_id") {
-			gtf_features.transcript_id = value;
+			split_string(value, '|', gtf_features.transcript_id);
 		} else if (feature == "gene_status") {
-			gtf_features.gene_status = value;
+			split_string(value, '|', gtf_features.gene_status);
 		} else if (feature == "status_KNOWN") {
-			gtf_features.status_known = value;
+			split_string(value, '|', gtf_features.status_known);
 		} else if (feature == "gene_type") {
-			gtf_features.gene_type = value;
+			split_string(value, '|', gtf_features.gene_type);
 		} else if (feature == "type_protein_coding") {
-			gtf_features.type_protein_coding = value;
+			split_string(value, '|', gtf_features.type_protein_coding);
 		} else if (feature == "feature_exon") {
-			gtf_features.feature_exon = value;
+			split_string(value, '|', gtf_features.feature_exon);
 		} else if (feature == "feature_UTR") {
-			gtf_features.feature_utr = value;
+			split_string(value, '|', gtf_features.feature_utr);
 		} else if (feature == "feature_gene") {
-			gtf_features.feature_gene = value;
+			split_string(value, '|', gtf_features.feature_gene);
 		} else if (feature == "") {
 			// the last feature has been processed
 		} else {
@@ -131,14 +139,22 @@ string addChr(string contig) {
 	return contig;
 }
 
-bool get_gtf_attribute(const string& attributes, const string& attribute_name, string& attribute_value) {
+bool get_gtf_attribute(const string& attributes, const vector<string>& attribute_names, string& attribute_value) {
 
 	// find start of attribute
-	size_t start = attributes.find(attribute_name + " \"");
+	size_t start = string::npos;
+	for (auto attribute_name = attribute_names.begin(); attribute_name != attribute_names.end() && start == string::npos; ++attribute_name)
+		start = attributes.find(*attribute_name + " \"");
 	if (start != string::npos)
 		start = attributes.find('"', start);
 	if (start == string::npos) {
-		cerr << "WARNING: failed to extract " << attribute_name << " from line in GTF file: " << attributes << endl;
+		cerr << "WARNING: failed to extract ";
+		for (auto attribute_name = attribute_names.begin(); attribute_name != attribute_names.end(); ++attribute_name) {
+			if (attribute_name != attribute_names.begin())
+				cerr << "|";
+			cerr << *attribute_name;
+		}
+		cerr << " from line in GTF file: " << attributes << endl;
 		return false;
 	}
 	start++;
@@ -146,7 +162,13 @@ bool get_gtf_attribute(const string& attributes, const string& attribute_name, s
 	// find end of attribute
 	size_t end = attributes.find('"', start);
 	if (end == string::npos) {
-		cerr << "WARNING: failed to extract " << attribute_name << " from line in GTF file: " << attributes << endl;
+		cerr << "WARNING: failed to extract ";
+		for (auto attribute_name = attribute_names.begin(); attribute_name != attribute_names.end(); ++attribute_name) {
+			if (attribute_name != attribute_names.begin())
+				cerr << "|";
+			cerr << *attribute_name;
+		}
+		cerr << " from line in GTF file: " << attributes << endl;
 		return false;
 	}
 	attribute_value = attributes.substr(start, end - start);
@@ -203,7 +225,7 @@ void read_annotation_gtf(const string& filename, const contigs_t& contigs, const
 			annotation_record.end--; // GTF files are one-based
 			annotation_record.strand = (strand[0] == '+') ? FORWARD : REVERSE;
 
-			if (feature == gtf_features.feature_gene) {
+			if (find(gtf_features.feature_gene.begin(), gtf_features.feature_gene.end(), feature) != gtf_features.feature_gene.end()) {
 
 				// make gene annotation record
 				gene_annotation_record_t gene_annotation_record;
@@ -215,24 +237,25 @@ void read_annotation_gtf(const string& filename, const contigs_t& contigs, const
 				string gene_status;
 				if (!get_gtf_attribute(attributes, gtf_features.gene_status, gene_status))
 					continue;
-				gene_annotation_record.is_known = gene_status == gtf_features.status_known;
+				gene_annotation_record.is_known = find(gtf_features.status_known.begin(), gtf_features.status_known.end(), gene_status) != gtf_features.status_known.end();
 				string gene_type;
 				if (!get_gtf_attribute(attributes, gtf_features.gene_type, gene_type))
 					continue;
-				gene_annotation_record.is_protein_coding = gene_type == gtf_features.type_protein_coding;
+				gene_annotation_record.is_protein_coding = find(gtf_features.type_protein_coding.begin(), gtf_features.type_protein_coding.end(), gene_type) != gtf_features.type_protein_coding.end();
 				gene_annotation.push_back(gene_annotation_record);
 
 				// remember ID of gene, so we can map exons to genes later
 				gene_by_gene_id[gene_id] = &(*gene_annotation.rbegin());
 
-			} else if (feature == gtf_features.feature_exon || feature == gtf_features.feature_utr) {
+			} else if (find(gtf_features.feature_exon.begin(), gtf_features.feature_exon.end(), feature) != gtf_features.feature_exon.end() ||
+			           find(gtf_features.feature_utr.begin(), gtf_features.feature_utr.end(), feature) != gtf_features.feature_utr.end()) {
 
 				// make exon annotation record
 				exon_annotation_record_t exon_annotation_record;
 				exon_annotation_record.copy(annotation_record);
 				exon_annotation_record.is_transcript_start = false; // is set further down
 				exon_annotation_record.is_transcript_end = false; // is set further down
-				exon_annotation_record.is_utr = feature == gtf_features.feature_utr;
+				exon_annotation_record.is_utr = find(gtf_features.feature_utr.begin(), gtf_features.feature_utr.end(), feature) != gtf_features.feature_utr.end();
 
 				// extract transcript ID from attributes
 				string transcript_id;
