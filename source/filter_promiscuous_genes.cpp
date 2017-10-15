@@ -18,14 +18,16 @@ void estimate_expected_fusions(fusions_t& fusions, const unsigned long int mappe
 
 	// find all fusion partners for each gene
 	unordered_map< gene_t,gene_set_t > fusion_partners;
-	for (fusions_t::iterator i = fusions.begin(); i != fusions.end(); ++i) {
-		if (i->second.filter == NULL && i->second.gene1 != i->second.gene2) {
-			if (!i->second.overlap_duplicate1)
-				fusion_partners[i->second.gene2].insert(i->second.gene1);
-			if (!i->second.overlap_duplicate2)
-				fusion_partners[i->second.gene1].insert(i->second.gene2);
+	unordered_map< tuple<gene_t,position_t,position_t>,char > overlap_duplicates;
+	for (fusions_t::iterator fusion = fusions.begin(); fusion != fusions.end(); ++fusion) {
+		if (fusion->second.filter == NULL && fusion->second.gene1 != fusion->second.gene2) {
+			if (!overlap_duplicates[make_tuple(fusion->second.gene2, fusion->second.breakpoint1, fusion->second.breakpoint2)]++)
+				fusion_partners[fusion->second.gene2].insert(fusion->second.gene1);
+			if (!overlap_duplicates[make_tuple(fusion->second.gene1, fusion->second.breakpoint1, fusion->second.breakpoint2)]++)
+				fusion_partners[fusion->second.gene1].insert(fusion->second.gene2);
 		}
 	}
+	overlap_duplicates.clear();
 
 	// count the number of fusion partners for each gene
 	// fusions with genes that have more fusion partners are ignored

@@ -26,19 +26,19 @@ unsigned int filter_pcr_fusions(fusions_t& fusions, const float max_pcr_fusion_s
 
 	unordered_map< gene_t,unsigned int > exonic_breakpoint_count; // count the number of fusions with exonic (non-spliced) breakpoints for each gene
 	unordered_map< gene_t,unsigned int > partners_with_many_exonic_breakpoints; // count the number of gene partners which have many exonic breakpoints for each gene
-	unordered_map< tuple<gene_t/*gene1*/, gene_t/*gene2*/>, unsigned int > exonic_breakpoints_by_gene_pair; // count the number of exonic breakpoints for each gene pair
+	unordered_map< tuple<gene_t/*gene1*/,gene_t/*gene2*/>, unsigned int > exonic_breakpoints_by_gene_pair; // count the number of exonic breakpoints for each gene pair
+	unordered_map< tuple<gene_t,position_t,position_t>, char > overlap_duplicates;
 	for (fusions_t::iterator fusion = fusions.begin(); fusion != fusions.end(); ++fusion) {
 		if (fusion->second.gene1 != fusion->second.gene2 && // there are often many breakpoints within the same gene (probably hairpin fusions)
 		    !fusion->second.spliced1 && !fusion->second.spliced2 && // breakpoints at splice sites are almost exclusively a result of splicing and thus, no PCR-mediated fusions
-		    (!fusion->second.overlap_duplicate1 || !fusion->second.overlap_duplicate2) && // don't count breakpoints twice, if they are in overlapping genes
 		    fusion->second.exonic1 && fusion->second.exonic2 && // PCR fusions only contain spliced transcripts, so we ignore intronic/intergenic breakpoints
 		    fusion->second.filter != FILTERS.at("uninteresting_contigs") && // ignore fusions with mitochondrial DNA and decoy sequences, there are usually tons of those
 		    fusion->second.filter != FILTERS.at("merge_adjacent")) { // slightly varying alignments may lead to adjacent breakpoints, we should not count them as separate breakpoints
 
 			if (fusion->second.split_read1_list.size() + fusion->second.split_read2_list.size()) { // this also counts discarded reads
-				if (!fusion->second.overlap_duplicate2)
+				if (!overlap_duplicates[make_tuple(fusion->second.gene1, fusion->second.breakpoint1, fusion->second.breakpoint2)]++)
 					exonic_breakpoint_count[fusion->second.gene1]++;
-				if (!fusion->second.overlap_duplicate1)
+				if (!overlap_duplicates[make_tuple(fusion->second.gene2, fusion->second.breakpoint1, fusion->second.breakpoint2)]++)
 					exonic_breakpoint_count[fusion->second.gene2]++;
 				if (++exonic_breakpoints_by_gene_pair[make_tuple(fusion->second.gene1, fusion->second.gene2)] == max_exonic_breakpoints) {
 					partners_with_many_exonic_breakpoints[fusion->second.gene1]++;

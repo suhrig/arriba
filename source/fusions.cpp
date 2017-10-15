@@ -233,9 +233,7 @@ unsigned int find_fusions(chimeric_alignments_t& chimeric_alignments, fusions_t&
 			}
 
 			// make a fusion from the given breakpoints
-			bool overlap_duplicate1 = false;
 			for (gene_set_t::iterator gene1 = genes1.begin(); gene1 != genes1.end(); ++gene1) {
-				bool overlap_duplicate2 = false;
 				for (gene_set_t::iterator gene2 = genes2.begin(); gene2 != genes2.end(); ++gene2) {
 
 					// copy properties of supporting read to fusion
@@ -275,12 +273,6 @@ unsigned int find_fusions(chimeric_alignments_t& chimeric_alignments, fusions_t&
 							fusion.anchor_start2 = anchor_start2;
 						}
 
-						// when the breakpoint falls into a region where genes overlap,
-						// mark all genes except the first as "overlap_duplicate"
-						fusion.overlap_duplicate1 = overlap_duplicate1;
-						fusion.overlap_duplicate2 = overlap_duplicate2;
-						overlap_duplicate2 = true;
-
 						// increase split read counters for the given fusion
 						if (swapped) {
 							fusion.split_read2_list.push_back(chimeric_alignment);
@@ -294,7 +286,6 @@ unsigned int find_fusions(chimeric_alignments_t& chimeric_alignments, fusions_t&
 
 					}
 				}
-				overlap_duplicate1 = true;
 			}
 
 		} else if (chimeric_alignment->second.size() == 2) { // discordant mates
@@ -325,9 +316,7 @@ unsigned int find_fusions(chimeric_alignments_t& chimeric_alignments, fusions_t&
 			}
 
 			// make a fusion from the given breakpoints
-			bool overlap_duplicate1 = false;
 			for (gene_set_t::iterator gene1 = genes1.begin(); gene1 != genes1.end(); ++gene1) {
-				bool overlap_duplicate2 = false;
 				for (gene_set_t::iterator gene2 = genes2.begin(); gene2 != genes2.end(); ++gene2) {
 
 					// copy properties of supporting read to fusion
@@ -357,17 +346,10 @@ unsigned int find_fusions(chimeric_alignments_t& chimeric_alignments, fusions_t&
 						fusion.anchor_start2 = anchor_start2;
 					}
 
-					// when the breakpoint falls into a region where genes overlap,
-					// mark all genes except the first as "overlap_duplicate"
-					fusion.overlap_duplicate1 = overlap_duplicate1;
-					fusion.overlap_duplicate2 = overlap_duplicate2;
-					overlap_duplicate2 = true;
-
 					// store the discordant mates in a hashmap for fast lookup
 					// we will need this later to find all the discordant mates supporting a given fusion
 					discordant_mates_by_gene_pair[make_tuple(*gene1, *gene2)].push_back(chimeric_alignment);
 				}
-				overlap_duplicate1 = true;
 			}
 		}
 	}

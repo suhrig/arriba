@@ -148,7 +148,6 @@ struct fusion_t {
 	transcript_start_t transcript_start:1;
 	bool transcript_start_ambiguous:1;
 	bool exonic1:1, exonic2:1;
-	bool overlap_duplicate1:1, overlap_duplicate2:1;
 	bool spliced1:1, spliced2:1;
 	confidence_t confidence:2;
 	contig_t contig1, contig2;
