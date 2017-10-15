@@ -11,6 +11,7 @@
 #include "sam.h"
 #include "common.hpp"
 #include "annotation.hpp"
+#include "assembly.hpp"
 #include "output_fusions.hpp"
 
 using namespace std;

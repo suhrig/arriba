@@ -10,6 +10,41 @@
 
 using namespace std;
 
+void dna_to_reverse_complement(string& dna, string& reverse_complement) {
+	if (!reverse_complement.empty())
+		reverse_complement.clear();
+	reverse_complement.reserve(dna.length());
+	for (string::reverse_iterator i = dna.rbegin(); i != dna.rend(); ++i)
+		if (*i == 'a') {
+			reverse_complement += 't';
+		} else if (*i == 't') {
+			reverse_complement += 'a';
+		} else if (*i == 'c') {
+			reverse_complement += 'g';
+		} else if (*i == 'g') {
+			reverse_complement += 'c';
+		} else if (*i == 'A') {
+			reverse_complement += 'T';
+		} else if (*i == 'T') {
+			reverse_complement += 'A';
+		} else if (*i == 'C') {
+			reverse_complement += 'G';
+		} else if (*i == 'G') {
+			reverse_complement += 'C';
+		} else if (*i == '[') {
+			reverse_complement += ']';
+		} else if (*i == ']') {
+			reverse_complement += '[';
+		} else
+			reverse_complement += *i;
+}
+
+string dna_to_reverse_complement(string& dna) {
+	string reverse_complement;
+	dna_to_reverse_complement(dna, reverse_complement);
+	return reverse_complement;
+}
+
 void load_assembly(assembly_t& assembly, const string& fasta_file_path, const contigs_t& contigs, const vector<bool>& interesting_contigs) {
 
 	// open FastA file

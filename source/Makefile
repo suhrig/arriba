@@ -12,7 +12,7 @@ READ_THROUGH_OBJECTS := annotation.o options.o options_extract_read-through_fusi
 extract_read-through_fusions: $(READ_THROUGH_OBJECTS) extract_read-through_fusions.cpp
 	$(CXX) $(CXXFLAGS) -o extract_read-through_fusions extract_read-through_fusions.cpp $(READ_THROUGH_OBJECTS) $(LDFLAGS)
 
-%.o: %.cpp %.hpp common.hpp annotation.hpp annotation.t.hpp fusions.hpp read_compressed_file.hpp
+%.o: %.cpp %.hpp common.hpp annotation.hpp annotation.t.hpp assembly.hpp read_compressed_file.hpp
 	$(CXX) -c $(CXXFLAGS) $< $(LDFLAGS)
 
 ../samtools-1.3/htslib-1.3/libhts.a:

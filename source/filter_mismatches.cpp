@@ -2,6 +2,7 @@
 #include <string>
 #include "sam.h"
 #include "annotation.hpp"
+#include "assembly.hpp"
 #include "common.hpp"
 #include "filter_mismatches.hpp"
 

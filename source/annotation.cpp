@@ -569,42 +569,6 @@ void get_boundaries_of_biggest_gene(gene_set_t& genes, position_t& start, positi
 	}
 }
 
-void dna_to_reverse_complement(string& dna, string& reverse_complement) {
-	if (!reverse_complement.empty())
-		reverse_complement.clear();
-	reverse_complement.reserve(dna.length());
-	for (string::reverse_iterator i = dna.rbegin(); i != dna.rend(); ++i)
-		if (*i == 'a') {
-			reverse_complement += 't';
-		} else if (*i == 't') {
-			reverse_complement += 'a';
-		} else if (*i == 'c') {
-			reverse_complement += 'g';
-		} else if (*i == 'g') {
-			reverse_complement += 'c';
-		} else if (*i == 'A') {
-			reverse_complement += 'T';
-		} else if (*i == 'T') {
-			reverse_complement += 'A';
-		} else if (*i == 'C') {
-			reverse_complement += 'G';
-		} else if (*i == 'G') {
-			reverse_complement += 'C';
-		} else if (*i == '[') {
-			reverse_complement += ']';
-		} else if (*i == ']') {
-			reverse_complement += '[';
-		} else
-			reverse_complement += *i;
-}
-
-string dna_to_reverse_complement(string& dna) {
-	string reverse_complement;
-	dna_to_reverse_complement(dna, reverse_complement);
-	return reverse_complement;
-}
-
-
 void get_unique_transcripts_from_exons(const exon_multiset_t& exons, set<transcript_t>& transcripts) {
 	transcripts.clear();
 	for (exon_multiset_t::const_iterator exon = exons.begin(); exon != exons.end(); ++exon)
