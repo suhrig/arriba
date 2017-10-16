@@ -53,7 +53,7 @@ wait # for indexing of normal alignments
 	-O fusions.discarded.tsv \
 	-a "$ASSEMBLY_FA" \
 	-g "$ANNOTATION_GTF" \
-	-b "$BASE_DIR/database/blacklist_hs37d5_gencode19_2017-01-09.tsv.gz" \
-	-k "$BASE_DIR/database/known_fusions_CancerGeneCensus_gencode19_2017-01-16.tsv.gz" \
+	-b "$BASE_DIR/database/blacklist_hs37d5_gencode19_2017-05-11.tsv.gz" \
+	-k "$BASE_DIR/database/known_fusions_CancerGeneCensus_gencode19_2017-05-11.tsv.gz" \
 	-T
 
