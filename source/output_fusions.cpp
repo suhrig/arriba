@@ -618,7 +618,7 @@ void write_fusions_to_file(fusions_t& fusions, const string& output_file, const 
 
 		// if requested, print identifiers of supporting reads
 		out << "\t";
-		if (print_supporting_reads) {
+		if (print_supporting_reads && !all_supporting_reads.empty()) {
 			for (auto read = all_supporting_reads.begin(); read != all_supporting_reads.end(); ++read) {
 				if (read != all_supporting_reads.begin())
 					out << ",";
