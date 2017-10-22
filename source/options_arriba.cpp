@@ -401,8 +401,8 @@ options_t parse_arguments(int argc, char **argv) {
 				}
 				break;
 			case 'U':
-				if (!validate_int(optarg, options.subsampling_threshold, 1)) {
-					cerr << "ERROR: " << "Argument to -" << ((char) c) << " must be greater than 0." << endl;
+				if (!validate_int(optarg, options.subsampling_threshold, 1, SHRT_MAX)) {
+					cerr << "ERROR: " << "Argument to -" << ((char) c) << " must be between 1 and " << SHRT_MAX << "." << endl;
 					exit(1);
 				}
 				break;
