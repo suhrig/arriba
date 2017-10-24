@@ -17,7 +17,7 @@ unsigned int recover_many_spliced(fusions_t& fusions, const unsigned int min_spl
 		    (fusion->second.filter == NULL ||
 		     fusion->second.filter == FILTERS.at("inconsistently_clipped") ||
 		     fusion->second.filter == FILTERS.at("homopolymer") ||
-		     fusion->second.filter == FILTERS.at("promiscuous_genes") ||
+		     fusion->second.filter == FILTERS.at("relative_support") ||
 		     fusion->second.filter == FILTERS.at("min_support") ||
 		     fusion->second.filter == FILTERS.at("select_best"))) {
 			spliced_fusions_by_gene_pair[make_tuple(fusion->second.gene1, fusion->second.gene2)]++;
@@ -38,7 +38,7 @@ unsigned int recover_many_spliced(fusions_t& fusions, const unsigned int min_spl
 
 		if (fusion->second.filter == FILTERS.at("inconsistently_clipped") ||
                     fusion->second.filter == FILTERS.at("homopolymer") ||
-                    fusion->second.filter == FILTERS.at("promiscuous_genes") ||
+                    fusion->second.filter == FILTERS.at("relative_support") ||
                     fusion->second.filter == FILTERS.at("min_support") ||
                     fusion->second.filter == FILTERS.at("select_best")) {
 			if ((fusion->second.spliced1 || fusion->second.spliced2) &&

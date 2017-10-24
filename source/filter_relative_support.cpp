@@ -10,7 +10,7 @@
 #include "sam.h"
 #include "common.hpp"
 #include "annotation.hpp"
-#include "filter_promiscuous_genes.hpp"
+#include "filter_relative_support.hpp"
 
 using namespace std;
 
@@ -146,7 +146,7 @@ void estimate_expected_fusions(fusions_t& fusions, const unsigned long int mappe
 	}
 }
 
-unsigned int filter_promiscuous_genes(fusions_t& fusions, const float evalue_cutoff) {
+unsigned int filter_relative_support(fusions_t& fusions, const float evalue_cutoff) {
 	unsigned int remaining = 0;
 	for (fusions_t::iterator i = fusions.begin(); i != fusions.end(); ++i) {
 		if (i->second.filter != NULL)
@@ -157,7 +157,7 @@ unsigned int filter_promiscuous_genes(fusions_t& fusions, const float evalue_cut
 		    !(i->second.gene1 == i->second.gene2 && i->second.split_reads1 + i->second.split_reads2 == 0)) { // but ignore intragenic fusions only supported by discordant mates
 			remaining++;
 		} else {
-			i->second.filter = FILTERS.at("promiscuous_genes");
+			i->second.filter = FILTERS.at("relative_support");
 		}
 	}
 	return remaining;

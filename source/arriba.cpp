@@ -22,7 +22,7 @@
 #include "filter_mismatches.hpp"
 #include "filter_low_entropy.hpp"
 #include "fusions.hpp"
-#include "filter_promiscuous_genes.hpp"
+#include "filter_relative_support.hpp"
 #include "filter_both_intronic.hpp"
 #include "filter_both_novel.hpp"
 #include "filter_intragenic_both_exonic.hpp"
@@ -55,7 +55,7 @@ unordered_map<string,filter_t> FILTERS({
 	{"hairpin", NULL},
 	{"mismatches", NULL},
 	{"mismappers", NULL},
-	{"promiscuous_genes", NULL},
+	{"relative_support", NULL},
 	{"intronic", NULL},
 	{"novel", NULL},
 	{"intragenic_exonic", NULL},
@@ -356,9 +356,9 @@ int main(int argc, char **argv) {
 		cout << " (remaining=" << filter_min_support(fusions, options.min_support) << ")" << endl;
 	}
 
-	if (options.filters.at("promiscuous_genes")) {
+	if (options.filters.at("relative_support")) {
 		cout << "Filtering fusions with an e-value >=" << options.evalue_cutoff << flush;
-		cout << " (remaining=" << filter_promiscuous_genes(fusions, options.evalue_cutoff) << ")" << endl;
+		cout << " (remaining=" << filter_relative_support(fusions, options.evalue_cutoff) << ")" << endl;
 	}
 
 	// this step must come before all filters that are potentially undone by the 'genomic_support' filter
@@ -367,13 +367,13 @@ int main(int argc, char **argv) {
 		cout << " (remaining=" << filter_both_intronic(fusions) << ")" << endl;
 	}
 
-	// this step must come right after the 'promiscuous_genes' and 'min_support' filters
+	// this step must come right after the 'relative_support' and 'min_support' filters
 	if (!options.known_fusions_file.empty() && options.filters.at("known_fusions")) {
 		cout << "Searching for known fusions in '" << options.known_fusions_file << "'" << flush;
 		cout << " (remaining=" << recover_known_fusions(fusions, options.known_fusions_file, gene_names) << ")" << endl;
 	}
 
-	// this step must come right after the 'promiscuous_genes' and 'min_support' filters
+	// this step must come right after the 'relative_support' and 'min_support' filters
 	if (options.filters.at("spliced")) {
 		cout << "Searching for fusions with spliced split reads" << flush;
 		cout << " (remaining=" << recover_both_spliced(fusions, 200) << ")" << endl;
@@ -395,7 +395,7 @@ int main(int argc, char **argv) {
 
 	// this step must come after the 'select_best' filter, because it increases the chances of
 	// an event to pass all filters by recovering multiple breakpoints which evidence the same event
-	// moreover, this step must come after all the filters the 'promiscuous_genes' and 'min_support' filters
+	// moreover, this step must come after all the filters the 'relative_support' and 'min_support' filters
 	if (options.filters.at("many_spliced")) {
 		cout << "Searching for fusions with >=" << options.min_spliced_events << " spliced events" << flush;
 		cout << " (remaining=" << recover_many_spliced(fusions, options.min_spliced_events) << ")" << endl;

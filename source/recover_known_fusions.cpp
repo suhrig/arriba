@@ -45,7 +45,7 @@ unsigned int recover_known_fusions(fusions_t& fusions, const string& known_fusio
 			continue;
 
 		if (i->second.filter != NULL && // fusion has been filtered
-		    i->second.filter != FILTERS.at("promiscuous_genes") && i->second.filter != FILTERS.at("min_support")) // reason is not low support
+		    i->second.filter != FILTERS.at("relative_support") && i->second.filter != FILTERS.at("min_support")) // reason is not low support
 			continue; // we won't recover fusions which were not discarded due to low support
 
 		if (i->second.supporting_reads() >= 2 && // we still require at least two reads, otherwise there will be too many false positives

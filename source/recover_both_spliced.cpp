@@ -24,7 +24,7 @@ unsigned int recover_both_spliced(fusions_t& fusions, const unsigned int max_fus
 		if (fusion->second.filter == NULL ||
 		    (both_spliced(fusion->second) && fusion->second.filter != FILTERS.at("merge_adjacent")) ||
 		    fusion->second.filter == FILTERS.at("intronic") ||
-		    fusion->second.filter == FILTERS.at("promiscuous_genes") ||
+		    fusion->second.filter == FILTERS.at("relative_support") ||
 		    fusion->second.filter == FILTERS.at("min_support")) {
 			fusions_by_gene_pair[make_tuple(fusion->second.gene1, fusion->second.gene2, (direction_t) fusion->second.direction1, (direction_t) fusion->second.direction2)].push_back(&fusion->second);
 		}
@@ -47,7 +47,7 @@ unsigned int recover_both_spliced(fusions_t& fusions, const unsigned int max_fus
 				continue; // don't recover intragenic events (this would produce too many hits)
 
 			if (fusion->second.filter != NULL &&
-			    fusion->second.filter != FILTERS.at("promiscuous_genes") &&
+			    fusion->second.filter != FILTERS.at("relative_support") &&
 			    fusion->second.filter != FILTERS.at("min_support"))
 				continue; // we won't recover fusions which were not discarded due to low support
 

@@ -135,7 +135,7 @@ void print_usage(const string& error_message) {
 	     << wrap_help("-E MAX_E-VALUE", "Arriba estimates the number of fusions with a given "
 	                  "number of supporting reads which one would expect to see by random chance. "
 	                  "If the expected number of fusions (e-value) is higher than this threshold, "
-	                  "the fusion is discarded by the 'promiscuous_genes' filter. Note: "
+	                  "the fusion is discarded by the 'relative_support' filter. Note: "
 	                  "Increasing this threshold can dramatically increase the "
 	                  "number of false positives and may increase the runtime "
 	                  "of resource-intensive steps. Fractional values are possible. Default: " + to_string(default_options.evalue_cutoff))
