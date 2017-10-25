@@ -14,25 +14,23 @@ bool find_spanning_intron(const bam1_t* read, const position_t gene1_end, const 
 	if (read->core.n_cigar < 3)
 		return false; // there cannot be any introns, when there are less than 3 CIGAR operations
 
-	bool found = false; // return value of function
-
 	position_t before_cigar_op = read->core.pos;
 	position_t after_cigar_op;
 	for (unsigned int i = 0; i < read->core.n_cigar; ++i) {
 		after_cigar_op = before_cigar_op + bam_cigar2rlen(1, bam1_cigar(read)+i);
-		if ((bam1_cigar(read)[i] & BAM_CREF_SKIP) == BAM_CREF_SKIP && // this is an intron
-		    (before_cigar_op <= gene1_end   && after_cigar_op >  gene1_end || // the intron spans over the end of gene1
-		     before_cigar_op <  gene2_start && after_cigar_op >= gene2_start)) { // the intron spans over the start of gene2
-			found = true;
-			cigar_op = i;
-			read_pos = bam_cigar2qlen(i, bam1_cigar(read));
-			gene2_pos = after_cigar_op;
-			break;
+		if ((bam1_cigar(read)[i] & 15) == BAM_CREF_SKIP) { // this is an intron
+			if (before_cigar_op <= gene1_end   && after_cigar_op >  gene1_end || // the intron spans over the end of gene1
+			    before_cigar_op <  gene2_start && after_cigar_op >= gene2_start) { // the intron spans over the start of gene2
+				cigar_op = i;
+				read_pos = bam_cigar2qlen(i, bam1_cigar(read));
+				gene2_pos = after_cigar_op;
+				return true;
+			}
 		}
 		before_cigar_op = after_cigar_op;
 	}
 
-	return found;
+	return false;
 }
 
 void clip_end(BGZF* output_bam_file, bam1_t* read, unsigned int cigar_op, position_t read_pos, bool is_supplementary) {
