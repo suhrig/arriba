@@ -206,16 +206,13 @@ int main(int argc, char **argv) {
 					clip_end(output_bam_file, forward_mate, forward_cigar_op, forward_read_pos, true); // supplementary
 					
 					if (!single_end) {
-						if (reverse_mate->core.pos >= bam_endpos(forward_mate)) {
+						// set mpos of reverse mate to start of primary alignment of forward mate
+						reverse_mate->core.mpos = forward_gene2_pos;
+						if (reverse_mate_has_intron) { // reverse mate overlaps with breakpoint => clip it
+							clip_start(output_bam_file, reverse_mate, reverse_cigar_op, reverse_read_pos, reverse_gene2_pos, false);
+						} else { // reverse mate overlaps with forward mate, but not with breakpoint
 							// write reverse mate to output as is
 							bam_write1(output_bam_file, reverse_mate);
-						} else { // reverse mate overlaps with forward mate
-							if (reverse_mate_has_intron) { // reverse mate overlaps with breakpoint => clip it
-								clip_start(output_bam_file, reverse_mate, reverse_cigar_op, reverse_read_pos, reverse_gene2_pos, false);
-							} else { // reverse mate overlaps with forward mate, but not with breakpoint
-								// write reverse mate to output as is
-								bam_write1(output_bam_file, reverse_mate);
-							}
 						}
 					}
 
@@ -226,16 +223,11 @@ int main(int argc, char **argv) {
 					clip_end(output_bam_file, reverse_mate, reverse_cigar_op, reverse_read_pos, false); // split read
 
 					if (!single_end) {
-						if (bam_endpos(forward_mate) <= reverse_mate->core.pos) {
+						if (forward_mate_has_intron) { // forward mate overlaps with breakpoints => clip it
+							clip_end(output_bam_file, forward_mate, forward_cigar_op, forward_read_pos, false);
+						} else { // forward mate overlaps with reverse mate, but not with breakpoint
 							// write forward mate to output as is
 							bam_write1(output_bam_file, forward_mate);
-						} else { // forward mate overlaps with reverse mate
-							if (forward_mate_has_intron) { // forward mate overlaps with breakpoints => clip it
-								clip_end(output_bam_file, forward_mate, forward_cigar_op, forward_read_pos, false);
-							} else { // forward mate overlaps with reverse mate, but not with breakpoint
-								// write forward mate to output as is
-								bam_write1(output_bam_file, forward_mate);
-							}
 						}
 					}
 
