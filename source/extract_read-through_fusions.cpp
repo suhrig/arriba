@@ -17,15 +17,15 @@ bool find_spanning_intron(const bam1_t* read, const position_t gene1_end, const 
 	position_t before_cigar_op = read->core.pos;
 	position_t after_cigar_op;
 	for (unsigned int i = 0; i < read->core.n_cigar; ++i) {
-		after_cigar_op = before_cigar_op + bam_cigar2rlen(1, bam1_cigar(read)+i);
-		if ((bam1_cigar(read)[i] & 15) == BAM_CREF_SKIP) { // this is an intron
-			if (before_cigar_op <= gene1_end   && after_cigar_op >  gene1_end || // the intron spans over the end of gene1
-			    before_cigar_op <  gene2_start && after_cigar_op >= gene2_start) { // the intron spans over the start of gene2
-				cigar_op = i;
-				read_pos = bam_cigar2qlen(i, bam1_cigar(read));
-				gene2_pos = after_cigar_op;
-				return true;
-			}
+		unsigned int op_length = bam_cigar2rlen(1, bam1_cigar(read)+i);
+		after_cigar_op = before_cigar_op + op_length;
+		if ((bam1_cigar(read)[i] & 15) == BAM_CREF_SKIP && // this is an intron
+		    (before_cigar_op <= gene1_end   && after_cigar_op >  gene1_end || // the intron spans over the end of gene1
+		     before_cigar_op <  gene2_start && after_cigar_op >= gene2_start)) { // the intron spans over the start of gene2
+			cigar_op = i;
+			read_pos = bam_cigar2qlen(i, bam1_cigar(read));
+			gene2_pos = after_cigar_op;
+			return true;
 		}
 		before_cigar_op = after_cigar_op;
 	}
@@ -191,22 +191,27 @@ int main(int argc, char **argv) {
 					reverse_gene_end = bam_endpos(reverse_mate);
 
 				// check for possibility (1) => find intron in CIGAR string which spans the fusion genes
-				unsigned int cigar_op;
-				position_t read_pos;
-				position_t gene2_pos;
-				if (find_spanning_intron(forward_mate, forward_gene_end, reverse_gene_start, cigar_op, read_pos, gene2_pos) && (!single_end || !(bam_record->core.flag & BAM_FREVERSE))) {
+				unsigned int forward_cigar_op, reverse_cigar_op;
+				unsigned int forward_matches_before_intron, reverse_matches_before_intron;
+				position_t forward_read_pos, reverse_read_pos;
+				position_t forward_gene2_pos, reverse_gene2_pos;
+				bool forward_mate_has_intron = find_spanning_intron(forward_mate, forward_gene_end, reverse_gene_start, forward_cigar_op, forward_read_pos, forward_gene2_pos);
+				bool reverse_mate_has_intron = find_spanning_intron(reverse_mate, forward_gene_end, reverse_gene_start, reverse_cigar_op, reverse_read_pos, reverse_gene2_pos);
+				if (forward_mate_has_intron &&
+				    (!reverse_mate_has_intron || forward_read_pos < bam_record->core.l_qseq - reverse_read_pos) && // both mates must be clipped => use the one with the longer segment as anchor
+				    (!single_end || !(bam_record->core.flag & BAM_FREVERSE))) {
 
 					// make split read and supplementary from forward mate
-					clip_start(output_bam_file, forward_mate, cigar_op, read_pos, gene2_pos, false); // split read
-					clip_end(output_bam_file, forward_mate, cigar_op, read_pos, true); // supplementary
+					clip_start(output_bam_file, forward_mate, forward_cigar_op, forward_read_pos, forward_gene2_pos, false); // split read
+					clip_end(output_bam_file, forward_mate, forward_cigar_op, forward_read_pos, true); // supplementary
 					
 					if (!single_end) {
 						if (reverse_mate->core.pos >= bam_endpos(forward_mate)) {
 							// write reverse mate to output as is
 							bam_write1(output_bam_file, reverse_mate);
 						} else { // reverse mate overlaps with forward mate
-							if (find_spanning_intron(reverse_mate, forward_gene_end, reverse_gene_start, cigar_op, read_pos, gene2_pos)) { // reverse mate overlaps with breakpoint => clip it
-								clip_start(output_bam_file, reverse_mate, cigar_op, read_pos, gene2_pos, false);
+							if (reverse_mate_has_intron) { // reverse mate overlaps with breakpoint => clip it
+								clip_start(output_bam_file, reverse_mate, reverse_cigar_op, reverse_read_pos, reverse_gene2_pos, false);
 							} else { // reverse mate overlaps with forward mate, but not with breakpoint
 								// write reverse mate to output as is
 								bam_write1(output_bam_file, reverse_mate);
@@ -214,19 +219,19 @@ int main(int argc, char **argv) {
 						}
 					}
 
-				} else if (find_spanning_intron(reverse_mate, forward_gene_end, reverse_gene_start, cigar_op, read_pos, gene2_pos) && (!single_end || bam_record->core.flag & BAM_FREVERSE)) {
+				} else if (reverse_mate_has_intron && (!single_end || bam_record->core.flag & BAM_FREVERSE)) {
 
 					// make split read and supplementary from reverse mate
-					clip_start(output_bam_file, reverse_mate, cigar_op, read_pos, gene2_pos, true); // supplementary
-					clip_end(output_bam_file, reverse_mate, cigar_op, read_pos, false); // split read
+					clip_start(output_bam_file, reverse_mate, reverse_cigar_op, reverse_read_pos, reverse_gene2_pos, true); // supplementary
+					clip_end(output_bam_file, reverse_mate, reverse_cigar_op, reverse_read_pos, false); // split read
 
 					if (!single_end) {
 						if (bam_endpos(forward_mate) <= reverse_mate->core.pos) {
 							// write forward mate to output as is
 							bam_write1(output_bam_file, forward_mate);
 						} else { // forward mate overlaps with reverse mate
-							if (find_spanning_intron(forward_mate, forward_gene_end, reverse_gene_start, cigar_op, read_pos, gene2_pos)) { // forward mate overlaps with breakpoints => clip it
-								clip_end(output_bam_file, forward_mate, cigar_op, read_pos, false);
+							if (forward_mate_has_intron) { // forward mate overlaps with breakpoints => clip it
+								clip_end(output_bam_file, forward_mate, forward_cigar_op, forward_read_pos, false);
 							} else { // forward mate overlaps with reverse mate, but not with breakpoint
 								// write forward mate to output as is
 								bam_write1(output_bam_file, forward_mate);
