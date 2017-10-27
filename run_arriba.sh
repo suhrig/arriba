@@ -10,7 +10,7 @@ ANNOTATION_GTF="$2"
 ASSEMBLY_FA="$3"
 READ1="$4"
 READ2="$5"
-THREADS="$6" # more than 12 usually makes no sense, because extract_read-through_fusions becomes a bottleneck
+THREADS="$6"
 
 # find installation directory of arriba
 BASE_DIR=$(dirname "$0")
