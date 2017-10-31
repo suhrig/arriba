@@ -221,6 +221,32 @@ void count_mismappers(vector<chimeric_alignments_t::iterator>& chimeric_alignmen
 	}
 }
 
+// extend split read and compare against reference to check if STAR clipped prematurely (mostly due to accumulation of SNPs)
+bool extend_split_read(const alignment_t& split_read, const assembly_t& assembly, const float min_align_percent) {
+
+	// get clipped segment and the reference sequence at the position of the clipped segment
+	string clipped_sequence;
+	string reference_sequence;
+	int clipped_count;
+	if (split_read.strand == FORWARD) {
+		clipped_count = min((int) split_read.preclipping(), split_read.start); // don't run over contig boundary
+		clipped_sequence = split_read.sequence.substr(split_read.preclipping() - clipped_count, clipped_count);
+		reference_sequence = assembly.at(split_read.contig).substr(split_read.start - clipped_count, clipped_count);
+	} else {
+		clipped_count = min((int) split_read.postclipping(), (int) assembly.at(split_read.contig).size() - split_read.end); // don't run over contig boundary
+		clipped_sequence = split_read.sequence.substr(split_read.sequence.size() - split_read.postclipping(), clipped_count);
+		reference_sequence = assembly.at(split_read.contig).substr(split_read.end, clipped_count);
+	}
+
+	// count number of matching bases between clipped segment and reference
+	unsigned int matching_bases = 0;
+	for (unsigned int i = 0; i < clipped_sequence.size(); ++i)
+		if (clipped_sequence[i] == reference_sequence[i])
+			++matching_bases;
+
+	return matching_bases >= floor(clipped_sequence.size() * min_align_percent);
+}
+
 unsigned int filter_mismappers(fusions_t& fusions, const kmer_indices_t& kmer_indices, const char kmer_length, const assembly_t& assembly, const exon_annotation_index_t& exon_annotation_index, const float max_mismapper_fraction, const int max_mate_gap) {
 
 	const float min_align_percent = 0.8; // allow ~1 mismatch for every 10 matches
@@ -256,12 +282,14 @@ unsigned int filter_mismappers(fusions_t& fusions, const kmer_indices_t& kmer_in
 			alignment_t& mate1 = (**chimeric_alignment).second[MATE1];
 
 			if (split_read.strand == FORWARD) {
-				if (align_both_strands(split_read.sequence.substr(0, split_read.preclipping()), split_read.sequence.size(), max_mate_gap, fusion->second.contig1 == fusion->second.contig2, supplementary.start, supplementary.end, kmer_indices, assembly, exon_annotation_index, splice_sites_by_gene, split_read.genes, kmer_length, min_align_percent, min_score) || // clipped segment aligns to donor
+				if (extend_split_read(split_read, assembly, min_align_percent) ||
+				    align_both_strands(split_read.sequence.substr(0, split_read.preclipping()), split_read.sequence.size(), max_mate_gap, fusion->second.contig1 == fusion->second.contig2, supplementary.start, supplementary.end, kmer_indices, assembly, exon_annotation_index, splice_sites_by_gene, split_read.genes, kmer_length, min_align_percent, min_score) || // clipped segment aligns to donor
 				    align_both_strands(mate1.sequence.substr(mate1.preclipping()), mate1.sequence.size(), max_mate_gap, fusion->second.contig1 == fusion->second.contig2, mate1.start, mate1.end, kmer_indices, assembly, exon_annotation_index, splice_sites_by_gene, supplementary.genes, kmer_length, min_align_percent, min_score)) { // non-spliced mate aligns to acceptor
 					(**chimeric_alignment).second.filter = FILTERS.at("mismappers");
 				}
 			} else { // split_read.strand == REVERSE
-				if (align_both_strands(split_read.sequence.substr(split_read.sequence.length() - split_read.postclipping()), split_read.sequence.size(), max_mate_gap, fusion->second.contig1 == fusion->second.contig2, supplementary.start, supplementary.end, kmer_indices, assembly, exon_annotation_index, splice_sites_by_gene, split_read.genes, kmer_length, min_align_percent, min_score) || // clipped segment aligns to donor
+				if (extend_split_read(split_read, assembly, min_align_percent) ||
+				    align_both_strands(split_read.sequence.substr(split_read.sequence.length() - split_read.postclipping()), split_read.sequence.size(), max_mate_gap, fusion->second.contig1 == fusion->second.contig2, supplementary.start, supplementary.end, kmer_indices, assembly, exon_annotation_index, splice_sites_by_gene, split_read.genes, kmer_length, min_align_percent, min_score) || // clipped segment aligns to donor
 				    align_both_strands(mate1.sequence.substr(0, mate1.sequence.length() - mate1.postclipping()), mate1.sequence.size(), max_mate_gap, fusion->second.contig1 == fusion->second.contig2, mate1.start, mate1.end, kmer_indices, assembly, exon_annotation_index, splice_sites_by_gene, supplementary.genes, kmer_length, min_align_percent, min_score)) { // non-spliced mate aligns to acceptor
 					(**chimeric_alignment).second.filter = FILTERS.at("mismappers");
 				}
