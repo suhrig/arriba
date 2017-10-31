@@ -25,7 +25,7 @@ struct gtf_features_t {
 	vector<string> feature_utr;
 	vector<string> feature_gene;
 };
-const string DEFAULT_GTF_FEATURES = "gene_name=gene_name gene_id=gene_id transcript_id=transcript_id gene_status=gene_status|gene_type status_KNOWN=KNOWN|protein_coding gene_type=gene_type type_protein_coding=protein_coding feature_exon=exon feature_UTR=UTR feature_gene=gene";
+const string DEFAULT_GTF_FEATURES = "gene_name=gene_name gene_id=gene_id transcript_id=transcript_id gene_status=gene_status|gene_type|gene_biotype status_KNOWN=KNOWN|protein_coding gene_type=gene_type|gene_biotype type_protein_coding=protein_coding feature_exon=exon feature_UTR=UTR feature_gene=gene";
 
 bool parse_gtf_features(string gtf_features_string, gtf_features_t& gtf_features);
 
