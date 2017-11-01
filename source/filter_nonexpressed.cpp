@@ -47,7 +47,6 @@ unsigned int filter_nonexpressed(fusions_t& fusions, const string& bam_file_path
 		if (fusion->second.filter != NULL)
 			continue; // fusion has already been filtered
 
-		
 		if (!fusion->second.is_read_through()) {
 
 			if (fusion->second.split_reads1 + fusion->second.split_reads2 != 0 &&
