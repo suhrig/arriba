@@ -237,7 +237,7 @@ unsigned int find_fusions(chimeric_alignments_t& chimeric_alignments, fusions_t&
 				for (gene_set_t::iterator gene2 = genes2.begin(); gene2 != genes2.end(); ++gene2) {
 
 					// copy properties of supporting read to fusion
-					fusion_t& fusion = fusions[make_tuple(*gene1, *gene2, contig1, contig2, breakpoint1, breakpoint2, direction1, direction2)];
+					fusion_t& fusion = fusions[make_tuple((**gene1).id, (**gene2).id, contig1, contig2, breakpoint1, breakpoint2, direction1, direction2)];
 					fusion.gene1 = *gene1; fusion.gene2 = *gene2;
 					fusion.direction1 = direction1; fusion.direction2 = direction2;
 					fusion.contig1 = contig1; fusion.contig2 = contig2;
@@ -320,8 +320,8 @@ unsigned int find_fusions(chimeric_alignments_t& chimeric_alignments, fusions_t&
 				for (gene_set_t::iterator gene2 = genes2.begin(); gene2 != genes2.end(); ++gene2) {
 
 					// copy properties of supporting read to fusion
-					bool is_new_fusion = fusions.find(make_tuple(*gene1, *gene2, contig1, contig2, breakpoint1, breakpoint2, direction1, direction2)) == fusions.end();
-					fusion_t& fusion = fusions[make_tuple(*gene1, *gene2, contig1, contig2, breakpoint1, breakpoint2, direction1, direction2)];
+					bool is_new_fusion = fusions.find(make_tuple((**gene1).id, (**gene2).id, contig1, contig2, breakpoint1, breakpoint2, direction1, direction2)) == fusions.end();
+					fusion_t& fusion = fusions[make_tuple((**gene1).id, (**gene2).id, contig1, contig2, breakpoint1, breakpoint2, direction1, direction2)];
 					fusion.gene1 = *gene1; fusion.gene2 = *gene2;
 					fusion.direction1 = direction1; fusion.direction2 = direction2;
 					fusion.contig1 = contig1; fusion.contig2 = contig2;

@@ -236,6 +236,12 @@ int main(int argc, char **argv) {
 		}
 	}
 
+	// assign IDs to genes
+	// this is necessary for deterministic behavior, because fusions are hashed by genes
+	unsigned int gene_id = 0;
+	for (gene_annotation_t::iterator gene = gene_annotation.begin(); gene != gene_annotation.end(); ++gene)
+		gene->id = gene_id++;
+
 	vector<bool> interesting_contigs(contigs.size());
 	if (options.filters.at("uninteresting_contigs") && !options.interesting_contigs.empty()) {
 		istringstream iss(options.interesting_contigs);

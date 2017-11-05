@@ -65,6 +65,7 @@ template <class T> class contig_annotation_index_t: public map< position_t, anno
 template <class T> class annotation_index_t: public vector< contig_annotation_index_t<T> > {};
 
 struct gene_annotation_record_t: public annotation_record_t {
+	unsigned int id;
 	string name;
 	int exonic_length; // sum of the length of all exons in a gene
 	bool is_dummy;
@@ -168,7 +169,7 @@ struct fusion_t {
 	};
 	bool is_read_through() const { return contig1 == contig2 && breakpoint2 - breakpoint1 < 400000 && direction1 == DOWNSTREAM && direction2 == UPSTREAM; };
 };
-typedef unordered_map< tuple<gene_t /*gene1*/, gene_t /*gene2*/, contig_t /*contig1*/, contig_t /*contig2*/, position_t /*breakpoint1*/, position_t /*breakpoint2*/, direction_t /*direction1*/, direction_t /*direction2*/>,fusion_t > fusions_t;
+typedef unordered_map< tuple<unsigned int /*gene1 id*/, unsigned int /*gene2 id*/, contig_t /*contig1*/, contig_t /*contig2*/, position_t /*breakpoint1*/, position_t /*breakpoint2*/, direction_t /*direction1*/, direction_t /*direction2*/>,fusion_t > fusions_t;
 
 typedef char strandedness_t;
 const strandedness_t STRANDEDNESS_NO = 0;
