@@ -31,7 +31,7 @@ void get_downstream_splice_sites(const gene_t gene, const exon_annotation_index_
 }
 
 kmer_as_int_t kmer_to_int(const string& kmer, const string::size_type position, const char kmer_length) {
-	unsigned int result = 0;
+	kmer_as_int_t result = 0;
 	for (char base = 0; base < kmer_length; ++base) {
 		result = result<<2;
 		switch (kmer.c_str()[position + base]) {
@@ -57,10 +57,11 @@ void make_kmer_index(const fusions_t& fusions, const assembly_t& assembly, const
 		genes_to_filter.insert(fusion->second.gene2);
 	}
 
-	kmer_indices.resize(assembly.size());
 	for (gene_set_t::iterator gene = genes_to_filter.begin(); gene != genes_to_filter.end(); ++gene) {
 		// store positions of kmers in hash
 		const string& contig_sequence = assembly.at((**gene).contig);
+		if (kmer_indices.size() <= (**gene).contig)
+			kmer_indices.resize((**gene).contig+1);
 		for (position_t pos = (**gene).start; pos + kmer_length < (**gene).end; pos++)
 			if (contig_sequence[pos] != 'N') // don't index masked regions, as long stretches of N's inflate the number of hits
 				kmer_indices[(**gene).contig][kmer_to_int(contig_sequence, pos, kmer_length)].push_back(pos);
