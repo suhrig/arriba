@@ -8,7 +8,7 @@
 using namespace std;
 
 const string HELP_CONTACT = "s.uhrig@dkfz.de";
-const string ARRIBA_VERSION = "0.10";
+const string ARRIBA_VERSION = "0.11.0";
 
 string wrap_help(const string& option, const string& text, const unsigned short int max_line_width = 80);
 
