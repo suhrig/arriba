@@ -39,7 +39,8 @@ samtools index Aligned.sortedByCoord.out.bam &
 samtools index read_through.bam
 
 # convert chimeric SAM to BAM and sort
-samtools view -Sb Chimeric.out.sam | samtools sort - chimeric
+samtools view -Sbu Chimeric.out.sam | samtools sort - chimeric
+rm -f Chimeric.out.sam
 samtools index chimeric.bam
 
 wait # for indexing of normal alignments
