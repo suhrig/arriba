@@ -19,6 +19,9 @@ using namespace std;
 typedef map< position_t, map<string/*base*/,unsigned int/*frequency*/> > pileup_t;
 
 void pileup_chimeric_alignments(vector<chimeric_alignments_t::iterator>& chimeric_alignments, const unsigned int mate, const bool reverse_complement, const direction_t direction, const position_t breakpoint, pileup_t& pileup) {
+
+	unordered_map< tuple<position_t,position_t>/*intron boundaries*/, unsigned int/*frequency*/> introns;
+
 	for (auto chimeric_alignment = chimeric_alignments.begin(); chimeric_alignment != chimeric_alignments.end(); ++chimeric_alignment) {
 
 		if ((**chimeric_alignment).second.filter == FILTERS.at("duplicates"))
@@ -38,6 +41,7 @@ void pileup_chimeric_alignments(vector<chimeric_alignments_t::iterator>& chimeri
 		position_t read_offset = 0;
 		position_t reference_offset = read.start;
 		int subtract_from_next_element = 0;
+		position_t intron_start;
 		for (int cigar_element = 0; cigar_element < read.cigar.size(); cigar_element++) {
 			switch (read.cigar.operation(cigar_element)) {
 				case BAM_CINS:
@@ -47,7 +51,9 @@ void pileup_chimeric_alignments(vector<chimeric_alignments_t::iterator>& chimeri
 					subtract_from_next_element = 1; // because we took one base from the next element
 					break;
 				case BAM_CREF_SKIP:
+					intron_start = reference_offset;
 					reference_offset += read.cigar.op_length(cigar_element) - subtract_from_next_element;
+					introns[make_tuple(intron_start, reference_offset-1)]++;
 					subtract_from_next_element = 0;
 					break;
 				case BAM_CDEL:
@@ -73,17 +79,27 @@ void pileup_chimeric_alignments(vector<chimeric_alignments_t::iterator>& chimeri
 			}
 		}
 	}
+
+	// mark boundaries of introns
+	for (auto intron = introns.begin(); intron != introns.end(); ++intron) {
+		position_t intron_start = get<0>(intron->first);
+		position_t intron_end = get<1>(intron->first);
+		pileup[intron_start][">"] += intron->second; // intron start is represented as ">"
+		pileup[intron_end]["<"] += intron->second; // intron end is represented as "<"
+		for (auto i = intron_start+1; i < intron_end; ++i)
+			pileup[i]["_"]+= intron->second; // intron is represented as "_"
+	}
 }
 
 void get_sequence_from_pileup(const pileup_t& pileup, const position_t breakpoint, const direction_t direction, const gene_t gene, const assembly_t& assembly, string& sequence, string& clipped_sequence) {
 
 	// for each position, find the most frequent allele in the pileup
-	position_t previous_position;
+	bool intron_open = false; // keep track of whether the current position is in an intron
+	bool intron_closed = true; // keep track of whether the current position is in an intron
 	for (pileup_t::const_iterator position = pileup.begin(); position != pileup.end(); ++position) {
 
-		if (position != pileup.begin() && previous_position < position->first - 1)
-			sequence += "..."; // indicate introns/gaps with an ellipsis
-		previous_position = position->first;
+		if (position != pileup.begin() && prev(position)->first < position->first - 1 && !intron_open)
+			sequence += "..."; // indicate uncovered stretches with an ellipsis
 
 		// find out base in reference to mark SNPs/SNVs
 		string reference_base = "N";
@@ -92,33 +108,77 @@ void get_sequence_from_pileup(const pileup_t& pileup, const position_t breakpoin
 			reference_base = contig_sequence->second[position->first];
 
 		// find most frequent allele at current position and compute coverage
-		auto base = position->second.begin();
-		auto most_frequent_base = base;
-		unsigned int coverage = most_frequent_base->second;
-		for (++base; base != position->second.end(); ++base) {
-			if (base->second > most_frequent_base->second || base->first == reference_base && base->second+1 >= most_frequent_base->second)
+		auto most_frequent_base = position->second.end();
+		unsigned int coverage = 0;
+		for (auto base = position->second.begin(); base != position->second.end(); ++base) {
+			bool base_is_intron = base->first == "_" || base->first == ">" || base->first == "<";
+			if (most_frequent_base == position->second.end() ||
+			    base->second > most_frequent_base->second ||
+			    (base->second == most_frequent_base->second &&
+			     ((base->first == reference_base && most_frequent_base->first != "_" && most_frequent_base->first != ">" && most_frequent_base->first != "<") ||
+			      (base->first == "<" && most_frequent_base->first != "_" && most_frequent_base->first != ">") ||
+			      (base->first == "_" || base->first == ">"))))
 				most_frequent_base = base;
-			coverage += base->second;
+			if (!base_is_intron)
+				coverage += base->second;
 		}
 
 		// we trust the base, if it has a frequency of >= 75%
-		string most_frequent_base2 = (most_frequent_base->second >= 0.75 * coverage || most_frequent_base->first == reference_base) ? most_frequent_base->first : "n";
+		// or if it is an intron with a frequency higher than the coverage
+		// or if the base matches the reference
+		string most_frequent_base2 = ((most_frequent_base->first == "_" || most_frequent_base->first == ">" || most_frequent_base->first == "<") && most_frequent_base->second >= coverage ||
+		                              most_frequent_base->second >= 0.75 * coverage ||
+		                              most_frequent_base->first == reference_base) ? most_frequent_base->first : "n";
 
-		// mark SNPs/SNVs via lowercase letters
-		if (most_frequent_base2.size() > 1 /*insertion*/ || most_frequent_base2 != reference_base && reference_base != "N")
-			std::transform(most_frequent_base2.begin(), most_frequent_base2.end(), most_frequent_base2.begin(), (int (*)(int))std::tolower);
 
-		// mark insertions via brackets
-		if (most_frequent_base2.size() > 1) {
-			most_frequent_base2 = "[" + most_frequent_base2.substr(0, most_frequent_base2.size()-1) + "]" + most_frequent_base2[most_frequent_base2.size()-1];
-			if (toupper(most_frequent_base2[most_frequent_base2.size()-1]) == reference_base[0])
-				most_frequent_base2[most_frequent_base2.size()-1] = toupper(most_frequent_base2[most_frequent_base2.size()-1]);
+		if (most_frequent_base2 == "_") { // in the middle of an intron
+
+			if (!intron_open) { // we are in an intron without ever having seen the start of it
+				sequence += "...___"; // indicate missing stretch up until exon boundary
+				intron_open = true;
+				intron_closed = false;
+			}
+
+		} else if (most_frequent_base2 == ">") { // start of intron
+
+			if (!intron_open) {
+				sequence += "___";
+				intron_open = true;
+				intron_closed = false;
+			}
+
+		} else if (most_frequent_base2 == "<") { // end of intron
+
+			if (!intron_open) // we are in an intron without ever having seen the start of it
+				sequence += "...___"; // indicate missing stretch up until exon boundary
+			intron_open = true;
+			intron_closed = true;
+
+		} else { // not an intron
+
+			if (!intron_closed) // we are not in an intron anymore without ever having seen the end of it
+				sequence += "..."; // indicate missing stretch up until exon boundary
+			intron_open = false;
+			intron_closed = true;
+
+			// mark SNPs/SNVs via lowercase letters
+			if (most_frequent_base2.size() > 1 /*insertion*/ || most_frequent_base2 != reference_base && reference_base != "N")
+				std::transform(most_frequent_base2.begin(), most_frequent_base2.end(), most_frequent_base2.begin(), (int (*)(int))std::tolower);
+
+			// mark insertions via brackets
+			if (most_frequent_base2.size() > 1) {
+				most_frequent_base2 = "[" + most_frequent_base2.substr(0, most_frequent_base2.size()-1) + "]" + most_frequent_base2[most_frequent_base2.size()-1];
+				if (toupper(most_frequent_base2[most_frequent_base2.size()-1]) == reference_base[0])
+					most_frequent_base2[most_frequent_base2.size()-1] = toupper(most_frequent_base2[most_frequent_base2.size()-1]);
+			}
+
+			if (direction == UPSTREAM && position->first < breakpoint || direction == DOWNSTREAM && position->first >= breakpoint)
+				clipped_sequence += most_frequent_base2;
+			else
+				sequence += most_frequent_base2;
+
 		}
 
-		if (direction == UPSTREAM && position->first < breakpoint || direction == DOWNSTREAM && position->first >= breakpoint)
-			clipped_sequence += most_frequent_base2;
-		else
-			sequence += most_frequent_base2;
 	}
 }
 
