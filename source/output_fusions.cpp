@@ -184,7 +184,7 @@ void get_sequence_from_pileup(const pileup_t& pileup, const position_t breakpoin
 
 string get_fusion_transcript_sequence(fusion_t& fusion, const assembly_t& assembly) {
 
-	if (fusion.predicted_strands_ambiguous)
+	if (fusion.predicted_strands_ambiguous || fusion.transcript_start_ambiguous)
 		return "."; // sequence is unknown, because the strands cannot be determined
 
 	// get the sequences next to the breakpoints
