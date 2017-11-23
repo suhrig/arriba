@@ -95,7 +95,7 @@ void predict_transcript_start(fusion_t& fusion) {
 	fusion.transcript_start_ambiguous = false;
 
 	if (fusion.spliced1 ||
-	    !fusion.predicted_strands_ambiguous && fusion.predicted_strand1 == fusion.gene1->strand) {
+	    !fusion.predicted_strands_ambiguous && !fusion.gene1->is_dummy && fusion.predicted_strand1 == fusion.gene1->strand) {
 
 		if (fusion.gene1->strand == FORWARD && fusion.direction1 == DOWNSTREAM) {
 			fusion.transcript_start = TRANSCRIPT_START_GENE1;
@@ -108,7 +108,7 @@ void predict_transcript_start(fusion_t& fusion) {
 		}
 
 	} else if (fusion.spliced2 ||
-	           !fusion.predicted_strands_ambiguous && fusion.predicted_strand2 == fusion.gene2->strand) {
+	           !fusion.predicted_strands_ambiguous && !fusion.gene2->is_dummy && fusion.predicted_strand2 == fusion.gene2->strand) {
 
 		if (fusion.gene2->strand == FORWARD && fusion.direction2 == DOWNSTREAM) {
 			fusion.transcript_start = TRANSCRIPT_START_GENE2;
@@ -120,8 +120,19 @@ void predict_transcript_start(fusion_t& fusion) {
 			fusion.transcript_start = TRANSCRIPT_START_GENE1;
 		}
 
-	} else if (!fusion.exonic1 && !fusion.exonic2 ||
-	           !fusion.predicted_strands_ambiguous) { // this can happen, if both strands could be predicted successfully, but were both predicted to be on opposite strands of the genes of the fusion
+	} else if (!fusion.predicted_strands_ambiguous) { // this can happen, if both strands could be predicted successfully, but were both predicted to be on opposite strands of the genes of the fusion
+
+		if ((fusion.predicted_strand1 == FORWARD && fusion.direction1 == DOWNSTREAM || fusion.predicted_strand1 == REVERSE && fusion.direction1 == UPSTREAM) &&
+		    (fusion.predicted_strand2 == REVERSE && fusion.direction2 == DOWNSTREAM || fusion.predicted_strand2 == FORWARD && fusion.direction2 == UPSTREAM)) {
+			fusion.transcript_start = TRANSCRIPT_START_GENE1;
+		} else if ((fusion.predicted_strand2 == FORWARD && fusion.direction2 == DOWNSTREAM || fusion.predicted_strand2 == REVERSE && fusion.direction2 == UPSTREAM) &&
+		           (fusion.predicted_strand1 == REVERSE && fusion.direction1 == DOWNSTREAM || fusion.predicted_strand1 == FORWARD && fusion.direction1 == UPSTREAM)) {
+			fusion.transcript_start = TRANSCRIPT_START_GENE2;
+		} else {
+			fusion.transcript_start_ambiguous = true;
+		}
+
+	} else if (!fusion.exonic1 && !fusion.exonic2) {
 
 		fusion.transcript_start_ambiguous = true;
 
@@ -158,10 +169,12 @@ void predict_transcript_start(fusion_t& fusion) {
 
 	} else { // in all other cases gene1 has priority
 
-		if (fusion.gene1->strand == FORWARD && fusion.direction1 == DOWNSTREAM || // transcript = gene1(+) -> gene2(+/-)
+		if (!fusion.gene1->is_dummy &&
+		    fusion.gene1->strand == FORWARD && fusion.direction1 == DOWNSTREAM || // transcript = gene1(+) -> gene2(+/-)
 		    fusion.gene1->strand == REVERSE && fusion.direction1 == UPSTREAM) { // transcript = gene1(-) -> gene2(+/-)
 			fusion.transcript_start = TRANSCRIPT_START_GENE1;
-		} else if (fusion.gene2->strand == FORWARD && fusion.direction2 == DOWNSTREAM || // transcript = gene2(+) -> gene1(+/-)
+		} else if (!fusion.gene2->is_dummy &&
+			   fusion.gene2->strand == FORWARD && fusion.direction2 == DOWNSTREAM || // transcript = gene2(+) -> gene1(+/-)
 		           fusion.gene2->strand == REVERSE && fusion.direction2 == UPSTREAM) { // transcript = gene2(-) -> gene1(+/-)
 			fusion.transcript_start = TRANSCRIPT_START_GENE2;
 		} else { // end-to-end-fused genes
