@@ -23,6 +23,7 @@ unsigned int recover_both_spliced(fusions_t& fusions, const unsigned int max_fus
 	for (fusions_t::iterator fusion = fusions.begin(); fusion != fusions.end(); ++fusion)
 		if (fusion->second.filter == NULL ||
 		    (both_spliced(fusion->second) && fusion->second.filter != FILTERS.at("merge_adjacent")) ||
+		    (both_spliced(fusion->second) && fusion->second.filter == FILTERS.at("pcr_fusions")) || // when there is risk of PCR-mediated fusions, only consider spliced events
 		    fusion->second.filter == FILTERS.at("intronic") ||
 		    fusion->second.filter == FILTERS.at("relative_support") ||
 		    fusion->second.filter == FILTERS.at("min_support")) {
@@ -48,7 +49,8 @@ unsigned int recover_both_spliced(fusions_t& fusions, const unsigned int max_fus
 
 			if (fusion->second.filter != NULL &&
 			    fusion->second.filter != FILTERS.at("relative_support") &&
-			    fusion->second.filter != FILTERS.at("min_support"))
+			    fusion->second.filter != FILTERS.at("min_support") &&
+			    fusion->second.filter != FILTERS.at("pcr_fusions") && fusion->second.discordant_mates <= fusion->second.split_reads1 + fusion->second.split_reads2)
 				continue; // we won't recover fusions which were not discarded due to low support
 
 			if (!both_spliced(fusion->second))
@@ -61,19 +63,29 @@ unsigned int recover_both_spliced(fusions_t& fusions, const unsigned int max_fus
 			auto fusions_of_given_gene_pair = fusions_by_gene_pair.find(make_tuple(fusion->second.gene1, fusion->second.gene2, (direction_t) fusion->second.direction1, (direction_t) fusion->second.direction2));
 			if (fusions_of_given_gene_pair != fusions_by_gene_pair.end())
 				for (auto another_fusion = fusions_of_given_gene_pair->second.begin(); another_fusion != fusions_of_given_gene_pair->second.end(); ++another_fusion)
-					sum_of_supporting_reads += max((unsigned int) 1, (**another_fusion).supporting_reads());
+					if (fusion->second.filter == FILTERS.at("pcr_fusions")) {
+						if (both_spliced(**another_fusion) && (**another_fusion).discordant_mates <= (**another_fusion).split_reads1 + (**another_fusion).split_reads2)
+							sum_of_supporting_reads++; // if there is risk of PCR-mediated fusions, ignore the number of supporting reads and count the event as 1 read
+					} else { // the event is probably not PCR-mediated => actually count the number of supporting reads
+						sum_of_supporting_reads += max((unsigned int) 1, (**another_fusion).supporting_reads());
+					}
 
 			// consider reciprocal translocations
 			auto reciprocal_fusions_of_given_gene_pair = fusions_by_gene_pair.find(make_tuple(fusion->second.gene1, fusion->second.gene2, opposite_direction(fusion->second.direction1), opposite_direction(fusion->second.direction2)));
 			if (reciprocal_fusions_of_given_gene_pair != fusions_by_gene_pair.end())
 				for (auto another_fusion = reciprocal_fusions_of_given_gene_pair->second.begin(); another_fusion != reciprocal_fusions_of_given_gene_pair->second.end(); ++another_fusion)
 					if (!(**another_fusion).is_read_through())
-						// if the fusion is supported by 2 event of which all breakpoints are spliced, we don't question it
+						// if the fusion is supported by 2 events of which all breakpoints are spliced, we don't question it
 						// if the other fusion is not spliced, then we check if the reciprocal fusions support a common genomic breakpoint
 						if (both_spliced(**another_fusion) ||
 						    (((fusion->second.direction1 == DOWNSTREAM) != /*xor*/ (fusion->second.breakpoint1 > (**another_fusion).breakpoint1)) &&
 						     ((fusion->second.direction2 == DOWNSTREAM) != /*xor*/ (fusion->second.breakpoint2 > (**another_fusion).breakpoint2))))
-							sum_of_supporting_reads += max((unsigned int) 1, (**another_fusion).supporting_reads());
+							if (fusion->second.filter == FILTERS.at("pcr_fusions")) {
+								if (both_spliced(**another_fusion) && (**another_fusion).discordant_mates <= (**another_fusion).split_reads1 + (**another_fusion).split_reads2)
+									sum_of_supporting_reads++; // if there is risk of PCR-mediated fusions, ignore the number of supporting reads and count the event as 1 read
+							} else { // the event is probably not PCR-mediated => actually count the number of supporting reads
+								sum_of_supporting_reads += max((unsigned int) 1, (**another_fusion).supporting_reads());
+							}
 
 			if (sum_of_supporting_reads >= 2) { // require at least two reads or else the false positive rate sky-rockets
 				if (mode == MODE_RECOVER) { // we are in recover mode => actually recover the fusion by clearing the filters

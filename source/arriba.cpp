@@ -379,17 +379,19 @@ int main(int argc, char **argv) {
 		cout << " (remaining=" << recover_known_fusions(fusions, options.known_fusions_file, gene_names) << ")" << endl;
 	}
 
-	// this step must come right after the 'relative_support' and 'min_support' filters
+	// this step must come after the 'merge_adjacent' filter,
+	// or else adjacent breakpoints will be counted several times
+	// it must come before the 'spliced' and 'many_spliced' filters,
+	// which are prone to recovering PCR-mediated fusions
+	if (options.filters.at("pcr_fusions")) {
+		cout << "Filtering PCR fusions between genes with an expression above the " << (options.high_expression_quantile*100) << "% quantile" << flush;
+		cout << " (remaining=" << filter_pcr_fusions(fusions, chimeric_alignments, options.high_expression_quantile, gene_annotation_index) << ")" << endl;
+	}
+
+	// this step must come closely after the 'relative_support' and 'min_support' filters
 	if (options.filters.at("spliced")) {
 		cout << "Searching for fusions with spliced split reads" << flush;
 		cout << " (remaining=" << recover_both_spliced(fusions, 200) << ")" << endl;
-	}
-
-	// this step must come after the 'merge_adjacent' filter,
-	// or else adjacent breakpoints will be counted several times
-	if (options.filters.at("pcr_fusions")) {
-		cout << "Filtering PCR fusions" << flush;
-		cout << " (remaining=" << filter_pcr_fusions(fusions, 20, 4, 4, 3, 8) << ")" << endl;
 	}
 
 	// this step must come after the 'merge_adjacent' filter,

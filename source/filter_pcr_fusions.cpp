@@ -2,83 +2,179 @@
 #include <algorithm>
 #include <unordered_map>
 #include <vector>
+#include "sam.h"
 #include "common.hpp"
 #include "annotation.hpp"
 #include "filter_pcr_fusions.hpp"
 
 using namespace std;
 
-unsigned int filter_pcr_fusions(fusions_t& fusions, const float max_pcr_fusion_score, const unsigned int max_exonic_breakpoints, const unsigned int max_partners_with_many_exonic_breakpoints, const unsigned int min_split_reads, const unsigned int max_exonic_breakpoints_for_gene_pair) {
+// convenience wrapper to lookup a value in an unordered_map or return a default value, if the key does not exist
+template <class K, class V> V find_or_default(const unordered_map<K,V>& m, const K& k, const V default_value) {
+	auto i = m.find(k);
+	return (i == m.end()) ? default_value : i->second;
+}
 
-	unordered_map< gene_t,unsigned int > exonic_breakpoint_count; // count the number of fusions with exonic (non-spliced) breakpoints for each gene
-	unordered_map< gene_t,unsigned int > partners_with_many_exonic_breakpoints; // count the number of gene partners which have many exonic breakpoints for each gene
-	unordered_map< tuple<gene_t/*gene1*/,gene_t/*gene2*/>, unsigned int > exonic_breakpoints_by_gene_pair; // count the number of exonic breakpoints for each gene pair
-	unordered_map< tuple<gene_t,position_t,position_t>, char > overlap_duplicates;
+// check if there is a gene which overlaps the given breakpoint and is expressed at a higher level than <highest_expressed_gene>
+gene_t find_higher_expressed_gene(const contig_t contig, const position_t breakpoint, const gene_annotation_index_t& gene_annotation_index, const unordered_map<gene_t,unsigned int>& expression_by_gene, gene_t highest_expressed_gene) {
+	unsigned int highest_expression = find_or_default(expression_by_gene, highest_expressed_gene, (unsigned int) 0);
+	gene_set_t genes_overlapping_breakpoint;
+	get_annotation_by_coordinate(contig, breakpoint, breakpoint, genes_overlapping_breakpoint, gene_annotation_index);
+	for (gene_set_t::iterator gene = genes_overlapping_breakpoint.begin(); gene != genes_overlapping_breakpoint.end(); ++gene) {
+		unsigned int expression = find_or_default(expression_by_gene, *gene, (unsigned int) 0);
+		if (expression > highest_expression) {
+			highest_expression = expression;
+			highest_expressed_gene = *gene;
+		}
+	}
+	return highest_expressed_gene;
+}
+
+unsigned int filter_pcr_fusions(fusions_t& fusions, const chimeric_alignments_t& chimeric_alignments, const float high_expression_quantile, const gene_annotation_index_t& gene_annotation_index) {
+
+	// count the number of exonic breakpoints for each gene pair
+	// genes fused during PCR often have multiple breakpoints within exons (rather than at splice-sites)
+	const unsigned int max_exonic_breakpoints_by_gene_pair = 8; // we consider this to be many exonic breakpoints
+	unordered_map< tuple<gene_t/*gene1*/,gene_t/*gene2*/>, unsigned int > exonic_breakpoints_by_gene_pair;
 	for (fusions_t::iterator fusion = fusions.begin(); fusion != fusions.end(); ++fusion) {
-		if (fusion->second.gene1 != fusion->second.gene2 && // there are often many breakpoints within the same gene (probably hairpin fusions)
+		if (fusion->second.gene1 != fusion->second.gene2 && // it is perfectly normal to have many breakpoints within the same gene (hairpin fusions)
 		    !fusion->second.spliced1 && !fusion->second.spliced2 && // breakpoints at splice sites are almost exclusively a result of splicing and thus, no PCR-mediated fusions
 		    fusion->second.exonic1 && fusion->second.exonic2 && // PCR fusions only contain spliced transcripts, so we ignore intronic/intergenic breakpoints
-		    fusion->second.filter != FILTERS.at("uninteresting_contigs") && // ignore fusions with mitochondrial DNA and decoy sequences, there are usually tons of those
-		    fusion->second.filter != FILTERS.at("merge_adjacent")) { // slightly varying alignments may lead to adjacent breakpoints, we should not count them as separate breakpoints
-
-			if (fusion->second.split_read1_list.size() + fusion->second.split_read2_list.size()) { // this also counts discarded reads
-				if (!overlap_duplicates[make_tuple(fusion->second.gene1, fusion->second.breakpoint1, fusion->second.breakpoint2)]++)
-					exonic_breakpoint_count[fusion->second.gene1]++;
-				if (!overlap_duplicates[make_tuple(fusion->second.gene2, fusion->second.breakpoint1, fusion->second.breakpoint2)]++)
-					exonic_breakpoint_count[fusion->second.gene2]++;
-				if (++exonic_breakpoints_by_gene_pair[make_tuple(fusion->second.gene1, fusion->second.gene2)] == max_exonic_breakpoints) {
-					partners_with_many_exonic_breakpoints[fusion->second.gene1]++;
-					partners_with_many_exonic_breakpoints[fusion->second.gene2]++;
-				}
-			}
+		    fusion->second.split_read1_list.size() + fusion->second.split_read2_list.size() > 0 && // require a split read for exact location of the breakpoint
+		    fusion->second.filter != FILTERS.at("merge_adjacent") && // slightly varying alignments may lead to adjacent breakpoints, we should not count them as separate breakpoints
+		    fusion->second.filter != FILTERS.at("uninteresting_contigs")) { // skip uninteresting contigs to save some runtime/memory
+			exonic_breakpoints_by_gene_pair[make_tuple(fusion->second.gene1, fusion->second.gene2)]++;
+			exonic_breakpoints_by_gene_pair[make_tuple(fusion->second.gene2, fusion->second.gene1)]++;
 		}
 	}
 
-	// calculate score which reflects the likelihood of PCR fusions for each gene
-	unordered_map< gene_t,float > pcr_fusion_scores;
-	for (auto partners = partners_with_many_exonic_breakpoints.begin(); partners != partners_with_many_exonic_breakpoints.end(); ++partners)
-		pcr_fusion_scores[partners->first] = partners->second * log10(exonic_breakpoint_count[partners->first]); // we take the logarithm so that the factors have about equal order of magnitude / weight
+	// PCR fusions are mostly observed between highly expressed genes
+	// we use the number of chimeric reads as a proxy to measure expression
+	// make helper class to sort genes by the number of chimeric reads
+	class sort_genes_by_reads_t {
+	public:
+		unordered_map<gene_t,unsigned int> read_count;
+		bool operator()(const gene_t x, const gene_t y) {
+			unsigned int reads_x = read_count[x];
+			unsigned int reads_y = read_count[y];
+			if (reads_x != reads_y) {
+				return reads_x < reads_y;
+			} else {
+				return x->id < y->id; // ensures deterministic behavior in case of ties
+			}
+		}
+	};
+	sort_genes_by_reads_t sort_genes_by_reads;
 
-	// remove fusions with a lot of evidence for being PCR-mediated
-	map< pair<gene_t,gene_t>, bool > filtered_gene_pairs;
+	// for each gene, count the number of reads
+	for (chimeric_alignments_t::const_iterator chimeric_alignment = chimeric_alignments.begin(); chimeric_alignment != chimeric_alignments.end(); ++chimeric_alignment) {
+		for (gene_set_t::const_iterator gene = chimeric_alignment->second[MATE1].genes.begin(); gene != chimeric_alignment->second[MATE1].genes.end(); ++gene)
+			sort_genes_by_reads.read_count[*gene]++;
+		unsigned int mate2 = (chimeric_alignment->second.size() == 2) ? MATE2 : SUPPLEMENTARY;
+		for (gene_set_t::const_iterator gene = chimeric_alignment->second[mate2].genes.begin(); gene != chimeric_alignment->second[mate2].genes.end(); ++gene)
+			sort_genes_by_reads.read_count[*gene]++;
+	}
+
+	// (partially) sort genes by reads using nth_element() to calculate quantiles
+	unsigned int high_expression_threshold = 0;
+	if (sort_genes_by_reads.read_count.size() > 0) {
+		// put genes in vector for sorting
+		vector<gene_t> genes_sorted_by_reads;
+		genes_sorted_by_reads.reserve(sort_genes_by_reads.read_count.size());
+		for (auto gene = sort_genes_by_reads.read_count.begin(); gene != sort_genes_by_reads.read_count.end(); ++gene)
+			genes_sorted_by_reads.push_back(gene->first);
+		// partially sort using nth_element
+		unsigned int quantile = static_cast<int>(floor(high_expression_quantile * genes_sorted_by_reads.size()));
+		if (quantile >= genes_sorted_by_reads.size())
+			quantile = genes_sorted_by_reads.size() - 1;
+		nth_element(genes_sorted_by_reads.begin(), genes_sorted_by_reads.begin()+quantile, genes_sorted_by_reads.end(), ref(sort_genes_by_reads));
+		// extract quantile
+		high_expression_threshold = sort_genes_by_reads.read_count[genes_sorted_by_reads[quantile]];
+	}
+
+	// remove fusions with a lot of characteristics of PCR-mediated fusions
 	for (fusions_t::iterator fusion = fusions.begin(); fusion != fusions.end(); ++fusion) {
 
-		if (fusion->second.filter != NULL)
-			continue; // fusion has already been filtered
+		if (fusion->second.filter != NULL && // fusion has already been filtered
+		    // also tag filtered events, if they are spliced to prevent the filters 'spliced' and 'many_spliced' from recovering them
+		    !((fusion->second.spliced1 || fusion->second.spliced2) && (fusion->second.filter == FILTERS.at("relative_support") || fusion->second.filter == FILTERS.at("min_support"))))
+			continue;
 
-		//TODO how about we don't care if it is spliced in the PCR amplified gene and only care about if it is spliced in the other gene?
-		if ((fusion->second.split_reads1 + fusion->second.split_reads2 < fusion->second.discordant_mates || fusion->second.split_reads1 + fusion->second.split_reads2 <= min_split_reads) &&
-		    (!fusion->second.spliced1 && !fusion->second.spliced2 || fusion->second.split_reads1 + fusion->second.split_reads2 <= min_split_reads || pcr_fusion_scores[fusion->second.gene1] >= max_pcr_fusion_score && pcr_fusion_scores[fusion->second.gene2] >= max_pcr_fusion_score) && // discard fusions, which are not spliced / have few reads / are between genes with high PCR fusion scores
-		    (fusion->second.exonic1 || fusion->second.exonic2) && // one of the breakpoints must be exonic (in theory, both should be, but there are too many exceptions)
-		    (pcr_fusion_scores[fusion->second.gene1] + pcr_fusion_scores[fusion->second.gene2] >= max_pcr_fusion_score && // PCR fusion score must be above threshold
-		     (partners_with_many_exonic_breakpoints[fusion->second.gene1] >= max_partners_with_many_exonic_breakpoints || partners_with_many_exonic_breakpoints[fusion->second.gene2] >= max_partners_with_many_exonic_breakpoints) || // one of the partners must have many other partners with many exonic breakpoints
-		      exonic_breakpoints_by_gene_pair[make_tuple(fusion->second.gene1, fusion->second.gene2)] > max_exonic_breakpoints_for_gene_pair)) { // the gene pair has many breakpoints between each other
-			filtered_gene_pairs[make_pair(fusion->second.gene1, fusion->second.gene2)];
+		// PCR-mediated fusions often have both breakpoints within exons,
+		// but sometimes one (or even both) of them can be in introns or even at splice-sites
+		// the latter only happens with very highly expressed genes
+		// => count the number of potentially PCR-mediated breakpoints and
+		//    penalize events with one/two PCR-mediated breakpoints more
+		float potential_pcr_breakpoints = 0;
+		if (!fusion->second.exonic1) {
+			potential_pcr_breakpoints += 0.5; // intron => unclear if it is a PCR artifact (not likely, but possible)
+		} else if (!fusion->second.spliced1) {
+			potential_pcr_breakpoints += 1; // breakpoint inside exon => very likely PCR artifact
+		} // else: splice-site => probably from splicing and not PCR-mediated
+		if (!fusion->second.exonic2) {
+			potential_pcr_breakpoints += 0.5; // intron => unclear if it is a PCR artifact (not likely, but possible)
+		} else if (!fusion->second.spliced2) {
+			potential_pcr_breakpoints += 1; // breakpoint inside exon => very likely PCR artifact
+		} // else: splice-site => probably from splicing and not PCR-mediated
+
+		// PCR artifacts usually have no/few split reads
+		// then again, some true events have no split reads, because of alignment issues (e.g., many inserted non-template bases)
+		// we check if some of the discordant mates overlap the breakpoint and are clipped there
+		// if so, they are counted as split reads
+		unsigned int total_split_reads = fusion->second.split_reads1 + fusion->second.split_reads2;
+		for (auto discordant_mates = fusion->second.discordant_mate_list.begin(); discordant_mates != fusion->second.discordant_mate_list.end(); ++discordant_mates) {
+			if ((**discordant_mates).second.filter == NULL) {
+				for (mates_t::iterator mate = (**discordant_mates).second.begin(); mate != (**discordant_mates).second.end(); ++mate) {
+					if (mate->strand == FORWARD && mate->cigar.operation(mate->cigar.size()-1) == BAM_CSOFT_CLIP && (mate->contig == fusion->second.contig1 && mate->end == fusion->second.breakpoint1 || mate->contig == fusion->second.contig2 && mate->end == fusion->second.breakpoint2) ||
+					    mate->strand == REVERSE && mate->cigar.operation(0) == BAM_CSOFT_CLIP && (mate->contig == fusion->second.contig1 && mate->start == fusion->second.breakpoint1 || mate->contig == fusion->second.contig2 && mate->start == fusion->second.breakpoint2)) {
+						total_split_reads++;
+						break;
+					}
+				}
+			}
+		}
+
+		// find the highest expressed genes overlapping the breakpoint
+		gene_t gene1 = find_higher_expressed_gene(fusion->second.contig1, fusion->second.breakpoint1, gene_annotation_index, sort_genes_by_reads.read_count, fusion->second.gene1);
+		gene_t gene2 = find_higher_expressed_gene(fusion->second.contig2, fusion->second.breakpoint2, gene_annotation_index, sort_genes_by_reads.read_count, fusion->second.gene2);
+
+		// use the number of chimeric reads as a proxy to measure expression
+		unsigned int gene1_expression = find_or_default(sort_genes_by_reads.read_count, gene1, (unsigned int) 0);
+		unsigned int gene2_expression = find_or_default(sort_genes_by_reads.read_count, gene2, (unsigned int) 0);
+
+		// find out how many non-spliced, non-intronic breakpoints there are between the fused genes (or genes overlapping the breakpoints)
+		unsigned int exonic_breakpoints = max(
+			find_or_default(exonic_breakpoints_by_gene_pair, make_tuple(gene1, gene2), (unsigned int) 0),
+			find_or_default(exonic_breakpoints_by_gene_pair, make_tuple(fusion->second.gene1, fusion->second.gene2), (unsigned int) 0)
+		);
+
+		// check if the event exhibits the characteristics of a PCR-mediated fusion
+		if (
+			// PCR artifacts often have very few split reads
+			// => check if the event has <=2 split reads or fewer than 1 supporting read per 10,000 chimeric reads
+			total_split_reads <= 2 + 0.0001 * (gene1_expression + gene2_expression) &&
+			// PCR artifacts often have many discordant mates, but only few split reads
+			// => the number of split reads and discordant mates must be unbalanced (unless the total number of reads is very low)
+			(total_split_reads * 2 <= fusion->second.discordant_mates || total_split_reads <= 2) &&
+			// PCR artifacts occur between highly expressed genes
+			// => the sum of the chimeric reads of the fused genes must be in the top percentile
+			gene1_expression + gene2_expression > high_expression_threshold &&
+			// PCR artifacts typically have breakpoints inside exons, otherwise they might be true events
+			// => if we see an intronic/spliced breakpoint, only discard the event, if the genes are expressed at extreme levels
+			(
+				// both breakpoints in exons or one in exon and the other in intron => discard event
+				potential_pcr_breakpoints > 1 ||
+				// both breakpoints in introns or one breakpoint at a splice-site => only discard event, if one of the genes is in the top quantile expression
+				potential_pcr_breakpoints > 0 && (gene1_expression > high_expression_threshold || gene2_expression > high_expression_threshold) ||
+				// both breakpoints at splice-sites => only discard even, if both genes are in the top quantile expression
+				gene1_expression > 2 * high_expression_threshold || gene2_expression > 2 * high_expression_threshold || gene1_expression > high_expression_threshold && gene2_expression > high_expression_threshold ||
+				// there are many exonic breakpoints between the fused genes => probably the genes have sequence homology, which often yields spliced events
+				exonic_breakpoints > max_exonic_breakpoints_by_gene_pair ||
+				// the fusion is spliced but only supported by very few reads => ignore that the event is spliced, because it is probably trans-spliced
+				fusion->second.supporting_reads() <= 1
+			)
+		   )
 			fusion->second.filter = FILTERS.at("pcr_fusions");
-		}
-	}
-
-	// filter fusions which overlap with genes removed by this filter
-	for (fusions_t::iterator fusion = fusions.begin(); fusion != fusions.end(); ++fusion) {
-		if (fusion->second.filter != NULL)
-			continue; // fusion has already been filtered
-
-		if ((fusion->second.split_reads1 + fusion->second.split_reads2 < fusion->second.discordant_mates || fusion->second.split_reads1 + fusion->second.split_reads2 <= min_split_reads) &&
-		    (!fusion->second.spliced1 && !fusion->second.spliced2 || fusion->second.split_reads1 + fusion->second.split_reads2 <= min_split_reads) && // discard fusions, which are not spliced / have few reads
-		    (fusion->second.exonic1 || fusion->second.exonic2)) { // one of the breakpoints must be exonic (in theory, both should be, but there are too many exceptions)
-
-			bool breakpoints_overlap_filtered_gene_pair = false;
-			for (auto filtered_gene_pair = filtered_gene_pairs.begin(); filtered_gene_pair != filtered_gene_pairs.end(); ++filtered_gene_pair) {
-				if (fusion->second.contig1 == filtered_gene_pair->first.first->contig && fusion->second.breakpoint1 >= filtered_gene_pair->first.first->start && fusion->second.breakpoint1 <= filtered_gene_pair->first.first->end &&
-				    fusion->second.contig2 == filtered_gene_pair->first.second->contig && fusion->second.breakpoint2 >= filtered_gene_pair->first.second->start && fusion->second.breakpoint2 <= filtered_gene_pair->first.second->end) {
-					breakpoints_overlap_filtered_gene_pair = true;
-					break;
-				}
-			}
-
-			if (breakpoints_overlap_filtered_gene_pair)
-				fusion->second.filter = FILTERS.at("pcr_fusions");
-		}
 
 	}
 

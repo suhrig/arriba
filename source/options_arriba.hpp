@@ -41,6 +41,7 @@ struct options_t {
 	unsigned int min_spliced_events;
 	float mismatch_pvalue_cutoff;
 	unsigned int subsampling_threshold;
+	float high_expression_quantile;
 };
 
 options_t get_default_options();

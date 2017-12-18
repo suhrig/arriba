@@ -36,6 +36,7 @@ options_t get_default_options() {
 	options.min_spliced_events = 4;
 	options.mismatch_pvalue_cutoff = 0.01;
 	options.subsampling_threshold = 300;
+	options.high_expression_quantile = 0.998;
 
 	return options;
 }
@@ -183,6 +184,10 @@ void print_usage(const string& error_message) {
 	                  "as long as the threshold is high. Counting of supporting reads beyond "
 	                  "the threshold is inaccurate, obviously. "
 	                  "Default: " + to_string(default_options.subsampling_threshold))
+	     << wrap_help("-Q QUANTILE", "Highly expressed genes are prone to produce artifacts "
+	                  "during library preparation. Genes with an expression above the given quantile "
+	                  "are eligible for filtering by the 'pcr_fusions' filter. "
+	                  "Default: " + to_string(default_options.high_expression_quantile))
 	     << wrap_help("-T", "When set, the column 'fusion_transcript' is populated with "
 	                  "the sequence of the fused genes as assembled from the supporting reads. "
 	                  "The following letters have special meanings:\n"
@@ -406,6 +411,12 @@ options_t parse_arguments(int argc, char **argv) {
 					exit(1);
 				}
 				break;
+			case 'Q':
+				if (!validate_float(optarg, options.high_expression_quantile, 0, 1)) {
+					cerr << "ERROR: " << "Argument to -" << ((char) c) << " must be between 0 and 1." << endl;
+					exit(1);
+				}
+				break;
 			case 'T':
 				if (!options.print_fusion_sequence)
 					options.print_fusion_sequence = true;
@@ -423,7 +434,7 @@ options_t parse_arguments(int argc, char **argv) {
 				break;
 			default:
 				switch (optopt) {
-					case 'c': case 'r': case 'x': case 'd': case 'g': case 'G': case 'o': case 'O': case 'a': case 'k': case 'b': case 'i': case 'f': case 'E': case 's': case 'm': case 'H': case 'D': case 'R': case 'A': case 'M': case 'K': case 'V': case 'F': case 'S': case 'U':
+					case 'c': case 'r': case 'x': case 'd': case 'g': case 'G': case 'o': case 'O': case 'a': case 'k': case 'b': case 'i': case 'f': case 'E': case 's': case 'm': case 'H': case 'D': case 'R': case 'A': case 'M': case 'K': case 'V': case 'F': case 'S': case 'U': case 'Q':
 						cerr << "ERROR: " << "Option -" << ((char) optopt) << " requires an argument." << endl;
 						exit(1);
 						break;

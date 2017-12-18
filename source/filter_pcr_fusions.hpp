@@ -6,6 +6,6 @@
 
 using namespace std;
 
-unsigned int filter_pcr_fusions(fusions_t& fusions, const float max_pcr_fusion_score, const unsigned int max_exonic_breakpoints, const unsigned int max_partners_with_many_exonic_breakpoints, const unsigned int min_split_reads, const unsigned int max_exonic_breakpoints_for_gene_pair);
+unsigned int filter_pcr_fusions(fusions_t& fusions, const chimeric_alignments_t& chimeric_alignments, const float high_expression_quantile, const gene_annotation_index_t& gene_annotation_index);
 
 #endif /* _FILTER_PCR_FUSIONS_H */
