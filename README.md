@@ -14,7 +14,7 @@ Installation
 Manual installation
 -------------------
 
-Arriba requires [STAR](https://github.com/alexdobin/STAR) (version >=2.5.3a recommended) and [samtools](http://www.htslib.org/). Download and install the two tools according the the developers instructions and make them available in your `$PATH`.
+Arriba requires [STAR](https://github.com/alexdobin/STAR) (version >=2.5.3a recommended) and [samtools](http://www.htslib.org/). Download and install the two tools according to the developers' instructions and make them available in your `$PATH`.
 
 Build an index from your genome assembly and annotation. Currently, the only supported assemblies are hs37d5 and hg19. The only supported annotation is GencodeV19. If you use another assembly/annotation, then the blacklist is not applicable and the predictions will contain many false positives. Support for hg38 and mm10 is coming soon. (Note: you may use a different Gencode version to build the STAR index, but not to run Arriba.)
 
@@ -49,9 +49,9 @@ arriba_v0.11.0/run_arriba.sh STAR_index_hs37d5_gencode19/ gencode.v19.annotation
 Installation using Docker
 -------------------------
 
-Install [docker](https://www.docker.com/) according to the developers instructions.
+Install [Docker](https://www.docker.com/) according to the developers' instructions.
 
-Build the docker image:
+Build the Docker image:
 
 ```
 docker build --tag arriba:latest https://raw.githubusercontent.com/suhrig/arriba/master/Dockerfile
@@ -63,7 +63,7 @@ If you have not already downloaded the annotation/assembly and built a STAR inde
 docker run --rm -t -v /path/to/references:/references arriba:latest download_references.sh
 ```
 
-Use the following docker command to run Arriba from the container. Replace `/path/to/` with the path to the respective input file. Leave the paths after the colons unmodified - these are the paths inside the docker container.
+Use the following Docker command to run Arriba from the container. Replace `/path/to/` with the path to the respective input file. Leave the paths after the colons unmodified - these are the paths inside the Docker container.
 
 ```
 docker run --rm -t \
