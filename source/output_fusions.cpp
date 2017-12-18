@@ -324,10 +324,9 @@ bool sort_fusions_by_support(const fusion_t* x, const fusion_t* y) {
 		                                                                              // same pair of genes are grouped together, if e-value and supporting reads are equal
 }
 
-typedef tuple<gene_t /*gene1*/, gene_t /*gene2*/> gene_pair_t;
 class sort_fusions_by_rank_of_best_t {
 public:
-	unordered_map< gene_pair_t, fusion_t* > best;
+	unordered_map< tuple<gene_t/*gene1*/,gene_t/*gene2*/>, fusion_t* > best;
 	bool operator()(const fusion_t* x, const fusion_t* y) {
 		fusion_t* best_x = best.at(make_tuple(x->gene1, x->gene2));
 		fusion_t* best_y = best.at(make_tuple(y->gene1, y->gene2));
@@ -537,10 +536,11 @@ void write_fusions_to_file(fusions_t& fusions, const string& output_file, const 
 	// make a vector of pointers to all fusions
 	// the vector will hold the fusions in sorted order
 	vector<fusion_t*> sorted_fusions;
-	for (fusions_t::iterator fusion = fusions.begin(); fusion != fusions.end(); ++fusion) {
-		if (write_discarded_fusions || fusion->second.filter == NULL)
+	if (write_discarded_fusions)
+		sorted_fusions.reserve(fusions.size());
+	for (fusions_t::iterator fusion = fusions.begin(); fusion != fusions.end(); ++fusion)
+		if (write_discarded_fusions != (fusion->second.filter == NULL)) // either write filtered or unfiltered fusions
 			sorted_fusions.push_back(&(fusion->second));
-	}
 
 	// don't sort the discarded fusions
 	if (!write_discarded_fusions) {
@@ -553,18 +553,10 @@ void write_fusions_to_file(fusions_t& fusions, const string& output_file, const 
 		//    we store these breakpoints in a sorting object (sort_fusions_by_rank_of_best),
 		//    which we use as a parameter to the sort function later
 		sort_fusions_by_rank_of_best_t sort_fusions_by_rank_of_best;
-		for (fusions_t::iterator fusion = fusions.begin(); fusion != fusions.end(); ++fusion) {
-			if (fusion->second.filter != NULL)
-				continue; // skip discarded fusions
-
-			gene_pair_t gene_pair = make_tuple(fusion->second.gene1, fusion->second.gene2);
-			if (sort_fusions_by_rank_of_best.best.find(gene_pair) == sort_fusions_by_rank_of_best.best.end()) {
-				sort_fusions_by_rank_of_best.best[gene_pair] = &(fusion->second);
-			} else {
-				fusion_t*& current_best = sort_fusions_by_rank_of_best.best[gene_pair];
-				if (sort_fusions_by_support(&(fusion->second), current_best))
-					current_best = &(fusion->second);
-			}
+		for (auto fusion = sorted_fusions.begin(); fusion != sorted_fusions.end(); ++fusion) {
+			fusion_t*& current_best = sort_fusions_by_rank_of_best.best[make_tuple((**fusion).gene1, (**fusion).gene2)];
+			if (current_best == NULL || sort_fusions_by_support(*fusion, current_best))
+				current_best = *fusion;
 		}
 
 		// sort all gene pairs by the rank of the best scoring breakpoints of a given gene pair
@@ -578,10 +570,7 @@ void write_fusions_to_file(fusions_t& fusions, const string& output_file, const 
 		exit(1);
 	}
 	out << "#gene1\tgene2\tstrand1(gene/fusion)\tstrand2(gene/fusion)\tbreakpoint1\tbreakpoint2\tsite1\tsite2\ttype\tdirection1\tdirection2\tsplit_reads1\tsplit_reads2\tdiscordant_mates\tconfidence\tclosest_genomic_breakpoint1\tclosest_genomic_breakpoint2\tfilters\tfusion_transcript\tread_identifiers" << endl;
-	for (vector<fusion_t*>::iterator fusion = sorted_fusions.begin(); fusion != sorted_fusions.end(); ++fusion) {
-
-		if (((**fusion).filter == NULL) == write_discarded_fusions) // write either filtered or unfiltered fusions, but not both
-			continue;
+	for (auto fusion = sorted_fusions.begin(); fusion != sorted_fusions.end(); ++fusion) {
 
 		// describe site of breakpoint
 		string site1 = get_fusion_site((**fusion).gene1, (**fusion).spliced1, (**fusion).exonic1, (**fusion).contig1, (**fusion).breakpoint1, exon_annotation_index);
