@@ -6,6 +6,7 @@
 #include <string>
 #include <set>
 #include <tuple>
+#include <type_traits>
 #include <unordered_map>
 #include <vector>
 #include "sam.h"
@@ -177,55 +178,22 @@ const strandedness_t STRANDEDNESS_YES = 1;
 const strandedness_t STRANDEDNESS_REVERSE = 2;
 const strandedness_t STRANDEDNESS_AUTO = 3;
 
-namespace std{
-    namespace
-    {
+// implement hash() function for tuples so they can be used as keys in unordered_maps
+namespace std {
 
-	// Code from boost
-	// Reciprocal of the golden ratio helps spread entropy
-	//     and handles duplicates.
-	// See Mike Seymour in magic-numbers-in-boosthash-combine:
-	//     http://stackoverflow.com/questions/4948780
+        template <typename ... TT> struct hash< std::tuple<TT...> > {
 
-	template <class T>
-	inline void hash_combine(std::size_t& seed, T const& v)
-	{
-	    seed ^= std::hash<T>()(v) + 0x9e3779b9 + (seed<<6) + (seed>>2);
-	}
+		using T = typename std::tuple<TT...>;
 
-	// Recursive template code derived from Matthieu M.
-	template <class Tuple, size_t Index = std::tuple_size<Tuple>::value - 1>
-	struct HashValueImpl
-	{
-	  static void apply(size_t& seed, Tuple const& tuple)
-	  {
-	    HashValueImpl<Tuple, Index-1>::apply(seed, tuple);
-	    hash_combine(seed, std::get<Index>(tuple));
-	  }
+		size_t operator()(const T& tuple, std::integral_constant<int, std::tuple_size<T>::value>) const {
+			return 0;
+		}
+    
+		template<int element = 0> size_t operator()(const T& tuple, std::integral_constant<int,element> = std::integral_constant<int,0>()) const {
+			using tuple_element_type = typename std::tuple_element<element,T>::type;
+			return std::hash< tuple_element_type >()(std::get<element>(tuple)) ^ operator()(tuple, std::integral_constant<int,element+1>()) <<4;
+		}
 	};
-
-	template <class Tuple>
-	struct HashValueImpl<Tuple,0>
-	{
-	  static void apply(size_t& seed, Tuple const& tuple)
-	  {
-	    hash_combine(seed, std::get<0>(tuple));
-	  }
-	};
-    }
-
-    template <typename ... TT>
-    struct hash<std::tuple<TT...>> 
-    {
-	size_t
-	operator()(std::tuple<TT...> const& tt) const
-	{					      
-	    size_t seed = 0;			     
-	    HashValueImpl<std::tuple<TT...> >::apply(seed, tt);    
-	    return seed;				 
-	}					      
-
-    };
 }
 
 #endif /* _COMMON_H */
