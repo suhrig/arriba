@@ -40,7 +40,7 @@
 #include "filter_nonexpressed.hpp"
 #include "filter_genomic_support.hpp"
 #include "recover_many_spliced.hpp"
-#include "recover_isoforms.hpp""
+#include "recover_isoforms.hpp"
 #include "output_fusions.hpp"
 
 using namespace std;
