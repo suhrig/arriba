@@ -242,6 +242,11 @@ int main(int argc, char **argv) {
 	for (gene_annotation_t::iterator gene = gene_annotation.begin(); gene != gene_annotation.end(); ++gene)
 		gene->id = gene_id++;
 
+	if (options.filters.at("duplicates")) {
+		cout << "Filtering duplicates" << flush;
+		cout << " (remaining=" << filter_duplicates(chimeric_alignments) << ")" << endl;
+	}
+
 	vector<bool> interesting_contigs(contigs.size());
 	if (options.filters.at("uninteresting_contigs") && !options.interesting_contigs.empty()) {
 		istringstream iss(options.interesting_contigs);
@@ -257,11 +262,6 @@ int main(int argc, char **argv) {
 	} else { // all contigs are interesting
 		for (vector<bool>::iterator i = interesting_contigs.begin(); i != interesting_contigs.end(); ++i)
 			*i = true;
-	}
-
-	if (options.filters.at("duplicates")) {
-		cout << "Filtering duplicates" << flush;
-		cout << " (remaining=" << filter_duplicates(chimeric_alignments) << ")" << endl;
 	}
 
 	cout << "Estimating mate gap distribution" << flush;
