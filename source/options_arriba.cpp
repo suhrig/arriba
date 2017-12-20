@@ -227,17 +227,29 @@ options_t parse_arguments(int argc, char **argv) {
 					exit(1);
 				}
 				break;
-			case 'x':
+			case 'x': {
 				options.rna_bam_file = optarg;
 				if (access(options.rna_bam_file.c_str(), R_OK) != 0) {
 					cerr << "ERROR: File '" << options.rna_bam_file << "' not found." << endl;
 					exit(1);
 				}
-				if (access((options.rna_bam_file + ".bai").c_str(), R_OK) != 0) {
+				bool index_found = false;
+				if (access((options.rna_bam_file + ".bai").c_str(), R_OK) == 0)
+					index_found = true;
+				if (options.rna_bam_file.size() >= 4) {
+					if (options.rna_bam_file.substr(options.rna_bam_file.size()-4) == ".bam") {
+						string rna_bam_file_without_suffix = options.rna_bam_file.substr(0, options.rna_bam_file.size()-4);
+						if (access((rna_bam_file_without_suffix + ".bai").c_str(), R_OK) == 0) {
+							index_found = true;
+						}
+					}
+				}
+				if (!index_found) {
 					cerr << "ERROR: File '" << options.rna_bam_file << ".bai' not found." << endl;
 					exit(1);
 				}
 				break;
+			}
 			case 'd':
 				options.genomic_breakpoints_file = optarg;
 				if (access(options.genomic_breakpoints_file.c_str(), R_OK) != 0) {
