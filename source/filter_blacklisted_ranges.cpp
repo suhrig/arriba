@@ -17,6 +17,8 @@ using namespace std;
 enum blacklist_item_type_t { BLACKLIST_RANGE, BLACKLIST_POSITION, BLACKLIST_GENE, BLACKLIST_ANY, BLACKLIST_SPLIT_READ_DONOR, BLACKLIST_SPLIT_READ_ACCEPTOR, BLACKLIST_SPLIT_READ_ANY, BLACKLIST_DISCORDANT_MATES, BLACKLIST_READ_THROUGH, BLACKLIST_LOW_SUPPORT, BLACKLIST_FILTER_SPLICED, BLACKLIST_NOT_BOTH_SPLICED };
 struct blacklist_item_t {
 	blacklist_item_type_t type;
+	bool strand_defined;
+	strand_t strand;
 	contig_t contig;
 	position_t start;
 	position_t end;
@@ -24,7 +26,7 @@ struct blacklist_item_t {
 };
 
 // convert string representation of a range into coordinates
-bool parse_range(string range, const contigs_t& contigs, contig_t& contig, position_t& start, position_t& end) {
+bool parse_range(string range, const contigs_t& contigs, blacklist_item_t& blacklist_item) {
 	istringstream iss;
 
 	// extract contig from range
@@ -36,11 +38,22 @@ bool parse_range(string range, const contigs_t& contigs, contig_t& contig, posit
 		cerr << "WARNING: unknown gene or malformed range: " << range << endl;
 		return false;
 	}
+	if (contig_name[0] == '+') {
+		blacklist_item.strand_defined = true;
+		blacklist_item.strand = FORWARD;
+		contig_name = contig_name.substr(1);
+	} else if (contig_name[0] == '-') {
+		blacklist_item.strand_defined = true;
+		blacklist_item.strand = REVERSE;
+		contig_name = contig_name.substr(1);
+	} else {
+		blacklist_item.strand_defined = false;
+	}
 	if (contigs.find(contig_name) == contigs.end()) {
 		cerr << "WARNING: unknown gene or malformed range: " << range << endl;
 		return false;
 	} else {
-		contig = contigs.at(contig_name);
+		blacklist_item.contig = contigs.at(contig_name);
 	}
 
 	// extract start (and end) of range
@@ -48,20 +61,20 @@ bool parse_range(string range, const contigs_t& contigs, contig_t& contig, posit
 		replace(range.begin(), range.end(), '-', ' ');
 		iss.str(range);
 		iss >> contig_name; // discard contig
-		if ((iss >> start).fail() || (iss >> end).fail()) {
+		if ((iss >> blacklist_item.start).fail() || (iss >> blacklist_item.end).fail()) {
 			cerr << "WARNING: unknown gene or malformed range: " << range << endl;
 			return false;
 		}
-		start--; // convert to zero-based coordinate
-		end--;
+		blacklist_item.start--; // convert to zero-based coordinate
+		blacklist_item.end--;
 
 	} else { // range is a single base (chr:position)
-		if ((iss >> start).fail()) {
+		if ((iss >> blacklist_item.start).fail()) {
 			cerr << "WARNING: unknown gene or malformed range: " << range << endl;
 			return false;
 		}
-		start--; // convert to zero-based coordinate
-		end = start;
+		blacklist_item.start--; // convert to zero-based coordinate
+		blacklist_item.end = blacklist_item.start;
 	}
 
 	return true;
@@ -89,7 +102,7 @@ bool parse_blacklist_item(const string& text, blacklist_item_t& blacklist_item, 
 		blacklist_item.contig = gene->second->contig;
 		blacklist_item.start = gene->second->start;
 		blacklist_item.end = gene->second->end;
-	} else if (parse_range(text, contigs, blacklist_item.contig, blacklist_item.start, blacklist_item.end)) { // text is a range
+	} else if (parse_range(text, contigs, blacklist_item)) { // text is a range
 		if (blacklist_item.start == blacklist_item.end) {
 			blacklist_item.type = BLACKLIST_POSITION;
 		} else {
@@ -149,6 +162,15 @@ bool matches_blacklist_item(const blacklist_item_t& blacklist_item, const fusion
 			if (contig != blacklist_item.contig)
 				return false;
 
+			// strand must match, if defined
+			if (blacklist_item.strand_defined) {
+				if (!fusion.predicted_strands_ambiguous) { // assume match, if strands could not be predicted
+					strand_t strand = (which_breakpoint == 1) ? fusion.predicted_strand1 : fusion.predicted_strand2;
+					if (strand != blacklist_item.strand)
+						return false;
+				}
+			}
+
 			// exact breakpoint must match
 			position_t breakpoint = (which_breakpoint == 1) ? fusion.breakpoint1 : fusion.breakpoint2;
 			if (breakpoint == blacklist_item.start)
@@ -172,6 +194,15 @@ bool matches_blacklist_item(const blacklist_item_t& blacklist_item, const fusion
 			contig_t contig = (which_breakpoint == 1) ? fusion.contig1 : fusion.contig2;
 			if (contig != blacklist_item.contig)
 				return false;
+
+			// strand must match, if defined
+			if (blacklist_item.strand_defined) {
+				if (!fusion.predicted_strands_ambiguous) { // assume match, if strands could not be predicted
+					strand_t strand = (which_breakpoint == 1) ? fusion.predicted_strand1 : fusion.predicted_strand2;
+					if (strand != blacklist_item.strand)
+						return false;
+				}
+			}
 
 			// check if breakpoint is within blacklisted range
 			position_t breakpoint = (which_breakpoint == 1) ? fusion.breakpoint1 : fusion.breakpoint2;
