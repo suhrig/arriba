@@ -204,11 +204,6 @@ bool matches_blacklist_item(const blacklist_item_t& blacklist_item, const fusion
 				}
 			}
 
-			// check if breakpoint is within blacklisted range
-			position_t breakpoint = (which_breakpoint == 1) ? fusion.breakpoint1 : fusion.breakpoint2;
-			if (breakpoint >= blacklist_item.start && breakpoint <= blacklist_item.end)
-				return true;
-
 			// check if the gene that the breakpoint is associated with overlaps the blacklisted range
 			gene_t gene = (which_breakpoint == 1) ? fusion.gene1 : fusion.gene2;
 			if (overlapping_fraction(gene->start, gene->end, blacklist_item.start, blacklist_item.end) > 0.5)
