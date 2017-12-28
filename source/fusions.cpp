@@ -255,7 +255,7 @@ unsigned int find_fusions(chimeric_alignments_t& chimeric_alignments, fusions_t&
 					fusion.direction1 = direction1; fusion.direction2 = direction2;
 					fusion.contig1 = contig1; fusion.contig2 = contig2;
 					fusion.breakpoint1 = breakpoint1; fusion.breakpoint2 = breakpoint2;
-					fusion.exonic1 = exonic1; fusion.exonic2 = exonic2;
+					fusion.exonic1 = exonic1 || fusion.exonic1; fusion.exonic2 = exonic2 || fusion.exonic2;
 
 					if (fusion.supporting_reads() == 0) {
 						if (chimeric_alignment->second.filter == NULL)
