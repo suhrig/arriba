@@ -139,55 +139,55 @@ void print_usage(const string& error_message) {
 	                  "the fusion is discarded by the 'relative_support' filter. Note: "
 	                  "Increasing this threshold can dramatically increase the "
 	                  "number of false positives and may increase the runtime "
-	                  "of resource-intensive steps. Fractional values are possible. Default: " + to_string(default_options.evalue_cutoff))
+	                  "of resource-intensive steps. Fractional values are possible. Default: " + to_string(static_cast<long double>(default_options.evalue_cutoff)))
 	     << wrap_help("-S MIN_SUPPORTING_READS", "The 'min_support' filter discards all fusions "
 	                  "with fewer than this many supporting reads (split reads and discordant "
-	                  "mates combined). Default: " + to_string(default_options.min_support))
+	                  "mates combined). Default: " + to_string(static_cast<long long unsigned int>(default_options.min_support)))
 	     << wrap_help("-m MAX_MISMAPPERS", "When more than this fraction of supporting reads "
 	                  "turns out to be mismappers, the 'mismappers' filter "
-	                  "discards the fusion. Default: " + to_string(default_options.max_mismapper_fraction))
+	                  "discards the fusion. Default: " + to_string(static_cast<long double>(default_options.max_mismapper_fraction)))
 	     << wrap_help("-L MAX_HOMOLOG_IDENTITY", "Genes with more than the given fraction of "
 	                  "sequence identity are considered homologs and removed by the 'homologs' "
-	                  "filter. Default: " + to_string(default_options.max_homolog_identity))
+	                  "filter. Default: " + to_string(static_cast<long double>(default_options.max_homolog_identity)))
 	     << wrap_help("-H HOMOPOLYMER_LENGTH", "The 'homopolymer' filter removes breakpoints "
-	                  "adjacent to homopolymers of the given length or more. Default: " + to_string(default_options.homopolymer_length))
+	                  "adjacent to homopolymers of the given length or more. Default: " + to_string(static_cast<long long unsigned int>(default_options.homopolymer_length)))
 	     << wrap_help("-D MAX_GENOMIC_BREAKPOINT_DISTANCE", "When a file with genomic breakpoints "
 	                  "obtained via whole-genome sequencing is supplied via the -d parameter, "
 	                  "this parameter determines how far a genomic breakpoint may be away from "
 	                  "a transcriptomic breakpoint to consider it as a related event. "
 	                  "For events inside genes, the distance is added to the end of the gene; "
 	                  "for intergenic events, the distance threshold is applied as is. Default: " +
-	                  to_string(default_options.max_genomic_breakpoint_distance))
+	                  to_string(static_cast<long long unsigned int>(default_options.max_genomic_breakpoint_distance)))
 	     << wrap_help("-R READ_THROUGH_DISTANCE", "The 'read_through' filter removes read-through fusions "
 	                  "where the breakpoints are less than the given distance away from each other. "
-	                  "Default: " + to_string(default_options.min_read_through_distance))
+	                  "Default: " + to_string(static_cast<long long unsigned int>(default_options.min_read_through_distance)))
 	     << wrap_help("-A MIN_ANCHOR_LENGTH", "Alignment artifacts are often characterized by "
 	                  "split reads coming from only gene and no discordant mates. Moreover, the split reads only "
 	                  "align to a short stretch in one of the genes. The 'short_anchor' "
 	                  "filter removes these fusions. This parameter sets the threshold in bp for "
-	                  "what the filter considers short. Default: " + to_string(default_options.min_anchor_length))
+	                  "what the filter considers short. Default: " + to_string(static_cast<long long unsigned int>(default_options.min_anchor_length)))
 	     << wrap_help("-M MANY_SPLICED_EVENTS", "The 'many_spliced' filter recovers fusions "
-	                  "between genes that have at least this many spliced breakpoints. Default: " + to_string(default_options.min_spliced_events))
+	                  "between genes that have at least this many spliced breakpoints. Default: " + to_string(static_cast<long long unsigned int>(default_options.min_spliced_events)))
 	     << wrap_help("-K MAX_KMER_CONTENT", "The 'low_entropy' filter removes reads with "
 	                  "repetitive 3-mers. If the 3-mers make up more than the given fraction "
-	                  "of the sequence, then the read is discarded. Default: " + to_string(default_options.max_kmer_content))
+	                  "of the sequence, then the read is discarded. Default: " + to_string(static_cast<long double>(default_options.max_kmer_content)))
 	     << wrap_help("-V MAX_MISMATCH_PVALUE", "The 'mismatches' filter uses a binomial model "
 	                  "to calculate a p-value for observing a given number of mismatches in a read. "
-	                  "If the number of mismatches is too high, the read is discarded. Default: " + to_string(default_options.mismatch_pvalue_cutoff))
+	                  "If the number of mismatches is too high, the read is discarded. Default: " + to_string(static_cast<long double>(default_options.mismatch_pvalue_cutoff)))
 	     << wrap_help("-F FRAGMENT_LENGTH", "When paired-end data is given, the fragment length "
 	                  "is estimated automatically and this parameter has no effect. But when "
 	                  "single-end data is given, the mean fragment length should be specified "
 	                  "to effectively filter fusions that arise from hairpin structures. "
-	                  "Default: " + to_string(default_options.fragment_length))
+	                  "Default: " + to_string(static_cast<long long unsigned int>(default_options.fragment_length)))
 	     << wrap_help("-U MAX_READS", "Subsample fusions with more than the given number of "
 	                  "supporting reads. This improves performance without compromising sensitivity, "
 	                  "as long as the threshold is high. Counting of supporting reads beyond "
 	                  "the threshold is inaccurate, obviously. "
-	                  "Default: " + to_string(default_options.subsampling_threshold))
+	                  "Default: " + to_string(static_cast<long long unsigned int>(default_options.subsampling_threshold)))
 	     << wrap_help("-Q QUANTILE", "Highly expressed genes are prone to produce artifacts "
 	                  "during library preparation. Genes with an expression above the given quantile "
 	                  "are eligible for filtering by the 'pcr_fusions' filter. "
-	                  "Default: " + to_string(default_options.high_expression_quantile))
+	                  "Default: " + to_string(static_cast<long double>(default_options.high_expression_quantile)))
 	     << wrap_help("-T", "When set, the column 'fusion_transcript' is populated with "
 	                  "the sequence of the fused genes as assembled from the supporting reads. "
 	                  "The following letters have special meanings:\n"

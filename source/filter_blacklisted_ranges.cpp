@@ -277,7 +277,7 @@ unsigned int filter_blacklisted_ranges(fusions_t& fusions, const string& blackli
 					    matches_blacklist_item(item1, **fusion, 2, evalue_cutoff, max_mate_gap) &&
 					    matches_blacklist_item(item2, **fusion, 1, evalue_cutoff, max_mate_gap)) {
 						(**fusion).filter = FILTERS.at("blacklist");
-						fusion = fusions_near_coordinate->second.erase(fusion); // remove fusion from index, so we don't check it again
+						fusions_near_coordinate->second.erase(fusion++); // remove fusion from index, so we don't check it again
 					} else {
 						++fusion;
 					}

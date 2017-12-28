@@ -46,36 +46,36 @@
 using namespace std;
 
 unordered_map<string,filter_t> FILTERS({
-	{"inconsistently_clipped", NULL},
-	{"homopolymer", NULL},
-	{"duplicates", NULL},
-	{"read_through", NULL},
-	{"same_gene", NULL},
-	{"small_insert_size", NULL},
-	{"hairpin", NULL},
-	{"mismatches", NULL},
-	{"mismappers", NULL},
-	{"relative_support", NULL},
-	{"intronic", NULL},
-	{"novel", NULL},
-	{"intragenic_exonic", NULL},
-	{"min_support", NULL},
-	{"known_fusions", NULL},
-	{"spliced", NULL},
-	{"blacklist", NULL},
-	{"end_to_end", NULL},
-	{"pcr_fusions", NULL},
-	{"merge_adjacent", NULL},
-	{"select_best", NULL},
-	{"short_anchor", NULL},
-	{"non_expressed", NULL},
-	{"many_spliced", NULL},
-	{"no_genomic_support", NULL},
-	{"uninteresting_contigs", NULL},
-	{"genomic_support", NULL},
-	{"isoforms", NULL},
-	{"low_entropy", NULL},
-	{"homologs", NULL}
+	{"inconsistently_clipped", static_cast<string*>(NULL)},
+	{"homopolymer", static_cast<string*>(NULL)},
+	{"duplicates", static_cast<string*>(NULL)},
+	{"read_through", static_cast<string*>(NULL)},
+	{"same_gene", static_cast<string*>(NULL)},
+	{"small_insert_size", static_cast<string*>(NULL)},
+	{"hairpin", static_cast<string*>(NULL)},
+	{"mismatches", static_cast<string*>(NULL)},
+	{"mismappers", static_cast<string*>(NULL)},
+	{"relative_support", static_cast<string*>(NULL)},
+	{"intronic", static_cast<string*>(NULL)},
+	{"novel", static_cast<string*>(NULL)},
+	{"intragenic_exonic", static_cast<string*>(NULL)},
+	{"min_support", static_cast<string*>(NULL)},
+	{"known_fusions", static_cast<string*>(NULL)},
+	{"spliced", static_cast<string*>(NULL)},
+	{"blacklist", static_cast<string*>(NULL)},
+	{"end_to_end", static_cast<string*>(NULL)},
+	{"pcr_fusions", static_cast<string*>(NULL)},
+	{"merge_adjacent", static_cast<string*>(NULL)},
+	{"select_best", static_cast<string*>(NULL)},
+	{"short_anchor", static_cast<string*>(NULL)},
+	{"non_expressed", static_cast<string*>(NULL)},
+	{"many_spliced", static_cast<string*>(NULL)},
+	{"no_genomic_support", static_cast<string*>(NULL)},
+	{"uninteresting_contigs", static_cast<string*>(NULL)},
+	{"genomic_support", static_cast<string*>(NULL)},
+	{"isoforms", static_cast<string*>(NULL)},
+	{"low_entropy", static_cast<string*>(NULL)},
+	{"homologs", static_cast<string*>(NULL)}
 });
 
 int main(int argc, char **argv) {
@@ -212,7 +212,7 @@ int main(int argc, char **argv) {
 			    gene_annotation_record.end+10000 < unmapped_alignment->start || // current alignment is too far away
 			    (next_known_gene != gene_annotation_index[gene_annotation_record.contig].end() && next_known_gene->first <= unmapped_alignment->start) || // dummy gene must not overlap known genes
 			    unmapped_alignment->contig != gene_annotation_record.contig) { // end of contig reached
-				gene_annotation_record.name = contigs_by_id[gene_annotation_record.contig] + ":" + to_string(gene_annotation_record.start) + "-" + to_string(gene_annotation_record.end);
+				gene_annotation_record.name = contigs_by_id[gene_annotation_record.contig] + ":" + to_string(static_cast<long long int>(gene_annotation_record.start)) + "-" + to_string(static_cast<long long int>(gene_annotation_record.end));
 				gene_annotation.push_back(gene_annotation_record);
 				if (unmapped_alignment != unmapped_alignments.end()) {
 					gene_annotation_record.contig = unmapped_alignment->contig;

@@ -323,13 +323,13 @@ bool sort_fusions_by_support(const fusion_t* x, const fusion_t* y) {
 		return x->gene1->start + x->gene2->start < y->gene1->start + y->gene2->start; // this does not really sort, it only ensures that fusions between the
 		                                                                              // same pair of genes are grouped together, if e-value and supporting reads are equal
 }
-
-class sort_fusions_by_rank_of_best_t {
-public:
-	unordered_map< tuple<gene_t/*gene1*/,gene_t/*gene2*/>, fusion_t* > best;
+// make helper struct which groups events between the same pair of genes together,
+// such that events with only few supporting reads are listed near the best event (the one with the most supporting reads)
+struct sort_fusions_by_rank_of_best_t {
+	unordered_map< tuple<gene_t/*gene1*/,gene_t/*gene2*/>, fusion_t* >* best;
 	bool operator()(const fusion_t* x, const fusion_t* y) {
-		fusion_t* best_x = best.at(make_tuple(x->gene1, x->gene2));
-		fusion_t* best_y = best.at(make_tuple(y->gene1, y->gene2));
+		fusion_t* best_x = best->at(make_tuple(x->gene1, x->gene2));
+		fusion_t* best_y = best->at(make_tuple(y->gene1, y->gene2));
 		if (best_x != best_y)
 			return sort_fusions_by_support(best_x, best_y);
 		else
@@ -359,7 +359,7 @@ string gene_to_name(const gene_t gene, const contig_t contig, const position_t b
 				if (!(**gene).is_dummy) {
 					if (!result.empty())
 						result += ",";
-					result += (**gene).name + "(" + to_string(breakpoint - (**gene).end) + ")";
+					result += (**gene).name + "(" + to_string(static_cast<long long int>(breakpoint - (**gene).end)) + ")";
 				}
 			}
 		}
@@ -374,7 +374,7 @@ string gene_to_name(const gene_t gene, const contig_t contig, const position_t b
 				if (!(**gene).is_dummy) {
 					if (!result.empty())
 						result += ",";
-					result += (**gene).name + "(" + to_string((**gene).start - breakpoint) + ")";
+					result += (**gene).name + "(" + to_string(static_cast<long long int>((**gene).start - breakpoint)) + ")";
 				}
 			}
 		}
@@ -552,15 +552,17 @@ void write_fusions_to_file(fusions_t& fusions, const string& output_file, const 
 		// => find out what the best ranking breakpoints are for each pair of genes
 		//    we store these breakpoints in a sorting object (sort_fusions_by_rank_of_best),
 		//    which we use as a parameter to the sort function later
-		sort_fusions_by_rank_of_best_t sort_fusions_by_rank_of_best;
+		unordered_map< tuple<gene_t/*gene1*/,gene_t/*gene2*/>, fusion_t* > best_fusion_by_gene_pair;
 		for (auto fusion = sorted_fusions.begin(); fusion != sorted_fusions.end(); ++fusion) {
-			fusion_t*& current_best = sort_fusions_by_rank_of_best.best[make_tuple((**fusion).gene1, (**fusion).gene2)];
+			fusion_t*& current_best = best_fusion_by_gene_pair[make_tuple((**fusion).gene1, (**fusion).gene2)];
 			if (current_best == NULL || sort_fusions_by_support(*fusion, current_best))
 				current_best = *fusion;
 		}
 
 		// sort all gene pairs by the rank of the best scoring breakpoints of a given gene pair
-		sort(sorted_fusions.begin(), sorted_fusions.end(), ref(sort_fusions_by_rank_of_best));
+		sort_fusions_by_rank_of_best_t sort_fusions_by_rank_of_best;
+		sort_fusions_by_rank_of_best.best = &best_fusion_by_gene_pair;
+		sort(sorted_fusions.begin(), sorted_fusions.end(), sort_fusions_by_rank_of_best);
 	}
 
 	// write sorted list to file
@@ -579,12 +581,12 @@ void write_fusions_to_file(fusions_t& fusions, const string& output_file, const 
 		// convert closest genomic breakpoints to strings of the format <chr>:<position>(<distance to transcriptomic breakpoint>)
 		string closest_genomic_breakpoint1, closest_genomic_breakpoint2;
 		if ((**fusion).closest_genomic_breakpoint1 >= 0) {
-			closest_genomic_breakpoint1 = contigs_by_id[(**fusion).contig1] + ":" + to_string((**fusion).closest_genomic_breakpoint1+1) + "(" + to_string(abs((**fusion).breakpoint1 - (**fusion).closest_genomic_breakpoint1)) + ")";
+			closest_genomic_breakpoint1 = contigs_by_id[(**fusion).contig1] + ":" + to_string(static_cast<long long int>((**fusion).closest_genomic_breakpoint1+1)) + "(" + to_string(static_cast<long long int>(abs((**fusion).breakpoint1 - (**fusion).closest_genomic_breakpoint1))) + ")";
 		} else {
 			closest_genomic_breakpoint1 = ".";
 		}
 		if ((**fusion).closest_genomic_breakpoint2 >= 0) {
-			closest_genomic_breakpoint2 = contigs_by_id[(**fusion).contig2] + ":" + to_string((**fusion).closest_genomic_breakpoint2+1) + "(" + to_string(abs((**fusion).breakpoint2 - (**fusion).closest_genomic_breakpoint2)) + ")";
+			closest_genomic_breakpoint2 = contigs_by_id[(**fusion).contig2] + ":" + to_string(static_cast<long long int>((**fusion).closest_genomic_breakpoint2+1)) + "(" + to_string(static_cast<long long int>(abs((**fusion).breakpoint2 - (**fusion).closest_genomic_breakpoint2))) + ")";
 		} else {
 			closest_genomic_breakpoint2 = ".";
 		}

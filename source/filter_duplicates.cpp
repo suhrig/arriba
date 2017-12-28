@@ -15,12 +15,12 @@ unsigned int filter_duplicates(chimeric_alignments_t& chimeric_alignments) {
 		unsigned int mate2 = (chimeric_alignment->second.size() == 2) ? MATE2 : SUPPLEMENTARY;
 
 		tuple<position_t,position_t> mate_coordinates = make_tuple(
-			(chimeric_alignment->second[MATE1].strand == FORWARD) ?
+			static_cast<position_t>((chimeric_alignment->second[MATE1].strand == FORWARD) ?
 				chimeric_alignment->second[MATE1].start - chimeric_alignment->second[MATE1].preclipping() :
-				chimeric_alignment->second[MATE1].end   + chimeric_alignment->second[MATE1].postclipping(),
-			(chimeric_alignment->second[mate2].strand == FORWARD) ?
+				chimeric_alignment->second[MATE1].end   + chimeric_alignment->second[MATE1].postclipping()),
+			static_cast<position_t>((chimeric_alignment->second[mate2].strand == FORWARD) ?
 				chimeric_alignment->second[mate2].start - chimeric_alignment->second[mate2].preclipping() :
-				chimeric_alignment->second[mate2].end   + chimeric_alignment->second[mate2].postclipping()
+				chimeric_alignment->second[mate2].end   + chimeric_alignment->second[mate2].postclipping())
 		);
 
 		if (duplicate_count[mate_coordinates]++ > 0)

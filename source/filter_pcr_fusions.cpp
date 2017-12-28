@@ -30,6 +30,20 @@ gene_t find_higher_expressed_gene(const contig_t contig, const position_t breakp
 	return highest_expressed_gene;
 }
 
+// make helper class to sort genes by the number of chimeric reads
+struct sort_genes_by_reads_t {
+	unordered_map<gene_t,unsigned int>* read_count;
+	bool operator()(const gene_t x, const gene_t y) const {
+		unsigned int reads_x = read_count->at(x);
+		unsigned int reads_y = read_count->at(y);
+		if (reads_x != reads_y) {
+			return reads_x < reads_y;
+		} else {
+			return x->id < y->id; // ensures deterministic behavior in case of ties
+		}
+	}
+};
+
 unsigned int filter_pcr_fusions(fusions_t& fusions, const chimeric_alignments_t& chimeric_alignments, const float high_expression_quantile, const gene_annotation_index_t& gene_annotation_index) {
 
 	// count the number of exonic breakpoints for each gene pair
@@ -50,46 +64,37 @@ unsigned int filter_pcr_fusions(fusions_t& fusions, const chimeric_alignments_t&
 
 	// PCR fusions are mostly observed between highly expressed genes
 	// we use the number of chimeric reads as a proxy to measure expression
-	// make helper class to sort genes by the number of chimeric reads
-	class sort_genes_by_reads_t {
-	public:
-		unordered_map<gene_t,unsigned int> read_count;
-		bool operator()(const gene_t x, const gene_t y) {
-			unsigned int reads_x = read_count[x];
-			unsigned int reads_y = read_count[y];
-			if (reads_x != reads_y) {
-				return reads_x < reads_y;
-			} else {
-				return x->id < y->id; // ensures deterministic behavior in case of ties
-			}
-		}
-	};
-	sort_genes_by_reads_t sort_genes_by_reads;
-
-	// for each gene, count the number of reads
+	unordered_map<gene_t,unsigned int> read_count_by_gene;
 	for (chimeric_alignments_t::const_iterator chimeric_alignment = chimeric_alignments.begin(); chimeric_alignment != chimeric_alignments.end(); ++chimeric_alignment) {
 		for (gene_set_t::const_iterator gene = chimeric_alignment->second[MATE1].genes.begin(); gene != chimeric_alignment->second[MATE1].genes.end(); ++gene)
-			sort_genes_by_reads.read_count[*gene]++;
+			read_count_by_gene[*gene]++;
 		unsigned int mate2 = (chimeric_alignment->second.size() == 2) ? MATE2 : SUPPLEMENTARY;
 		for (gene_set_t::const_iterator gene = chimeric_alignment->second[mate2].genes.begin(); gene != chimeric_alignment->second[mate2].genes.end(); ++gene)
-			sort_genes_by_reads.read_count[*gene]++;
+			read_count_by_gene[*gene]++;
 	}
 
 	// (partially) sort genes by reads using nth_element() to calculate quantiles
 	unsigned int high_expression_threshold = 0;
-	if (sort_genes_by_reads.read_count.size() > 0) {
+	if (read_count_by_gene.size() > 0) {
+
 		// put genes in vector for sorting
 		vector<gene_t> genes_sorted_by_reads;
-		genes_sorted_by_reads.reserve(sort_genes_by_reads.read_count.size());
-		for (auto gene = sort_genes_by_reads.read_count.begin(); gene != sort_genes_by_reads.read_count.end(); ++gene)
+		genes_sorted_by_reads.reserve(read_count_by_gene.size());
+		for (auto gene = read_count_by_gene.begin(); gene != read_count_by_gene.end(); ++gene)
 			genes_sorted_by_reads.push_back(gene->first);
-		// partially sort using nth_element
+
+		// calculate position of quantile
 		unsigned int quantile = static_cast<int>(floor(high_expression_quantile * genes_sorted_by_reads.size()));
 		if (quantile >= genes_sorted_by_reads.size())
 			quantile = genes_sorted_by_reads.size() - 1;
-		nth_element(genes_sorted_by_reads.begin(), genes_sorted_by_reads.begin()+quantile, genes_sorted_by_reads.end(), ref(sort_genes_by_reads));
+
+		// partially sort using nth_element
+		sort_genes_by_reads_t sort_genes_by_reads;
+		sort_genes_by_reads.read_count = &read_count_by_gene;
+		nth_element(genes_sorted_by_reads.begin(), genes_sorted_by_reads.begin()+quantile, genes_sorted_by_reads.end(), sort_genes_by_reads);
+
 		// extract quantile
-		high_expression_threshold = sort_genes_by_reads.read_count[genes_sorted_by_reads[quantile]];
+		high_expression_threshold = read_count_by_gene[genes_sorted_by_reads[quantile]];
 	}
 
 	// remove fusions with a lot of characteristics of PCR-mediated fusions
@@ -135,12 +140,12 @@ unsigned int filter_pcr_fusions(fusions_t& fusions, const chimeric_alignments_t&
 		}
 
 		// find the highest expressed genes overlapping the breakpoint
-		gene_t gene1 = find_higher_expressed_gene(fusion->second.contig1, fusion->second.breakpoint1, gene_annotation_index, sort_genes_by_reads.read_count, fusion->second.gene1);
-		gene_t gene2 = find_higher_expressed_gene(fusion->second.contig2, fusion->second.breakpoint2, gene_annotation_index, sort_genes_by_reads.read_count, fusion->second.gene2);
+		gene_t gene1 = find_higher_expressed_gene(fusion->second.contig1, fusion->second.breakpoint1, gene_annotation_index, read_count_by_gene, fusion->second.gene1);
+		gene_t gene2 = find_higher_expressed_gene(fusion->second.contig2, fusion->second.breakpoint2, gene_annotation_index, read_count_by_gene, fusion->second.gene2);
 
 		// use the number of chimeric reads as a proxy to measure expression
-		unsigned int gene1_expression = find_or_default(sort_genes_by_reads.read_count, gene1, (unsigned int) 0);
-		unsigned int gene2_expression = find_or_default(sort_genes_by_reads.read_count, gene2, (unsigned int) 0);
+		unsigned int gene1_expression = find_or_default(read_count_by_gene, gene1, (unsigned int) 0);
+		unsigned int gene2_expression = find_or_default(read_count_by_gene, gene2, (unsigned int) 0);
 
 		// find out how many non-spliced, non-intronic breakpoints there are between the fused genes (or genes overlapping the breakpoints)
 		unsigned int exonic_breakpoints = max(

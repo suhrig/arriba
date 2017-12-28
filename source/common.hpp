@@ -181,19 +181,23 @@ const strandedness_t STRANDEDNESS_AUTO = 3;
 // implement hash() function for tuples so they can be used as keys in unordered_maps
 namespace std {
 
-        template <typename ... TT> struct hash< std::tuple<TT...> > {
+#define TUPLE_TYPES std::tuple<TT...>
+#define TUPLE_ELEMENT_TYPE std::tuple_element< element,std::tuple<TT...> >::type
 
-		using T = typename std::tuple<TT...>;
+        template <typename ... TT> struct hash< TUPLE_TYPES > {
 
-		size_t operator()(const T& tuple, std::integral_constant<int, std::tuple_size<T>::value>) const {
+		size_t operator()(const TUPLE_TYPES& tuple, std::integral_constant<int, std::tuple_size< TUPLE_TYPES >::value>) const {
 			return 0;
 		}
     
-		template<int element = 0> size_t operator()(const T& tuple, std::integral_constant<int,element> = std::integral_constant<int,0>()) const {
-			using tuple_element_type = typename std::tuple_element<element,T>::type;
-			return std::hash< tuple_element_type >()(std::get<element>(tuple)) ^ operator()(tuple, std::integral_constant<int,element+1>()) <<4;
+		template<int element = 0> size_t operator()(const TUPLE_TYPES& tuple, std::integral_constant<int,element> = std::integral_constant<int,0>()) const {
+			return std::hash< typename TUPLE_ELEMENT_TYPE >()(std::get<element>(tuple)) ^ operator()(tuple, std::integral_constant<int,element+1>()) <<4;
 		}
 	};
+
+#undef TUPLE_TYPES
+#undef TUPLE_ELEMENT_TYPE
+
 }
 
 #endif /* _COMMON_H */
