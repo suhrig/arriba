@@ -5,7 +5,7 @@
 
 using namespace std;
 
-unsigned int filter_mismatches(chimeric_alignments_t& chimeric_alignments, const assembly_t& assembly, const float mismatch_probability, const float pvalue_cutoff);
+unsigned int filter_mismatches(chimeric_alignments_t& chimeric_alignments, const assembly_t& assembly, const vector<bool>& interesting_contigs, const float mismatch_probability, const float pvalue_cutoff);
 
 float estimate_mismatch_probability(const chimeric_alignments_t& chimeric_alignments, const assembly_t& assembly);
 

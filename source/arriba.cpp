@@ -309,7 +309,7 @@ int main(int argc, char **argv) {
 
 	if (options.filters.at("mismatches")) {
 		cout << "Filtering reads with a mismatch p-value <=" << options.mismatch_pvalue_cutoff << flush;
-		cout << " (remaining=" << filter_mismatches(chimeric_alignments, assembly, 0.01, options.mismatch_pvalue_cutoff) << ")" << endl;
+		cout << " (remaining=" << filter_mismatches(chimeric_alignments, assembly, interesting_contigs, 0.01, options.mismatch_pvalue_cutoff) << ")" << endl;
 	}
 
 	if (options.filters.at("low_entropy")) {
