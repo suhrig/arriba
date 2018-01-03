@@ -18,6 +18,7 @@
 #include "filter_proximal_read_through.hpp"
 #include "filter_same_gene.hpp"
 #include "filter_small_insert_size.hpp"
+#include "filter_long_gap.hpp"
 #include "filter_hairpin.hpp"
 #include "filter_mismatches.hpp"
 #include "filter_low_entropy.hpp"
@@ -52,6 +53,7 @@ unordered_map<string,filter_t> FILTERS({
 	{"read_through", static_cast<string*>(NULL)},
 	{"same_gene", static_cast<string*>(NULL)},
 	{"small_insert_size", static_cast<string*>(NULL)},
+	{"long_gap", static_cast<string*>(NULL)},
 	{"hairpin", static_cast<string*>(NULL)},
 	{"mismatches", static_cast<string*>(NULL)},
 	{"mismappers", static_cast<string*>(NULL)},
@@ -291,6 +293,11 @@ int main(int argc, char **argv) {
 	if (options.filters.at("small_insert_size")) {
 		cout << "Filtering fragments with small insert size" << flush;
 		cout << " (remaining=" << filter_small_insert_size(chimeric_alignments, 5) << ")" << endl;
+	}
+
+	if (options.filters.at("long_gap")) {
+		cout << "Filtering alignments with long gaps" << flush;
+		cout << " (remaining=" << filter_long_gap(chimeric_alignments) << ")" << endl;
 	}
 
 	if (options.filters.at("same_gene")) {
