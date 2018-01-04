@@ -2,15 +2,14 @@ FROM ubuntu:xenial
 MAINTAINER Sebastian Uhrig @ DKFZ
 
 # install utilities
-RUN apt-get update -y && apt-get install -y wget zip
+RUN apt-get update -y && apt-get install -y wget
 
 # install samtools
 RUN apt-get install -y samtools
 
 # install STAR
-RUN wget -q -O STAR-master.zip https://github.com/alexdobin/STAR/archive/master.zip && \
-unzip -q STAR-master.zip && \
-cp STAR-master/bin/Linux_x86_64_static/STAR /usr/local/bin/
+RUN wget -q -O - https://github.com/alexdobin/STAR/archive/master.tar.gz | \
+tar -x -z --strip-components=3 -C /usr/local/bin -f - STAR-master/bin/Linux_x86_64_static/STAR
 
 # install arriba
 RUN URL=$(wget -q -O - https://api.github.com/repos/suhrig/arriba/releases/latest | sed -n -e 's/.*"browser_download_url":\s*"\([^"]*\)".*/\1/p') && \
