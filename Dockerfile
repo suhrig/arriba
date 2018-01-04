@@ -13,7 +13,8 @@ unzip -q STAR-master.zip && \
 cp STAR-master/bin/Linux_x86_64_static/STAR /usr/local/bin/
 
 # install arriba
-RUN wget -q -O - https://github.com/suhrig/arriba/releases/download/v0.11.0/arriba_v0.11.0.tar.gz | tar -xzf -
+RUN URL=$(wget -q -O - https://api.github.com/repos/suhrig/arriba/releases/latest | sed -n -e 's/.*"browser_download_url":\s*"\([^"]*\)".*/\1/p') && \
+wget -q -O - "$URL" | tar -xzf -
 
 ENV THREADS=8
 
