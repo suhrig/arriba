@@ -31,10 +31,14 @@ string wrap_help(const string& option, const string& text, const unsigned short 
 }
 
 bool output_directory_exists(const string& output_file) {
+	if (output_file.empty())
+		return false;
 	char* output_file_c_str = strdup(output_file.c_str()); // we need to make a copy, because dirname does not take const argument
 	char* output_directory = dirname(output_file_c_str);
 	struct stat file_info;
-	return (stat(output_directory, &file_info) == 0 && (file_info.st_mode & S_IFDIR));
+	bool result = stat(output_directory, &file_info) == 0 && (file_info.st_mode & S_IFDIR);
+	free(output_file_c_str);
+	return result;
 }
 
 bool validate_int(const char* optarg, int& value, const int min_value, const int max_value) {
