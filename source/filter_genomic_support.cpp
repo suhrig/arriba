@@ -36,9 +36,9 @@ void parse_breakpoint(string breakpoint, const contigs_t& contigs, contig_t& con
 }
 
 void parse_direction(const string& direction_string, direction_t& direction) {
-	if (direction_string == "upstream") {
+	if (direction_string == "upstream" || direction_string == "-") {
 		direction = UPSTREAM;
-	} else if (direction_string == "downstream") {
+	} else if (direction_string == "downstream" || direction_string == "+") {
 		direction = DOWNSTREAM;
 	} else {
 		cerr << "ERROR: invalid value for direction: " << direction_string << endl;
