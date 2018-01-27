@@ -30,6 +30,6 @@ chmod a+x /usr/local/bin/download_references.sh
 # make script to run arriba
 RUN echo '#!/bin/bash\n\
 cd /output\n\
-/arriba*/run_arriba.sh /STAR_index /annotation.gtf /assembly.fa /read1.fastq.gz /read2.fastq.gz $THREADS' > /usr/local/bin/arriba.sh && \
+/arriba*/run_arriba.sh /references/STAR_index_hs37d5_gencode19 /references/gencode.v19.annotation.gtf /references/hs37d5.fa /arriba*/database/blacklist_hg19_hs37d5_GRCh37_*.tsv.gz /read1.fastq.gz /read2.fastq.gz $THREADS' > /usr/local/bin/arriba.sh && \
 chmod a+x /usr/local/bin/arriba.sh
 

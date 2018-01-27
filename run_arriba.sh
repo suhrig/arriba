@@ -1,16 +1,17 @@
 #!/bin/bash
 
 # get arguments
-if [ $# -ne 6 ]; then
-	echo "Usage: $(basename $0) STAR_genomeDir/ annotation.gtf assembly.fa read1.fastq.gz read2.fastq.gz threads" 1>&2
+if [ $# -ne 7 ]; then
+	echo "Usage: $(basename $0) STAR_genomeDir/ annotation.gtf assembly.fa blacklist.tsv read1.fastq.gz read2.fastq.gz threads" 1>&2
 	exit 1
 fi
 STAR_INDEX_DIR="$1"
 ANNOTATION_GTF="$2"
 ASSEMBLY_FA="$3"
-READ1="$4"
-READ2="$5"
-THREADS="$6"
+BLACKLIST_TSV="$4"
+READ1="$5"
+READ2="$6"
+THREADS="$7"
 
 # find installation directory of arriba
 BASE_DIR=$(dirname "$0")
@@ -54,7 +55,7 @@ wait # for indexing of normal alignments
 	-O fusions.discarded.tsv \
 	-a "$ASSEMBLY_FA" \
 	-g "$ANNOTATION_GTF" \
-	-b "$BASE_DIR/database/blacklist_hs37d5_gencode19_2017-05-11.tsv.gz" \
+	-b "$BLACKLIST_TSV" \
 	-T \
 #	-d structural_variants_from_WGS.tsv \
 #	-k known_fusions_from_CancerGeneCensus.tsv # see section "Complete Fusion Export" at http://cancer.sanger.ac.uk/cosmic/download

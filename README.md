@@ -16,7 +16,7 @@ Manual installation
 
 Arriba requires [STAR](https://github.com/alexdobin/STAR) (version >=2.5.3a recommended) and [samtools](http://www.htslib.org/). Download and install the two tools according to the developers' instructions and make them available in your `$PATH`.
 
-Build an index from your genome assembly and annotation. Currently, the only supported assemblies are hs37d5 and hg19. The only supported annotation is GencodeV19. If you use another assembly/annotation, then the blacklist is not applicable and the predictions will contain many false positives. Support for hg38 and mm10 is coming soon. (Note: you may use a different Gencode version to build the STAR index, but not to run Arriba.)
+Build a STAR index from your genome assembly and annotation. The following commands use the hs37d5 assembly and GencodeV19 annotation. Currently, the supported assemblies are hg19/hs37d5/GRCh37 and hg38/GRCh38. Support for mm10 is in development. If you use another assembly, then the coordinates in the blacklist will not match and the predictions will contain many false positives. There are no restrictions on the annotation, but Gencode is recommended over RefSeq due to more comprehensive annotation of splice-sites, which improves sensitivity.
 
 ```
 # download and extract annotation
@@ -32,7 +32,7 @@ STAR --runMode genomeGenerate --genomeDir STAR_index_hs37d5_gencode19 \
      --runThreadN 8 --sjdbOverhang 150
 ```
 
-Compile the latest stable version of Arriba or use the precompiled binaries in the download file:
+Compile the latest stable version of Arriba or use the precompiled binaries in the download file. **Note: You should not use `git clone` to download Arriba, because the git repository does not include the blacklist! Instead, download the latest tarball from the [releases page](https://github.com/suhrig/arriba/releases/) as shown here:**
 ```
 wget https://github.com/suhrig/arriba/releases/download/v0.11.0/arriba_v0.11.0.tar.gz
 tar -xzf arriba_v0.11.0.tar.gz
@@ -43,7 +43,7 @@ The download file contains a script `run_arriba.sh`, which demonstrates the usag
 
 Run the demo script with 8 threads:
 ```
-arriba_v0.11.0/run_arriba.sh STAR_index_hs37d5_gencode19/ gencode.v19.annotation.gtf hs37d5.fa read1.fastq.gz read2.fastq.gz 8
+arriba_v0.11.0/run_arriba.sh STAR_index_hs37d5_gencode19/ gencode.v19.annotation.gtf hs37d5.fa arriba_v0.11.0/database/blacklist_hg19_hs37d5_GRCh37_2018-01-13.tsv.gz read1.fastq.gz read2.fastq.gz 8
 ```
 
 Installation using Docker
@@ -57,7 +57,7 @@ Build the Docker image:
 docker build --tag arriba:latest https://raw.githubusercontent.com/suhrig/arriba/master/Dockerfile
 ```
 
-If you have not already downloaded the annotation/assembly and built a STAR index, run the `download_references.sh` script inside the container. Note that this step requires ~30 GB of RAM and 8 cores (can be adjusted with `--env THREADS=...`). The files will be extracted to the directory `/path/to/references` in the following example:
+Run the `download_references.sh` script inside the container. The script downloads the assembly hs37d5 and GencodeV19 annotation. Please refer to the manual installation instructions or modify the `Dockerfile`, if you wish to use a different assembly/annotation. The script generates a STAR index from the downloaded files. Note that this step requires ~30 GB of RAM and 8 cores (can be adjusted with `--env THREADS=...`). The files will be extracted to the directory `/path/to/references` in the following example:
 
 ```
 docker run --rm -t -v /path/to/references:/references arriba:latest download_references.sh
@@ -68,9 +68,7 @@ Use the following Docker command to run Arriba from the container. Replace `/pat
 ```
 docker run --rm -t \
        -v /path/to/output:/output \
-       -v /path/to/references/STAR_index_hs37d5_gencode19:/STAR_index:ro \
-       -v /path/to/references/gencode.v19.annotation.gtf:/annotation.gtf:ro \
-       -v /path/to/references/hs37d5.fa:/assembly.fa:ro \
+       -v /path/to/references:/references:ro \
        -v /path/to/read1.fastq.gz:/read1.fastq.gz:ro \
        -v /path/to/read2.fastq.gz:/read2.fastq.gz:ro \
        arriba:latest \
