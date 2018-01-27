@@ -8,6 +8,8 @@ Apart from gene fusions, Arriba can detect other structural rearrangements with 
 
 Arriba has been submitted to the [DREAM SMC RNA Challenge](https://www.synapse.org/#!Synapse:syn2813589), an international competition organized by ICGC, TCGA, IBM, and Sage Bionetworks to determine the current gold standard for the detection of gene fusions from RNA-Seq data. As of [round 4](https://www.synapse.org/#!Synapse:syn2813589/wiki/423306), Arriba is the best-performing algorithm.
 
+Read the full documentation on: http://arriba.readthedocs.io/
+
 Installation
 ============
 

@@ -1,0 +1,105 @@
+Chimeric alignments
+--------------
+Arriba processes two BAM files with alignments which potentially indicate structural rearrangements: the chimeric alignments file (parameter `-c`) and the read-through alignments file (parameter `-r`). The chimeric alignments file contains evidence about translocations, inversions, duplications and large deletions. It lacks information about deletions smaller than the usual intron size. The latter is provided by the read-through alignments file.
+
+In RNA-Seq data deletions of up to several hundred kb are hard to distinguish from splicing. Both are represented identically as gapped alignments and the sizes of many introns are in fact of this order of magnitude. `STAR` applies a rather arbitrary measure to decide whether a gapped alignment arises from splicing or from a genomic deletion: The parameter `--alignIntronMax` determines what gap size is still assumed to be a splicing event. Only gaps larger than this limit are classified as potential evidence for genomic deletions and are stored in the chimeric alignments file. Effectively, this makes it impossible to detect deletions smaller than the given size from the chimeric alignments file, since it lacks all supporting reads. As a workaround, many STAR-based fusion detection pipelines recommend reducing the value of the parameter `--alignIntronMax`. But this impairs the quality of alignment, because it reduces the scope that `STAR` searches to find a spliced alignment. To avoid compromising the quality of alignment for the sake of fusion detection, the only solution would be to run `STAR` twice - once with settings optimized for normal alignment and once for fusion detection. This would double the runtime.
+
+Arriba offers an alternative, non-compromise solution. It comes with the helper utility `extract_read-through_fusions`, which employs a more sensible criterion to distinguish splicing from deletions. The utility considers all those reads as potential evidence for deletions that span the boundary of a gene, i.e.,
+
+- a read has a gap that crosses the start/end of a gene or
+
+- (in the case of paired-end sequencing) one mate maps inside the gene an the other outside.
+
+Since `extract_read-through_fusions` runs independently from `STAR`, it is not necessary to use suboptimal alignment parameters in order to detect small deletions. The utility scans through the normal alignments file and extracts all alignments which violate gene boundaries as specified by the gene model passed via the parameter `-g`. The extracted reads are stored in the read-through alignments file, which has the same format as the chimeric alignments file.
+
+Both files need to be in BAM format, before they are passed to `arriba`. `extract_read-through_fusions` generates BAM files by default, but `STAR` stores the chimeric alignments in SAM format in the file `Chimeric.out.sam`. This file needs to be converted to BAM first using a utility such as [samtools](http://samtools.sourceforge.net/) or [sambamba](http://lomereiter.github.io/sambamba/).
+
+The files need not be sorted for `arriba` to accept them, but doing so comes with benefits: Often, this reduces the file size. And more importantly, the supporting reads of a fusion can be [inspected visually using a genome browser like IGV](interpretation-of-results.md#inspection-of-events-using-igv), which typically requires BAM files to be sorted by coordinate.
+
+Single-end and paired-end data and even mixtures are supported. Arriba automatically determines the data type on a read-by-read basis using the flag `BAM_FPAIRED`.
+
+Normal alignments
+-----------------
+`arriba` uses the normal alignments (parameter `-x`) to lookup the expression at predicted breakpoints. Moreover, the sequencing depth is calculated from the total number of reads. This influences the statistical model used to calculate the significance of the number of supporting reads of a fusion; the higher the depth, the more reads are required.
+This file must be sorted by coordinate and indexed, because `arriba` needs to lookup positions by coordinate and query statistics from the index.
+
+Assembly
+--------
+`arriba` takes the assembly as input (parameter `-a`) to find mismatches between the chimeric reads and the reference genome, as well as to find alignment artifacts and homologous genes.
+The assembly must be provided in FastA format and may be gzip-compressed. It is not necessary to generate an index, because the entire file is loaded into memory anyway.
+
+Annotation
+----------
+The gene annotation (parameter `-g`) is used for multiple purposes:
+
+- annotation of breakpoints with genes
+
+- increased sensitivity for breakpoints at splice-sites
+
+- calculation of transcriptomic distances
+
+- determining the putative orientation of fused genes (i.e., 5' and 3' end)
+
+Gencode annotation is recommended over RefSeq annotation, because the former has a more comprehensive annotation of transcripts and splice-sites, which boosts the sensitivity. The file must be provided in GTF format and may be gzip-compressed. It does not need to be sorted.
+
+Blacklist
+---------
+It is strongly advised to run `arriba` with a blacklist (parameter `-b`). Otherwise, the false positive rate increases by an order of magnitude. For this reason, using Arriba with assemblies or organisms which are not officially supported is not recommended. At the moment, the supported assemblies are: hg19, hs37d5, GRCh37, hg38, and GRCh38 (and any other assemblies that have compatible coordinates). Support for mm10 is in development. The blacklists are contained in the [release tarballs](https://github.com/suhrig/arriba/releases) of Arriba.
+
+The blacklist removes recurrent alignment artifacts and transcripts which are present in healthy tissue. This helps eliminate frequently observed transcripts, such as read-through fusions between neighboring genes, circular RNAs and other non-canonically spliced transcripts. It was trained on RNA-Seq samples from the [Human Protein Atlas](https://www.proteinatlas.org/), the [Illumina Human BodyMap2](https://www.ebi.ac.uk/arrayexpress/experiments/E-MTAB-513/) , the [ENCODE project](https://www.encodeproject.org/) , the [Roadmap project](http://www.roadmapepigenomics.org/), and the [NCT MASTER cohort](https://doi.org/10.1002/ijc.30828), a heterogeneous cohort of cancer samples, from which highly recurrent artifacts were identified.
+
+The blacklist is a tab-separated file with two columns and may optionally be gzip-compressed. Lines starting with a hash (`#`) are treated as comments. Each line represents a pair of regions between which events are ignored. A region can be
+
+- a 1-based coordinate in the format `CONTIG:POSITION`, optionally prefixed with the strand (example: `+9:56743754`).
+
+- a range in the format `CONTIG:START-END`, optionally prefixed with a strand (example: `9:1000000-1100000`).
+
+- the name of a gene given in the provided annotation.
+
+In addition, special keywords are allowed for the second column:
+
+- `any`: Discard all events if one of the breakpoints matches the given region.
+
+- `split_read_donor`: Discard fusions only supported by split reads, if all of them have their anchor in the gene given in the first column. This filter is useful for highly mutable loci, which frequently trigger clipped alignments, such as the immunoglobulin loci or the T-cell receptor loci.
+
+- `split_read_acceptor`: Discard events only supported by split reads, if all of them have their clipped segment in the given region.
+
+- `split_read_any`: Discard events only supported by split reads, regardless of where the anchor is.
+
+- `discordant_mates`: Discard fusions, if they are only supported by discordant mates (no split reads).
+
+- `low_support`: Discard events, which have few supporting reads relative to expression (as determined by the filter `relative_support`), even if there is other evidence that the fusion might be a true positive, nonetheless. This keyword effectively prevents recovery of speculative events by filters such as `spliced` or `many_spliced`.
+
+- `filter_spliced`: This keyword prevents the filter `spliced` from being applied to a given region. It is triggered under the same circumstances as the keyword `low_support`, but additionally requires that the breakpoints be at splice-sites for the event to be discarded. Some breakpoints produce recurrent artifacts, but the second breakpoint is always a different one, such that the pair of breakpoints is not recurrent and cannot be blacklisted. Often, such breakpoints are at splice-sites and the filter `spliced` tends to recover them. This keyword prevents the filter from doing so.
+
+- `not_both_spliced`: This keyword discards events, unless both breakpoints are at splice-sites. This is a strict blacklist criterion, which makes sense to apply to genes which are prone to produce artifacts, because they are highly expressed, for example hemoglobins, collagens, or ribosomal genes.
+
+- `read_through`: This keyword discards events, if they could arise from read-through transcription, i.e., the supporting reads are oriented like a deletion and are at most 400 kb apart.
+
+Known fusions
+-------------
+`arriba` can be instructed to be particularly sensitive towards events between certain gene pairs by supplying a list of gene pairs (parameter `-k`). A number of filters are not applied to these gene pairs. This is useful to improve the detection rate of expected or highly relevant events, such as recurrent fusions. Occassionally, this leads to false positive calls. But if high sensitivity is more important than specificity, this might be acceptable. Events which would be discarded by a filter and were recovered due to being listed in the known fusions list are usually assigned a low confidence.
+
+A comprehensive list of known fusions can be obtained from [CancerGeneCensus](http://cancer.sanger.ac.uk/cosmic/download) in the section titled "Complete Fusion Export". Depending on the gene annotation that is used to run `arriba`, some gene names need to be adjusted.
+
+The file has two columns separated by a tab. Each line lists a pair of genes. The order of the genes is irrelevant. `arriba` searches for both genes as the 5' end and the 3' end of a fusion. Lines starting with a hash (`#`) are treated as comments. Optionally, the file can be gzip-compressed.
+
+Structural variant calls from WGS
+---------------------------------
+
+If whole-genome sequencing (WGS) data is available, the sensitivity and specificity of Arriba can be improved by passing a list of structural variants detected from WGS to Arriba:
+
+- Certain filters are overruled or run with extra sensitive settings, when an event is confirmed by WGS data.
+
+- To reduce the false positive rate, `arriba` does not report low-confidence events unless they can be matched with a structural variant found in the WGS data.
+
+Both of these behaviors can be disabled by disabling the filters `genomic_support` and `no_genomic_support`, respectively. Providing `arriba` with a list of structural variant calls then does not influence the calls, but it still has the benefit of filling the columns `closest_genomic_breakpoint1` and `closest_genomic_breakpoint2` with the breakpoints of the structural variant which is closest to a fusion.
+
+The file must contain four columns separated by tabs. The first two columns contain the breakpoints of the structural variants in the format `CONTIG:POSITION`. The last two columns contain the orientation of the breakpoints. The accepted values are:
+
+- `downstream` or `+`: the fusion partner is fused downstream of the breakpoint, i.e., at a coordinate higher than the breakpoint
+
+- `upstream` or `-`: the fusion partner is fused at a coordinate lower than the breakpoint
+
+Arriba checks if the orientation of the structural variant matches that of a fusion detected in the RNA-Seq data. If, for example, Arriba predicts the 5' end of a gene to be retained in a fusion, then a structural variant is expected to confirm this, or else the variant is not considered to be related.
+
