@@ -287,7 +287,7 @@ int main(int argc, char **argv) {
 
 	if (options.filters.at("homopolymer")) {
 		cout << "Filtering breakpoints adjacent to homopolymers >=" << options.homopolymer_length << "nt" << flush;
-		cout << " (remaining=" << filter_homopolymer(chimeric_alignments, options.homopolymer_length) << ")" << endl;
+		cout << " (remaining=" << filter_homopolymer(chimeric_alignments, options.homopolymer_length, exon_annotation_index) << ")" << endl;
 	}
 
 	if (options.filters.at("small_insert_size")) {
