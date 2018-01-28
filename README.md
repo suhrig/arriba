@@ -36,16 +36,16 @@ STAR --runMode genomeGenerate --genomeDir STAR_index_hs37d5_gencode19 \
 
 Compile the latest stable version of Arriba or use the precompiled binaries in the download file. **Note: You should not use `git clone` to download Arriba, because the git repository does not include the blacklist! Instead, download the latest tarball from the [releases page](https://github.com/suhrig/arriba/releases/) as shown here:**
 ```
-wget https://github.com/suhrig/arriba/releases/download/v0.11.0/arriba_v0.11.0.tar.gz
-tar -xzf arriba_v0.11.0.tar.gz
-cd arriba_v0.11.0 && make && cd .. # or use precompiled binaries
+wget https://github.com/suhrig/arriba/releases/download/v0.12.0/arriba_v0.12.0.tar.gz
+tar -xzf arriba_v0.12.0.tar.gz
+cd arriba_v0.12.0 && make && cd .. # or use precompiled binaries
 ```
 
 The download file contains a script `run_arriba.sh`, which demonstrates the usage of Arriba. We recommend that you use this as a guide to integrate Arriba into your existing STAR-based RNA-Seq pipeline. When Arriba is integrated properly, fusion detection only adds a few minutes to the regular alignment workflow, since Arriba utilizes the alignments produced by STAR during a normal RNA-Seq workflow and does not require alignment solely for the sake of fusion detection.
 
 Run the demo script with 8 threads:
 ```
-arriba_v0.11.0/run_arriba.sh STAR_index_hs37d5_gencode19/ gencode.v19.annotation.gtf hs37d5.fa arriba_v0.11.0/database/blacklist_hg19_hs37d5_GRCh37_2018-01-13.tsv.gz read1.fastq.gz read2.fastq.gz 8
+arriba_v0.12.0/run_arriba.sh STAR_index_hs37d5_gencode19/ gencode.v19.annotation.gtf hs37d5.fa arriba_v0.12.0/database/blacklist_hg19_hs37d5_GRCh37_2018-01-13.tsv.gz read1.fastq.gz read2.fastq.gz 8
 ```
 
 Installation using Docker
