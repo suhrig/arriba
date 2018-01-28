@@ -49,7 +49,7 @@ void print_usage(const string& error_message) {
 	     << wrap_help("-G GTF_FEATURES", "Comma-/space-separated list of names of GTF features.\n"
 	                  "Default: " + default_options.gtf_features)
 	     << wrap_help("-h", "Print help and exit.")
-	     << "Questions or problems may be sent to: " << HELP_CONTACT << endl;
+	     << "For more information or help, visit: " << HELP_CONTACT << endl;
 	exit(1);
 }
 

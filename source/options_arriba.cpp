@@ -80,51 +80,19 @@ void print_usage(const string& error_message) {
 	                  "Default: " + default_options.gtf_features)
 	     << wrap_help("-a FILE", "FastA file with genome sequence (assembly). "
 	                  "The file may be gzip-compressed.")
-	     << wrap_help("-b FILE", "File containing blacklisted ranges. The file has two tab-separated "
-	                  "columns. Both columns contain a genomic coordinate of the "
-	                  "format 'contig:position' or 'contig:start-end'. Alternatively, the second "
-	                  "column can contain one of the following keywords: any, split_read_donor, "
-	                  "split_read_acceptor, split_read_any, discordant_mates, low_support, "
-	                  "read_through, filter_spliced. The file may be gzip-compressed.")
+	     << wrap_help("-b FILE", "File containing blacklisted events (recurrent artifacts "
+	                  "and transcripts observed in healthy tissue.")
 	     << wrap_help("-k FILE", "File containing known/recurrent fusions. Some cancer "
 	                  "entities are often characterized by fusions between the same pair of genes. "
 	                  "In order to boost sensitivity, a list of known fusions can be supplied using this parameter. "
 	                  "The list must contain two columns with the names of the fused genes, "
-	                  "separated by tabs.\n"
-	                  "A useful list of recurrent fusions by cancer entity can "
-	                  "be obtained from CancerGeneCensus. The file may be gzip-compressed.")
-	     << wrap_help("-o FILE", "Output file with fusions that have passed all filters. The "
-	                  "file contains the following columns separated by tabs:\n"
-	                  "gene1: name of the gene that makes the 5' end\n"
-	                  "gene2: name of the gene that makes the 3' end\n"
-	                  "strand1: strand of gene1 as per annotation and as predicted for the fusion\n"
-	                  "strand2: strand of gene2 as per annotation and as predicted for the fusion\n"
-	                  "breakpoint1: coordinate of breakpoint in gene1\n"
-	                  "breakpoint2: coordinate of breakpoint in gene2\n"
-	                  "site1: site in gene1 (intergenic / exon / intron / splice-site / UTR)\n"
-	                  "site2: site in gene2 (intergenic / exon / intron / splice-site / UTR)\n"
-	                  "direction1: whether gene2 is fused to gene1 upstream (at a coordinate lower than breakpoint1) or downstream (at a coordinate higher than breakpoint1)\n"
-	                  "direction2: whether gene1 is fused to gene2 upstream (at a coordinate lower than breakpoint2) or downstream (at a coordinate higher than breakpoint2)\n"
-	                  "split_reads1: number of split reads with anchor in gene1\n"
-	                  "split_reads2: number of split reads with anchor in gene2\n"
-	                  "discordant_mates: number of spanning reads\n"
-	                  "confidence: confidence in whether the fusion is the result of a structural variant (low / medium / high)\n"
-	                  "closest_genomic_breakpoint1: if -d is given, the closest genomic breakpoint to transcriptomic breakpoint1\n"
-	                  "closest_genomic_breakpoint2: if -d is given, the closest genomic breakpoint to transcriptomic breakpoint2\n"
-	                  "filters: why the fusion or some of its reads were discarded, numbers in paranthesis indicate the number of reads removed by the respective filter\n"
-	                  "fusion_transcript: if -T is given, the sequence of a transcript which spans the fusion breakpoints (may be empty, when the strands are unclear)\n"
-	                  "read_identifiers: if -I is given, the names of supporting reads")
-	     << wrap_help("-O FILE", "Output file with fusions that were discarded due to "
-	                  "filtering. See parameter -o for a description of the format.") 
+	                  "separated by tabs.\n")
+	     << wrap_help("-o FILE", "Output file with fusions that have passed all filters.")
+	     << wrap_help("-O FILE", "Output file with fusions that were discarded due to filtering.")
 	     << wrap_help("-d FILE", "Tab-separated file with coordinates of structural variants "
 	                  "found using whole-genome sequencing data. These coordinates serve to "
 	                  "increase sensitivity towards weakly expressed fusions and to eliminate "
-	                  "fusions with low evidence. The file must contain the following columns:\n"
-	                  "breakpoint1: chromosome and position of 1st breakpoint separated by a colon\n"
-	                  "breakpoint2: chromosome and position of 2nd breakpoint separated by a colon\n"
-	                  "direction1: whether the 2nd partner is fused 'upstream' (at a coordinate lower than breakpoint1) or 'downstream' (at a coordinate higher than breakpoint1)\n"
-	                  "direction2: whether the 1st partner is fused 'upstream' (at a coordinate lower than breakpoint2) or 'downstream' (at a coordinate higher than breakpoint2)\n"
-	                  "Positions are 1-based.")
+	                  "fusions with low evidence.")
 	     << wrap_help("-D MAX_GENOMIC_BREAKPOINT_DISTANCE", "When a file with genomic breakpoints "
 	                  "obtained via whole-genome sequencing is supplied via the -d parameter, "
 	                  "this parameter determines how far a genomic breakpoint may be away from "
@@ -191,18 +159,14 @@ void print_usage(const string& error_message) {
 	                  "Default: " + to_string(static_cast<long double>(default_options.high_expression_quantile)))
 	     << wrap_help("-T", "When set, the column 'fusion_transcript' is populated with "
 	                  "the sequence of the fused genes as assembled from the supporting reads. "
-	                  "The following letters have special meanings:\n"
-	                  "lowercase letter = SNP/SNV, square brackets = insertion, dash = deletion, "
-	                  "ellipsis = intron/not covered bases, pipe = breakpoint, lowercase letters "
-	                  "flanked by pipes = non-template bases.\nSpecify the flag twice to also print the "
-	                  "fusion transcripts to the file containing discarded fusions (-O). "
-	                  "Default: " + string((default_options.print_fusion_sequence) ? "on" : "off"))
+	                  "Specify the flag twice to also print the fusion transcripts to the file "
+	                  "containing discarded fusions (-O). Default: " + string((default_options.print_fusion_sequence) ? "on" : "off"))
 	     << wrap_help("-I", "When set, the column 'read_identifiers' is populated with "
 	                  "identifiers of the reads which support the fusion. The identifiers "
 	                  "are separated by commas. Specify the flag twice to also print the read "
 	                  "identifiers to the file containing discarded fusions (-O). Default: " + string((default_options.print_supporting_reads) ? "on" : "off"))
 	     << wrap_help("-h", "Print help and exit.")
-	     << "Questions or problems may be sent to: " << HELP_CONTACT << endl;
+	     << "For more information or help, visit: " << HELP_CONTACT << endl;
 	exit(1);
 }
 
