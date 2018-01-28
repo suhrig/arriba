@@ -161,7 +161,7 @@ struct fusion_t {
 	gene_t gene1, gene2;
 	vector<chimeric_alignments_t::iterator> split_read1_list, split_read2_list, discordant_mate_list;
 	filter_t filter; // name of the filter which discarded the fusion (NULL means not discarded)
-	fusion_t(): split_reads1(0), split_reads2(0), discordant_mates(0), anchor_start1(0), anchor_start2(0), closest_genomic_breakpoint1(-1), closest_genomic_breakpoint2(-1), filter(NULL) {};
+	fusion_t(): exonic1(false), exonic2(false), split_reads1(0), split_reads2(0), discordant_mates(0), anchor_start1(0), anchor_start2(0), closest_genomic_breakpoint1(-1), closest_genomic_breakpoint2(-1), filter(NULL) {};
 	unsigned int supporting_reads() const { return split_reads1 + split_reads2 + discordant_mates; };
 	bool breakpoint_overlaps_both_genes(const unsigned int which_breakpoint = 0) const {
 		if (which_breakpoint == 1) return breakpoint1 >= gene2->start && breakpoint1 <= gene2->end;
