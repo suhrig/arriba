@@ -44,8 +44,7 @@ Build the Docker image:
 ```bash
 docker build --tag arriba:latest https://raw.githubusercontent.com/suhrig/arriba/master/Dockerfile
 ```
-
-If you have not already downloaded the annotation/assembly and built a STAR index, run the `download_references.sh` script inside the container. Note that this step requires ~30 GB of RAM and 8 cores (can be adjusted with `--env THREADS=...`). The script downloads the assembly hs37d5 and GencodeV19 annotation. Please refer to the manual installation instructions or modify the `Dockerfile`, if you wish to use a different assembly/annotation. The files will be extracted to the directory `/path/to/references` in the following example:
+Run the `download_references.sh` script inside the container. The script downloads the assembly hs37d5 and GencodeV19 annotation. Please refer to the manual installation instructions or modify the `Dockerfile`, if you wish to use a different assembly/annotation. The script generates a STAR index from the downloaded files. Note that this step requires ~30 GB of RAM and 8 cores (can be adjusted with `--env THREADS=...`). The files will be extracted to the directory `/path/to/references` in the following example:
 
 ```bash
 docker run --rm -t -v /path/to/references:/references arriba:latest download_references.sh
@@ -56,9 +55,7 @@ Use the following Docker command to run Arriba from the container. Replace `/pat
 ```bash
 docker run --rm -t \
        -v /path/to/output:/output \
-       -v /path/to/references/STAR_index_hs37d5_gencode19:/STAR_index:ro \
-       -v /path/to/references/gencode.v19.annotation.gtf:/annotation.gtf:ro \
-       -v /path/to/references/hs37d5.fa:/assembly.fa:ro \
+       -v /path/to/references:/references:ro \
        -v /path/to/read1.fastq.gz:/read1.fastq.gz:ro \
        -v /path/to/read2.fastq.gz:/read2.fastq.gz:ro \
        arriba:latest \
