@@ -20,9 +20,7 @@ options_t get_default_options() {
 	return options;
 }
 
-void print_usage(const string& error_message) {
-	if (error_message != "")
-		cerr << "ERROR: " << error_message << endl;
+void print_usage() {
 
 	options_t default_options = get_default_options();
 
@@ -50,13 +48,11 @@ void print_usage(const string& error_message) {
 	                  "Default: " + default_options.gtf_features)
 	     << wrap_help("-h", "Print help and exit.")
 	     << "For more information or help, visit: " << HELP_CONTACT << endl;
-	exit(1);
 }
 
 options_t parse_arguments(int argc, char **argv) {
 
 	options_t options = get_default_options();
-	istringstream disabled_filters;
 
 	// parse arguments
 	opterr = 0;
@@ -96,6 +92,7 @@ options_t parse_arguments(int argc, char **argv) {
 				break;
 			case 'h':
 				print_usage();
+				exit(0);
 				break;
 			default:
 				switch (optopt) {
@@ -112,8 +109,11 @@ options_t parse_arguments(int argc, char **argv) {
 	}
 
 	// check for mandatory arguments
-	if (argc == 1)
-		print_usage("No arguments given.");
+	if (argc == 1) {
+		cerr << "ERROR: No arguments given." << endl;
+		print_usage();
+		exit(1);
+	}
 	if (options.input_bam_file.empty()) {
 		cerr << "ERROR: Missing mandatory option: -i" << endl;
 		exit(1);

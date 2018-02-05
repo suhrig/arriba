@@ -44,10 +44,6 @@ struct options_t {
 	float high_expression_quantile;
 };
 
-options_t get_default_options();
-
-void print_usage(const string& error_message = "");
-
 options_t parse_arguments(int argc, char **argv);
 
 #endif /* _OPTIONS_ARRIBA_H */
