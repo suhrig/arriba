@@ -1,10 +1,15 @@
 #!/bin/bash
 
-# get arguments
 if [ $# -ne 7 ]; then
 	echo "Usage: $(basename $0) STAR_genomeDir/ annotation.gtf assembly.fa blacklist.tsv read1.fastq.gz read2.fastq.gz threads" 1>&2
 	exit 1
 fi
+
+# tell bash to be verbose and to abort on error
+set -o pipefail
+set -x -e -u
+
+# get arguments
 STAR_INDEX_DIR="$1"
 ANNOTATION_GTF="$2"
 ASSEMBLY_FA="$3"
