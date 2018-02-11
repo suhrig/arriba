@@ -54,6 +54,7 @@ void clip_end(BGZF* read_through_fusions_file, bam1_t* read, unsigned int cigar_
 	clipped_read->core.n_cigar = cigar_op + 1; // correct length of CIGAR string after throwing away the end
 	bam1_cigar(clipped_read)[cigar_op] = ((read->core.l_qseq - read_pos)<<4) + BAM_CSOFT_CLIP; // soft-clip spliced part of read
 	clipped_read->data_len -= (read->core.n_cigar - cigar_op - 1) * 4; // correct length of variable data of BAM record
+	clipped_read->core.bin = bam_reg2bin(clipped_read->core.pos, bam_endpos(clipped_read)); // recalculate bin, since start of read has changed
 	if (is_supplementary)
 		clipped_read->core.flag |= BAM_FSECONDARY; // mark supplementary read as secondary alignment
 	write_read_through_alignment(read_through_fusions_file, clipped_read); // write to output
@@ -79,6 +80,7 @@ void clip_start(BGZF* read_through_fusions_file, bam1_t* read, unsigned int ciga
 	bam1_cigar(clipped_read)[0] = (read_pos<<4) + BAM_CSOFT_CLIP; // soft-clip spliced part of read
 	clipped_read->data_len -= cigar_op * 4; // correct length of variable data of BAM record
 	clipped_read->core.pos = gene2_pos; // set start of split read to coordinate in 2nd gene
+	clipped_read->core.bin = bam_reg2bin(clipped_read->core.pos, bam_endpos(clipped_read)); // recalculate bin, since end of read has changed
 	if (is_supplementary)
 		clipped_read->core.flag |= BAM_FSECONDARY; // mark supplementary read as secondary alignment
 	write_read_through_alignment(read_through_fusions_file, clipped_read); // write to output
