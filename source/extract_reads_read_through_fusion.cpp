@@ -7,6 +7,13 @@
 
 using namespace std;
 
+void write_read_through_alignment(BGZF* bam_file, const bam1_t* const bam_record) {
+	if (bam_write1(bam_file, bam_record) < 0) {
+		cerr << "ERROR: failed to write BAM record to read-through fusions file." << endl;
+		exit(1);
+	}
+}
+
 bool find_spanning_intron(const bam1_t* read, const position_t gene1_end, const position_t gene2_start, unsigned int& cigar_op, position_t& read_pos, position_t& gene2_pos) {
 
 	if (read->core.n_cigar < 3)
@@ -49,7 +56,7 @@ void clip_end(BGZF* read_through_fusions_file, bam1_t* read, unsigned int cigar_
 	clipped_read->data_len -= (read->core.n_cigar - cigar_op - 1) * 4; // correct length of variable data of BAM record
 	if (is_supplementary)
 		clipped_read->core.flag |= BAM_FSECONDARY; // mark supplementary read as secondary alignment
-	bam_write1(read_through_fusions_file, clipped_read); // write to output
+	write_read_through_alignment(read_through_fusions_file, clipped_read); // write to output
 	bam_destroy1(clipped_read); // free memory
 }
 
@@ -74,7 +81,7 @@ void clip_start(BGZF* read_through_fusions_file, bam1_t* read, unsigned int ciga
 	clipped_read->core.pos = gene2_pos; // set start of split read to coordinate in 2nd gene
 	if (is_supplementary)
 		clipped_read->core.flag |= BAM_FSECONDARY; // mark supplementary read as secondary alignment
-	bam_write1(read_through_fusions_file, clipped_read); // write to output
+	write_read_through_alignment(read_through_fusions_file, clipped_read); // write to output
 	bam_destroy1(clipped_read); // free memory
 }
 
@@ -144,7 +151,7 @@ void extract_read_through_fusion(BGZF* read_through_fusions_file, bam1_t* forwar
 					clip_start(read_through_fusions_file, reverse_mate, reverse_cigar_op, reverse_read_pos, reverse_gene2_pos, false);
 				} else { // reverse mate overlaps with forward mate, but not with breakpoint
 					// write reverse mate to output as is
-					bam_write1(read_through_fusions_file, reverse_mate);
+					write_read_through_alignment(read_through_fusions_file, reverse_mate);
 				}
 			}
 
@@ -159,7 +166,7 @@ void extract_read_through_fusion(BGZF* read_through_fusions_file, bam1_t* forwar
 					clip_end(read_through_fusions_file, forward_mate, forward_cigar_op, forward_read_pos, false);
 				} else { // forward mate overlaps with reverse mate, but not with breakpoint
 					// write forward mate to output as is
-					bam_write1(read_through_fusions_file, forward_mate);
+					write_read_through_alignment(read_through_fusions_file, forward_mate);
 				}
 			}
 
@@ -169,8 +176,8 @@ void extract_read_through_fusion(BGZF* read_through_fusions_file, bam1_t* forwar
 		           bam_endpos(forward_mate) <= forward_gene_end) {
 
 			// write discordant mates to output file
-			bam_write1(read_through_fusions_file, forward_mate);
-			bam_write1(read_through_fusions_file, reverse_mate);
+			write_read_through_alignment(read_through_fusions_file, forward_mate);
+			write_read_through_alignment(read_through_fusions_file, reverse_mate);
 
 		} // else possibility (3)
 	}
