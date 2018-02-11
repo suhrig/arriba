@@ -6,7 +6,7 @@ arriba
 ```bash
 arriba -c chimeric.bam [-r read_through.bam] -x rna.bam \
        -g annotation.gtf -a assembly.fa [-b blacklists.tsv] [-k known_fusions.tsv] \
-       -o fusions.tsv [-O discarded_fusions.tsv] \
+       -o fusions.tsv [-O fusions.discarded.tsv] \
        [OPTIONS]
 ```
 

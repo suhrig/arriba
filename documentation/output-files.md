@@ -42,8 +42,8 @@ The file `fusions.tsv` (as specified by the parameter `-o`) contains fusions whi
 `read_identifiers`
 : When the parameter `-I` is set, this column contains the names of the supporting reads separated by commas.
 
-discarded_fusions.tsv
+fusions.discarded.tsv
 -----------------------
 
-The file `discarded_fusions.tsv` (as specified by the parameter `-O`) contains all events that Arriba classified as an artifact or that are also observed in healthy tissue. It has the same format as the file `fusions.tsv`. This file may be useful, if one suspects that an event should be present, but was erroneously discarded by Arriba.
+The file `fusions.discarded.tsv` (as specified by the parameter `-O`) contains all events that Arriba classified as an artifact or that are also observed in healthy tissue. It has the same format as the file `fusions.tsv`. This file may be useful, if one suspects that an event should be present, but was erroneously discarded by Arriba.
 
