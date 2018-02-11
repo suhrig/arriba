@@ -1,15 +1,15 @@
 .PHONY: all
-all: arriba extract_read-through_fusions
+all: arriba extract_reads
 
 .PHONY: arriba
 arriba:
 	$(MAKE) -C source arriba
 	cp source/arriba .
 
-.PHONY: extract_read-through_fusions
-extract_read-through_fusions:
-	$(MAKE) -C source extract_read-through_fusions
-	cp source/extract_read-through_fusions .
+.PHONY: extract_reads
+extract_reads:
+	$(MAKE) -C source extract_reads
+	cp source/extract_reads .
 
 .PHONY: clean
 clean:

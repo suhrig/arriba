@@ -6,7 +6,7 @@ Arriba comes with a script `run_arriba.sh` that illustrates the usage of all com
 STAR
 ----
 
-In order for `STAR` to generate chimeric alignments, the parameter ` --chimSegmentMin` must be specified. In addition, the following parameters are recommended to improve sensitivity:
+In order for `STAR` to generate chimeric alignments, the parameter `--chimSegmentMin` must be specified. In addition, the following parameters are recommended to improve sensitivity:
 
 ```bash
 --chimSegmentMin 10 --chimJunctionOverhangMin 10 --chimScoreMin 1 --chimScoreDropMax 30 --chimScoreJunctionNonGTAG 0 --chimScoreSeparation 1 --alignSJstitchMismatchNmax 5 -1 5 5 --chimSegmentReadGapMax 3 --chimMainSegmentMultNmax 10
@@ -30,28 +30,28 @@ Apart from the parameters concerning chimeric alignment, all parameters may be m
 
 Note: By default, STAR stores chimeric alignments in a separate file named `Chimeric.out.sam`. Alternatively, recent versions of STAR can store chimeric alignments within the file containing normal alignments (`--chimOutType WithinBAM`). This use case is not supported by Arriba. Chimeric alignments must be stored in a separate file.
 
-extract_read-through_fusions
-----------------------------
+extract_reads
+-------------
 
-This utility takes the normal alignments as input and extracts all fragments which cross the boundaries of genes. The result is a subset of the normal alignments, stored in a smaller BAM file. `extract_read-through_fusions` can be run stand-alone, for example:
+This utility takes the normal alignments as input and extracts all fragments which cross the boundaries of genes. The result is a subset of the normal alignments, stored in a smaller BAM file. `extract_reads` can be run stand-alone, for example:
 
 ```bash
-extract_read-through_fusions -i rna.bam -o read_through.bam -g annotation.gtf
+extract_reads -x rna.bam -r read_through.bam -g annotation.gtf
 ```
 
 The tool can process 100 million reads in approximately 1.5 minutes on a modern CPU. For optimal performance, it is not recommended to run it in stand-alone mode, though, because doing so extends the overall runtime of the workflow. It is more efficient to run the tool in tandem with `STAR`, as illustrated in the following example, because then the entire workflow is parallellized and single-threaded periods are avoided.
 
-In the following example, `STAR` is instructed to output the normal alignments in BAM format (`--outSAMtype BAM`) twice: sorted by coordinate into the file `Aligned.sortedByCoord.out.bam` (`--outSAMtype SortedByCoordinate`) and collated by read names to `STDOUT` (`--outStd BAM_Unsorted`). `STDOUT` is directly piped to `extract_read-through_fusions`. Like so, the tool runs in parallel to alignment and does not extend the runtime as in stand-alone mode.
+In the following example, `STAR` is instructed to output the normal alignments in BAM format (`--outSAMtype BAM`) twice: sorted by coordinate into the file `Aligned.sortedByCoord.out.bam` (`--outSAMtype SortedByCoordinate`) and collated by read names to `STDOUT` (`--outStd BAM_Unsorted`). `STDOUT` is directly piped to `extract_reads`. Like so, the tool runs in parallel to alignment and does not extend the runtime as in stand-alone mode.
 
 ```bash
 STAR --outStd BAM_Unsorted --outSAMtype BAM Unsorted SortedByCoordinate [...] |
-extract_read-through_fusions -g annotation.gtf > read_through.bam
+extract_reads -g annotation.gtf > read_through.bam
 ```
 
 arriba
 ------
 
-Finally, `arriba` is run on the output files of `STAR` (`Aligned.sortedByCoord.out.bam`, `Chimeric.out.sam`) and `extract_read-through_fusions` (`read_through.bam`). All alignments need to be in BAM format. The file `Chimeric.out.sam` therefore needs to be converted to BAM format. Furthermore, the normal alignments need to be indexed so that `arriba` can lookup specific positions.
+Finally, `arriba` is run on the output files of `STAR` (`Aligned.sortedByCoord.out.bam`, `Chimeric.out.sam`) and `extract_reads` (`read_through.bam`). All alignments need to be in BAM format. The file `Chimeric.out.sam` therefore needs to be converted to BAM format. Furthermore, the normal alignments need to be indexed so that `arriba` can lookup specific positions.
 
 For a detailed explanation of the parameters, please refer to section [Command-line options](command-line-options.md).
 

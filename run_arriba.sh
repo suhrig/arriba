@@ -18,7 +18,7 @@ BASE_DIR=$(dirname "$0")
 
 # align FastQ files (STAR >=2.5.3a recommended)
 # "--outSAMtype BAM Unsorted SortedByCoordinate" generates both, an unsorted and a coordinate-sorted output file
-# the former is directly piped to extract_read-through_fusions via "--outStd BAM_Unsorted"
+# the former is directly piped to extract_reads via "--outStd BAM_Unsorted"
 # like so, read-through fusions are extracted while the alignment is running, instead of after
 STAR \
 	--runThreadN "$THREADS" \
@@ -30,7 +30,7 @@ STAR \
 	--alignIntronMax 500000 --alignMatesGapMax 500000 \
 	--chimSegmentMin 10 --chimJunctionOverhangMin 10 --chimScoreMin 1 --chimScoreDropMax 30 --chimScoreJunctionNonGTAG 0 --chimScoreSeparation 1 --alignSJstitchMismatchNmax 5 -1 5 5 --chimSegmentReadGapMax 3 --chimMainSegmentMultNmax 10 \
 	--limitBAMsortRAM 50000000000 |
-"$BASE_DIR/extract_read-through_fusions" -g "$ANNOTATION_GTF" |
+"$BASE_DIR/extract_reads" -g "$ANNOTATION_GTF" -r /dev/stdout |
 samtools sort - read_through
 
 # index normal alignments

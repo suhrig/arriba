@@ -670,13 +670,13 @@ XdcMgoACmDCk+73imqZ5lmVdmKbZIApoSSZg9L9VbeEL/wXpoFz7conTpwAAAABJRU5ErkJggg=="/>
       </g>
       <g class="com.sun.star.drawing.LineShape">
        <g id="id22">
-        <path fill="none" stroke="rgb(0,0,0)" stroke-width="102" stroke-linejoin="round" d="M 13269,11530 L 14719,11530"/>
+        <path fill="none" stroke="rgb(0,0,0)" stroke-width="102" stroke-linejoin="round" d="M 13569,11530 L 14719,11530"/>
         <path fill="rgb(0,0,0)" stroke="none" d="M 14725,11711 L 14689,11759 15327,11529 14689,11302 14723,11348 14750,11403 14769,11462 14776,11527 14771,11592 14752,11654 14725,11711 Z"/>
        </g>
       </g>
       <g class="com.sun.star.drawing.TextShape">
        <g id="id23">
-        <text class="TextShape"><tspan class="TextParagraph" font-family="Arial, sans-serif" font-size="847px" font-weight="400"><tspan class="TextPosition" x="9425" y="10889"><tspan fill="rgb(0,0,0)" stroke="none">extract</tspan></tspan><tspan class="TextPosition" x="8271" y="11842"><tspan fill="rgb(0,0,0)" stroke="none">read-through</tspan></tspan><tspan class="TextPosition" x="9355" y="12795"><tspan fill="rgb(0,0,0)" stroke="none">fusions</tspan></tspan></tspan></text>
+        <text class="TextShape"><tspan class="TextParagraph" font-family="Arial, sans-serif" font-size="847px" font-weight="400"><tspan class="TextPosition" x="8271" y="11842"><tspan fill="rgb(0,0,0)" stroke="none">extract_reads</tspan></tspan></tspan></text>
        </g>
       </g>
       <g class="com.sun.star.drawing.LineShape">
