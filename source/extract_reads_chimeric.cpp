@@ -21,6 +21,16 @@ bool is_chimeric_alignment(const bam1_t* const bam_record) {
 		        bam_aux_get(bam_record, "SA") != NULL); // supplementary alignment
 }
 
+bool extract_supplementary(samFile* chimeric_file, bam_hdr_t* bam_header, bam1_t* bam_record) {
+	if (bam_record->core.flag & BAM_FSUPPLEMENTARY) { // supplementary alignment of a split read
+		bam_record->core.flag ^= BAM_FSUPPLEMENTARY; // change supplementary flag to secondary flag
+		bam_record->core.flag |= BAM_FSECONDARY;
+		sam_write1(chimeric_file, bam_header, bam_record);
+		return true; // this is a supplementary alignment
+	}
+	return false; // this is not a supplementary alignment
+}
+
 void extract_chimeric(samFile* chimeric_file, bam_hdr_t* bam_header, const bam1_t* const read1, const bam1_t* const read2) {
 	if (is_chimeric_alignment(read1) || is_chimeric_alignment(read2)) {
 		if (read1 != NULL)

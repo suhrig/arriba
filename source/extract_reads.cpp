@@ -107,14 +107,9 @@ int main(int argc, char **argv) {
 			continue;
 
 		// extract chimeric alignments, if requested
-		if (bam_record->core.flag & BAM_FSUPPLEMENTARY) { // supplementary alignment of a split read
-			if (!options.chimeric_file.empty()) {
-				bam_record->core.flag ^= BAM_FSUPPLEMENTARY; // change supplementary flag to secondary flag
-				bam_record->core.flag |= BAM_FSECONDARY;
-				sam_write1(chimeric_file, bam_header, bam_record);
-			}
-			continue; // supplementary alignments are written directly; only discordant mates and split reads need to be buffered (see below)
-		}
+		if (!options.chimeric_file.empty())
+			if (extract_supplementary(chimeric_file, bam_header, bam_record))
+				continue; // supplementary alignments are written directly; only discordant mates and split reads need to be buffered (see below)
 
 		// for paired-end data we need to wait until we have received both mates
 		bam1_t* previously_seen_mate = NULL;
