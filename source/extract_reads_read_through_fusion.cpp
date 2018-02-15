@@ -7,8 +7,8 @@
 
 using namespace std;
 
-void write_read_through_alignment(BGZF* bam_file, const bam1_t* const bam_record) {
-	if (bam_write1(bam_file, bam_record) < 0) {
+void write_read_through_alignment(samFile* bam_file, bam_hdr_t* bam_header, const bam1_t* const bam_record) {
+	if (sam_write1(bam_file, bam_header, bam_record) < 0) {
 		cerr << "ERROR: failed to write BAM record to read-through fusions file." << endl;
 		exit(1);
 	}
@@ -22,13 +22,13 @@ bool find_spanning_intron(const bam1_t* read, const position_t gene1_end, const 
 	position_t before_cigar_op = read->core.pos;
 	position_t after_cigar_op;
 	for (unsigned int i = 0; i < read->core.n_cigar; ++i) {
-		unsigned int op_length = bam_cigar2rlen(1, bam1_cigar(read)+i);
+		unsigned int op_length = bam_cigar2rlen(1, bam_get_cigar(read)+i);
 		after_cigar_op = before_cigar_op + op_length;
-		if ((bam1_cigar(read)[i] & 15) == BAM_CREF_SKIP && // this is an intron
+		if ((bam_get_cigar(read)[i] & 15) == BAM_CREF_SKIP && // this is an intron
 		    (before_cigar_op <= gene1_end   && after_cigar_op >  gene1_end || // the intron spans over the end of gene1
 		     before_cigar_op <  gene2_start && after_cigar_op >= gene2_start)) { // the intron spans over the start of gene2
 			cigar_op = i;
-			read_pos = bam_cigar2qlen(i, bam1_cigar(read));
+			read_pos = bam_cigar2qlen(i, bam_get_cigar(read));
 			gene2_pos = after_cigar_op;
 			return true;
 		}
@@ -38,7 +38,7 @@ bool find_spanning_intron(const bam1_t* read, const position_t gene1_end, const 
 	return false;
 }
 
-void clip_end(BGZF* read_through_fusions_file, bam1_t* read, unsigned int cigar_op, position_t read_pos, bool is_supplementary) {
+void clip_end(samFile* read_through_fusions_file, bam_hdr_t* bam_header, bam1_t* read, unsigned int cigar_op, position_t read_pos, bool is_supplementary) {
 
 	// clip read after intron given in cigar_op
 	bam1_t* clipped_read = bam_dup1(read);
@@ -47,21 +47,21 @@ void clip_end(BGZF* read_through_fusions_file, bam1_t* read, unsigned int cigar_
 		exit(1);
 	}
 	copy( // throw away end of CIGAR string by shifting the end of the BAM record a bit to the front
-		(char*) (bam1_cigar(read) + read->core.n_cigar),
-		((char*) read->data) + read->data_len,
-		(char*) (bam1_cigar(clipped_read) + cigar_op + 1)
+		(char*) (bam_get_cigar(read) + read->core.n_cigar),
+		((char*) read->data) + read->l_data,
+		(char*) (bam_get_cigar(clipped_read) + cigar_op + 1)
 	);
 	clipped_read->core.n_cigar = cigar_op + 1; // correct length of CIGAR string after throwing away the end
-	bam1_cigar(clipped_read)[cigar_op] = ((read->core.l_qseq - read_pos)<<4) + BAM_CSOFT_CLIP; // soft-clip spliced part of read
-	clipped_read->data_len -= (read->core.n_cigar - cigar_op - 1) * 4; // correct length of variable data of BAM record
-	clipped_read->core.bin = bam_reg2bin(clipped_read->core.pos, bam_endpos(clipped_read)); // recalculate bin, since start of read has changed
+	bam_get_cigar(clipped_read)[cigar_op] = ((read->core.l_qseq - read_pos)<<4) + BAM_CSOFT_CLIP; // soft-clip spliced part of read
+	clipped_read->l_data -= (read->core.n_cigar - cigar_op - 1) * 4; // correct length of variable data of BAM record
+	clipped_read->core.bin = hts_reg2bin(clipped_read->core.pos, bam_endpos(clipped_read), 14, 5); // recalculate bin, since start of read has changed
 	if (is_supplementary)
 		clipped_read->core.flag |= BAM_FSECONDARY; // mark supplementary read as secondary alignment
-	write_read_through_alignment(read_through_fusions_file, clipped_read); // write to output
+	write_read_through_alignment(read_through_fusions_file, bam_header, clipped_read); // write to output
 	bam_destroy1(clipped_read); // free memory
 }
 
-void clip_start(BGZF* read_through_fusions_file, bam1_t* read, unsigned int cigar_op, position_t read_pos, position_t gene2_pos, bool is_supplementary) {
+void clip_start(samFile* read_through_fusions_file, bam_hdr_t* bam_header, bam1_t* read, unsigned int cigar_op, position_t read_pos, position_t gene2_pos, bool is_supplementary) {
 
 	// clip read before intron given in cigar_op
 	bam1_t* clipped_read = bam_dup1(read);
@@ -70,24 +70,24 @@ void clip_start(BGZF* read_through_fusions_file, bam1_t* read, unsigned int ciga
 		exit(1);
 	}
 	for (unsigned int i = cigar_op+1; i < read->core.n_cigar; ++i) // copy end of CIGAR string to beginning
-		bam1_cigar(clipped_read)[i - cigar_op] = bam1_cigar(clipped_read)[i];
+		bam_get_cigar(clipped_read)[i - cigar_op] = bam_get_cigar(clipped_read)[i];
 	copy( // throw away end of CIGAR string by shifting the end of the BAM record a bit to the front
-		(char*) (bam1_cigar(read) + read->core.n_cigar),
-		((char*) read->data) + read->data_len,
-		(char*) (bam1_cigar(clipped_read) + read->core.n_cigar - cigar_op)
+		(char*) (bam_get_cigar(read) + read->core.n_cigar),
+		((char*) read->data) + read->l_data,
+		(char*) (bam_get_cigar(clipped_read) + read->core.n_cigar - cigar_op)
 	);
 	clipped_read->core.n_cigar = read->core.n_cigar - cigar_op; // correct length of CIGAR string after throwing away the end
-	bam1_cigar(clipped_read)[0] = (read_pos<<4) + BAM_CSOFT_CLIP; // soft-clip spliced part of read
-	clipped_read->data_len -= cigar_op * 4; // correct length of variable data of BAM record
+	bam_get_cigar(clipped_read)[0] = (read_pos<<4) + BAM_CSOFT_CLIP; // soft-clip spliced part of read
+	clipped_read->l_data -= cigar_op * 4; // correct length of variable data of BAM record
 	clipped_read->core.pos = gene2_pos; // set start of split read to coordinate in 2nd gene
-	clipped_read->core.bin = bam_reg2bin(clipped_read->core.pos, bam_endpos(clipped_read)); // recalculate bin, since end of read has changed
+	clipped_read->core.bin = hts_reg2bin(clipped_read->core.pos, bam_endpos(clipped_read), 14, 5); // recalculate bin, since end of read has changed
 	if (is_supplementary)
 		clipped_read->core.flag |= BAM_FSECONDARY; // mark supplementary read as secondary alignment
-	write_read_through_alignment(read_through_fusions_file, clipped_read); // write to output
+	write_read_through_alignment(read_through_fusions_file, bam_header, clipped_read); // write to output
 	bam_destroy1(clipped_read); // free memory
 }
 
-void extract_read_through_fusion(BGZF* read_through_fusions_file, bam1_t* forward_mate, bam1_t* reverse_mate, const gene_annotation_index_t& gene_annotation_index) {
+void extract_read_through_fusion(samFile* read_through_fusions_file, bam_hdr_t* bam_header, bam1_t* forward_mate, bam1_t* reverse_mate, const gene_annotation_index_t& gene_annotation_index) {
 
 	if (forward_mate->core.flag & BAM_FUNMAP) // ignore unmapped reads
 		return;
@@ -143,32 +143,32 @@ void extract_read_through_fusion(BGZF* read_through_fusions_file, bam1_t* forwar
 		    (!reverse_mate_has_intron || forward_read_pos < reverse_mate->core.l_qseq - reverse_read_pos)) { // if both mates are clipped, use the one with the longer segment as anchor
 
 			// make split read and supplementary from forward mate
-			clip_start(read_through_fusions_file, forward_mate, forward_cigar_op, forward_read_pos, forward_gene2_pos, false); // split read
-			clip_end(read_through_fusions_file, forward_mate, forward_cigar_op, forward_read_pos, true); // supplementary
+			clip_start(read_through_fusions_file, bam_header, forward_mate, forward_cigar_op, forward_read_pos, forward_gene2_pos, false); // split read
+			clip_end(read_through_fusions_file, bam_header, forward_mate, forward_cigar_op, forward_read_pos, true); // supplementary
 					
 			if (reverse_mate != NULL) {
 				// set mpos of reverse mate to start of primary alignment of forward mate
 				reverse_mate->core.mpos = forward_gene2_pos;
 				if (reverse_mate_has_intron) { // reverse mate overlaps with breakpoint => clip it
-					clip_start(read_through_fusions_file, reverse_mate, reverse_cigar_op, reverse_read_pos, reverse_gene2_pos, false);
+					clip_start(read_through_fusions_file, bam_header, reverse_mate, reverse_cigar_op, reverse_read_pos, reverse_gene2_pos, false);
 				} else { // reverse mate overlaps with forward mate, but not with breakpoint
 					// write reverse mate to output as is
-					write_read_through_alignment(read_through_fusions_file, reverse_mate);
+					write_read_through_alignment(read_through_fusions_file, bam_header, reverse_mate);
 				}
 			}
 
 		} else if (reverse_mate_has_intron) {
 
 			// make split read and supplementary from reverse mate
-			clip_start(read_through_fusions_file, reverse_mate, reverse_cigar_op, reverse_read_pos, reverse_gene2_pos, true); // supplementary
-			clip_end(read_through_fusions_file, reverse_mate, reverse_cigar_op, reverse_read_pos, false); // split read
+			clip_start(read_through_fusions_file, bam_header, reverse_mate, reverse_cigar_op, reverse_read_pos, reverse_gene2_pos, true); // supplementary
+			clip_end(read_through_fusions_file, bam_header, reverse_mate, reverse_cigar_op, reverse_read_pos, false); // split read
 
 			if (forward_mate != NULL) {
 				if (forward_mate_has_intron) { // forward mate overlaps with breakpoints => clip it
-					clip_end(read_through_fusions_file, forward_mate, forward_cigar_op, forward_read_pos, false);
+					clip_end(read_through_fusions_file, bam_header, forward_mate, forward_cigar_op, forward_read_pos, false);
 				} else { // forward mate overlaps with reverse mate, but not with breakpoint
 					// write forward mate to output as is
-					write_read_through_alignment(read_through_fusions_file, forward_mate);
+					write_read_through_alignment(read_through_fusions_file, bam_header, forward_mate);
 				}
 			}
 
@@ -178,8 +178,8 @@ void extract_read_through_fusion(BGZF* read_through_fusions_file, bam1_t* forwar
 		           bam_endpos(forward_mate) <= forward_gene_end) {
 
 			// write discordant mates to output file
-			write_read_through_alignment(read_through_fusions_file, forward_mate);
-			write_read_through_alignment(read_through_fusions_file, reverse_mate);
+			write_read_through_alignment(read_through_fusions_file, bam_header, forward_mate);
+			write_read_through_alignment(read_through_fusions_file, bam_header, reverse_mate);
 
 		} // else possibility (3)
 	}

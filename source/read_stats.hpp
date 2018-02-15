@@ -1,6 +1,7 @@
 #ifndef _READ_STATS_H
 #define _READ_STATS_H 1
 
+#include <string>
 #include <vector>
 #include "common.hpp"
 #include "annotation.hpp"

@@ -1,6 +1,7 @@
 #include <iostream>
 #include <unordered_map>
 #include <vector>
+#include <stdlib.h>
 #include <string>
 #include <sstream>
 #include <algorithm>
@@ -89,16 +90,19 @@ int main(int argc, char **argv) {
 	// parse command-line options
 	options_t options = parse_arguments(argc, argv);
 
+	// prevent htslib from downloading the assembly via the Internet, if CRAM is used
+	setenv("REF_PATH", ".", 0);
+
 	// load chimeric alignments
 	chimeric_alignments_t chimeric_alignments;
 	contigs_t contigs;
 	cout << "Reading chimeric alignments from '" << options.chimeric_bam_file << "'" << flush;
-	cout << " (total=" << read_chimeric_alignments(options.chimeric_bam_file, chimeric_alignments, contigs) << ")" << endl;
+	cout << " (total=" << read_chimeric_alignments(options.chimeric_bam_file, options.assembly_file, chimeric_alignments, contigs) << ")" << endl;
 
 	// load read-through alignments
 	if (options.read_through_bam_file != "") {
 		cout << "Reading read-through alignments from '" << options.read_through_bam_file << "'" << flush;
-		cout << " (total=" << read_chimeric_alignments(options.read_through_bam_file, chimeric_alignments, contigs, true) << ")" << endl;
+		cout << " (total=" << read_chimeric_alignments(options.read_through_bam_file, options.assembly_file, chimeric_alignments, contigs, true) << ")" << endl;
 	}
 
 	if (chimeric_alignments.size() == 0) {
@@ -468,7 +472,7 @@ int main(int argc, char **argv) {
 	// this must come after the 'select_best' filter, so that the 'many_spliced' filter can recover it
 	if (options.filters.at("non_expressed")) {
 		cout << "Filtering fusions with no expression in '" << options.rna_bam_file << "'" << flush;
-		cout << " (remaining=" << filter_nonexpressed(fusions, options.rna_bam_file, chimeric_alignments, exon_annotation_index, max_mate_gap) << ")" << endl;
+		cout << " (remaining=" << filter_nonexpressed(fusions, options.rna_bam_file, options.assembly_file, chimeric_alignments, exon_annotation_index, max_mate_gap) << ")" << endl;
 	}
 
 	// this step must come after all heuristic filters, to undo them

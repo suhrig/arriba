@@ -28,7 +28,7 @@ STAR \
 
 Apart from the parameters concerning chimeric alignment, all parameters may be modified according to the user's preferences.
 
-Note: By default, STAR stores chimeric alignments in a separate file named `Chimeric.out.sam`. Alternatively, recent versions of STAR can store chimeric alignments within the file containing normal alignments (`--chimOutType WithinBAM`). This use case is not supported by Arriba. Chimeric alignments must be stored in a separate file.
+Note: By default, STAR stores chimeric alignments in a separate file named `Chimeric.out.sam`. Alternatively, recent versions of STAR can store chimeric alignments within the file containing normal alignments (`--chimOutType WithinBAM`). Arriba cannot process chimeric alignments stored within the normal alignments. If this is the case, the chimeric alignments need to be extracted to a separate file using the parameter `-c` of the utility `extract_reads` (see section [Command-line options](command-line-options.md#extract_reads)).
 
 extract_reads
 -------------
@@ -51,7 +51,7 @@ extract_reads -g annotation.gtf > read_through.bam
 arriba
 ------
 
-Finally, `arriba` is run on the output files of `STAR` (`Aligned.sortedByCoord.out.bam`, `Chimeric.out.sam`) and `extract_reads` (`read_through.bam`). All alignments need to be in BAM format. The file `Chimeric.out.sam` therefore needs to be converted to BAM format. Furthermore, the normal alignments need to be indexed so that `arriba` can lookup specific positions.
+Finally, `arriba` is run on the output files of `STAR` (`Aligned.sortedByCoord.out.bam`, `Chimeric.out.sam`) and `extract_reads` (`read_through.bam`). The normal alignments need to be sorted by coordinate and indexed so that `arriba` can lookup specific positions.
 
 For a detailed explanation of the parameters, please refer to section [Command-line options](command-line-options.md).
 

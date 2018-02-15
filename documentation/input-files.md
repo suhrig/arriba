@@ -12,8 +12,6 @@ Arriba offers an alternative, non-compromise solution. It comes with the helper 
 
 Since `extract_reads` runs independently from `STAR`, it is not necessary to use suboptimal alignment parameters in order to detect small deletions. The utility scans through the normal alignments file and extracts all alignments which violate gene boundaries as specified by the gene model passed via the parameter `-g`. The extracted reads are stored in the read-through alignments file, which has the same format as the chimeric alignments file.
 
-Both files need to be in BAM format, before they are passed to `arriba`. `extract_reads` generates BAM files by default, but `STAR` stores the chimeric alignments in SAM format in the file `Chimeric.out.sam`. This file needs to be converted to BAM first using a utility such as [samtools](http://samtools.sourceforge.net/) or [sambamba](http://lomereiter.github.io/sambamba/).
-
 The files need not be sorted for `arriba` to accept them, but doing so comes with benefits: Often, this reduces the file size. And more importantly, the supporting reads of a fusion can be [inspected visually using a genome browser like IGV](interpretation-of-results.md#inspection-of-events-using-igv), which typically requires BAM files to be sorted by coordinate.
 
 Single-end and paired-end data and even mixtures are supported. Arriba automatically determines the data type on a read-by-read basis using the flag `BAM_FPAIRED`.

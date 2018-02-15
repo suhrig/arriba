@@ -1,5 +1,6 @@
 #include <string>
 #include <unordered_map>
+#include "cram.h"
 #include "sam.h"
 #include "common.hpp"
 #include "annotation.hpp"
@@ -7,13 +8,13 @@
 
 using namespace std;
 
-bool region_has_non_chimeric_reads(BGZF* bam_file, bam_index_t* bam_index, const contig_t contig, const position_t start, const position_t end, const direction_t direction, const chimeric_alignments_t& chimeric_alignments, const bool exonic) {
+bool region_has_non_chimeric_reads(samFile* bam_file, hts_idx_t* bam_index, const contig_t contig, const position_t start, const position_t end, const direction_t direction, const chimeric_alignments_t& chimeric_alignments, const bool exonic) {
 	bam1_t* bam_record = bam_init1();
 	bool result = false;
 
-	bam_iter_t bam_record_iterator = bam_iter_query(bam_index, contig, start, end);
-	while (bam_iter_read(bam_file, bam_record_iterator, bam_record) >= 0) {
-		if (chimeric_alignments.find((char*) bam1_qname(bam_record)) == chimeric_alignments.end()) { // ignore chimeric reads
+	hts_itr_t* bam_record_iterator = sam_itr_queryi(bam_index, contig, start, end);
+	while (sam_itr_next(bam_file, bam_record_iterator, bam_record) >= 0) {
+		if (chimeric_alignments.find((char*) bam_get_qname(bam_record)) == chimeric_alignments.end()) { // ignore chimeric reads
 			if (exonic || // in the case of exonic breakpoints, we accept any overlapping read
 				      // in the case of intronic/intergenic breakpoints, we are more strict:
 				      // ignore reads which span OVER the given region due to splicing
@@ -28,17 +29,19 @@ bool region_has_non_chimeric_reads(BGZF* bam_file, bam_index_t* bam_index, const
 		}
 	}
 
-	bam_iter_destroy(bam_record_iterator);
+	sam_itr_destroy(bam_record_iterator);
 	bam_destroy1(bam_record);
 
 	return result;
 }
 
-unsigned int filter_nonexpressed(fusions_t& fusions, const string& bam_file_path, const chimeric_alignments_t& chimeric_alignments, const exon_annotation_index_t& exon_annotation_index, const int max_mate_gap) {
+unsigned int filter_nonexpressed(fusions_t& fusions, const string& bam_file_path, const string& assembly_file_path, const chimeric_alignments_t& chimeric_alignments, const exon_annotation_index_t& exon_annotation_index, const int max_mate_gap) {
 
 	// open BAM file and load index
-	BGZF* bam_file = bam_open(bam_file_path.c_str(), "rb");
-	bam_index_t* bam_index = bam_index_load(bam_file_path.c_str());
+	samFile* bam_file = sam_open(bam_file_path.c_str(), "rb");
+	if (bam_file->is_cram)
+		cram_set_option(bam_file->fp.cram, CRAM_OPT_REFERENCE, assembly_file_path.c_str());
+	hts_idx_t* bam_index = sam_index_load(bam_file, bam_file_path.c_str());
 
 	// for each fusion, check if there is any expression around the breakpoint
 	unsigned int remaining = 0;
@@ -123,8 +126,8 @@ unsigned int filter_nonexpressed(fusions_t& fusions, const string& bam_file_path
 	}
 
 	// close BAM file and index
-	bam_close(bam_file);
-	bam_index_destroy(bam_index);
+	hts_idx_destroy(bam_index);
+	sam_close(bam_file);
 
 	return remaining;
 }

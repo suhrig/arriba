@@ -1,6 +1,7 @@
 #include <algorithm>
 #include <iostream>
 #include <string>
+#include "cram.h"
 #include "sam.h"
 #include "annotation.hpp"
 #include "common.hpp"
@@ -8,13 +9,15 @@
 
 using namespace std;
 
-unsigned int read_chimeric_alignments(const string& bam_file_path, chimeric_alignments_t& chimeric_alignments, contigs_t& contigs, const bool read_through) {
+unsigned int read_chimeric_alignments(const string& bam_file_path, const string& assembly_file_path, chimeric_alignments_t& chimeric_alignments, contigs_t& contigs, const bool read_through) {
 
 	chimeric_alignments_t read_through_alignments; // we only need this, when reading read-through alignments
 
 	// open BAM file
-	BGZF* bam_file = bam_open(bam_file_path.c_str(), "rb");
-	bam_header_t* bam_header = bam_header_read(bam_file);
+	samFile* bam_file = sam_open(bam_file_path.c_str(), "rb");
+	if (bam_file->is_cram)
+		cram_set_option(bam_file->fp.cram, CRAM_OPT_REFERENCE, assembly_file_path.c_str());
+	bam_hdr_t* bam_header = sam_hdr_read(bam_file);
 
 	if (read_through) {
 		// check if chimeric.bam and read_through.bam have the same contigs
@@ -31,9 +34,9 @@ unsigned int read_chimeric_alignments(const string& bam_file_path, chimeric_alig
 
 	// read BAM records
 	bam1_t* bam_record = bam_init1();
-	while (bam_read1(bam_file, bam_record) > 0) {
+	while (sam_read1(bam_file, bam_header, bam_record) >= 0) {
 
-		string name = (char*) bam1_qname(bam_record);
+		string name = (char*) bam_get_qname(bam_record);
 		mates_t* mates = (!read_through) ? &chimeric_alignments[name] : &read_through_alignments[name];
 		mates->single_end = !(bam_record->core.flag & BAM_FPAIRED);
 		mates->resize(mates->size()+1);
@@ -49,14 +52,14 @@ unsigned int read_chimeric_alignments(const string& bam_file_path, chimeric_alig
 		if (!alignment.supplementary) {
 			alignment.sequence.resize(bam_record->core.l_qseq);
 			for (unsigned int i = 0; i < bam_record->core.l_qseq; ++i)
-				alignment.sequence[i] = bam_nt16_rev_table[bam1_seqi(bam1_seq(bam_record), i)];
+				alignment.sequence[i] = seq_nt16_str[bam_seqi(bam_get_seq(bam_record), i)];
 		}
 	}
 
 	// close BAM file
 	bam_destroy1(bam_record);
-	bam_header_destroy(bam_header);
-	bam_close(bam_file);
+	bam_hdr_destroy(bam_header);
+	sam_close(bam_file);
 
 	// append read_through_alignments to chimeric_alignments if the alignment is not already contained in the latter
 	if (read_through)

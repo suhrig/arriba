@@ -1,5 +1,5 @@
 CXX := g++
-CXXFLAGS := -pthread -std=c++0x -O2 -I. -I.. -I../samtools-1.3 -I../samtools-1.3/htslib-1.3
+CXXFLAGS := -pthread -std=c++0x -O2 -I. -I../samtools-1.3/htslib-1.3/htslib
 LDFLAGS := -lz
 
 all: arriba extract_reads

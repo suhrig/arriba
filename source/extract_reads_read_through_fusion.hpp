@@ -7,6 +7,6 @@
 
 using namespace std;
 
-void extract_read_through_fusion(BGZF* read_through_fusions_file, bam1_t* forward_mate, bam1_t* reverse_mate, const gene_annotation_index_t& gene_annotation_index);
+void extract_read_through_fusion(samFile* read_through_fusions_file, bam_hdr_t* bam_header, bam1_t* forward_mate, bam1_t* reverse_mate, const gene_annotation_index_t& gene_annotation_index);
 
 #endif /* _EXTRACT_READS_READ_THROUGH_FUSION_H */

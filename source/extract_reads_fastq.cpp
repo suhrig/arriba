@@ -16,8 +16,8 @@ void bam_record_to_fastq(ofstream& fastq_file, const bam1_t* const bam_record) {
 	sequence.resize(bam_record->core.l_qseq);
 	qualities.resize(bam_record->core.l_qseq);
 	for (unsigned int i = 0; i < bam_record->core.l_qseq; ++i) {
-		sequence[i] = bam_nt16_rev_table[bam1_seqi(bam1_seq(bam_record), i)];
-		qualities[i] = 33 + bam1_qual(bam_record)[i];
+		sequence[i] = seq_nt16_str[bam_seqi(bam_get_seq(bam_record), i)];
+		qualities[i] = 33 + bam_get_qual(bam_record)[i];
 	}
 
 	// reverse complement, if the alignment is on the reverse strand
@@ -27,7 +27,7 @@ void bam_record_to_fastq(ofstream& fastq_file, const bam1_t* const bam_record) {
 	}
 
 	// write to FastQ file
-	fastq_file << "@" << ((char*) bam1_qname(bam_record)) << endl
+	fastq_file << "@" << ((char*) bam_get_qname(bam_record)) << endl
 	           << sequence << endl
 	           << "+" << endl
 	           << qualities << endl;
@@ -38,10 +38,10 @@ void bam_record_to_fastq(ofstream& fastq_file, const bam1_t* const bam_record) {
 }
 
 bool is_read_clipped(const bam1_t* const bam_record, const uint32_t min_clipped_length) {
-	bool first_cigar_op_clipped = (bam1_cigar(bam_record)[0] & 15) == BAM_CSOFT_CLIP &&
-	                              (bam1_cigar(bam_record)[0] >> 4) >= min_clipped_length;
-	bool last_cigar_op_clipped = (bam1_cigar(bam_record)[bam_record->core.n_cigar-1] & 15) == BAM_CSOFT_CLIP &&
-	                             (bam1_cigar(bam_record)[bam_record->core.n_cigar-1] >> 4) >= min_clipped_length;
+	bool first_cigar_op_clipped = (bam_get_cigar(bam_record)[0] & 15) == BAM_CSOFT_CLIP &&
+	                              (bam_get_cigar(bam_record)[0] >> 4) >= min_clipped_length;
+	bool last_cigar_op_clipped = (bam_get_cigar(bam_record)[bam_record->core.n_cigar-1] & 15) == BAM_CSOFT_CLIP &&
+	                             (bam_get_cigar(bam_record)[bam_record->core.n_cigar-1] >> 4) >= min_clipped_length;
 	if (bam_record->core.flag & BAM_FPAIRED) {
 		// in case of paired-end data, clipping must be at end of fragment
 		if (bam_record->core.flag & BAM_FREVERSE) { // read is on reverse strand

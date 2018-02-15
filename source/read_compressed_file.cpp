@@ -2,6 +2,7 @@
 #include <string>
 #include <sstream>
 #include <iostream>
+#include "bgzf.h"
 #include "sam.h"
 #include "read_compressed_file.hpp"
 

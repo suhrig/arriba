@@ -18,9 +18,8 @@ void count_mismatches(const alignment_t& alignment, const string& sequence, cons
 	for (unsigned int i = 0; i < alignment.cigar.size(); ++i) {
 		switch (alignment.cigar.operation(i)) {
 			case BAM_CSOFT_CLIP:
-				read_position += alignment.cigar.op_length(i);
-				// fall through
 			case BAM_CHARD_CLIP:
+				read_position += alignment.cigar.op_length(i);
 				// clipping which might result from overlapping with the breakpoint is not counted as mismatch
 				if (!(i == 0 && alignment.strand == REVERSE || i == alignment.cigar.size()-1 && alignment.strand == FORWARD))
 					mismatches++;

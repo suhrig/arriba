@@ -11,7 +11,6 @@
 #include "common.hpp"
 #include "annotation.hpp"
 #include "read_compressed_file.hpp"
-#include "htslib/faidx.h"
 
 using namespace std;
 
