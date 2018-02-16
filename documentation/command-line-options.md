@@ -4,7 +4,7 @@ arriba
 **Usage**
 
 ```bash
-arriba -c chimeric.bam [-r read_through.bam] -x rna.bam \
+arriba -c Chimeric.out.sam [-r read_through.bam] -x Aligned.sortedByCoord.out.bam \
        -g annotation.gtf -a assembly.fa [-b blacklists.tsv] [-k known_fusions.tsv] \
        -o fusions.tsv [-O fusions.discarded.tsv] \
        [OPTIONS]
@@ -133,7 +133,7 @@ It is possible to enable multiple modes at the same time to extract various type
 Extract read-through fusions from an existing BAM file:
 
 ```bash
-extract_reads -g annotation.gtf -x rna.bam -r read_through.bam
+extract_reads -g annotation.gtf -x Aligned.out.bam -r read_through.bam
 ```
 
 Extract read-through fusions during alignment (see section [Execution](execution.md#extract_reads) for a detailed explanation of this use case):
@@ -146,13 +146,13 @@ extract_reads -g annotation.gtf -r read_through.bam
 Extract chimeric candidates in FastQ format from an existing BAM file, if STAR was run without `--chimSegmentMin`:
 
 ```bash
-extract_reads -x rna.bam -f reads_as_fastq
+extract_reads -x Aligned.out.bam -f reads_as_fastq
 ```
 
 Extract chimeric alignments from an existing BAM file, if STAR was run with the parameter `--chimOutType WithinBAM`:
 
 ```bash
-extract_reads -x rna.bam -c chimeric.bam
+extract_reads -x Aligned.out.bam -c chimeric.bam
 ```
 
 **Options**

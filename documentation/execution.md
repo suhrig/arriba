@@ -36,7 +36,7 @@ extract_reads
 This utility takes the normal alignments as input and extracts all fragments which cross the boundaries of genes. The result is a subset of the normal alignments, stored in a smaller BAM file. `extract_reads` can be run stand-alone, for example:
 
 ```bash
-extract_reads -x rna.bam -r read_through.bam -g annotation.gtf
+extract_reads -x Aligned.out.bam -r read_through.bam -g annotation.gtf
 ```
 
 The tool can process 100 million reads in approximately 1.5 minutes on a modern CPU. For optimal performance, it is not recommended to run it in stand-alone mode, though, because doing so extends the overall runtime of the workflow. It is more efficient to run the tool in tandem with `STAR`, as illustrated in the following example, because then the entire workflow is parallellized and single-threaded periods are avoided.

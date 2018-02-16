@@ -35,25 +35,14 @@ STAR \
 	--alignIntronMax 500000 --alignMatesGapMax 500000 \
 	--chimSegmentMin 10 --chimJunctionOverhangMin 10 --chimScoreMin 1 --chimScoreDropMax 30 --chimScoreJunctionNonGTAG 0 --chimScoreSeparation 1 --alignSJstitchMismatchNmax 5 -1 5 5 --chimSegmentReadGapMax 3 --chimMainSegmentMultNmax 10 \
 	--limitBAMsortRAM 50000000000 |
-"$BASE_DIR/extract_reads" -g "$ANNOTATION_GTF" -r /dev/stdout |
-samtools sort - read_through
+"$BASE_DIR/extract_reads" -g "$ANNOTATION_GTF" -r read_through.bam
 
 # index normal alignments
-samtools index Aligned.sortedByCoord.out.bam &
-
-# index read-through fusions
-samtools index read_through.bam
-
-# convert chimeric SAM to BAM and sort
-samtools view -Sbu Chimeric.out.sam | samtools sort - chimeric
-rm -f Chimeric.out.sam
-samtools index chimeric.bam
-
-wait # for indexing of normal alignments
+samtools index Aligned.sortedByCoord.out.bam
 
 # call arriba
 "$BASE_DIR/arriba" \
-	-c chimeric.bam \
+	-c Chimeric.out.sam \
 	-r read_through.bam \
 	-x Aligned.sortedByCoord.out.bam \
 	-o fusions.tsv \
