@@ -59,6 +59,7 @@ exons <- exons[exons$type %in% c("exon", "CDS") & grepl("exon_number ", exons$at
 exons$geneName <- gsub(".*gene_name \"?([^;\"]+)\"?;.*", "\\1", exons$attributes)
 exons$transcript <- gsub(".*transcript_id \"?([^;\"]+)\"?;.*", "\\1", exons$attributes)
 exons$exonNumber <- gsub(".*exon_number \"?([^;\"]+)\"?;.*", "\\1", exons$attributes)
+exons$contig <- sub("chr", "", sub("chrM", "MT", exons$contig))
 exons <- exons[, !colnames(exons) %in% c("attributes")]
 
 # insert dummy annotations for dummy genes
