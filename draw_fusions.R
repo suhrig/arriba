@@ -81,16 +81,14 @@ if (any(grepl(",", fusions$gene1) | grepl(",", fusions$gene2))) {
 }
 exons <- unique(exons[order(exons$start),])
 
-drawStrands <- function(left, right, y, col, strand, drawLabels=T, gene="") {
+drawStrands <- function(left, right, y, col, strand) {
 	# draw strand
 	lines(c(left, right), c(y, y), col=col, lwd=2)
-	# optionally draw gene label
-	if (gene != "")
-		text(left-0.1, y, gene, srt=90)
 	# indicate orientation
 	if (strand %in% c("+", "-")) {
-		for (i in seq(left+0.01, right-0.01, by=sign(right-left-2*0.01)*0.01))
-			arrows(i, y, i+0.001*ifelse(strand=="+", 1, -1), y, col=col, length=0.08, lwd=2, angle=60)
+		if (right - left > 0.01)
+			for (i in seq(left+0.01, right-0.01, by=sign(right-left-2*0.01)*0.01))
+				arrows(i, y, i+0.001*ifelse(strand=="+", 1, -1), y, col=col, length=0.08, lwd=2, angle=60)
 	}
 }
 
@@ -229,12 +227,7 @@ for (fusion in 1:nrow(fusions)) {
 	}
 
 	# scale exon sizes to 1
-	scalingFactor <- max(
-		exons1$right,
-		exons2$right,
-		ifelse(fusions[fusion,"direction1"] == "downstream", breakpoint1, max(exons1$right)-breakpoint1)+
-		ifelse(fusions[fusion,"direction2"] == "downstream", breakpoint2, max(exons2$right)-breakpoint2)
-	)
+	scalingFactor <- max(exons1$right) + max(exons2$right)
 	exons1$left <- exons1$left / scalingFactor
 	exons1$right <- exons1$right / scalingFactor
 	exons2$left <- exons2$left / scalingFactor
@@ -245,73 +238,75 @@ for (fusion in 1:nrow(fusions)) {
 	par(mar=c(0, 0, 0, 0))
 	plot(0, 0, type="l", xlim=c(-0.12, 1.12), ylim=c(-0.1, 1), bty="n", xaxt="n", yaxt="n")
 
-	# plot gene 1 (at top of the page)
-	drawStrands(-0.02, max(exons1$right)+0.02, 0.85, "darkolivegreen4", exons1[1,"strand"], gene=fusions[fusion,"gene1"])
+	# plot gene 1 (top left of the page)
+	drawStrands(0, max(exons1$right), 0.85, "darkolivegreen4", exons1[1,"strand"])
 	for (exon in 1:nrow(exons1))
 		drawExon(exons1[exon,"left"], exons1[exon,"right"], 0.85, "darkolivegreen2", exons1[exon,"exonNumber"], exons1[exon,"type"])
 
-	# plot gene 2 (at the bottom of the page)
-	drawStrands(-0.02, max(exons2$right)+0.02, 0.15, col="deepskyblue4", exons2[1,"strand"], gene=fusions[fusion,"gene2"])
+	gene2Offset <- max(exons1$right)+0.05
+
+	# plot gene 2 (top right of the page)
+	drawStrands(gene2Offset, gene2Offset+max(exons2$right), 0.85, col="deepskyblue4", exons2[1,"strand"])
 	for (exon in 1:nrow(exons2))
-		drawExon(exons2[exon,"left"], exons2[exon,"right"], 0.15, "deepskyblue2", exons2[exon,"exonNumber"], exons2[exon,"type"])
-	
-	fusionOffset <- ifelse(fusions[fusion,"direction1"] == "downstream", breakpoint1, max(exons1$right)-breakpoint1)
+		drawExon(gene2Offset+exons2[exon,"left"], gene2Offset+exons2[exon,"right"], 0.85, "deepskyblue2", exons2[exon,"exonNumber"], exons2[exon,"type"])
+
+	# center fusion horizontally
+	fusionOffset1 <- (max(exons1$right)+gene2Offset)/2 - ifelse(fusions[fusion,"direction1"] == "downstream", breakpoint1, max(exons1$right)-breakpoint1)
+	fusionOffset2 <- fusionOffset1 + ifelse(fusions[fusion,"direction1"] == "downstream", breakpoint1, max(exons1$right)-breakpoint1)
 	
 	# plot gene1 of fusion (middle left of the page)
 	if (fusions[fusion,"direction1"] == "downstream") {
 		# plot strands
-		drawStrands(-0.02, breakpoint1, 0.5, col="darkolivegreen4", exons1[1,"strand"], drawLabels=F, gene="fusion")
+		drawStrands(fusionOffset1, fusionOffset1+breakpoint1, 0.5, col="darkolivegreen4", exons1[1,"strand"])
 		# plot exons
 		for (exon in 1:nrow(exons1))
 			if (exons1[exon,"start"] <= fusions[fusion,"breakpoint1"])
-				drawExon(exons1[exon,"left"], min(breakpoint1, exons1[exon,"right"]), 0.5, "darkolivegreen2", exons1[exon,"exonNumber"], exons1[exon,"type"])
+				drawExon(fusionOffset1+exons1[exon,"left"], fusionOffset1+min(breakpoint1, exons1[exon,"right"]), 0.5, "darkolivegreen2", exons1[exon,"exonNumber"], exons1[exon,"type"])
 		# plot trajectories
-		lines(c(breakpoint1, breakpoint1), c(0.8, 0.55), col="red", lty=2)
-		lines(c(0, 0), c(0.8, 0.55), col="red", lty=2)
-		lines(c(0, 0), c(0.8, 0.90), col="red", lty=2)
+		lines(c(0, 0, fusionOffset1), c(0.9, 0.8, 0.55), col="red", lty=2)
+		lines(c(breakpoint1, breakpoint1, fusionOffset1+breakpoint1), c(0.92, 0.8, 0.55), col="red", lty=2)
 	} else if (fusions[fusion,"direction1"] == "upstream") {
 		# plot strands
-		drawStrands(-0.02, fusionOffset, 0.5, col="darkolivegreen4", chartr("+-", "-+", exons1[1,"strand"]), gene="fusion", drawLabels=F)
+		drawStrands(fusionOffset1, fusionOffset2, 0.5, col="darkolivegreen4", chartr("+-", "-+", exons1[1,"strand"]))
 		# plot exons
 		for (exon in 1:nrow(exons1))
 			if (exons1[exon,"end"]+1 >= fusions[fusion,"breakpoint1"])
-				drawExon(max(exons1$right)-exons1[exon,"right"], min(fusionOffset, max(exons1$right)-exons1[exon,"left"]), 0.5, "darkolivegreen2", exons1[exon,"exonNumber"], exons1[exon,"type"])
+				drawExon(fusionOffset1+max(exons1$right)-exons1[exon,"right"], min(fusionOffset2, fusionOffset1+max(exons1$right)-exons1[exon,"left"]), 0.5, "darkolivegreen2", exons1[exon,"exonNumber"], exons1[exon,"type"])
 		# plot trajectories
-		lines(c(breakpoint1, fusionOffset), c(0.8, 0.55), col="red", lty=2)
-		lines(c(max(exons1$right), 0), c(0.8, 0.55), col="red", lty=2)
-		lines(c(max(exons1$right), max(exons1$right)), c(0.8, 0.90), col="red", lty=2)
+		lines(c(max(exons1$right), max(exons1$right), fusionOffset1), c(0.9, 0.8, 0.55), col="red", lty=2)
+		lines(c(breakpoint1, breakpoint1, fusionOffset1+max(exons1$right)-breakpoint1), c(0.92, 0.8, 0.55), col="red", lty=2)
 	}
-	# indicate breakpoint1 with dashed line
-	lines(c(breakpoint1, breakpoint1), c(0.8, 0.92), col="red", lty=2)
+	# label breakpoint1
 	text(breakpoint1, 0.94, paste0("breakpoint\n", fusions[fusion,"contig1"], ":", fusions[fusion,"breakpoint1"]), cex=0.75)
+	# draw gene name
+	text(max(exons1$right)/2, 1, fusions[fusion,"gene1"])
 	
 	# plot gene2 of fusion (middle right of the page)
 	if (fusions[fusion,"direction2"] == "downstream") {
 		# plot strands
-		drawStrands(fusionOffset, fusionOffset+breakpoint2+0.02, 0.5, col="deepskyblue4", chartr("+-", "-+", exons2[1,"strand"]), drawLabels=F)
+		drawStrands(fusionOffset2, fusionOffset2+breakpoint2, 0.5, col="deepskyblue4", chartr("+-", "-+", exons2[1,"strand"]))
 		# plot exons
 		for (exon in 1:nrow(exons2))
 			if (exons2[exon,"start"] <= fusions[fusion,"breakpoint2"])
-				drawExon(max(fusionOffset, fusionOffset+breakpoint2-exons2[exon,"right"]), fusionOffset+breakpoint2-exons2[exon,"left"], 0.5, "deepskyblue2", exons2[exon,"exonNumber"], exons2[exon,"type"])
+				drawExon(max(fusionOffset2, fusionOffset2+breakpoint2-exons2[exon,"right"]), fusionOffset2+breakpoint2-exons2[exon,"left"], 0.5, "deepskyblue2", exons2[exon,"exonNumber"], exons2[exon,"type"])
 		# plot trajectories
-		lines(c(breakpoint2, fusionOffset), c(0.2, 0.45), col="red", lty=2)
-		lines(c(0, fusionOffset+breakpoint2), c(0.2, 0.45), col="red", lty=2)
-		lines(c(0, 0), c(0.2, 0.1), col="red", lty=2)
+		lines(c(gene2Offset, gene2Offset, fusionOffset2+breakpoint2), c(0.9, 0.8, 0.55), col="red", lty=2)
+		lines(c(gene2Offset+breakpoint2, gene2Offset+breakpoint2, fusionOffset2), c(0.92, 0.8, 0.55), col="red", lty=2)
 	} else if (fusions[fusion,"direction2"] == "upstream") {
 		# plot strands
-		drawStrands(fusionOffset, fusionOffset+max(exons2$right)-breakpoint2+0.02, 0.5, col="deepskyblue4", exons2[1,"strand"], drawLabels=F)
+		drawStrands(fusionOffset2, fusionOffset2+max(exons2$right)-breakpoint2, 0.5, col="deepskyblue4", exons2[1,"strand"])
 		# plot exons
 		for (exon in 1:nrow(exons2))
 			if (exons2[exon,"end"]+1 >= fusions[fusion,"breakpoint2"])
-				drawExon(max(fusionOffset, fusionOffset+exons2[exon,"left"]-breakpoint2), fusionOffset+exons2[exon,"right"]-breakpoint2, 0.5, "deepskyblue2", exons2[exon,"exonNumber"], exons2[exon,"type"])
+				drawExon(max(fusionOffset2, fusionOffset2+exons2[exon,"left"]-breakpoint2), fusionOffset2+exons2[exon,"right"]-breakpoint2, 0.5, "deepskyblue2", exons2[exon,"exonNumber"], exons2[exon,"type"])
 		# plot trajectories
-		lines(c(breakpoint2, fusionOffset), c(0.2, 0.45), col="red", lty=2)
-		lines(c(max(exons2$right), fusionOffset+max(exons2$right)-breakpoint2), c(0.2, 0.45), col="red", lty=2)
-		lines(c(max(exons2$right), max(exons2$right)), c(0.2, 0.1), col="red", lty=2)
+		lines(c(gene2Offset+breakpoint2, gene2Offset+breakpoint2, fusionOffset2), c(0.92, 0.8, 0.55), col="red", lty=2)
+		lines(c(gene2Offset+max(exons2$right), gene2Offset+max(exons2$right), fusionOffset2+max(exons2$right)-breakpoint2), c(0.9, 0.8, 0.55), col="red", lty=2)
 	}
-	# indicate breakpoint2 with dashed line
-	lines(c(breakpoint2, breakpoint2), c(0.2, 0.08), col="red", lty=2)
-	text(breakpoint2, 0.06, paste0("breakpoint\n", fusions[fusion,"contig2"], ":", fusions[fusion,"breakpoint2"]), cex=0.75)
+	# label breakpoint2
+	text(gene2Offset+breakpoint2, 0.94, paste0("breakpoint\n", fusions[fusion,"contig2"], ":", fusions[fusion,"breakpoint2"]), cex=0.75)
+	# draw gene name
+	text(gene2Offset+max(exons2$right)/2, 1, fusions[fusion,"gene2"])
 	
 	if (printStats) {
 		# print statistics about supporting alignments
