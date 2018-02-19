@@ -60,7 +60,6 @@ exons$geneName <- gsub(".*gene_name \"?([^;\"]+)\"?;.*", "\\1", exons$attributes
 exons$transcript <- gsub(".*transcript_id \"?([^;\"]+)\"?;.*", "\\1", exons$attributes)
 exons$exonNumber <- gsub(".*exon_number \"?([^;\"]+)\"?;.*", "\\1", exons$attributes)
 exons$contig <- sub("chr", "", sub("chrM", "MT", exons$contig))
-exons <- exons[, !colnames(exons) %in% c("attributes")]
 
 # insert dummy annotations for dummy genes
 if (any(grepl(",", fusions$gene1) | grepl(",", fusions$gene2))) {
@@ -74,14 +73,12 @@ if (any(grepl(",", fusions$gene1) | grepl(",", fusions$gene2))) {
 		start=intergenicBreakpoints$breakpoint-5000,
 		end=intergenicBreakpoints$breakpoint+5000,
 		strand="",
+		attributes="",
 		geneName=intergenicBreakpoints$gene,
 		transcript=intergenicBreakpoints$gene,
 		exonNumber="intergenic"
 	))
 }
-exons <- merge(exons, setNames(aggregate(exons$start, by=list(exons$transcript), min), c("transcript", "transcriptStart")), by="transcript")
-exons <- merge(exons, setNames(aggregate(exons$end, by=list(exons$transcript), max), c("transcript", "transcriptEnd")), by="transcript")
-exons <- merge(exons, setNames(aggregate(exons$start, by=list(exons$transcript), length), c("transcript", "count")), by="transcript")
 exons <- unique(exons[order(exons$start),])
 
 drawStrands <- function(start, end, y, col, strand, scalingFactor, drawLabels=T, gene="") {
@@ -112,15 +109,53 @@ drawExon <- function(start, end, y, color, title, type) {
 
 findExons <- function(exons, gene, direction, contig, breakpoint) {
 	# look for exon with breakpoint as splice site
-	transcripts <- exons[exons$geneName == gene & exons$contig == contig & (direction == "downstream" & abs(exons$end - breakpoint) <= 2 | direction == "upstream" & abs(exons$start - breakpoint) <= 2),"transcript"]
-	if (length(transcripts) == 0) # not found => use any transcript
-		transcripts <- exons[exons$geneName == gene & exons$contig == contig & exons$transcriptStart <= breakpoint & exons$transcriptEnd >= breakpoint,"transcript"]
-	# use the longest transcript, if there are multiple hits
-	if (length(transcripts) > 1) {
-		longestTranscript <- max(exons[exons$transcript %in% transcripts,"count"])
-		transcripts <- head(exons[exons$transcript %in% transcripts & exons$count == longestTranscript,"transcript"], 1)
+	transcripts <- exons[exons$geneName == gene & exons$contig == contig & exons$type == "exon" & (direction == "downstream" & abs(exons$end - breakpoint) <= 2 | direction == "upstream" & abs(exons$start - breakpoint) <= 2),"transcript"]
+	candidateExons <- exons[exons$transcript %in% transcripts,]
+	# if none was found search for transcripts which encompass the breakpoint
+	if (nrow(candidateExons) == 0) {
+		candidateExons <- exons[exons$geneName == gene & exons$contig == contig,]
+		if (nrow(candidateExons) > 0) {
+			transcriptStart <- aggregate(candidateExons$start, by=list(candidateExons$transcript), min)
+			rownames(transcriptStart) <- transcriptStart[,1]
+			transcriptEnd <- aggregate(candidateExons$end, by=list(candidateExons$transcript), max)
+			rownames(transcriptEnd) <- transcriptEnd[,1]
+			candidateExons <- candidateExons[transcriptStart[candidateExons$transcript,2] <= breakpoint & transcriptEnd[candidateExons$transcript,2] >= breakpoint,]
+		}
 	}
-	return(exons[exons$transcript == transcripts,])
+	# find the consensus transcript, if there are multiple hits
+	if (length(unique(candidateExons$transcript)) > 1) {
+		consensusTranscript <-
+			ifelse(grepl("appris_principal_1", candidateExons$attributes), 10,
+			ifelse(grepl("appris_principal_2", candidateExons$attributes), 9,
+			ifelse(grepl("appris_principal_3", candidateExons$attributes), 8,
+			ifelse(grepl("appris_principal_4", candidateExons$attributes), 7,
+			ifelse(grepl("appris_principal_5", candidateExons$attributes), 6,
+			ifelse(grepl("appris_principal", candidateExons$attributes), 5,
+			ifelse(grepl("appris_alternative_1", candidateExons$attributes), 4,
+			ifelse(grepl("appris_alternative_2", candidateExons$attributes), 3,
+			ifelse(grepl("appris_alternative", candidateExons$attributes), 2,
+			ifelse(grepl("CCDS", candidateExons$attributes), 1,
+			0
+		))))))))))
+		candidateExons <- candidateExons[consensusTranscript == max(consensusTranscript),]
+	}
+	# use the transcript with the longest coding sequence, if there are still multiple hits
+	if (length(unique(candidateExons$transcript)) > 1) {
+		codingSequenceLength <- ifelse(candidateExons$type == "CDS", candidateExons$end - candidateExons$start, 0)
+		totalCodingSequenceLength <- aggregate(codingSequenceLength, by=list(candidateExons$transcript), sum)
+		rownames(totalCodingSequenceLength) <- totalCodingSequenceLength[,1]
+		candidateExons <- candidateExons[totalCodingSequenceLength[candidateExons$transcript,2] == max(totalCodingSequenceLength[,2]),]
+	}
+	# use the transcript with the longest overall sequence, if there are still multiple hits
+	if (length(unique(candidateExons$transcript)) > 1) {
+		exonLength <- candidateExons$end - candidateExons$start
+		totalExonLength <- aggregate(exonLength, by=list(candidateExons$transcript), sum)
+		rownames(totalExonLength) <- totalExonLength[,1]
+		candidateExons <- candidateExons[totalExonLength[candidateExons$transcript,2] == max(totalExonLength[,2]),]
+	}
+	# if there are still multiple hits, select the first one
+	candidateExons <- candidateExons[candidateExons$transcript == head(unique(candidateExons$transcript), 1),]
+	return(candidateExons)
 }
 
 for (fusion in 1:nrow(fusions)) {
@@ -134,14 +169,14 @@ for (fusion in 1:nrow(fusions)) {
 	breakpoint1 <- fusions[fusion,"breakpoint1"]
 	breakpoint2 <- fusions[fusion,"breakpoint2"]
 	if (breakpoint1 < min(exons1$start)) {
-		exons1 <- rbind(c(exons1[1,"transcript"], exons1[1,"contig"], "dummy", breakpoint1-1000, breakpoint1-1000, exons1[1,"strand"], "dummy", "", exons1[1,"transcriptStart"], exons1[1,"transcriptEnd"], exons1[1,"count"]), exons1)
+		exons1 <- rbind(c(exons1[1,"contig"], "dummy", breakpoint1-1000, breakpoint1-1000, exons1[1,"strand"], "", "dummy", exons1[1,"transcript"], ""), exons1)
 	} else if (breakpoint1 > max(exons1$end)) {
-		exons1 <- rbind(exons1, c(exons1[1,"transcript"], exons1[1,"contig"], "dummy", breakpoint1+1000, breakpoint1+1000, exons1[1,"strand"], "dummy", "", exons1[1,"transcriptStart"], exons1[1,"transcriptEnd"], exons1[1,"count"]))
+		exons1 <- rbind(exons1, c(exons1[1,"contig"], "dummy", breakpoint1+1000, breakpoint1+1000, exons1[1,"strand"], "", "dummy", exons1[1,"transcript"], ""))
 	}
 	if (breakpoint2 < min(exons2$start)) {
-		exons2 <- rbind(c(exons2[1,"transcript"], exons2[1,"contig"], "dummy", breakpoint2-1000, breakpoint2-1000, exons2[1,"strand"], "dummy", "", exons2[1,"transcriptStart"], exons2[1,"transcriptEnd"], exons2[1,"count"]), exons2)
+		exons2 <- rbind(c(exons2[1,"contig"], "dummy", breakpoint2-1000, breakpoint2-1000, exons2[1,"strand"], "", "dummy", exons2[1,"transcript"], ""), exons2)
 	} else if (breakpoint2 > max(exons2$end)) {
-		exons2 <- rbind(exons2, c(exons2[1,"transcript"], exons2[1,"contig"], "dummy", breakpoint2+1000, breakpoint2+1000, exons2[1,"strand"], "dummy", "", exons2[1,"transcriptStart"], exons2[1,"transcriptEnd"], exons2[1,"count"]))
+		exons2 <- rbind(exons2, c(exons2[1,"contig"], "dummy", breakpoint2+1000, breakpoint2+1000, exons2[1,"strand"], "", "dummy", exons2[1,"transcript"], ""))
 	}
 	exons1$start <- as.integer(exons1$start)
 	exons1$end <- as.integer(exons1$end)
