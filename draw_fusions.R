@@ -19,7 +19,7 @@ parseStringParameter <- function(parameter, args, default="") {
 	return(ifelse(length(result) == 0, default, result))
 }
 if (any(grepl("^--help", args)))
-	stop("usage: draw_fusions.R --annotation=annotation.gtf --fusions=fusions.tsv --output=output.pdf [--alignments=Aligned.out.bam] [--squishIntrons=TRUE] [--printStats=TRUE] [--printFusionTranscript=TRUE] [--pdfPaper=a4r] [--pdfWidth=11] [--pdfHeight=7]")
+	stop("usage: draw_fusions.R --annotation=annotation.gtf --fusions=fusions.tsv --output=output.pdf [--alignments=Aligned.out.bam] [--squishIntrons=TRUE] [--printExonLabels=TRUE] [--printStats=TRUE] [--printFusionTranscript=TRUE] [--pdfPaper=a4r] [--pdfWidth=11] [--pdfHeight=7]")
 exonsFile <- parseStringParameter("annotation", args)
 if (file.access(exonsFile) == -1)
 	stop(sprintf("Exon annotation file (%s) does not exist", exonsFile))
@@ -37,6 +37,7 @@ if (alignmentsFile != "") {
 		stop("Package 'GenomicAlignments' must be installed when '--alignments' is used")
 }
 squishIntrons <- parseBooleanParameter("squishIntrons", args, T)
+printExonLabels <- parseBooleanParameter("printExonLabels", args, T)
 printStats <- parseBooleanParameter("printStats", args, T)
 printFusionTranscript <- parseBooleanParameter("printFusionTranscript", args, T)
 pdfPaper <- parseStringParameter("pdfPaper", args, "a4r")
@@ -71,10 +72,10 @@ removeChr <- function(contig) {
 message("Loading annotation")
 exons <- read.table(exonsFile, header=F, sep="\t", comment.char="#", quote="", stringsAsFactors=F)[,c(1, 3, 4, 5, 7, 9)]
 colnames(exons) <- c("contig", "type", "start", "end", "strand", "attributes")
-exons <- exons[exons$type %in% c("exon", "CDS") & grepl("exon_number ", exons$attributes),]
+exons <- exons[exons$type %in% c("exon", "CDS"),]
 exons$geneName <- gsub(".*gene_name \"?([^;\"]+)\"?;.*", "\\1", exons$attributes)
 exons$transcript <- gsub(".*transcript_id \"?([^;\"]+)\"?;.*", "\\1", exons$attributes)
-exons$exonNumber <- gsub(".*exon_number \"?([^;\"]+)\"?;.*", "\\1", exons$attributes)
+exons$exonNumber <- ifelse(printExonLabels & grepl("exon_number ", exons$attributes), gsub(".*exon_number \"?([^;\"]+)\"?;.*", "\\1", exons$attributes), "")
 exons$contig <- removeChr(exons$contig)
 
 # insert dummy annotations for dummy genes
