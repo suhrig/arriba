@@ -19,7 +19,7 @@ parseStringParameter <- function(parameter, args, default="") {
 	return(ifelse(length(result) == 0, default, result))
 }
 if (any(grepl("^--help", args)))
-	stop("usage: draw_fusions.R --annotation=annotation.gtf --fusions=fusions.tsv --output=output.pdf [--alignments=Aligned.out.bam] [--squishIntrons=TRUE] [--printExonLabels=TRUE] [--printStats=TRUE] [--printFusionTranscript=TRUE] [--pdfPaper=a4r] [--pdfWidth=11] [--pdfHeight=7]")
+	stop("usage: draw_fusions.R --annotation=annotation.gtf --fusions=fusions.tsv --output=output.pdf [--alignments=Aligned.out.bam] [--assemblyVersion=hg19] [--squishIntrons=TRUE] [--printExonLabels=TRUE] [--printStats=TRUE] [--printFusionTranscript=TRUE] [--pdfPaper=a4r] [--pdfWidth=11] [--pdfHeight=7]")
 exonsFile <- parseStringParameter("annotation", args)
 if (file.access(exonsFile) == -1)
 	stop(sprintf("Exon annotation file (%s) does not exist", exonsFile))
@@ -35,6 +35,13 @@ if (alignmentsFile != "") {
 		stop(sprintf("Alignments file (%s) does not exist", alignmentsFile))
 	if (!suppressPackageStartupMessages(require(GenomicAlignments)))
 		stop("Package 'GenomicAlignments' must be installed when '--alignments' is used")
+}
+assemblyVersion <- parseStringParameter("assemblyVersion", args)
+ideograms <- NULL
+if (assemblyVersion != "") {
+	if (!suppressPackageStartupMessages(require(rtracklayer)) || !suppressPackageStartupMessages(require(biovizBase)))
+		stop("Packages 'rtracklayer' and 'biovizBase' must be installed when '--assemblyVersion' is used")
+	ideograms <- as.data.frame(getIdeogram(assemblyVersion, cytoband = TRUE))
 }
 squishIntrons <- parseBooleanParameter("squishIntrons", args, T)
 printExonLabels <- parseBooleanParameter("printExonLabels", args, T)
@@ -78,6 +85,13 @@ exons$transcript <- gsub(".*transcript_id \"?([^;\"]+)\"?;.*", "\\1", exons$attr
 exons$exonNumber <- ifelse(printExonLabels & grepl("exon_number ", exons$attributes), gsub(".*exon_number \"?([^;\"]+)\"?;.*", "\\1", exons$attributes), "")
 exons$contig <- removeChr(exons$contig)
 
+# prepare ideogram data
+if (!is.null(ideograms)) {
+	ideograms$seqnames <- removeChr(as.character(ideograms$seqnames))
+	ideograms$gieStain <- as.character(ideograms$gieStain)
+	ideograms <- ideograms[order(ideograms$seqnames, ideograms$start, ideograms$end),]
+}
+
 # insert dummy annotations for dummy genes
 if (any(grepl(",", fusions$gene1) | grepl(",", fusions$gene2))) {
 	intergenicBreakpoints <- rbind(
@@ -97,6 +111,68 @@ if (any(grepl(",", fusions$gene1) | grepl(",", fusions$gene2))) {
 	))
 }
 exons <- unique(exons[order(exons$start),])
+
+drawCurlyBrace <- function(left, right, top, bottom, tip) {
+	arcSize <- (top-bottom)/2
+	lines(left+(1+cos(seq(pi/2,pi,len=10)))*arcSize, bottom+sin(seq(pi/2,pi,len=10))*arcSize)
+	lines(c(left+arcSize, tip-arcSize), c(bottom+arcSize, bottom+arcSize))
+	lines(tip+(cos(seq(0,pi/2,len=10))-1)*arcSize, top-sin(seq(0,pi/2,len=10))*arcSize)
+	lines(tip+(1+cos(seq(pi/2,pi,len=10)))*arcSize, top-sin(seq(pi/2,pi,len=10))*arcSize)
+	lines(c(tip+arcSize, right-arcSize), c(bottom+arcSize, bottom+arcSize))
+	lines(right+(cos(seq(0,pi/2,len=10))-1)*arcSize, bottom+sin(seq(0,pi/2,len=10))*arcSize)
+}
+
+drawIdeogram <- function(left, right, top, bottom, ideograms, contig, breakpoint, scale) {
+	# define design of ideogram
+	bandColors <- c(gneg="#ffffff", gpos25="#bbbbbb", gpos50="#888888", gpos75="#444444", gpos100="#000000", acen="#ff0000", stalk="#0000ff")
+	ideograms$color <- bandColors[ideograms$gieStain]
+	curlyBraceHeight <- 0.03
+	# extract bands of given contig
+	bands <- ideograms[ideograms$seqnames==contig,]
+	if (nrow(bands) == 0)
+		stop(paste("Giemsa bands of contig", contig, "not found"))
+	# scale width of ideogram to fit inside given region
+	bands$left <- (bands$start - min(bands$start)) / max(bands$end) * (right-left-0.01-curlyBraceHeight*2) * scale
+	bands$right <- (bands$end - min(bands$start)) / max(bands$end) * (right-left-0.01-curlyBraceHeight*2) * scale
+	# center ideograms
+	bands$left <- (right+left-max(bands$right))/2 + bands$left
+	bands$right <- (right+left-max(bands$right))/2 + bands$right
+	# draw curly braces
+	tip <- min(bands$left) + (max(bands$right)-min(bands$left)) / (max(bands$end)-min(bands$end)) * breakpoint
+	drawCurlyBrace(left, right, bottom+curlyBraceHeight, bottom, tip)
+	# draw title of chromosome
+	text((max(bands$right)+min(bands$left))/2, top+0.04, paste("chromosome", contig))
+	# draw name of band
+	bandName <- bands[which(bands$start <= breakpoint & bands$end >= breakpoint), "name"]
+	text(tip, top+0.01, bandName, cex=0.75)
+	# draw start of chromosome
+	polygon(
+		bands[1,"left"] + (1+cos(seq(pi/2,1.5*pi,len=10))) * (bands[1,"right"]-bands[1,"left"]),
+		(top+bottom+curlyBraceHeight+0.01)/2 + sin(seq(pi/2,1.5*pi,len=10)) * (top-bottom-curlyBraceHeight-0.01)/2,
+		col=bands[1,"color"]
+	)
+	# draw bands
+	centromereStart <- T
+	for (band in 2:(nrow(bands)-1)) {
+		if (bands[band,"gieStain"] != "acen") {
+			rect(bands[band,"left"], bottom+curlyBraceHeight+0.01, bands[band,"right"], top, col=bands[band,"color"])
+		} else { # draw centromere
+			if (centromereStart) {
+				polygon(c(bands[band,"left"], bands[band,"right"], bands[band,"left"]), c(bottom+curlyBraceHeight+0.01, (top+bottom+curlyBraceHeight+0.01)/2, top), col=bands[band,"color"])
+				centromereStart <- F
+			} else {
+				polygon(c(bands[band,"right"], bands[band,"left"], bands[band,"right"]), c(bottom+curlyBraceHeight+0.01, (top+bottom+curlyBraceHeight+0.01)/2, top), col=bands[band,"color"])
+			}
+		}
+	}
+	# draw end of chromosome
+	band <- nrow(bands)
+	polygon(
+		bands[band,"right"] - (1+cos(seq(1.5*pi,pi/2,len=10))) * (bands[band,"right"]-bands[band,"left"]),
+		(top+bottom+curlyBraceHeight+0.01)/2 + sin(seq(1.5*pi,pi/2,len=10)) * (top-bottom-curlyBraceHeight-0.01)/2,
+		col=bands[band,"color"]
+	)
+}
 
 drawCoverage <- function(left, right, y, coverage, start, end) {
 	# draw coverage as bars
@@ -311,12 +387,31 @@ for (fusion in 1:nrow(fusions)) {
 	plot(0, 0, type="l", xlim=c(-0.12, 1.12), ylim=c(-0.1, 1), bty="n", xaxt="n", yaxt="n")
 
 	# vertical coordinates of layers
-	yGeneNames <- 1
-	yBreakpointLabels <- 0.85
-	yCoverage <- 0.7
+	yIdeograms <- 0.95
+	yGeneNames <- 0.5
+	yBreakpointLabels <- 0.8
+	yCoverage <- 0.675
 	yExons <- 0.6
 	yFusion <- 0.3
 	yStats <- 0
+
+	# draw ideograms
+	if (!is.null(ideograms)) {
+		# scale ideograms such that the chromosomes fit in the region of the transcript
+		contig1Size <- max(ideograms[ideograms$seqnames==fusions[fusion,"contig1"], "end"])
+		contig2Size <- max(ideograms[ideograms$seqnames==fusions[fusion,"contig2"], "end"])
+		transcript1Size <- max(exons1$right)
+		transcript2Size <- max(exons2$right)
+		if (transcript1Size/contig1Size < transcript2Size/contig2Size) {
+			scaleIdeogram1 <- 1
+			scaleIdeogram2 <- (transcript1Size/contig1Size) / (transcript2Size/contig2Size)
+		} else {
+			scaleIdeogram1 <- (transcript2Size/contig2Size) / (transcript1Size/contig1Size)
+			scaleIdeogram2 <- 1
+		}
+		drawIdeogram(0, max(exons1$right), yIdeograms+0.04, yIdeograms-0.04, ideograms, fusions[fusion,"contig1"], fusions[fusion,"breakpoint1"], scaleIdeogram1)
+		drawIdeogram(gene2Offset, gene2Offset+max(exons2$right), yIdeograms+0.04, yIdeograms-0.04, ideograms, fusions[fusion,"contig2"], fusions[fusion,"breakpoint2"], scaleIdeogram2)
+	}
 
 	# draw gene names
 	text(max(exons1$right)/2, yGeneNames, fusions[fusion,"gene1"])
