@@ -19,7 +19,7 @@ parseStringParameter <- function(parameter, args, default="") {
 	return(ifelse(length(result) == 0, default, result))
 }
 if (any(grepl("^--help", args)))
-	stop("usage: draw_fusions.R --annotation=annotation.gtf --fusions=fusions.tsv --output=output.pdf [--alignments=Aligned.out.bam] [--assemblyVersion=hg19] [--squishIntrons=TRUE] [--printExonLabels=TRUE] [--printStats=TRUE] [--printFusionTranscript=TRUE] [--pdfPaper=a4r] [--pdfWidth=11] [--pdfHeight=7] [--color1=#e5a5a5] [--color2=#a7c4e5]")
+	stop("usage: draw_fusions.R --annotation=annotation.gtf --fusions=fusions.tsv --output=output.pdf [--alignments=Aligned.out.bam] [--cytobands=hg19] [--squishIntrons=TRUE] [--printExonLabels=TRUE] [--printStats=TRUE] [--printFusionTranscript=TRUE] [--pdfPaper=a4r] [--pdfWidth=11] [--pdfHeight=7] [--color1=#e5a5a5] [--color2=#a7c4e5]")
 exonsFile <- parseStringParameter("annotation", args)
 if (file.access(exonsFile) == -1)
 	stop(sprintf("Exon annotation file (%s) does not exist", exonsFile))
@@ -36,13 +36,7 @@ if (alignmentsFile != "") {
 	if (!suppressPackageStartupMessages(require(GenomicAlignments)))
 		stop("Package 'GenomicAlignments' must be installed when '--alignments' is used")
 }
-assemblyVersion <- parseStringParameter("assemblyVersion", args)
-ideograms <- NULL
-if (assemblyVersion != "") {
-	if (!suppressPackageStartupMessages(require(rtracklayer)) || !suppressPackageStartupMessages(require(biovizBase)))
-		stop("Packages 'rtracklayer' and 'biovizBase' must be installed when '--assemblyVersion' is used")
-	ideograms <- as.data.frame(getIdeogram(assemblyVersion, cytoband = TRUE))
-}
+cytobands <- parseStringParameter("cytobands", args)
 squishIntrons <- parseBooleanParameter("squishIntrons", args, T)
 printExonLabels <- parseBooleanParameter("printExonLabels", args, T)
 printStats <- parseBooleanParameter("printStats", args, T)
@@ -89,6 +83,22 @@ removeChr <- function(contig) {
 	sub("chr", "", sub("chrM", "MT", contig))
 }
 
+# prepare ideogram data
+ideograms <- NULL
+if (cytobands != "") {
+	# try to load from file or download using biovizBase
+	if (file.access(cytobands) != -1) {
+		ideograms <- read.table(cytobands, header=T)
+	} else {
+		if (!suppressPackageStartupMessages(require(rtracklayer)) || !suppressPackageStartupMessages(require(biovizBase)))
+			stop("Packages 'rtracklayer' and 'biovizBase' must be installed when '--cytobands' is used")
+		ideograms <- as.data.frame(getIdeogram(cytobands, cytoband = TRUE))
+	}
+	ideograms$seqnames <- removeChr(as.character(ideograms$seqnames))
+	ideograms$gieStain <- as.character(ideograms$gieStain)
+	ideograms <- ideograms[order(ideograms$seqnames, ideograms$start, ideograms$end),]
+}
+
 # read exon annotation
 message("Loading annotation")
 exons <- read.table(exonsFile, header=F, sep="\t", comment.char="#", quote="", stringsAsFactors=F)[,c(1, 3, 4, 5, 7, 9)]
@@ -98,13 +108,6 @@ exons$geneName <- gsub(".*gene_name \"?([^;\"]+)\"?;.*", "\\1", exons$attributes
 exons$transcript <- gsub(".*transcript_id \"?([^;\"]+)\"?;.*", "\\1", exons$attributes)
 exons$exonNumber <- ifelse(printExonLabels & grepl("exon_number ", exons$attributes), gsub(".*exon_number \"?([^;\"]+)\"?;.*", "\\1", exons$attributes), "")
 exons$contig <- removeChr(exons$contig)
-
-# prepare ideogram data
-if (!is.null(ideograms)) {
-	ideograms$seqnames <- removeChr(as.character(ideograms$seqnames))
-	ideograms$gieStain <- as.character(ideograms$gieStain)
-	ideograms <- ideograms[order(ideograms$seqnames, ideograms$start, ideograms$end),]
-}
 
 # insert dummy annotations for dummy genes
 if (any(grepl(",", fusions$gene1) | grepl(",", fusions$gene2))) {
