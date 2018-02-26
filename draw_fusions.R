@@ -508,7 +508,7 @@ for (fusion in 1:nrow(fusions)) {
 
 	# vertical coordinates of layers
 	yIdeograms <- 0.94
-	yGeneNames <- 0.6
+	yGeneNames <- 0.61
 	yBreakpointLabels <- 0.86
 	yCoverage <- 0.72
 	yExons <- 0.67
@@ -521,9 +521,13 @@ for (fusion in 1:nrow(fusions)) {
 		drawIdeogram("right", gene2Offset, gene2Offset+max(exons2$right), yIdeograms, ideograms, fusions[fusion,"contig2"], fusions[fusion,"breakpoint2"])
 	}
 
-	# draw gene names
+	# draw gene & transcript names
 	text(max(exons1$right)/2, yGeneNames, fusions[fusion,"gene1"], font=2)
+	if (!grepl(",", head(exons1$transcript,1)))
+		text(max(exons1$right)/2, yGeneNames-0.03, head(exons1$transcript,1), cex=0.9)
 	text(gene2Offset+max(exons2$right)/2, yGeneNames, fusions[fusion,"gene2"], font=2)
+	if (!grepl(",", head(exons2$transcript,1)))
+		text(gene2Offset+max(exons2$right)/2, yGeneNames-0.03, head(exons2$transcript,1), cex=0.9)
 
 	# label breakpoints
 	text(breakpoint1+0.01, yBreakpointLabels, paste0("breakpoint\n", fusions[fusion,"contig1"], ":", fusions[fusion,"breakpoint1"]), adj=c(1,0.5))
