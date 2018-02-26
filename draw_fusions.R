@@ -619,8 +619,20 @@ for (fusion in 1:nrow(fusions)) {
 		fusion_transcript1 <- substr(fusion_transcript1, max(1, nchar(fusion_transcript1)-30), nchar(fusion_transcript1))
 		fusion_transcript2 <- gsub(".*\\|", "", fusions[fusion,"fusion_transcript"], perl=T)
 		fusion_transcript2 <- substr(fusion_transcript2, 1, min(nchar(fusion_transcript2), 30))
-		text(fusionOffset2, yTranscript, fusion_transcript1, col=darkColor1, adj=c(1,0.5))
-		text(fusionOffset2, yTranscript, fusion_transcript1, col=darkColor2, adj=c(0,0.5))
+		# check for non-template bases
+		non_template_bases <- gsub(".*\\|([^|]*)\\|.*", "\\1", fusions[fusion,"fusion_transcript"])
+		if (non_template_bases == fusions[fusion,"fusion_transcript"]) # no non-template bases found
+			non_template_bases <- ""
+		# divide non-template bases half-and-half for centered alignment
+		non_template_bases1 <- substr(non_template_bases, 1, floor(nchar(non_template_bases)/2))
+		non_template_bases2 <- substr(non_template_bases, ceiling(nchar(non_template_bases)/2), nchar(non_template_bases))
+		# transcript 1
+		text(fusionOffset2, yTranscript, bquote(.(fusion_transcript1) * phantom(.(non_template_bases1))), col=darkColor1, adj=c(1,0.5))
+		# transcript 2
+		text(fusionOffset2, yTranscript, bquote(phantom(.(non_template_bases2)) * .(fusion_transcript2)), col=darkColor2, adj=c(0,0.5))
+		# non-template bases
+		text(fusionOffset2, yTranscript, non_template_bases1, adj=c(1,0.5))
+		text(fusionOffset2, yTranscript, non_template_bases2, adj=c(0,0.5))
 	}
 
 	if (!printCircos) {
