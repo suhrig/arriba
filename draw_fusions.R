@@ -19,7 +19,7 @@ parseStringParameter <- function(parameter, args, default="") {
 	return(ifelse(length(result) == 0, default, result))
 }
 if (any(grepl("^--help", args)))
-	stop("usage: draw_fusions.R --annotation=annotation.gtf --fusions=fusions.tsv --output=output.pdf [--alignments=Aligned.out.bam] [--cytobands=hg19] [--squishIntrons=TRUE] [--printExonLabels=TRUE] [--printStats=TRUE] [--printFusionTranscript=TRUE] [--pdfPaper=a4r] [--pdfWidth=11] [--pdfHeight=7] [--color1=#e5a5a5] [--color2=#a7c4e5]")
+	stop("usage: draw_fusions.R --annotation=annotation.gtf --fusions=fusions.tsv --output=output.pdf [--alignments=Aligned.out.bam] [--species=hg19] [--printIdeograms=FALSE] [--printCircos=FALSE] [--minConfidenceForCircosPlot=medium] [--squishIntrons=TRUE] [--printExonLabels=TRUE] [--printStats=TRUE] [--printFusionTranscript=TRUE] [--pdfPaper=a4r] [--pdfWidth=11] [--pdfHeight=7] [--color1=#e5a5a5] [--color2=#a7c4e5]")
 exonsFile <- parseStringParameter("annotation", args)
 if (file.access(exonsFile) == -1)
 	stop(sprintf("Exon annotation file (%s) does not exist", exonsFile))
@@ -36,7 +36,15 @@ if (alignmentsFile != "") {
 	if (!suppressPackageStartupMessages(require(GenomicAlignments)))
 		stop("Package 'GenomicAlignments' must be installed when '--alignments' is used")
 }
-cytobands <- parseStringParameter("cytobands", args)
+species <- parseStringParameter("species", args)
+printIdeograms <- parseBooleanParameter("printIdeograms", args, F)
+printCircos <- parseBooleanParameter("printCircos", args, F)
+if (printCircos)
+	if (!suppressPackageStartupMessages(require(circlize)))
+		stop("Package 'circlize' must be installed when '--printCircos' is used")
+minConfidenceForCircosPlot <- parseStringParameter("minConfidenceForCircosPlot", args, "medium")
+if (!(minConfidenceForCircosPlot %in% c("low", "medium", "high")))
+	stop("Invalid argument to --minConfidenceForCircosPlot")
 squishIntrons <- parseBooleanParameter("squishIntrons", args, T)
 printExonLabels <- parseBooleanParameter("printExonLabels", args, T)
 printStats <- parseBooleanParameter("printStats", args, T)
@@ -46,6 +54,7 @@ pdfWidth <- as.integer(parseStringParameter("pdfWidth", args, "11"))
 pdfHeight <- as.integer(parseStringParameter("pdfHeight", args, "7"))
 color1 <- parseStringParameter("color1", args, "#e5a5a5")
 color2 <- parseStringParameter("color2", args, "#a7c4e5")
+
 
 # get darker variants of colors
 getDarkColor <- function(color) {
@@ -85,18 +94,19 @@ removeChr <- function(contig) {
 
 # prepare ideogram data
 ideograms <- NULL
-if (cytobands != "") {
-	# try to load from file or download using biovizBase
-	if (file.access(cytobands) != -1) {
-		ideograms <- read.table(cytobands, header=T)
+if (printIdeograms || printCircos) {
+	# try to load from file or download from UCSC using circlize
+	if (file.access(species) != -1) {
+		ideograms <- read.table(species, header=F)
 	} else {
-		if (!suppressPackageStartupMessages(require(rtracklayer)) || !suppressPackageStartupMessages(require(biovizBase)))
-			stop("Packages 'rtracklayer' and 'biovizBase' must be installed when '--cytobands' is used")
-		ideograms <- as.data.frame(getIdeogram(cytobands, cytoband = TRUE))
+		if (!suppressPackageStartupMessages(require(circlize)))
+			stop("Package 'circlize' must be installed when '--species' is used without a local file")
+		ideograms <- read.cytoband(species=species)$df
 	}
-	ideograms$seqnames <- removeChr(as.character(ideograms$seqnames))
-	ideograms$gieStain <- as.character(ideograms$gieStain)
-	ideograms <- ideograms[order(ideograms$seqnames, ideograms$start, ideograms$end),]
+	colnames(ideograms) <- c("contig", "start", "end", "name", "giemsa")
+	ideograms$contig <- removeChr(as.character(ideograms$contig))
+	ideograms$giemsa <- as.character(ideograms$giemsa)
+	ideograms <- ideograms[order(ideograms$contig, ideograms$start, ideograms$end),]
 }
 
 # read exon annotation
@@ -158,13 +168,13 @@ drawCurlyBrace <- function(left, right, top, bottom, tip) {
 drawIdeogram <- function(adjust, left, right, y, ideograms, contig, breakpoint) {
 	# define design of ideogram
 	bandColors <- c(gneg="#ffffff", gpos25="#bbbbbb", gpos50="#888888", gpos75="#444444", gpos100="#000000", acen="#ec4f4f", stalk="#0000ff")
-	ideograms$color <- bandColors[ideograms$gieStain]
+	ideograms$color <- bandColors[ideograms$giemsa]
 	arcSteps <- 30 # defines roundness of arc
 	curlyBraceHeight <- 0.03
 	ideogramHeight <- 0.04
 	ideogramWidth <- 0.4
 	# extract bands of given contig
-	bands <- ideograms[ideograms$seqnames==contig,]
+	bands <- ideograms[ideograms$contig==contig,]
 	if (nrow(bands) == 0)
 		stop(paste("Giemsa bands of contig", contig, "not found"))
 	# scale width of ideogram to fit inside given region
@@ -178,10 +188,10 @@ drawIdeogram <- function(adjust, left, right, y, ideograms, contig, breakpoint) 
 	tip <- min(bands$left) + (max(bands$right)-min(bands$left)) / (max(bands$end)-min(bands$start)) * breakpoint
 	drawCurlyBrace(left, right, y-0.05+curlyBraceHeight, y-0.05, tip)
 	# draw title of chromosome
-	text((max(bands$right)+min(bands$left))/2, y+0.07, paste("chromosome", contig))
+	text((max(bands$right)+min(bands$left))/2, y+0.07, paste("chromosome", contig), font=2)
 	# draw name of band
 	bandName <- bands[which(bands$start <= breakpoint & bands$end >= breakpoint), "name"]
-	text(tip, y+0.03, bandName, cex=0.75)
+	text(tip, y+0.03, bandName)
 	# draw start of chromosome
 	leftArcX <- bands[1,"left"] + (1+cos(seq(pi/2,1.5*pi,len=arcSteps))) * (bands[1,"right"]-bands[1,"left"])
 	leftArcY <- y + sin(seq(pi/2,1.5*pi,len=arcSteps)) * (ideogramHeight/2)
@@ -190,7 +200,7 @@ drawIdeogram <- function(adjust, left, right, y, ideograms, contig, breakpoint) 
 	centromereStart <- NULL
 	centromereEnd <- NULL
 	for (band in 2:(nrow(bands)-1)) {
-		if (bands[band,"gieStain"] != "acen") {
+		if (bands[band,"giemsa"] != "acen") {
 			rect(bands[band,"left"], y-ideogramHeight/2, bands[band,"right"], y+ideogramHeight/2, col=bands[band,"color"])
 		} else { # draw centromere
 			if (is.null(centromereStart)) {
@@ -261,8 +271,46 @@ drawExon <- function(left, right, y, color, title, type) {
 			drawVerticalGradient(rep(left, gradientSteps), rep(right, gradientSteps), seq(y, y+exonHeight/2, len=gradientSteps), rgb(1,1,1,0.6))
 			drawVerticalGradient(rep(left, gradientSteps), rep(right, gradientSteps), seq(y, y-exonHeight/2, len=gradientSteps), rgb(1,1,1,0.6))
 			# add exon label
-			text((left+right)/2, y, title, cex=0.75)
+			text((left+right)/2, y, title, cex=0.9)
 		}
+	}
+}
+
+drawCircos <- function(fusion, fusions, ideograms, minConfidenceForCircosPlot) {
+	# initialize with empty circos plot
+	circos.clear()
+	circos.initializeWithIdeogram(cytoband=ideograms, plotType=NULL)
+	# use gene names as labels or <contig>:<position> for intergenic breakpoints
+	geneLabels <- data.frame(
+		contig=c(fusions[fusion,"contig1"], fusions[fusion,"contig2"]),
+		start=c(fusions[fusion,"breakpoint1"], fusions[fusion,"breakpoint2"])
+	)
+	geneLabels$end <- geneLabels$start + 1
+	geneLabels$gene <- c(fusions[fusion,"gene1"], fusions[fusion,"gene2"])
+	geneLabels$gene <- ifelse(grepl(",", geneLabels$gene), paste0(geneLabels$contig, ":", geneLabels$start), geneLabels$gene)
+	# draw gene labels
+	circos.genomicLabels(geneLabels, labels.column=4, side="outside")
+	# draw chromosome labels in connector plot
+	for (contig in unique(ideograms$contig)) {
+		set.current.cell(track.index=2, sector.index=contig) # draw in gene label connector track (track.index=2)
+		circos.text(CELL_META$xcenter, CELL_META$ycenter, contig, cex=0.75)
+	}
+	# draw ideograms
+	circos.genomicIdeogram(cytoband=ideograms)
+	# draw arcs
+	confidenceRank <- c(low=0, medium=1, high=2)
+	for (i in c(setdiff(1:nrow(fusions), fusion), fusion)) { # draw fusion of interest last, such that its arc is on top
+		f <- fusions[i,]
+		if (confidenceRank[f$confidence] >= confidenceRank[minConfidenceForCircosPlot])
+			circos.link(
+				f$contig1, f$breakpoint1,
+				f$contig2, f$breakpoint2,
+				lwd=2, col=ifelse(
+					(f$gene1 != fusions[fusion,"gene1"] | f$gene2 != fusions[fusion,"gene2"]) && (f$gene1 != fusions[fusion,"gene2"] | f$gene2 != fusions[fusion,"gene1"]),
+					rgb(1,0.7,0.7), # pale arcs for other fusions
+					rgb(1,0,0) # solid arc for fusion of interest
+				)
+			)
 	}
 }
 
@@ -325,12 +373,14 @@ for (fusion in 1:nrow(fusions)) {
 
 	exons1 <- findExons(exons, fusions[fusion,"gene1"], fusions[fusion,"direction1"], fusions[fusion,"contig1"], fusions[fusion,"breakpoint1"])
 	if (nrow(exons1) == 0) {
+		par(mfrow=c(1,1))
 		plot(0, 0, type="l", xaxt="n", yaxt="n", xlab="", ylab="")
 		text(0, 0, paste0("Error: exon coordinates of ", fusions[fusion,"gene1"], " not found in\n", exonsFile))
 		next
 	}
 	exons2 <- findExons(exons, fusions[fusion,"gene2"], fusions[fusion,"direction2"], fusions[fusion,"contig2"], fusions[fusion,"breakpoint2"])
 	if (nrow(exons2) == 0) {
+		par(mfrow=c(1,1))
 		plot(0, 0, type="l", xaxt="n", yaxt="n", xlab="", ylab="")
 		text(0, 0, paste0("Error: exon coordinates of ", fusions[fusion,"gene2"], " not found in\n", exonsFile))
 		next
@@ -450,39 +500,40 @@ for (fusion in 1:nrow(fusions)) {
 	# center fusion horizontally
 	fusionOffset1 <- (max(exons1$right)+gene2Offset)/2 - ifelse(fusions[fusion,"direction1"] == "downstream", breakpoint1, max(exons1$right)-breakpoint1)
 	fusionOffset2 <- fusionOffset1 + ifelse(fusions[fusion,"direction1"] == "downstream", breakpoint1, max(exons1$right)-breakpoint1)
-	
+
+	# layout: fusion on top, circos plot on bottom left, statistics on bottom right
+	layout(matrix(c(1,1,2,3), 2, 2, byrow = TRUE))
 	par(mar=c(0, 0, 0, 0))
-	plot(0, 0, type="l", xlim=c(-0.12, 1.12), ylim=c(-0.1, 1), bty="n", xaxt="n", yaxt="n")
+	plot(0, 0, type="l", xlim=c(-0.12, 1.12), ylim=c(0.4, 1), bty="n", xaxt="n", yaxt="n")
 
 	# vertical coordinates of layers
-	yIdeograms <- 0.95
-	yGeneNames <- 0.61
-	yBreakpointLabels <- 0.87
-	yCoverage <- 0.73
+	yIdeograms <- 0.94
+	yGeneNames <- 0.6
+	yBreakpointLabels <- 0.86
+	yCoverage <- 0.72
 	yExons <- 0.67
 	yFusion <- 0.5
 	yTranscript <- 0.43
-	yStats <- 0
 
 	# draw ideograms
-	if (!is.null(ideograms)) {
+	if (printIdeograms) {
 		drawIdeogram("left", min(exons1$left), max(exons1$right), yIdeograms, ideograms, fusions[fusion,"contig1"], fusions[fusion,"breakpoint1"])
 		drawIdeogram("right", gene2Offset, gene2Offset+max(exons2$right), yIdeograms, ideograms, fusions[fusion,"contig2"], fusions[fusion,"breakpoint2"])
 	}
 
 	# draw gene names
-	text(max(exons1$right)/2, yGeneNames, fusions[fusion,"gene1"])
-	text(gene2Offset+max(exons2$right)/2, yGeneNames, fusions[fusion,"gene2"])
+	text(max(exons1$right)/2, yGeneNames, fusions[fusion,"gene1"], font=2)
+	text(gene2Offset+max(exons2$right)/2, yGeneNames, fusions[fusion,"gene2"], font=2)
 
 	# label breakpoints
-	text(breakpoint1+0.01, yBreakpointLabels, paste0("breakpoint\n", fusions[fusion,"contig1"], ":", fusions[fusion,"breakpoint1"]), cex=0.75, adj=c(1,0.5))
-	text(gene2Offset+breakpoint2-0.01, yBreakpointLabels, paste0("breakpoint\n", fusions[fusion,"contig2"], ":", fusions[fusion,"breakpoint2"]), cex=0.75, adj=c(0,0.5))
+	text(breakpoint1+0.01, yBreakpointLabels, paste0("breakpoint\n", fusions[fusion,"contig1"], ":", fusions[fusion,"breakpoint1"]), adj=c(1,0.5))
+	text(gene2Offset+breakpoint2-0.01, yBreakpointLabels, paste0("breakpoint\n", fusions[fusion,"contig2"], ":", fusions[fusion,"breakpoint2"]), adj=c(0,0.5))
 
 	# draw coverage axis
 	lines(c(-0.02, -0.01, -0.01, -0.02), c(yCoverage, yCoverage, yCoverage+0.1, yCoverage+0.1))
-	text(-0.025, yCoverage, "0", adj=c(1,0.5), cex=0.75)
-	text(-0.025, yCoverage+0.1, coverageNormalization, adj=c(1,0.5), cex=0.75)
-	text(-0.05, yCoverage+0.04, "Coverage", srt=90, cex=0.75)
+	text(-0.025, yCoverage, "0", adj=c(1,0.5), cex=0.9)
+	text(-0.025, yCoverage+0.1, coverageNormalization, adj=c(1,0.5), cex=0.9)
+	text(-0.05, yCoverage+0.04, "Coverage", srt=90, cex=0.9)
 	rect(min(exons1$left), yCoverage, max(exons1$right), yCoverage+0.1, col="#eeeeee", border=NA)
 	rect(gene2Offset+min(exons2$left), yCoverage, gene2Offset+max(exons2$right), yCoverage+0.1, col="#eeeeee", border=NA)
 
@@ -564,15 +615,22 @@ for (fusion in 1:nrow(fusions)) {
 		fusion_transcript1 <- substr(fusion_transcript1, max(1, nchar(fusion_transcript1)-30), nchar(fusion_transcript1))
 		fusion_transcript2 <- gsub(".*\\|", "", fusions[fusion,"fusion_transcript"], perl=T)
 		fusion_transcript2 <- substr(fusion_transcript2, 1, min(nchar(fusion_transcript2), 30))
-		text(fusionOffset2, yTranscript, fusion_transcript1, col=darkColor1, cex=0.75, adj=c(1,0.5))
-		text(fusionOffset2, yTranscript, fusion_transcript1, col=darkColor2, cex=0.75, adj=c(0,0.5))
+		text(fusionOffset2, yTranscript, fusion_transcript1, col=darkColor1, adj=c(1,0.5))
+		text(fusionOffset2, yTranscript, fusion_transcript1, col=darkColor2, adj=c(0,0.5))
 	}
 
+	if (!printCircos) {
+		plot(0, 0, type="l", xlim=c(0, 1), ylim=c(0, 1), bty="n", xaxt="n", yaxt="n")
+	} else {
+		drawCircos(fusion, fusions, ideograms, minConfidenceForCircosPlot)
+	}
+
+	plot(0, 0, type="l", xlim=c(0, 1), ylim=c(0, 1), bty="n", xaxt="n", yaxt="n")
 	if (printStats) {
 		# print statistics about supporting alignments
-		text(0.5, yStats, paste("Split reads in", fusions[fusion,"gene1"], "=", fusions[fusion,"split_reads1"]), cex=0.75)
-		text(0.5, yStats-0.03, paste("Split reads in", fusions[fusion,"gene2"], "=", fusions[fusion,"split_reads2"]), cex=0.75)
-		text(0.5, yStats-0.06, paste("Discordant mates =", fusions[fusion,"discordant_mates"]), cex=0.75)
+		text(0, 0.5, paste("Split reads in", fusions[fusion,"gene1"], "=", fusions[fusion,"split_reads1"]), adj=c(0,0.5))
+		text(0, 0.45, paste("Split reads in", fusions[fusion,"gene2"], "=", fusions[fusion,"split_reads2"]), adj=c(0,0.5))
+		text(0, 0.40, paste("Discordant mates =", fusions[fusion,"discordant_mates"]), adj=c(0,0.5))
 	}
 
 }
