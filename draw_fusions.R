@@ -18,47 +18,47 @@ parseStringParameter <- function(parameter, args, default="") {
 	result <- sub(paste0("^--", parameter, "="), "", args[tail(which(grepl(paste0("^--", parameter, "="), args)), 1)], perl=T)
 	return(ifelse(length(result) == 0, default, result))
 }
-if (any(grepl("^--help", args)))
-	stop("usage: draw_fusions.R --annotation=annotation.gtf --fusions=fusions.tsv --output=output.pdf [--alignments=Aligned.out.bam] [--species=hg19] [--printIdeograms=FALSE] [--printCircos=FALSE] [--minConfidenceForCircosPlot=medium] [--proteinDomains=protein_domains.gff3] [--squishIntrons=TRUE] [--printExonLabels=TRUE] [--printStats=TRUE] [--printFusionTranscript=TRUE] [--pdfPaper=a4r] [--pdfWidth=11] [--pdfHeight=7] [--color1=#e5a5a5] [--color2=#a7c4e5]")
-exonsFile <- parseStringParameter("annotation", args)
-if (file.access(exonsFile) == -1)
-	stop(sprintf("Exon annotation file (%s) does not exist", exonsFile))
-fusionsFile <- parseStringParameter("fusions", args)
-if (file.access(fusionsFile) == -1)
-	stop(sprintf("Fusions file (%s) does not exist", fusionsFile))
+parseFileParameter <- function(parameter, args, mandatory=FALSE) {
+	fileName <- sub(paste0("^--", parameter, "="), "", args[tail(which(grepl(paste0("^--", parameter, "="), args)), 1)], perl=T)
+	if (length(fileName) > 0) {
+		if (file.access(fileName) == -1)
+			stop(paste("Cannot read file:", fileName))
+	} else {
+		if (mandatory)
+			stop(paste0("Missing mandatory argument: --", parameter))
+		fileName = ""
+	}
+	return(fileName)
+}
+
+if (any(grepl("^--help", args)) || length(args) == 0)
+	stop("Usage: draw_fusions.R --annotation=annotation.gtf --fusions=fusions.tsv --output=output.pdf [--alignments=Aligned.out.bam] [--cytobands=cytobands.tsv] [--minConfidenceForCircosPlot=medium] [--proteinDomains=protein_domains.gff3] [--squishIntrons=TRUE] [--printExonLabels=TRUE] [--pdfWidth=11.692] [--pdfHeight=8.267] [--color1=#e5a5a5] [--color2=#a7c4e5]")
+exonsFile <- parseFileParameter("annotation", args, T)
+fusionsFile <- parseFileParameter("fusions", args, T)
 outputFile <- parseStringParameter("output", args)
 if (outputFile == "")
-	stop("Output file not specified")
-alignmentsFile <- parseStringParameter("alignments", args)
-if (alignmentsFile != "") {
-	if (file.access(alignmentsFile) == -1)
-		stop(sprintf("Alignments file (%s) does not exist", alignmentsFile))
-	if (!suppressPackageStartupMessages(require(GenomicAlignments)))
-		stop("Package 'GenomicAlignments' must be installed when '--alignments' is used")
-}
-species <- parseStringParameter("species", args)
-printIdeograms <- parseBooleanParameter("printIdeograms", args, F)
-printCircos <- parseBooleanParameter("printCircos", args, F)
-if (printCircos)
-	if (!suppressPackageStartupMessages(require(circlize)))
-		stop("Package 'circlize' must be installed when '--printCircos' is used")
+	stop("Missing mandatory argument: --output")
+alignmentsFile <- parseFileParameter("alignments", args)
+cytobandsFile <- parseFileParameter("cytobands", args)
+if (cytobandsFile == "")
+	warning("Missing parameter '--cytobands'. No ideograms and circos plots will be drawn.")
 minConfidenceForCircosPlot <- parseStringParameter("minConfidenceForCircosPlot", args, "medium")
 if (!(minConfidenceForCircosPlot %in% c("low", "medium", "high")))
 	stop("Invalid argument to --minConfidenceForCircosPlot")
-proteinDomainsFile <- parseStringParameter("proteinDomains", args)
-if (proteinDomainsFile != "")
-	if (file.access(proteinDomainsFile) == -1)
-		stop(sprintf("Protein domains file (%s) does not exist", proteinDomainsFile))
+proteinDomainsFile <- parseFileParameter("proteinDomains", args)
 squishIntrons <- parseBooleanParameter("squishIntrons", args, T)
 printExonLabels <- parseBooleanParameter("printExonLabels", args, T)
-printStats <- parseBooleanParameter("printStats", args, T)
-printFusionTranscript <- parseBooleanParameter("printFusionTranscript", args, T)
-pdfPaper <- parseStringParameter("pdfPaper", args, "a4r")
-pdfWidth <- as.integer(parseStringParameter("pdfWidth", args, "11"))
-pdfHeight <- as.integer(parseStringParameter("pdfHeight", args, "7"))
+pdfWidth <- as.numeric(parseStringParameter("pdfWidth", args, "11.692"))
+pdfHeight <- as.numeric(parseStringParameter("pdfHeight", args, "8.267"))
 color1 <- parseStringParameter("color1", args, "#e5a5a5")
 color2 <- parseStringParameter("color2", args, "#a7c4e5")
 
+# check if required packages are installed
+if (!suppressPackageStartupMessages(require(circlize)))
+	warning("Package 'circlize' is not installed. No circos plots will be drawn.")
+if (alignmentsFile != "")
+	if (!suppressPackageStartupMessages(require(GenomicAlignments)))
+		stop("Package 'GenomicAlignments' must be installed when '--alignments' is used")
 
 # get darker variants of colors
 getDarkColor <- function(color) {
@@ -80,7 +80,7 @@ fusions$breakpoint1 <- as.numeric(sub(".*:", "", fusions$breakpoint1, perl=T))
 fusions$contig2 <- sub(":.*", "", fusions$breakpoint2)
 fusions$breakpoint2 <- as.numeric(sub(".*:", "", fusions$breakpoint2, perl=T))
 
-pdf(outputFile, onefile=T, paper=pdfPaper, width=pdfWidth, height=pdfHeight, title=fusionsFile)
+pdf(outputFile, onefile=T, width=pdfWidth, height=pdfHeight, title=fusionsFile)
 if (nrow(fusions) == 0) {
 	plot(0, 0, type="l", xaxt="n", yaxt="n", xlab="", ylab="")
 	text(0, 0, "Error: empty input file\n")
@@ -93,24 +93,14 @@ addChr <- function(contig) {
 	ifelse(contig == "MT", "chrM", paste0("chr", contig))
 }
 removeChr <- function(contig) {
-	sub("chr", "", sub("chrM", "MT", contig))
+	sub("^chr", "", sub("^chrM", "MT", contig), perl=T)
 }
 
-# prepare ideogram data
-ideograms <- NULL
-if (printIdeograms || printCircos) {
-	# try to load from file or download from UCSC using circlize
-	if (file.access(species) != -1) {
-		ideograms <- read.table(species, header=F)
-	} else {
-		if (!suppressPackageStartupMessages(require(circlize)))
-			stop("Package 'circlize' must be installed when '--species' is used without a local file")
-		ideograms <- read.cytoband(species=species)$df
-	}
-	colnames(ideograms) <- c("contig", "start", "end", "name", "giemsa")
-	ideograms$contig <- removeChr(as.character(ideograms$contig))
-	ideograms$giemsa <- as.character(ideograms$giemsa)
-	ideograms <- ideograms[order(ideograms$contig, ideograms$start, ideograms$end),]
+# read cytoband annotation
+cytobands <- NULL
+if (cytobandsFile != "") {
+	cytobands <- read.table(cytobandsFile, header=T, colClasses=c("character", "numeric", "numeric", "character", "character"))
+	cytobands <- cytobands[order(cytobands$contig, cytobands$start, cytobands$end),]
 }
 
 # read exon annotation
@@ -181,22 +171,22 @@ drawCurlyBrace <- function(left, right, top, bottom, tip) {
 	lines(tip+x*(right-tip), y)
 }
 
-drawIdeogram <- function(adjust, left, right, y, ideograms, contig, breakpoint) {
+drawIdeogram <- function(adjust, left, right, y, cytobands, contig, breakpoint) {
 	# define design of ideogram
 	bandColors <- c(gneg="#ffffff", gpos25="#bbbbbb", gpos50="#888888", gpos75="#444444", gpos100="#000000", acen="#ec4f4f", stalk="#0000ff")
-	ideograms$color <- bandColors[ideograms$giemsa]
+	cytobands$color <- bandColors[cytobands$giemsa]
 	arcSteps <- 30 # defines roundness of arc
 	curlyBraceHeight <- 0.03
 	ideogramHeight <- 0.04
 	ideogramWidth <- 0.4
 	# extract bands of given contig
-	bands <- ideograms[ideograms$contig==contig,]
+	bands <- cytobands[cytobands$contig==contig,]
 	if (nrow(bands) == 0)
 		stop(paste("Giemsa bands of contig", contig, "not found"))
 	# scale width of ideogram to fit inside given region
-	bands$left <- bands$start / max(ideograms$end) * ideogramWidth
-	bands$right <- bands$end / max(ideograms$end) * ideogramWidth
-	# left/right-align ideograms
+	bands$left <- bands$start / max(cytobands$end) * ideogramWidth
+	bands$right <- bands$end / max(cytobands$end) * ideogramWidth
+	# left/right-align cytobands
 	offset <- ifelse(adjust=="left", left, right - max(bands$right))
 	bands$left <- bands$left + offset
 	bands$right <- bands$right + offset
@@ -292,10 +282,10 @@ drawExon <- function(left, right, y, color, title, type) {
 	}
 }
 
-drawCircos <- function(fusion, fusions, ideograms, minConfidenceForCircosPlot) {
+drawCircos <- function(fusion, fusions, cytobands, minConfidenceForCircosPlot) {
 	# initialize with empty circos plot
 	circos.clear()
-	circos.initializeWithIdeogram(cytoband=ideograms, plotType=NULL)
+	circos.initializeWithIdeogram(cytoband=cytobands, plotType=NULL)
 	# use gene names as labels or <contig>:<position> for intergenic breakpoints
 	geneLabels <- data.frame(
 		contig=c(fusions[fusion,"contig1"], fusions[fusion,"contig2"]),
@@ -307,12 +297,12 @@ drawCircos <- function(fusion, fusions, ideograms, minConfidenceForCircosPlot) {
 	# draw gene labels
 	circos.genomicLabels(geneLabels, labels.column=4, side="outside")
 	# draw chromosome labels in connector plot
-	for (contig in unique(ideograms$contig)) {
+	for (contig in unique(cytobands$contig)) {
 		set.current.cell(track.index=2, sector.index=contig) # draw in gene label connector track (track.index=2)
 		circos.text(CELL_META$xcenter, CELL_META$ycenter, contig, cex=0.75)
 	}
 	# draw ideograms
-	circos.genomicIdeogram(cytoband=ideograms)
+	circos.genomicIdeogram(cytoband=cytobands)
 	# draw arcs
 	confidenceRank <- c(low=0, medium=1, high=2)
 	for (i in c(setdiff(1:nrow(fusions), fusion), fusion)) { # draw fusion of interest last, such that its arc is on top
@@ -766,7 +756,7 @@ for (fusion in 1:nrow(fusions)) {
 	# layout: fusion on top, circos plot on bottom left, protein domains on bottom center, statistics on bottom right
 	layout(matrix(c(1,1,1,2,3,4), 2, 3, byrow=TRUE), widths=c(1, 1.3, 0.7))
 	par(mar=c(0, 0, 0, 0))
-	plot(0, 0, type="l", xlim=c(-0.12, 1.12), ylim=c(0.4, 1), bty="n", xaxt="n", yaxt="n")
+	plot(0, 0, type="l", xlim=c(-0.12, 1.12), ylim=c(0.4, 1.1), bty="n", xaxt="n", yaxt="n")
 
 	# vertical coordinates of layers
 	yIdeograms <- 0.94
@@ -778,9 +768,9 @@ for (fusion in 1:nrow(fusions)) {
 	yTranscript <- 0.43
 
 	# draw ideograms
-	if (printIdeograms) {
-		drawIdeogram("left", min(exons1$left), max(exons1$right), yIdeograms, ideograms, fusions[fusion,"contig1"], fusions[fusion,"breakpoint1"])
-		drawIdeogram("right", gene2Offset, gene2Offset+max(exons2$right), yIdeograms, ideograms, fusions[fusion,"contig2"], fusions[fusion,"breakpoint2"])
+	if (!is.null(cytobands)) {
+		drawIdeogram("left", min(exons1$left), max(exons1$right), yIdeograms, cytobands, fusions[fusion,"contig1"], fusions[fusion,"breakpoint1"])
+		drawIdeogram("right", gene2Offset, gene2Offset+max(exons2$right), yIdeograms, cytobands, fusions[fusion,"contig2"], fusions[fusion,"breakpoint2"])
 	}
 
 	# draw gene & transcript names
@@ -875,7 +865,7 @@ for (fusion in 1:nrow(fusions)) {
 		lines(c(gene2Offset+breakpoint2, gene2Offset+breakpoint2, fusionOffset2), c(yBreakpointLabels-0.03, yExons-0.05, yFusion+0.03), col="red", lty=2)
 	}
 	
-	if (printFusionTranscript && fusions[fusion,"fusion_transcript"] != ".") {
+	if (fusions[fusion,"fusion_transcript"] != ".") {
 		# print fusion transcript colored by gene of origin
 		fusion_transcript1 <- gsub("\\|.*", "", fusions[fusion,"fusion_transcript"], perl=T)
 		fusion_transcript1 <- substr(fusion_transcript1, max(1, nchar(fusion_transcript1)-30), nchar(fusion_transcript1))
@@ -897,24 +887,24 @@ for (fusion in 1:nrow(fusions)) {
 		text(fusionOffset2, yTranscript, non_template_bases2, adj=c(0,0.5))
 	}
 
-	if (!printCircos) {
+	if (is.null(cytobands) || !("circlize" %in% names(sessionInfo()$otherPkgs))) {
 		plot(0, 0, type="l", xlim=c(0, 1), ylim=c(0, 1), bty="n", xaxt="n", yaxt="n")
 	} else {
-		drawCircos(fusion, fusions, ideograms, minConfidenceForCircosPlot)
+		par(mar=c(0, 4, 0, 0))
+		drawCircos(fusion, fusions, cytobands, minConfidenceForCircosPlot)
+		par(mar=c(0, 0, 0, 0))
 	}
 
 	plot(0, 0, type="l", xlim=c(0, 1), ylim=c(0, 1), bty="n", xaxt="n", yaxt="n")
 	if (!is.null(proteinDomains))
 		drawProteinDomains(fusions[fusion,], exons1, exons2, proteinDomains, color1, color2)
 
+	# print statistics about supporting alignments
 	plot(0, 0, type="l", xlim=c(0, 1), ylim=c(0, 1), bty="n", xaxt="n", yaxt="n")
-	if (printStats) {
-		# print statistics about supporting alignments
-		text(0, 0.575, "SUPPORTING READ COUNT", font=2, adj=c(0,0.5))
-		text(0, 0.525, paste("Split reads in", fusions[fusion,"gene1"], "=", fusions[fusion,"split_reads1"]), adj=c(0,0.5))
-		text(0, 0.475, paste("Split reads in", fusions[fusion,"gene2"], "=", fusions[fusion,"split_reads2"]), adj=c(0,0.5))
-		text(0, 0.425, paste("Discordant mates =", fusions[fusion,"discordant_mates"]), adj=c(0,0.5))
-	}
+	text(0, 0.575, "SUPPORTING READ COUNT", font=2, adj=c(0,0.5))
+	text(0, 0.525, paste("Split reads in", fusions[fusion,"gene1"], "=", fusions[fusion,"split_reads1"]), adj=c(0,0.5))
+	text(0, 0.475, paste("Split reads in", fusions[fusion,"gene2"], "=", fusions[fusion,"split_reads2"]), adj=c(0,0.5))
+	text(0, 0.425, paste("Discordant mates =", fusions[fusion,"discordant_mates"]), adj=c(0,0.5))
 
 }
 
