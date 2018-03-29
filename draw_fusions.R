@@ -19,7 +19,7 @@ parseStringParameter <- function(parameter, args, default="") {
 	return(ifelse(length(result) == 0, default, result))
 }
 if (any(grepl("^--help", args)))
-	stop("usage: draw_fusions.R --annotation=annotation.gtf --fusions=fusions.tsv --output=output.pdf [--alignments=Aligned.out.bam] [--species=hg19] [--printIdeograms=FALSE] [--printCircos=FALSE] [--minConfidenceForCircosPlot=medium] [--squishIntrons=TRUE] [--printExonLabels=TRUE] [--printStats=TRUE] [--printFusionTranscript=TRUE] [--pdfPaper=a4r] [--pdfWidth=11] [--pdfHeight=7] [--color1=#e5a5a5] [--color2=#a7c4e5]")
+	stop("usage: draw_fusions.R --annotation=annotation.gtf --fusions=fusions.tsv --output=output.pdf [--alignments=Aligned.out.bam] [--species=hg19] [--printIdeograms=FALSE] [--printCircos=FALSE] [--minConfidenceForCircosPlot=medium] [--proteinDomains=protein_domains.gff3] [--squishIntrons=TRUE] [--printExonLabels=TRUE] [--printStats=TRUE] [--printFusionTranscript=TRUE] [--pdfPaper=a4r] [--pdfWidth=11] [--pdfHeight=7] [--color1=#e5a5a5] [--color2=#a7c4e5]")
 exonsFile <- parseStringParameter("annotation", args)
 if (file.access(exonsFile) == -1)
 	stop(sprintf("Exon annotation file (%s) does not exist", exonsFile))
@@ -45,6 +45,10 @@ if (printCircos)
 minConfidenceForCircosPlot <- parseStringParameter("minConfidenceForCircosPlot", args, "medium")
 if (!(minConfidenceForCircosPlot %in% c("low", "medium", "high")))
 	stop("Invalid argument to --minConfidenceForCircosPlot")
+proteinDomainsFile <- parseStringParameter("proteinDomains", args)
+if (proteinDomainsFile != "")
+	if (file.access(proteinDomainsFile) == -1)
+		stop(sprintf("Protein domains file (%s) does not exist", proteinDomainsFile))
 squishIntrons <- parseBooleanParameter("squishIntrons", args, T)
 printExonLabels <- parseBooleanParameter("printExonLabels", args, T)
 printStats <- parseBooleanParameter("printStats", args, T)
@@ -118,6 +122,18 @@ exons$geneName <- gsub(".*gene_name \"?([^;\"]+)\"?;.*", "\\1", exons$attributes
 exons$transcript <- gsub(".*transcript_id \"?([^;\"]+)\"?;.*", "\\1", exons$attributes)
 exons$exonNumber <- ifelse(printExonLabels & grepl("exon_number ", exons$attributes), gsub(".*exon_number \"?([^;\"]+)\"?;.*", "\\1", exons$attributes), "")
 exons$contig <- removeChr(exons$contig)
+
+# read protein domain annotation
+proteinDomains <- NULL
+if (proteinDomainsFile != "") {
+	message("Loading protein domains")
+	proteinDomains <- read.table(proteinDomainsFile, header=F, sep="\t", comment.char="", quote="", stringsAsFactors=F)[,c(1,4,5,7,9)]
+	colnames(proteinDomains) <- c("contig", "start", "end", "strand", "attributes")
+	proteinDomains$color <- sub(";.*", "", sub(".*color=", "", proteinDomains$attributes, perl=T), perl=T)
+	proteinDomains$proteinDomainName <- sapply(sub(";.*", "", sub(".*Name=", "", proteinDomains$attributes, perl=T), perl=T), URLdecode)
+	proteinDomains$proteinDomainID <- sub(";.*", "", sub(".*protein_domain_id=", "", proteinDomains$attributes, perl=T), perl=T)
+	proteinDomains <- proteinDomains[,colnames(proteinDomains) != "attributes"]
+}
 
 # insert dummy annotations for dummy genes
 if (any(grepl(",", fusions$gene1) | grepl(",", fusions$gene2))) {
@@ -314,6 +330,252 @@ drawCircos <- function(fusion, fusions, ideograms, minConfidenceForCircosPlot) {
 	}
 }
 
+drawProteinDomains <- function(fusion, exons1, exons2, proteinDomains, color1, color2) {
+
+	exonHeight <- 0.2
+	exonsY <- 0.5
+	geneNamesY <- exonsY - exonHeight/2 - 0.05
+
+	# find coding exons
+	codingExons1 <- exons1[exons1$type == "CDS",]
+	codingExons2 <- exons2[exons2$type == "CDS",]
+
+	# cut off coding regions beyond breakpoint
+	if (fusion$direction1 == "upstream") {
+		codingExons1 <- codingExons1[codingExons1$end >= fusion$breakpoint1,]
+		codingExons1$start <- ifelse(codingExons1$start < fusion$breakpoint1, fusion$breakpoint1, codingExons1$start)
+	} else {
+		codingExons1 <- codingExons1[codingExons1$start <= fusion$breakpoint1,]
+		codingExons1$end <- ifelse(codingExons1$end > fusion$breakpoint1, fusion$breakpoint1, codingExons1$end)
+	}
+	if (fusion$direction2 == "upstream") {
+		codingExons2 <- codingExons2[codingExons2$end >= fusion$breakpoint2,]
+		codingExons2$start <- ifelse(codingExons2$start < fusion$breakpoint2, fusion$breakpoint2, codingExons2$start)
+	} else {
+		codingExons2 <- codingExons2[codingExons2$start <= fusion$breakpoint2,]
+		codingExons2$end <- ifelse(codingExons2$end > fusion$breakpoint2, fusion$breakpoint2, codingExons2$end)
+	}
+
+	# find overlapping domains
+	exonsGRanges1 <- GRanges(codingExons1$contig, IRanges(codingExons1$start, codingExons1$end), strand=codingExons1$strand)
+	exonsGRanges2 <- GRanges(codingExons2$contig, IRanges(codingExons2$start, codingExons2$end), strand=codingExons2$strand)
+	domainsGRanges <- GRanges(proteinDomains$contig, IRanges(proteinDomains$start, proteinDomains$end), strand=proteinDomains$strand)
+	domainsGRanges$proteinDomainName <- proteinDomains$proteinDomainName
+	domainsGRanges$proteinDomainID <- proteinDomains$proteinDomainID
+	domainsGRanges$color <- proteinDomains$color
+	domainsGRanges <- domainsGRanges[suppressWarnings(unique(queryHits(findOverlaps(domainsGRanges, union(exonsGRanges1, exonsGRanges2)))))]
+
+	# group overlapping domains by domain ID
+	domainsGRangesList <- GRangesList(lapply(unique(domainsGRanges$proteinDomainID), function(x) { domainsGRanges[domainsGRanges$proteinDomainID == x] }))
+
+	# trim protein domains to exon boundaries
+	trimDomains <- function(domainsGRangesList, exonsGRanges) {
+		do.call(
+			"rbind",
+			lapply(
+				domainsGRangesList,
+				function(x) {
+					intersected <- as.data.frame(reduce(suppressWarnings(intersect(x, exonsGRanges))))
+					if (nrow(intersected) > 0) {
+						intersected$proteinDomainName <- head(x$proteinDomainName, 1)
+						intersected$proteinDomainID <- head(x$proteinDomainID, 1)
+						intersected$color <- head(x$color, 1)
+					} else {
+						intersected$proteinDomainName <- character()
+						intersected$proteinDomainID <- character()
+						intersected$color <- character()
+					}
+					return(intersected)
+				}
+			)
+		)
+	}
+	retainedDomains1 <- trimDomains(domainsGRangesList, exonsGRanges1)
+	retainedDomains2 <- trimDomains(domainsGRangesList, exonsGRanges2)
+
+	# calculate length of coding exons
+	codingExons1$length <- codingExons1$end - codingExons1$start + 1
+	codingExons2$length <- codingExons2$end - codingExons2$start + 1
+
+	# abort, if there are no coding regions
+	if (sum(exons1$type == "CDS") + sum(exons2$type == "CDS") == 0) {
+		text(0.5, 0.5, "Genes are not protein-coding.")
+		return(NULL)
+	}
+	codingLength1 <- sum(codingExons1$length)
+	codingLength2 <- sum(codingExons2$length)
+	if (codingLength1 + codingLength2 == 0) {
+		text(0.5, 0.5, "No coding regions retained in fusion transcript.")
+		return(NULL)
+	}
+	antisenseTranscription1 <- sub("/.*", "", fusion$strand1) != sub(".*/", "", fusion$strand1)
+	antisenseTranscription2 <- sub("/.*", "", fusion$strand2) != sub(".*/", "", fusion$strand2)
+	if ((codingLength1 == 0 || antisenseTranscription1) && (codingLength2 == 0 || antisenseTranscription2)) {
+		text(0.5, 0.5, "No coding regions due to antisense transcription.")
+		return(NULL)
+	}
+
+	# remove introns from protein domains
+	removeIntronsFromProteinDomains <- function(codingExons, retainedDomains) {
+		cumulativeIntronLength <- 0
+		previousExonEnd <- 0
+		for (exon in 1:nrow(codingExons)) {
+			if (codingExons[exon,"start"] > previousExonEnd)
+				cumulativeIntronLength <- cumulativeIntronLength + codingExons[exon,"start"] - previousExonEnd
+			domainsInExon <- which(retainedDomains$start >= codingExons[exon,"start"] & retainedDomains$start <= codingExons[exon,"end"])
+			retainedDomains[domainsInExon,"start"] <- retainedDomains[domainsInExon,"start"] - cumulativeIntronLength
+			domainsInExon <- which(retainedDomains$end >= codingExons[exon,"start"] & retainedDomains$end <= codingExons[exon,"end"])
+			retainedDomains[domainsInExon,"end"] <- retainedDomains[domainsInExon,"end"] - cumulativeIntronLength
+			previousExonEnd <- codingExons[exon,"end"]
+		}
+		# merge adjacent domains
+		retainedDomains <- do.call(
+			"rbind",
+			lapply(
+				unique(retainedDomains$proteinDomainID),
+				function(x) {
+					domain <- retainedDomains[retainedDomains$proteinDomainID == x,]
+					merged <- reduce(GRanges(domain$seqnames, IRanges(domain$start, domain$end), strand=domain$strand))
+					merged$proteinDomainName <- head(domain$proteinDomainName, 1)
+					merged$proteinDomainID <- head(domain$proteinDomainID, 1)
+					merged$color <- head(domain$color, 1)
+					return(as.data.frame(merged))
+				}
+			)
+		)
+		return(retainedDomains)
+	}
+	retainedDomains1 <- removeIntronsFromProteinDomains(codingExons1, retainedDomains1)
+	retainedDomains2 <- removeIntronsFromProteinDomains(codingExons2, retainedDomains2)
+
+	# merge domains with similar coordinates
+	mergeSimilarDomains <- function(domains) {
+		if (is.null(domains)) return(domains)
+		coordinateDifference <- 0.1 # fraction of difference in coordinates of overlapping regions to consider them the same
+		merged <- domains[F,] # create empty data frame
+		domains <- domains[order(domains$end - domains$start, decreasing=T),] # start with bigger domains => bigger domains are retained
+		for (domain in rownames(domains)) {
+			if (!any((abs(merged$start - domains[domain,"start"]) + abs(merged$end - domains[domain,"end"])) / (domains[domain,"end"] - domains[domain,"start"]) < coordinateDifference))
+				merged <- rbind(merged, domains[domain,])
+		}
+		return(merged)
+	}
+	retainedDomains1 <- mergeSimilarDomains(retainedDomains1)
+	retainedDomains2 <- mergeSimilarDomains(retainedDomains2)
+
+	# normalize length to 1
+	codingExons1$length <- codingExons1$length / (codingLength1 + codingLength2)
+	codingExons2$length <- codingExons2$length / (codingLength1 + codingLength2)
+	retainedDomains1$start <- retainedDomains1$start / (codingLength1 + codingLength2)
+	retainedDomains1$end <- retainedDomains1$end / (codingLength1 + codingLength2)
+	retainedDomains2$start <- retainedDomains2$start / (codingLength1 + codingLength2)
+	retainedDomains2$end <- retainedDomains2$end / (codingLength1 + codingLength2)
+
+	# draw coding regions
+	rect(0, exonsY-exonHeight/2, sum(codingExons1$length), exonsY+exonHeight/2, col=color1, border=NA)
+	rect(sum(codingExons1$length), exonsY-exonHeight/2, sum(codingExons1$length) + sum(codingExons2$length), exonsY+exonHeight/2, col=color2, border=NA)
+
+	# indicate exon boundaries as dotted lines
+	exonBoundaries <- cumsum(c(codingExons1$length, codingExons2$length))
+	if (length(exonBoundaries) > 1) {
+		exonBoundaries <- exonBoundaries[1:(length(exonBoundaries)-1)]
+		for (exonBoundary in exonBoundaries)
+			lines(c(exonBoundary, exonBoundary), c(exonsY-exonHeight, exonsY+exonHeight), col="white", lty=3)
+	}
+
+	# find overlapping domains
+	# nest if one is contained in another
+	# stack if they overlap partially
+	nestDomains <- function(domains) {
+		if (length(unlist(domains)) == 0) return(domains)
+		domains <- domains[order(domains$end - domains$start, decreasing=T),]
+		rownames(domains) <- 1:nrow(domains)
+		# find nested domains and make tree structure
+		domains$parent <- 0
+		for (domain in rownames(domains))
+			domains[domains$start >= domains[domain,"start"] & domains$end <= domains[domain,"end"] & rownames(domains) != domain,"parent"] <- domain
+		# find partially overlapping domains
+		maxOverlappingDomains <- max(coverage(IRanges(domains$start*10e6, domains$end*10e6)))
+		padding <- 1 / maxOverlappingDomains * 0.5
+		domains$y <- 0
+		domains$height <- 0
+		adjustPositionAndHeight <- function(parentDomain, y, height, padding, e) {
+			for (domain in which(e$domains$parent == parentDomain)) {
+				overlappingDomains <- which((e$domains$start >= e$domains[domain,"start"] & e$domains$start <= e$domains[domain,"end"] |
+				                             e$domains$end   >= e$domains[domain,"start"] & e$domains$end   <= e$domains[domain,"end"]) &
+				                             e$domains$parent == parentDomain)
+				e$domains[domain,"height"] <- height/length(overlappingDomains) - padding * (length(overlappingDomains)-1) / length(overlappingDomains)
+				e$domains[domain,"y"] <- y + (which(domain==overlappingDomains)-1) * (e$domains[domain,"height"] + padding)
+				adjustPositionAndHeight(domain, e$domains[domain,"y"]+padding, e$domains[domain,"height"]-2*padding, padding, e)
+			}
+		}
+		adjustPositionAndHeight(0, 0, 1, padding, environment())
+		domains <- domains[order(domains$height, decreasing=T),] # draw nested domains last
+		return(domains)
+	}
+	retainedDomains1 <- nestDomains(retainedDomains1)
+	retainedDomains2 <- nestDomains(retainedDomains2)
+	retainedDomains1$y <- exonsY - exonHeight/2 + 0.025 + (exonHeight-2*0.025) * retainedDomains1$y
+	retainedDomains2$y <- exonsY - exonHeight/2 + 0.025 + (exonHeight-2*0.025) * retainedDomains2$y
+	retainedDomains1$height <- retainedDomains1$height * (exonHeight-2*0.025)
+	retainedDomains2$height <- retainedDomains2$height * (exonHeight-2*0.025)
+
+	# draw domains
+	drawProteinDomainRect <- function(left, bottom, right, top, color) {
+		rect(left, bottom, right, top, col=color, border=getDarkColor(color))
+		# draw gradients for 3D effect
+		gradientSteps <- 10
+		drawVerticalGradient(rep(left, gradientSteps), rep(right, gradientSteps), seq(top, bottom, len=gradientSteps), rgb(1,1,1,0.7))
+		drawVerticalGradient(rep(left, gradientSteps), rep(right, gradientSteps), seq(bottom, bottom+(top-bottom)*0.4, len=gradientSteps), rgb(0,0,0,0.1))
+	}
+	if (length(unlist(retainedDomains1)) > 0)
+		for (domain in 1:nrow(retainedDomains1))
+			drawProteinDomainRect(retainedDomains1[domain,"start"], retainedDomains1[domain,"y"], retainedDomains1[domain,"end"], retainedDomains1[domain,"y"]+retainedDomains1[domain,"height"], retainedDomains1[domain,"color"])
+	if (length(unlist(retainedDomains2)) > 0)
+		for (domain in 1:nrow(retainedDomains2))
+			drawProteinDomainRect(sum(codingExons1$length)+retainedDomains2[domain,"start"], retainedDomains2[domain,"y"], sum(codingExons1$length)+retainedDomains2[domain,"end"], retainedDomains2[domain,"y"]+retainedDomains2[domain,"height"], retainedDomains2[domain,"color"])
+
+	# draw gene names
+	text(sum(codingExons1$length)/2, geneNamesY, fusion$gene1, font=2)
+	text(sum(codingExons1$length)+sum(codingExons2$length)/2, geneNamesY, fusion$gene2, font=2)
+
+	# draw title of plot
+	text(0.5, exonsY + exonHeight/2 + (nrow(retainedDomains1)+1) * 0.05, "RETAINED PROTEIN DOMAINS", font=2)
+
+	# draw domain labels for gene1
+	if (length(unlist(retainedDomains1)) > 0) {
+		retainedDomains1 <- retainedDomains1[order(retainedDomains1$start),]
+		previousLabelX <- -1
+		for (domain in 1:nrow(retainedDomains1)) {
+			labelY <- exonsY + exonHeight/2 + (nrow(retainedDomains1) - domain + 1) * 0.05
+			labelX <- retainedDomains1[domain,"start"]
+			# if possible avoid overlapping lines of labels
+			if (abs(labelX - previousLabelX) < 0.01 && retainedDomains1[domain,"end"] > previousLabelX + 0.01)
+				labelX <- previousLabelX + 0.01
+			previousLabelX <- labelX
+			text(labelX+0.03, labelY, retainedDomains1[domain,"proteinDomainName"], adj=c(0,0.5), col=getDarkColor(retainedDomains1[domain,"color"]))
+			lines(c(labelX+0.025, labelX+0.01, labelX+0.01), c(labelY, labelY, retainedDomains1[domain,"y"]+retainedDomains1[domain,"height"]), col=getDarkColor(retainedDomains1[domain,"color"]))
+		}
+	}
+
+	# draw domain labels for gene2
+	if (length(unlist(retainedDomains2)) > 0) {
+		retainedDomains2 <- retainedDomains2[order(retainedDomains2$end, decreasing=T),]
+		previousLabelX <- -1
+		for (domain in 1:nrow(retainedDomains2)) {
+			labelY <- exonsY - exonHeight/2 - (nrow(retainedDomains2) - domain + 2) * 0.05
+			labelX <- sum(codingExons1$length) + retainedDomains2[domain,"end"]
+			# if possible avoid overlapping lines of labels
+			if (abs(labelX - previousLabelX) < 0.01 && retainedDomains2[domain,"start"] < previousLabelX - 0.01)
+				labelX <- previousLabelX - 0.01
+			previousLabelX <- labelX
+			text(labelX-0.03, labelY, retainedDomains2[domain,"proteinDomainName"], adj=c(1,0.5), col=getDarkColor(retainedDomains2[domain,"color"]))
+			lines(c(labelX-0.025, labelX-0.01, labelX-0.01), c(labelY, labelY, retainedDomains2[domain,"y"]), col=getDarkColor(retainedDomains2[domain,"color"]))
+		}
+	}
+
+}
+
 findExons <- function(exons, gene, direction, contig, breakpoint) {
 	# look for exon with breakpoint as splice site
 	transcripts <- exons[exons$geneName == gene & exons$contig == contig & exons$type == "exon" & (direction == "downstream" & abs(exons$end - breakpoint) <= 2 | direction == "upstream" & abs(exons$start - breakpoint) <= 2),"transcript"]
@@ -501,8 +763,8 @@ for (fusion in 1:nrow(fusions)) {
 	fusionOffset1 <- (max(exons1$right)+gene2Offset)/2 - ifelse(fusions[fusion,"direction1"] == "downstream", breakpoint1, max(exons1$right)-breakpoint1)
 	fusionOffset2 <- fusionOffset1 + ifelse(fusions[fusion,"direction1"] == "downstream", breakpoint1, max(exons1$right)-breakpoint1)
 
-	# layout: fusion on top, circos plot on bottom left, statistics on bottom right
-	layout(matrix(c(1,1,2,3), 2, 2, byrow = TRUE))
+	# layout: fusion on top, circos plot on bottom left, protein domains on bottom center, statistics on bottom right
+	layout(matrix(c(1,1,1,2,3,4), 2, 3, byrow=TRUE), widths=c(1, 1.3, 0.7))
 	par(mar=c(0, 0, 0, 0))
 	plot(0, 0, type="l", xlim=c(-0.12, 1.12), ylim=c(0.4, 1), bty="n", xaxt="n", yaxt="n")
 
@@ -642,11 +904,16 @@ for (fusion in 1:nrow(fusions)) {
 	}
 
 	plot(0, 0, type="l", xlim=c(0, 1), ylim=c(0, 1), bty="n", xaxt="n", yaxt="n")
+	if (!is.null(proteinDomains))
+		drawProteinDomains(fusions[fusion,], exons1, exons2, proteinDomains, color1, color2)
+
+	plot(0, 0, type="l", xlim=c(0, 1), ylim=c(0, 1), bty="n", xaxt="n", yaxt="n")
 	if (printStats) {
 		# print statistics about supporting alignments
-		text(0, 0.5, paste("Split reads in", fusions[fusion,"gene1"], "=", fusions[fusion,"split_reads1"]), adj=c(0,0.5))
-		text(0, 0.45, paste("Split reads in", fusions[fusion,"gene2"], "=", fusions[fusion,"split_reads2"]), adj=c(0,0.5))
-		text(0, 0.40, paste("Discordant mates =", fusions[fusion,"discordant_mates"]), adj=c(0,0.5))
+		text(0, 0.575, "SUPPORTING READ COUNT", font=2, adj=c(0,0.5))
+		text(0, 0.525, paste("Split reads in", fusions[fusion,"gene1"], "=", fusions[fusion,"split_reads1"]), adj=c(0,0.5))
+		text(0, 0.475, paste("Split reads in", fusions[fusion,"gene2"], "=", fusions[fusion,"split_reads2"]), adj=c(0,0.5))
+		text(0, 0.425, paste("Discordant mates =", fusions[fusion,"discordant_mates"]), adj=c(0,0.5))
 	}
 
 }
