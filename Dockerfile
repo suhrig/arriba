@@ -15,6 +15,10 @@ tar -x -z --strip-components=3 -C /usr/local/bin -f - STAR-master/bin/Linux_x86_
 RUN URL=$(wget -q -O - https://api.github.com/repos/suhrig/arriba/releases/latest | sed -n -e 's/.*"browser_download_url":\s*"\([^"]*\)".*/\1/p') && \
 wget -q -O - "$URL" | tar -xzf -
 
+# install dependencies of draw_fusions.R
+RUN apt-get install -y r-base && \
+Rscript -e 'install.packages("circlize", repos="http://cran.r-project.org"); source("https://bioconductor.org/biocLite.R"); biocLite(c("GenomicRanges", "GenomicAlignments"))'
+
 ENV THREADS=8
 
 # make script to download references
@@ -32,4 +36,11 @@ RUN echo '#!/bin/bash\n\
 cd /output\n\
 /arriba*/run_arriba.sh /references/STAR_index_hs37d5_gencode19 /references/gencode.v19.annotation.gtf /references/hs37d5.fa /arriba*/database/blacklist_hg19_hs37d5_GRCh37_*.tsv.gz /read1.fastq.gz /read2.fastq.gz $THREADS' > /usr/local/bin/arriba.sh && \
 chmod a+x /usr/local/bin/arriba.sh
+
+# make script to run draw_fusions.R
+RUN echo '#!/bin/bash\n\
+PROTEIN_DOMAINS=/arriba*/database/protein_domains_hg19_hs37d5_GRCh37_*.gff3 \n\
+CYTOBANDS=/arriba*/database/cytobands_hg19_hs37d5_GRCh37_*.tsv \n\
+Rscript /arriba*/draw_fusions.R --annotation=/references/gencode.v19.annotation.gtf --fusions=/fusions.tsv --output=/output/fusions.pdf --proteinDomains=$PROTEIN_DOMAINS --alignments=/Aligned.sortedByCoord.out.bam --cytobands=$CYTOBANDS --optimizeDomainColors=TRUE' > /usr/local/bin/draw_fusions.sh && \
+chmod a+x /usr/local/bin/draw_fusions.sh
 
