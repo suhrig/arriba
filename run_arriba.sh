@@ -21,7 +21,7 @@ THREADS="$7"
 # find installation directory of arriba
 BASE_DIR=$(dirname "$0")
 
-# align FastQ files (STAR >=2.5.3a recommended)
+# align FastQ files (STAR >=2.5.0a recommended)
 # "--outSAMtype BAM Unsorted SortedByCoordinate" generates both, an unsorted and a coordinate-sorted output file
 # the former is directly piped to extract_reads via "--outStd BAM_Unsorted"
 # like so, read-through fusions are extracted while the alignment is running, instead of after
@@ -31,9 +31,8 @@ STAR \
 	--readFilesIn "$READ1" "$READ2" --readFilesCommand zcat \
 	--outStd BAM_Unsorted --outSAMtype BAM Unsorted SortedByCoordinate \
 	--outSAMunmapped Within \
-	--outFilterMultimapNmax 1 --outFilterMismatchNmax 3 --outFilterMismatchNoverLmax 0.3 \
-	--alignIntronMax 500000 --alignMatesGapMax 500000 \
-	--chimSegmentMin 10 --chimJunctionOverhangMin 10 --chimScoreMin 1 --chimScoreDropMax 30 --chimScoreJunctionNonGTAG 0 --chimScoreSeparation 1 --alignSJstitchMismatchNmax 5 -1 5 5 --chimSegmentReadGapMax 3 --chimMainSegmentMultNmax 10 \
+	--outFilterMultimapNmax 1 --outFilterMismatchNmax 3 \
+	--chimSegmentMin 10 --chimJunctionOverhangMin 10 --chimScoreMin 1 --chimScoreDropMax 30 --chimScoreJunctionNonGTAG 0 --chimScoreSeparation 1 --alignSJstitchMismatchNmax 5 -1 5 5 --chimSegmentReadGapMax 3 \
 	--limitBAMsortRAM 50000000000 |
 "$BASE_DIR/extract_reads" -g "$ANNOTATION_GTF" -r read_through.bam
 

@@ -9,7 +9,7 @@ STAR
 In order for `STAR` to generate chimeric alignments, the parameter `--chimSegmentMin` must be specified. In addition, the following parameters are recommended to improve sensitivity:
 
 ```bash
---chimSegmentMin 10 --chimJunctionOverhangMin 10 --chimScoreMin 1 --chimScoreDropMax 30 --chimScoreJunctionNonGTAG 0 --chimScoreSeparation 1 --alignSJstitchMismatchNmax 5 -1 5 5 --chimSegmentReadGapMax 3 --chimMainSegmentMultNmax 10
+--chimSegmentMin 10 --chimJunctionOverhangMin 10 --chimScoreMin 1 --chimScoreDropMax 30 --chimScoreJunctionNonGTAG 0 --chimScoreSeparation 1 --alignSJstitchMismatchNmax 5 -1 5 5 --chimSegmentReadGapMax 3
 ```
 
 A complete call of `STAR` may look like this:
@@ -21,9 +21,8 @@ STAR \
 	--readFilesIn read1.fastq.gz read2.fastq.gz --readFilesCommand zcat \
 	--outSAMtype BAM SortedByCoordinate \
 	--outSAMunmapped Within \
-	--outFilterMultimapNmax 1 --outFilterMismatchNmax 3 --outFilterMismatchNoverLmax 0.3 \
-	--alignIntronMax 500000 --alignMatesGapMax 500000 \
-	--chimSegmentMin 10 --chimJunctionOverhangMin 10 --chimScoreMin 1 --chimScoreDropMax 30 --chimScoreJunctionNonGTAG 0 --chimScoreSeparation 1 --alignSJstitchMismatchNmax 5 -1 5 5 --chimSegmentReadGapMax 3 --chimMainSegmentMultNmax 10
+	--outFilterMultimapNmax 1 --outFilterMismatchNmax 3 \
+	--chimSegmentMin 10 --chimJunctionOverhangMin 10 --chimScoreMin 1 --chimScoreDropMax 30 --chimScoreJunctionNonGTAG 0 --chimScoreSeparation 1 --alignSJstitchMismatchNmax 5 -1 5 5 --chimSegmentReadGapMax 3
 ```
 
 Apart from the parameters concerning chimeric alignment, all parameters may be modified according to the user's preferences.
