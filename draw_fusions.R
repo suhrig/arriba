@@ -55,6 +55,8 @@ color2 <- parseStringParameter("color2", args, "#a7c4e5")
 mergeDomainsOverlappingBy <- as.numeric(parseStringParameter("mergeDomainsOverlappingBy", args, 0.9))
 
 # check if required packages are installed
+if (!suppressPackageStartupMessages(require(GenomicRanges)))
+	warning("Package 'GenomicRanges' is not installed. No circos plots will be drawn.")
 if (!suppressPackageStartupMessages(require(circlize)))
 	warning("Package 'circlize' is not installed. No circos plots will be drawn.")
 if (alignmentsFile != "")
@@ -264,8 +266,8 @@ drawExon <- function(left, right, y, color, title, type) {
 	if (title != "dummy" && title != "intergenic") {
 		if (type == "CDS") {
 			# draw coding regions as thicker bars
-			rect(left, y+exonHeight, right, y+exonHeight/2-0.001, col=color, border=NA)
-			rect(left, y-exonHeight, right, y-exonHeight/2+0.001, col=color, border=NA)
+			rect(left, y+exonHeight, right, y+exonHeight/2-0.0015, col=color, border=NA)
+			rect(left, y-exonHeight, right, y-exonHeight/2+0.0015, col=color, border=NA)
 			# draw border
 			lines(c(left, left, right, right), c(y+exonHeight/2, y+exonHeight, y+exonHeight, y+exonHeight/2), col=getDarkColor(color))
 			lines(c(left, left, right, right), c(y-exonHeight/2, y-exonHeight, y-exonHeight, y-exonHeight/2), col=getDarkColor(color))
@@ -296,11 +298,11 @@ drawCircos <- function(fusion, fusions, cytobands, minConfidenceForCircosPlot) {
 	geneLabels$gene <- c(fusions[fusion,"gene1"], fusions[fusion,"gene2"])
 	geneLabels$gene <- ifelse(grepl(",", geneLabels$gene), paste0(geneLabels$contig, ":", geneLabels$start), geneLabels$gene)
 	# draw gene labels
-	circos.genomicLabels(geneLabels, labels.column=4, side="outside")
+	circos.genomicLabels(geneLabels, labels.column=4, side="outside", cex=1)
 	# draw chromosome labels in connector plot
 	for (contig in unique(cytobands$contig)) {
 		set.current.cell(track.index=2, sector.index=contig) # draw in gene label connector track (track.index=2)
-		circos.text(CELL_META$xcenter, CELL_META$ycenter, contig, cex=0.75)
+		circos.text(CELL_META$xcenter, CELL_META$ycenter, contig, cex=0.85)
 	}
 	# draw ideograms
 	circos.genomicIdeogram(cytoband=cytobands)
@@ -308,15 +310,11 @@ drawCircos <- function(fusion, fusions, cytobands, minConfidenceForCircosPlot) {
 	confidenceRank <- c(low=0, medium=1, high=2)
 	for (i in c(setdiff(1:nrow(fusions), fusion), fusion)) { # draw fusion of interest last, such that its arc is on top
 		f <- fusions[i,]
-		if (confidenceRank[f$confidence] >= confidenceRank[minConfidenceForCircosPlot])
+		if (confidenceRank[f$confidence] >= confidenceRank[minConfidenceForCircosPlot] || i==fusion)
 			circos.link(
 				f$contig1, f$breakpoint1,
 				f$contig2, f$breakpoint2,
-				lwd=2, col=ifelse(
-					(f$gene1 != fusions[fusion,"gene1"] | f$gene2 != fusions[fusion,"gene2"]) && (f$gene1 != fusions[fusion,"gene2"] | f$gene2 != fusions[fusion,"gene1"]),
-					rgb(1,0.7,0.7), # pale arcs for other fusions
-					rgb(1,0,0) # solid arc for fusion of interest
-				)
+				lwd=2, col=ifelse(i==fusion, rgb(1,0,0), rgb(1,0.7,0.7))
 			)
 	}
 }
@@ -408,6 +406,7 @@ drawProteinDomains <- function(fusion, exons1, exons2, proteinDomains, color1, c
 
 	# remove introns from protein domains
 	removeIntronsFromProteinDomains <- function(codingExons, retainedDomains) {
+		if (nrow(codingExons) == 0) return(NULL)
 		cumulativeIntronLength <- 0
 		previousExonEnd <- 0
 		for (exon in 1:nrow(codingExons)) {
@@ -438,6 +437,12 @@ drawProteinDomains <- function(fusion, exons1, exons2, proteinDomains, color1, c
 	}
 	retainedDomains1 <- removeIntronsFromProteinDomains(codingExons1, retainedDomains1)
 	retainedDomains2 <- removeIntronsFromProteinDomains(codingExons2, retainedDomains2)
+
+	# abort, if no domains are retained
+	if (is.null(retainedDomains1) && is.null(retainedDomains2)) {
+		text(0.5, 0.5, "No protein domains retained in fusion.")
+		return(NULL)
+	}
 
 	# merge domains with similar coordinates
 	mergeSimilarDomains <- function(domains, mergeDomainsOverlappingBy) {
@@ -486,7 +491,7 @@ drawProteinDomains <- function(fusion, exons1, exons2, proteinDomains, color1, c
 			domains[domains$start >= domains[domain,"start"] & domains$end <= domains[domain,"end"] & rownames(domains) != domain,"parent"] <- domain
 		# find partially overlapping domains
 		maxOverlappingDomains <- max(coverage(IRanges(domains$start*10e6, domains$end*10e6)))
-		padding <- 1 / maxOverlappingDomains * 0.5
+		padding <- 1 / maxOverlappingDomains * 0.4
 		domains$y <- 0
 		domains$height <- 0
 		adjustPositionAndHeight <- function(parentDomain, y, height, padding, e) {
@@ -514,7 +519,7 @@ drawProteinDomains <- function(fusion, exons1, exons2, proteinDomains, color1, c
 	drawProteinDomainRect <- function(left, bottom, right, top, color) {
 		rect(left, bottom, right, top, col=color, border=getDarkColor(color))
 		# draw gradients for 3D effect
-		gradientSteps <- 10
+		gradientSteps <- 20
 		drawVerticalGradient(rep(left, gradientSteps), rep(right, gradientSteps), seq(top, bottom, len=gradientSteps), rgb(1,1,1,0.7))
 		drawVerticalGradient(rep(left, gradientSteps), rep(right, gradientSteps), seq(bottom, bottom+(top-bottom)*0.4, len=gradientSteps), rgb(0,0,0,0.1))
 	}
@@ -525,42 +530,89 @@ drawProteinDomains <- function(fusion, exons1, exons2, proteinDomains, color1, c
 		for (domain in 1:nrow(retainedDomains2))
 			drawProteinDomainRect(sum(codingExons1$length)+retainedDomains2[domain,"start"], retainedDomains2[domain,"y"], sum(codingExons1$length)+retainedDomains2[domain,"end"], retainedDomains2[domain,"y"]+retainedDomains2[domain,"height"], retainedDomains2[domain,"color"])
 
-	# draw gene names
-	text(sum(codingExons1$length)/2, geneNamesY, fusion$gene1, font=2)
-	text(sum(codingExons1$length)+sum(codingExons2$length)/2, geneNamesY, fusion$gene2, font=2)
+	# draw gene names, if there are coding exons
+	if (codingLength1 > 0)
+		text(sum(codingExons1$length)/2, geneNamesY, fusion$gene1, font=2)
+	if (codingLength2 > 0)
+		text(sum(codingExons1$length)+sum(codingExons2$length)/2, geneNamesY, fusion$gene2, font=2)
+
+	# calculate how many non-adjacent unique domains there are
+	# we need this info to know where to place labels vertically
+	countUniqueDomains <- function(domains) {
+		uniqueDomains <- 0
+		if (length(unlist(domains)) > 0) {
+			uniqueDomains <- 1
+			if (nrow(domains) > 1) {
+				previousDomain <- domains[1,"proteinDomainID"]
+				for (domain in 2:nrow(domains)) {
+					if (previousDomain != domains[domain,"proteinDomainID"])
+						uniqueDomains <- uniqueDomains + 1
+					previousDomain <- domains[domain,"proteinDomainID"]
+				}
+			}
+		}
+		return(uniqueDomains)
+	}
+	if (length(unlist(retainedDomains1)) > 0)
+		retainedDomains1 <- retainedDomains1[order(retainedDomains1$start),]
+	uniqueDomains1 <- countUniqueDomains(retainedDomains1)
+	if (length(unlist(retainedDomains2)) > 0)
+		retainedDomains2 <- retainedDomains2[order(retainedDomains2$end, decreasing=T),]
+	uniqueDomains2 <- countUniqueDomains(retainedDomains2)
 
 	# draw title of plot
-	text(0.5, exonsY + exonHeight/2 + (nrow(retainedDomains1)+1) * 0.05, "RETAINED PROTEIN DOMAINS", font=2)
+	titleY <- exonsY + exonHeight/2 + (uniqueDomains1 + 1) * 0.05
+	text(0.5, titleY, "RETAINED PROTEIN DOMAINS", font=2)
 
 	# draw domain labels for gene1
 	if (length(unlist(retainedDomains1)) > 0) {
-		retainedDomains1 <- retainedDomains1[order(retainedDomains1$start),]
+		previousConnectorX <- -1
 		previousLabelX <- -1
+		labelY <- exonsY + exonHeight/2 + uniqueDomains1 * 0.05
 		for (domain in 1:nrow(retainedDomains1)) {
-			labelY <- exonsY + exonHeight/2 + (nrow(retainedDomains1) - domain + 1) * 0.05
-			labelX <- retainedDomains1[domain,"start"]
 			# if possible avoid overlapping lines of labels
-			if (abs(labelX - previousLabelX) < 0.01 && retainedDomains1[domain,"end"] > previousLabelX + 0.01)
-				labelX <- previousLabelX + 0.01
+			connectorX <- min(retainedDomains1[domain,"start"] + 0.01, (retainedDomains1[domain,"start"] + retainedDomains1[domain,"end"])/2)
+			if (connectorX - previousConnectorX < 0.01 && retainedDomains1[domain,"end"] > previousConnectorX + 0.01)
+				connectorX <- previousConnectorX + 0.01
+			labelX <- max(connectorX, previousLabelX) + 0.02
+			# use a signle label for adjacent domains of same type
+			adjacentDomainsOfSameType <- domain + 1 <= nrow(retainedDomains1) && retainedDomains1[domain+1,"proteinDomainID"] == retainedDomains1[domain,"proteinDomainID"]
+			if (adjacentDomainsOfSameType) {
+				labelX <- retainedDomains1[domain+1,"start"] + 0.015
+			} else {
+				text(labelX, labelY, retainedDomains1[domain,"proteinDomainName"], adj=c(0,0.5), col=getDarkColor(retainedDomains1[domain,"color"]))
+			}
+			lines(c(labelX-0.005, connectorX, connectorX), c(labelY, labelY, retainedDomains1[domain,"y"]+retainedDomains1[domain,"height"]), col=getDarkColor(retainedDomains1[domain,"color"]))
+			if (!adjacentDomainsOfSameType)
+				labelY <- labelY - 0.05
+			previousConnectorX <- connectorX
 			previousLabelX <- labelX
-			text(labelX+0.03, labelY, retainedDomains1[domain,"proteinDomainName"], adj=c(0,0.5), col=getDarkColor(retainedDomains1[domain,"color"]))
-			lines(c(labelX+0.025, labelX+0.01, labelX+0.01), c(labelY, labelY, retainedDomains1[domain,"y"]+retainedDomains1[domain,"height"]), col=getDarkColor(retainedDomains1[domain,"color"]))
 		}
 	}
 
 	# draw domain labels for gene2
 	if (length(unlist(retainedDomains2)) > 0) {
-		retainedDomains2 <- retainedDomains2[order(retainedDomains2$end, decreasing=T),]
-		previousLabelX <- -1
+		previousConnectorX <- 100
+		previousLabelX <- 100
+		labelY <- exonsY - exonHeight/2 - (uniqueDomains2+1) * 0.05
 		for (domain in 1:nrow(retainedDomains2)) {
-			labelY <- exonsY - exonHeight/2 - (nrow(retainedDomains2) - domain + 2) * 0.05
-			labelX <- sum(codingExons1$length) + retainedDomains2[domain,"end"]
-			# if possible avoid overlapping lines of labels
-			if (abs(labelX - previousLabelX) < 0.01 && retainedDomains2[domain,"start"] < previousLabelX - 0.01)
-				labelX <- previousLabelX - 0.01
+			# if possible avoid overlapping connector lines of labels
+			connectorX <- sum(codingExons1$length) + max(retainedDomains2[domain,"end"] - 0.01, (retainedDomains2[domain,"start"] + retainedDomains2[domain,"end"])/2)
+			if (previousConnectorX - connectorX < 0.01 && sum(codingExons1$length) + retainedDomains2[domain,"start"] < previousConnectorX - 0.01)
+				connectorX <- previousConnectorX - 0.01
+			labelX <- min(connectorX, previousLabelX) - 0.02
+			# use a signle label for adjacent domains of same type
+			adjacentDomainsOfSameType <- domain + 1 <= nrow(retainedDomains2) && retainedDomains2[domain+1,"proteinDomainID"] == retainedDomains2[domain,"proteinDomainID"]
+			if (adjacentDomainsOfSameType) {
+				labelX <- sum(codingExons1$length) + retainedDomains2[domain+1,"end"] - 0.015
+			} else {
+				text(labelX, labelY, retainedDomains2[domain,"proteinDomainName"], adj=c(1,0.5), col=getDarkColor(retainedDomains2[domain,"color"]))
+			}
+			lines(c(labelX+0.005, connectorX, connectorX), c(labelY, labelY, retainedDomains2[domain,"y"]), col=getDarkColor(retainedDomains2[domain,"color"]))
+			if (!adjacentDomainsOfSameType)
+				labelY <- labelY + 0.05
+			previousConnectorX <- connectorX
 			previousLabelX <- labelX
-			text(labelX-0.03, labelY, retainedDomains2[domain,"proteinDomainName"], adj=c(1,0.5), col=getDarkColor(retainedDomains2[domain,"color"]))
-			lines(c(labelX-0.025, labelX-0.01, labelX-0.01), c(labelY, labelY, retainedDomains2[domain,"y"]), col=getDarkColor(retainedDomains2[domain,"color"]))
 		}
 	}
 
@@ -754,7 +806,7 @@ for (fusion in 1:nrow(fusions)) {
 	fusionOffset2 <- fusionOffset1 + ifelse(fusions[fusion,"direction1"] == "downstream", breakpoint1, max(exons1$right)-breakpoint1)
 
 	# layout: fusion on top, circos plot on bottom left, protein domains on bottom center, statistics on bottom right
-	layout(matrix(c(1,1,1,2,3,4), 2, 3, byrow=TRUE), widths=c(1, 1.3, 0.7))
+	layout(matrix(c(1,1,1,2,3,4), 2, 3, byrow=TRUE), widths=c(0.9, 1.2, 0.9))
 	par(mar=c(0, 0, 0, 0))
 	plot(0, 0, type="l", xlim=c(-0.12, 1.12), ylim=c(0.4, 1.1), bty="n", xaxt="n", yaxt="n")
 
@@ -786,12 +838,14 @@ for (fusion in 1:nrow(fusions)) {
 	text(gene2Offset+breakpoint2-0.01, yBreakpointLabels, paste0("breakpoint\n", fusions[fusion,"contig2"], ":", fusions[fusion,"breakpoint2"]), adj=c(0,0.5))
 
 	# draw coverage axis
-	lines(c(-0.02, -0.01, -0.01, -0.02), c(yCoverage, yCoverage, yCoverage+0.1, yCoverage+0.1))
-	text(-0.025, yCoverage, "0", adj=c(1,0.5), cex=0.9)
-	text(-0.025, yCoverage+0.1, coverageNormalization, adj=c(1,0.5), cex=0.9)
-	text(-0.05, yCoverage+0.04, "Coverage", srt=90, cex=0.9)
-	rect(min(exons1$left), yCoverage, max(exons1$right), yCoverage+0.1, col="#eeeeee", border=NA)
-	rect(gene2Offset+min(exons2$left), yCoverage, gene2Offset+max(exons2$right), yCoverage+0.1, col="#eeeeee", border=NA)
+	if (alignmentsFile != "") {
+		lines(c(-0.02, -0.01, -0.01, -0.02), c(yCoverage, yCoverage, yCoverage+0.1, yCoverage+0.1))
+		text(-0.025, yCoverage, "0", adj=c(1,0.5), cex=0.9)
+		text(-0.025, yCoverage+0.1, coverageNormalization, adj=c(1,0.5), cex=0.9)
+		text(-0.05, yCoverage+0.04, "Coverage", srt=90, cex=0.9)
+		rect(min(exons1$left), yCoverage, max(exons1$right), yCoverage+0.1, col="#eeeeee", border=NA)
+		rect(gene2Offset+min(exons2$left), yCoverage, gene2Offset+max(exons2$right), yCoverage+0.1, col="#eeeeee", border=NA)
+	}
 
 	# plot coverage 1
 	if (squishIntrons) {
@@ -887,7 +941,7 @@ for (fusion in 1:nrow(fusions)) {
 		text(fusionOffset2, yTranscript, non_template_bases2, adj=c(0,0.5))
 	}
 
-	if (is.null(cytobands) || !("circlize" %in% names(sessionInfo()$otherPkgs))) {
+	if (is.null(cytobands) || !("circlize" %in% names(sessionInfo()$otherPkgs)) || !("GenomicRanges" %in% names(sessionInfo()$otherPkgs))) {
 		plot(0, 0, type="l", xlim=c(0, 1), ylim=c(0, 1), bty="n", xaxt="n", yaxt="n")
 	} else {
 		par(mar=c(0, 4, 0, 0))
@@ -895,7 +949,7 @@ for (fusion in 1:nrow(fusions)) {
 		par(mar=c(0, 0, 0, 0))
 	}
 
-	plot(0, 0, type="l", xlim=c(0, 1), ylim=c(0, 1), bty="n", xaxt="n", yaxt="n")
+	plot(0, 0, type="l", xlim=c(-0.1, 1.1), ylim=c(0, 1), bty="n", xaxt="n", yaxt="n")
 	if (!is.null(proteinDomains))
 		drawProteinDomains(fusions[fusion,], exons1, exons2, proteinDomains, color1, color2, mergeDomainsOverlappingBy)
 
