@@ -32,7 +32,7 @@ parseFileParameter <- function(parameter, args, mandatory=FALSE) {
 }
 
 if (any(grepl("^--help", args)) || length(args) == 0)
-	stop("Usage: draw_fusions.R --annotation=annotation.gtf --fusions=fusions.tsv --output=output.pdf [--alignments=Aligned.out.bam] [--cytobands=cytobands.tsv] [--minConfidenceForCircosPlot=medium] [--proteinDomains=protein_domains.gff3] [--squishIntrons=TRUE] [--printExonLabels=TRUE] [--pdfWidth=11.692] [--pdfHeight=8.267] [--color1=#e5a5a5] [--color2=#a7c4e5] [--mergeDomainsOverlappingBy=0.9]")
+	stop("Usage: draw_fusions.R --annotation=annotation.gtf --fusions=fusions.tsv --output=output.pdf [--alignments=Aligned.out.bam] [--cytobands=cytobands.tsv] [--minConfidenceForCircosPlot=medium] [--proteinDomains=protein_domains.gff3] [--squishIntrons=TRUE] [--printExonLabels=TRUE] [--pdfWidth=11.692] [--pdfHeight=8.267] [--color1=#e5a5a5] [--color2=#a7c4e5] [--mergeDomainsOverlappingBy=0.9] [--optimizeDomainColors=FALSE]")
 exonsFile <- parseFileParameter("annotation", args, T)
 fusionsFile <- parseFileParameter("fusions", args, T)
 outputFile <- parseStringParameter("output", args)
@@ -53,6 +53,7 @@ pdfHeight <- as.numeric(parseStringParameter("pdfHeight", args, "8.267"))
 color1 <- parseStringParameter("color1", args, "#e5a5a5")
 color2 <- parseStringParameter("color2", args, "#a7c4e5")
 mergeDomainsOverlappingBy <- as.numeric(parseStringParameter("mergeDomainsOverlappingBy", args, 0.9))
+optimizeDomainColors <- parseBooleanParameter("optimizeDomainColors", args, F)
 
 # check if required packages are installed
 if (!suppressPackageStartupMessages(require(GenomicRanges)))
@@ -319,7 +320,7 @@ drawCircos <- function(fusion, fusions, cytobands, minConfidenceForCircosPlot) {
 	}
 }
 
-drawProteinDomains <- function(fusion, exons1, exons2, proteinDomains, color1, color2, mergeDomainsOverlappingBy) {
+drawProteinDomains <- function(fusion, exons1, exons2, proteinDomains, color1, color2, mergeDomainsOverlappingBy, optimizeDomainColors) {
 
 	exonHeight <- 0.2
 	exonsY <- 0.5
@@ -457,6 +458,19 @@ drawProteinDomains <- function(fusion, exons1, exons2, proteinDomains, color1, c
 	}
 	retainedDomains1 <- mergeSimilarDomains(retainedDomains1, mergeDomainsOverlappingBy)
 	retainedDomains2 <- mergeSimilarDomains(retainedDomains2, mergeDomainsOverlappingBy)
+
+	# if desired, reassign colors to protein domains to maximize contrast
+	if (optimizeDomainColors) {
+		uniqueDomains <- unique(c(retainedDomains1$proteinDomainID, retainedDomains2$proteinDomainID))
+		# make rainbow of pretty pastell colors
+		colors <- rainbow(length(uniqueDomains))
+		colors <- apply(col2rgb(colors), 2, function(x) { 0.3 + y/255 * 0.7 }) # make pastell colors
+		colors <- apply(colors, 2, function(x) {rgb(x["red"], x["green"], x["blue"])}) # convert back to rgb
+		# reassign colors
+		names(colors) <- uniqueDomains
+		retainedDomains1$color <- colors[retainedDomains1$proteinDomainID]
+		retainedDomains2$color <- colors[retainedDomains2$proteinDomainID]
+	}
 
 	# normalize length to 1
 	codingExons1$length <- codingExons1$length / (codingLength1 + codingLength2)
@@ -951,7 +965,7 @@ for (fusion in 1:nrow(fusions)) {
 
 	plot(0, 0, type="l", xlim=c(-0.1, 1.1), ylim=c(0, 1), bty="n", xaxt="n", yaxt="n")
 	if (!is.null(proteinDomains))
-		drawProteinDomains(fusions[fusion,], exons1, exons2, proteinDomains, color1, color2, mergeDomainsOverlappingBy)
+		drawProteinDomains(fusions[fusion,], exons1, exons2, proteinDomains, color1, color2, mergeDomainsOverlappingBy, optimizeDomainColors)
 
 	# print statistics about supporting alignments
 	plot(0, 0, type="l", xlim=c(0, 1), ylim=c(0, 1), bty="n", xaxt="n", yaxt="n")
