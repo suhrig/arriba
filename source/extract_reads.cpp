@@ -2,6 +2,7 @@
 #include <iostream>
 #include <stdlib.h>
 #include <string>
+#include <string.h>
 #include <unordered_map>
 #include "cram.h"
 #include "sam.h"
@@ -34,6 +35,29 @@ int main(int argc, char **argv) {
 		setenv("REF_PATH", ".", 0);
 	}
 	bam_hdr_t* bam_header = sam_hdr_read(rna_bam_file);
+
+	// add @PG line to header
+	string new_header_text(bam_header->text, bam_header->l_text);
+	// assemble command-line
+	string command_line = argv[0];
+	for (int command_line_argument = 1; command_line_argument < argc; ++command_line_argument)
+		command_line += " " + string(argv[command_line_argument]);
+	// generate unique ID for @PG line
+	string pg_id = "ID:extract_reads";
+	if (new_header_text.find(pg_id) != string::npos) {
+		unsigned int pg_id_counter = 1;
+		while (new_header_text.find(pg_id + "." + to_string(pg_id_counter)) != string::npos)
+			++pg_id_counter;
+		pg_id += "." + to_string(pg_id_counter);
+	}
+	// overwrite old header
+	new_header_text += "@PG\t" + pg_id + "\tPN:extract_reads\tCL:" + command_line + "\tVN:" + ARRIBA_VERSION + "\n";
+	bam_header->text = strndup(new_header_text.c_str(), new_header_text.size());
+	if (bam_header->text == NULL) {
+		cerr << "ERROR: failed to add @PG line to SAM header." << endl;
+		exit(1);
+	}
+	bam_header->l_text = new_header_text.size();
 
 	// if chimeric extraction is enabled, open chimeric output file
 	samFile* chimeric_file = NULL;
