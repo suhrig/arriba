@@ -232,6 +232,12 @@ void assign_confidence(fusions_t& fusions) {
 			           fusion->second.split_reads1 + fusion->second.discordant_mates == 0 ||
 			           fusion->second.split_reads2 + fusion->second.discordant_mates == 0) {
 				fusion->second.confidence = CONFIDENCE_MEDIUM;
+			} else if ((fusion->second.split_reads1 + fusion->second.split_reads2) * 20 < fusion->second.discordant_mates) {
+				fusion->second.confidence = CONFIDENCE_MEDIUM;
+			} else if (fusion->second.split_reads1 > 30 && fusion->second.split_reads2 > 30 && fusion->second.discordant_mates > 30) {
+				fusion->second.confidence = CONFIDENCE_HIGH;
+			} else if (!fusion->second.spliced1 && !fusion->second.spliced2) {
+				fusion->second.confidence = CONFIDENCE_MEDIUM;
 			} else {
 				fusion->second.confidence = CONFIDENCE_HIGH;
 			}
