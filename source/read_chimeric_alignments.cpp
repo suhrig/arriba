@@ -46,7 +46,7 @@ unsigned int read_chimeric_alignments(const string& bam_file_path, const string&
 		alignment.first_in_pair = bam_record->core.flag & BAM_FREAD1;
 		alignment.contig = bam_record->core.tid;
 		alignment.start = bam_record->core.pos;
-		alignment.end = bam_endpos(bam_record);
+		alignment.end = bam_endpos(bam_record) - 1;
 		alignment.cigar = bam_record;
 		alignment.supplementary = bam_record->core.flag & BAM_FSECONDARY;
 		if (!alignment.supplementary) {

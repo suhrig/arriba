@@ -172,7 +172,7 @@ void get_sequence_from_pileup(const pileup_t& pileup, const position_t breakpoin
 					most_frequent_base2[most_frequent_base2.size()-1] = toupper(most_frequent_base2[most_frequent_base2.size()-1]);
 			}
 
-			if (direction == UPSTREAM && position->first < breakpoint || direction == DOWNSTREAM && position->first >= breakpoint)
+			if (direction == UPSTREAM && position->first < breakpoint || direction == DOWNSTREAM && position->first > breakpoint)
 				clipped_sequence += most_frequent_base2;
 			else
 				sequence += most_frequent_base2;
