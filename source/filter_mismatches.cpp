@@ -35,6 +35,8 @@ void count_mismatches(const alignment_t& alignment, const string& sequence, cons
 				read_position += alignment.cigar.op_length(i);
 				break;
 			case BAM_CMATCH:
+			case BAM_CEQUAL:
+			case BAM_CDIFF:
 				for (unsigned int operation_i = 1; operation_i <= alignment.cigar.op_length(i); ++operation_i) {
 					if (sequence[read_position] != 'N') {
 						if (sequence[read_position] != assembly.at(alignment.contig)[reference_position])

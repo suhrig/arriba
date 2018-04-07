@@ -72,6 +72,8 @@ void pileup_chimeric_alignments(vector<chimeric_alignments_t::iterator>& chimeri
 						break;
 					}
 				case BAM_CMATCH:
+				case BAM_CEQUAL:
+				case BAM_CDIFF:
 					for (position_t base = 0; base < read.cigar.op_length(cigar_element) - subtract_from_next_element; ++base, ++read_offset, ++reference_offset)
 						pileup[reference_offset][read_sequence.substr(read_offset,1)]++;
 					subtract_from_next_element = 0;
