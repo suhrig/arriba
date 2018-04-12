@@ -26,7 +26,7 @@
 #include "fusions.hpp"
 #include "filter_relative_support.hpp"
 #include "filter_both_intronic.hpp"
-#include "filter_both_novel.hpp"
+#include "filter_non_coding_neighbors.hpp"
 #include "filter_intragenic_both_exonic.hpp"
 #include "filter_min_support.hpp"
 #include "recover_known_fusions.hpp"
@@ -60,7 +60,7 @@ unordered_map<string,filter_t> FILTERS({
 	{"mismappers", static_cast<string*>(NULL)},
 	{"relative_support", static_cast<string*>(NULL)},
 	{"intronic", static_cast<string*>(NULL)},
-	{"novel", static_cast<string*>(NULL)},
+	{"non_coding_neighbors", static_cast<string*>(NULL)},
 	{"intragenic_exonic", static_cast<string*>(NULL)},
 	{"min_support", static_cast<string*>(NULL)},
 	{"known_fusions", static_cast<string*>(NULL)},
@@ -354,9 +354,9 @@ int main(int argc, char **argv) {
 	estimate_expected_fusions(fusions, mapped_reads);
 
 	// this step must come before all filters that are potentially undone by the 'genomic_support' filter
-	if (options.filters.at("novel")) {
-		cout << "Filtering fusions with both breakpoints in novel/intergenic regions" << flush;
-		cout << " (remaining=" << filter_both_novel(fusions) << ")" << endl;
+	if (options.filters.at("non_coding_neighbors")) {
+		cout << "Filtering fusions with both breakpoints in adjacent non-coding/intergenic regions" << flush;
+		cout << " (remaining=" << filter_non_coding_neighbors(fusions) << ")" << endl;
 	}
 
 	// this step must come before all filters that are potentially undone by the 'genomic_support' filter

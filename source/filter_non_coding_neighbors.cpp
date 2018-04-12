@@ -1,9 +1,9 @@
 #include "common.hpp"
-#include "filter_both_novel.hpp"
+#include "filter_non_coding_neighbors.hpp"
 
 using namespace std;
 
-unsigned int filter_both_novel(fusions_t& fusions) {
+unsigned int filter_non_coding_neighbors(fusions_t& fusions) {
 	unsigned int remaining = 0;
 	for (fusions_t::iterator fusion = fusions.begin(); fusion != fusions.end(); ++fusion) {
 		if (fusion->second.filter != NULL)
@@ -11,7 +11,7 @@ unsigned int filter_both_novel(fusions_t& fusions) {
 
 		if (!fusion->second.gene1->is_protein_coding && !fusion->second.gene2->is_protein_coding &&
 		    fusion->second.is_read_through())
-			fusion->second.filter = FILTERS.at("novel");
+			fusion->second.filter = FILTERS.at("non_coding_neighbors");
 		else
 			++remaining;
 	}
