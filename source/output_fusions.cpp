@@ -509,30 +509,48 @@ string get_fusion_site(const gene_t gene, const bool spliced, const bool exonic,
 					if (is_utr && gene->is_protein_coding) {
 						// detect if we are in a 5' or 3' UTR by going upstream/downstream and
 						// checking whether we first hit a protein-coding exon or the transcript end
-						exon_annotation_record_t* next_exon = (**exon).next_exon;
-						while (next_exon != NULL && next_exon->coding_region_start == -1)
-							next_exon = next_exon->next_exon;
-						exon_annotation_record_t* previous_exon = (**exon).previous_exon;
-						while (previous_exon != NULL && previous_exon->coding_region_start == -1)
-							previous_exon = previous_exon->previous_exon;
-						if (previous_exon != NULL || next_exon != NULL) { // is true, if the transcript contains a coding region
-							if ((next_exon == NULL) != /*xor*/ (gene->strand == REVERSE))
-								++is_3_end;
-							else
+						if ((**exon).coding_region_start != -1 && (**exon).coding_region_start > breakpoint) {
+							if (gene->strand == FORWARD)
 								++is_5_end;
+							else
+								++is_3_end;
+						} else if ((**exon).coding_region_end != -1 && (**exon).coding_region_end < breakpoint) {
+							if (gene->strand == REVERSE)
+								++is_5_end;
+							else
+								++is_3_end;
+						} else {
+							exon_annotation_record_t* next_exon = (**exon).next_exon;
+							while (next_exon != NULL && next_exon->coding_region_start == -1)
+								next_exon = next_exon->next_exon;
+							exon_annotation_record_t* previous_exon = (**exon).previous_exon;
+							while (previous_exon != NULL && previous_exon->coding_region_start == -1)
+								previous_exon = previous_exon->previous_exon;
+							if (previous_exon != NULL || next_exon != NULL) { // is true, if the transcript contains a coding region
+								if ((next_exon == NULL) != /*xor*/ (gene->strand == REVERSE))
+									++is_3_end;
+								else
+									++is_5_end;
+							}
 						}
 					}
 				}
 			}
 			if (!has_overlapping_exon) {
 				site = "intron";
-			} else if (gene->is_protein_coding && is_utr) {
-				if (is_3_end > is_5_end) {
-					site = "3'UTR";
-				} else if (is_3_end < is_5_end) {
-					site = "5'UTR";
+			} else if (gene->is_protein_coding) {
+				if (is_utr) {
+					if (is_3_end > is_5_end) {
+						site = "3'UTR";
+					} else if (is_3_end < is_5_end) {
+						site = "5'UTR";
+					} else if (is_3_end + is_5_end == 0) {
+						site = "exon";
+					} else {
+						site = "UTR";
+					}
 				} else {
-					site = "UTR";
+					site = "CDS";
 				}
 			} else {
 				site = "exon";
