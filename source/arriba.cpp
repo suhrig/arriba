@@ -153,7 +153,7 @@ int main(int argc, char **argv) {
 		position_t region_start;
 		for (exon_contig_annotation_index_t::iterator region = contig->begin(); region != contig->end(); ++region) {
 			gene_t previous_gene = NULL;
-			for (exon_multiset_t::iterator overlapping_exon = region->second.begin(); overlapping_exon != region->second.end(); ++overlapping_exon) {
+			for (exon_set_t::iterator overlapping_exon = region->second.begin(); overlapping_exon != region->second.end(); ++overlapping_exon) {
 				gene_t& current_gene = (**overlapping_exon).gene;
 				if (previous_gene != current_gene) {
 					current_gene->exonic_length += region->first - region_start;
@@ -210,7 +210,7 @@ int main(int argc, char **argv) {
 		gene_annotation_record.strand = FORWARD;
 		gene_annotation_record.exonic_length = 10000; //TODO more exact estimation of exonic_length
 		gene_annotation_record.is_dummy = true;
-		gene_annotation_record.is_known = false;
+		gene_annotation_record.is_protein_coding = false;
 		gene_contig_annotation_index_t::iterator next_known_gene = gene_annotation_index[unmapped_alignments.begin()->contig].lower_bound(unmapped_alignments.begin()->end);
 		for (gene_annotation_t::iterator unmapped_alignment = next(unmapped_alignments.begin()); ; ++unmapped_alignment) {
 			// subsume all unmapped alignments in a range of 10kb into a dummy gene with the generic name "contig:start-end"

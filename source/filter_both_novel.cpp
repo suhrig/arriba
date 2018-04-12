@@ -9,7 +9,7 @@ unsigned int filter_both_novel(fusions_t& fusions) {
 		if (fusion->second.filter != NULL)
 			continue; // read has already been filtered
 
-		if (!fusion->second.gene1->is_known && !fusion->second.gene2->is_known &&
+		if (!fusion->second.gene1->is_protein_coding && !fusion->second.gene2->is_protein_coding &&
 		    fusion->second.is_read_through())
 			fusion->second.filter = FILTERS.at("novel");
 		else

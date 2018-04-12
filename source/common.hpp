@@ -34,7 +34,8 @@ struct annotation_record_t {
 	// function to sort annotation records by coordinate
 	inline bool operator < (const annotation_record_t& x) const {
 		if (contig != x.contig) return contig < x.contig;
-		return end < x.end;
+		if (end != x.end) return end < x.end;
+		return start < x.start;
 	}
 	void copy(const annotation_record_t& x) { *this = x; }
 	inline unsigned int length() const { return this->end - this->start; }
@@ -48,21 +49,15 @@ template <class T> class annotation_set_t: public vector<T> {
 			else
 				return existing_element;
 		};
-		using vector<T>::insert;
-};
-template <class T> class annotation_multiset_t: public vector<T> {
-	public:
-		typename annotation_multiset_t<T>::iterator insert(const T& value) { return this->insert(upper_bound(this->begin(), this->end(), value), value); };
-		void insert(typename annotation_multiset_t<T>::const_iterator first, typename annotation_multiset_t<T>::const_iterator last) {
-			int middle = this->size();
+		void insert(typename annotation_set_t<T>::const_iterator first, typename annotation_set_t<T>::const_iterator last) {
 			this->reserve(this->size() + distance(first, last));
-			this->insert(this->end(), first, last);
-			inplace_merge(this->begin(), this->begin() + middle, this->end());
+			for (auto annotation_record = first; annotation_record != last; ++annotation_record)
+				this->insert(*annotation_record);
 		};
 		using vector<T>::insert;
 };
 template <class T> class annotation_t: public list<T> {};
-template <class T> class contig_annotation_index_t: public map< position_t, annotation_multiset_t<T> > {};
+template <class T> class contig_annotation_index_t: public map< position_t, annotation_set_t<T> > {};
 template <class T> class annotation_index_t: public vector< contig_annotation_index_t<T> > {};
 
 struct gene_annotation_record_t: public annotation_record_t {
@@ -70,12 +65,10 @@ struct gene_annotation_record_t: public annotation_record_t {
 	string name;
 	int exonic_length; // sum of the length of all exons in a gene
 	bool is_dummy;
-	bool is_known;
 	bool is_protein_coding;
 };
 typedef gene_annotation_record_t* gene_t;
 typedef annotation_set_t<gene_t> gene_set_t;
-typedef annotation_multiset_t<gene_t> gene_multiset_t;
 typedef annotation_t<gene_annotation_record_t> gene_annotation_t;
 typedef contig_annotation_index_t<gene_t> gene_contig_annotation_index_t;
 typedef annotation_index_t<gene_t> gene_annotation_index_t;
@@ -84,12 +77,11 @@ typedef unsigned int transcript_t;
 struct exon_annotation_record_t: public annotation_record_t {
 	gene_t gene;
 	transcript_t transcript;
-	bool is_transcript_start, is_transcript_end;
-	bool is_utr;
+	exon_annotation_record_t* previous_exon, * next_exon;
+	position_t coding_region_start, coding_region_end;
 };
 typedef exon_annotation_record_t* exon_t;
 typedef annotation_set_t<exon_t> exon_set_t;
-typedef annotation_multiset_t<exon_t> exon_multiset_t;
 typedef annotation_t<exon_annotation_record_t> exon_annotation_t;
 typedef contig_annotation_index_t<exon_t> exon_contig_annotation_index_t;
 typedef annotation_index_t<exon_t> exon_annotation_index_t;

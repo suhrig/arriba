@@ -73,7 +73,7 @@ unsigned int filter_nonexpressed(fusions_t& fusions, const string& bam_file_path
 		get_annotation_by_coordinate(fusion->second.contig1, fusion->second.breakpoint1, fusion->second.breakpoint1, exons, exon_annotation_index);
 		is_in_terminal_exon = false;
 		for (auto exon = exons.begin(); exon != exons.end() && !is_in_terminal_exon; ++exon)
-			if ((**exon).gene == fusion->second.gene1 && ((**exon).is_transcript_start || (**exon).is_transcript_end))
+			if ((**exon).gene == fusion->second.gene1 && ((**exon).previous_exon == NULL || (**exon).next_exon == NULL))
 				is_in_terminal_exon = true;
 
 		if (!is_in_terminal_exon) {
@@ -100,7 +100,7 @@ unsigned int filter_nonexpressed(fusions_t& fusions, const string& bam_file_path
 		get_annotation_by_coordinate(fusion->second.contig2, fusion->second.breakpoint2, fusion->second.breakpoint2, exons, exon_annotation_index);
 		is_in_terminal_exon = false;
 		for (auto exon = exons.begin(); exon != exons.end() && !is_in_terminal_exon; ++exon)
-			if ((**exon).gene == fusion->second.gene2 && ((**exon).is_transcript_start || (**exon).is_transcript_end))
+			if ((**exon).gene == fusion->second.gene2 && ((**exon).previous_exon == NULL || (**exon).next_exon == NULL))
 				is_in_terminal_exon = true;
 
 		if (!is_in_terminal_exon) {
