@@ -177,7 +177,8 @@ drawCurlyBrace <- function(left, right, top, bottom, tip) {
 
 drawIdeogram <- function(adjust, left, right, y, cytobands, contig, breakpoint) {
 	# define design of ideogram
-	bandColors <- c(gneg="#ffffff", gpos25="#bbbbbb", gpos50="#888888", gpos75="#444444", gpos100="#000000", acen="#ec4f4f", stalk="#0000ff")
+	bandColors <- setNames(rgb(100:0, 100:0, 100:0, maxColorValue=100), paste0("gpos", 0:100))
+	bandColors <- c(bandColors, gneg="#ffffff", acen="#ec4f4f", stalk="#0000ff")
 	cytobands$color <- bandColors[cytobands$giemsa]
 	arcSteps <- 30 # defines roundness of arc
 	curlyBraceHeight <- 0.03
