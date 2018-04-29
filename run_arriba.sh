@@ -49,7 +49,7 @@ samtools index Aligned.sortedByCoord.out.bam
 	-a "$ASSEMBLY_FA" \
 	-g "$ANNOTATION_GTF" \
 	-b "$BLACKLIST_TSV" \
-	-T \
+	-T -P \
 #	-d structural_variants_from_WGS.tsv \
 #	-k known_fusions_from_CancerGeneCensus.tsv # see section "Complete Fusion Export" at http://cancer.sanger.ac.uk/cosmic/download
 

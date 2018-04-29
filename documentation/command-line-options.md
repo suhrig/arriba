@@ -109,6 +109,9 @@ Even when an unstranded library is processed, Arriba can often infer the strand 
 `-T`
 : When set, the column `fusion_transcript` is populated with the sequence of the fused genes as assembled from the supporting reads. Specify the flag twice to also print the fusion transcripts to the file containing discarded fusions (`-O`). Refer to section [fusions.tsv](output-files.md#fusionstsv) for a description of the format of the column. Default: off
 
+`-P`
+: When set, the column `peptide_sequence` is populated with the sequence of the peptide around the fusion junction as translated from the fusion transcript. Specify the flag twice to also print the peptide sequence to the file containing discarded fusions (`-O`). Refer to section [fusions.tsv](output-files.md#fusionstsv) for a description of the format of the column. Default: off
+
 `-I`
 : When set, the column `read_identifiers` is populated with identifiers of the reads which support the fusion. The identifiers are separated by commas. Specify the flag twice to also print the read identifiers to the file containing discarded fusions (`-O`). Default: off
 

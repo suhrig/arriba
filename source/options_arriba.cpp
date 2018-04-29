@@ -29,6 +29,8 @@ options_t get_default_options() {
 	options.print_supporting_reads_for_discarded_fusions = false;
 	options.print_fusion_sequence = false;
 	options.print_fusion_sequence_for_discarded_fusions = false;
+	options.print_peptide_sequence = false;
+	options.print_peptide_sequence_for_discarded_fusions = false;
 	options.max_kmer_content = 0.6;
 	options.fragment_length = 200;
 	options.strandedness = STRANDEDNESS_AUTO;
@@ -163,6 +165,10 @@ void print_usage() {
 	                  "the sequence of the fused genes as assembled from the supporting reads. "
 	                  "Specify the flag twice to also print the fusion transcripts to the file "
 	                  "containing discarded fusions (-O). Default: " + string((default_options.print_fusion_sequence) ? "on" : "off"))
+	     << wrap_help("-P", "When set, the column 'peptide_sequence' is populated with "
+	                  "the sequence of the fused proteins as assembled from the supporting reads. "
+	                  "Specify the flag twice to also print the peptide sequence to the file "
+	                  "containing discarded fusions (-O). Default: " + string((default_options.print_peptide_sequence) ? "on" : "off"))
 	     << wrap_help("-I", "When set, the column 'read_identifiers' is populated with "
 	                  "identifiers of the reads which support the fusion. The identifiers "
 	                  "are separated by commas. Specify the flag twice to also print the read "
@@ -195,7 +201,7 @@ options_t parse_arguments(int argc, char **argv) {
 	// parse arguments
 	opterr = 0;
 	int c;
-	while ((c = getopt(argc, argv, "c:r:x:d:g:G:o:O:a:k:b:s:i:f:E:S:m:L:H:D:R:A:M:K:F:U:TIh")) != -1) {
+	while ((c = getopt(argc, argv, "c:r:x:d:g:G:o:O:a:k:b:s:i:f:E:S:m:L:H:D:R:A:M:K:F:U:TPIh")) != -1) {
 		switch (c) {
 			case 'c':
 				options.chimeric_bam_file = optarg;
@@ -413,6 +419,12 @@ options_t parse_arguments(int argc, char **argv) {
 					options.print_fusion_sequence = true;
 				else
 					options.print_fusion_sequence_for_discarded_fusions = true;
+				break;
+			case 'P':
+				if (!options.print_peptide_sequence)
+					options.print_peptide_sequence = true;
+				else
+					options.print_peptide_sequence_for_discarded_fusions = true;
 				break;
 			case 'I':
 				if (!options.print_supporting_reads)
