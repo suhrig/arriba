@@ -46,9 +46,15 @@ struct sort_genes_by_reads_t {
 
 unsigned int filter_pcr_fusions(fusions_t& fusions, const chimeric_alignments_t& chimeric_alignments, const float high_expression_quantile, const gene_annotation_index_t& gene_annotation_index) {
 
-	// count the number of exonic breakpoints for each gene pair
+	// older version of STAR occasionally clipped discordant mates for no good reason,
+	// which appeared as though the mate overlaps a breakpoint
+	// => onnly consider discordant mates with this many clipped bases (or more) to overlap the breakpoint
+	const unsigned int min_clipped_length = 3;
 	// genes fused during PCR often have multiple breakpoints within exons (rather than at splice-sites)
-	const unsigned int max_exonic_breakpoints_by_gene_pair = 8; // we consider this to be many exonic breakpoints
+	// => we consider the following to be many exonic breakpoints
+	const unsigned int max_exonic_breakpoints_by_gene_pair = 8;
+
+	// count the number of breakpoints within exons for each gene pair
 	unordered_map< tuple<gene_t/*gene1*/,gene_t/*gene2*/>, unsigned int > exonic_breakpoints_by_gene_pair;
 	for (fusions_t::iterator fusion = fusions.begin(); fusion != fusions.end(); ++fusion) {
 		if (fusion->second.gene1 != fusion->second.gene2 && // it is perfectly normal to have many breakpoints within the same gene (hairpin fusions)
@@ -130,8 +136,8 @@ unsigned int filter_pcr_fusions(fusions_t& fusions, const chimeric_alignments_t&
 		for (auto discordant_mates = fusion->second.discordant_mate_list.begin(); discordant_mates != fusion->second.discordant_mate_list.end(); ++discordant_mates) {
 			if ((**discordant_mates).second.filter == NULL) {
 				for (mates_t::iterator mate = (**discordant_mates).second.begin(); mate != (**discordant_mates).second.end(); ++mate) {
-					if (mate->strand == FORWARD && mate->cigar.operation(mate->cigar.size()-1) == BAM_CSOFT_CLIP && (mate->contig == fusion->second.contig1 && mate->end == fusion->second.breakpoint1 || mate->contig == fusion->second.contig2 && mate->end == fusion->second.breakpoint2) ||
-					    mate->strand == REVERSE && mate->cigar.operation(0) == BAM_CSOFT_CLIP && (mate->contig == fusion->second.contig1 && mate->start == fusion->second.breakpoint1 || mate->contig == fusion->second.contig2 && mate->start == fusion->second.breakpoint2)) {
+					if (mate->strand == FORWARD && mate->postclipping() >= min_clipped_length && (mate->contig == fusion->second.contig1 && mate->end == fusion->second.breakpoint1 || mate->contig == fusion->second.contig2 && mate->end == fusion->second.breakpoint2) ||
+					    mate->strand == REVERSE && mate->preclipping()  >= min_clipped_length && (mate->contig == fusion->second.contig1 && mate->start == fusion->second.breakpoint1 || mate->contig == fusion->second.contig2 && mate->start == fusion->second.breakpoint2)) {
 						total_split_reads++;
 						break;
 					}
