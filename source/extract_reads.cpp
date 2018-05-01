@@ -70,7 +70,10 @@ int main(int argc, char **argv) {
 		}
 		if (rna_bam_file->is_cram)
 			cram_set_option(chimeric_file->fp.cram, CRAM_OPT_REFERENCE, options.assembly_file.c_str());
-		sam_hdr_write(chimeric_file, bam_header);
+		if (sam_hdr_write(chimeric_file, bam_header) < 0) {
+			cerr << "ERROR: failed to write SAM header to output file '" << options.chimeric_file << "'." << endl;
+			exit(1);
+		}
 	}
 
 	// if read-through fusion extraction is enabled, load annotation and open output file
@@ -98,7 +101,10 @@ int main(int argc, char **argv) {
 		}
 		if (rna_bam_file->is_cram)
 			cram_set_option(read_through_file->fp.cram, CRAM_OPT_REFERENCE, options.assembly_file.c_str());
-		sam_hdr_write(read_through_file, bam_header);
+		if (sam_hdr_write(read_through_file, bam_header) < 0) {
+			cerr << "ERROR: failed to write SAM header to output file '" << options.read_through_file << "'." << endl;
+			exit(1);
+		}
 	}
 
 	// if FastQ read extraction is enabled, open FastQ files
