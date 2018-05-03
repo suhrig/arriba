@@ -6,9 +6,9 @@ When a clipped segment aligns to multiple loci, it is not stored in the chimeric
 Viral integration sites
 -----------------------
 
-Fundamentally, fusion detection and detection of viral integration sites are based on the same methods (searching for split reads and discordant mates). Aligning a RNA-Seq sample against concatenated genomes consisting of human and pathogenic DNA is a conceivable approach. However, since there is a great degree of homology between related strains of pathogens, many of the supporting reads would map to multiple contigs. As multi-mapping chimeric reads are not reported by STAR, a lot of information would be invisible to Arriba and the detection rate would suffer.
+Fundamentally, fusion detection and detection of viral integration sites are based on the same methods (searching for split reads and discordant mates). Aligning a RNA-Seq sample against concatenated genomes consisting of human and pathogenic DNA is a conceivable approach. However, since there is a great degree of homology between related strains of pathogens, many of the supporting reads would map to multiple contigs. As multi-mapping chimeric reads are not reported by STAR, a lot of information would be invisible to Arriba and the detection rate would suffer. At best, Arriba might be usable to detect the integration sites of a single pathogen of interest or a collection of pathogens with dissimilar genomes. This use case has been tested successfully.
 
-At best, Arriba might be usable to detect the integration sites of a single pathogen of interest or a collection of pathogens with dissimilar genomes. This use case has not been tested with Arriba, but any feedback from adventurous users is welcome!
+Note: When aligning reads against concatenated host and pathogen genomes, make sure to add the extra contigs to the list of interesting contigs (parameter `-I`), when running Arriba, because by default only events concerning the standard chromosomes are reported.
 
 Intragenic deletions
 --------------------
