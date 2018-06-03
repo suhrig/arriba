@@ -865,7 +865,8 @@ for (fusion in 1:nrow(fusions)) {
 	# plot coverage 1
 	if (squishIntrons) {
 		for (exon in 1:nrow(exons1))
-			drawCoverage(exons1[exon,"left"], exons1[exon,"right"], yCoverage, coverage1, exons1[exon,"start"], exons1[exon,"end"], color1)
+			if (exons1[exon,"type"] != "CDS") # don't draw coverage twice for coding regions
+				drawCoverage(exons1[exon,"left"], exons1[exon,"right"], yCoverage, coverage1, exons1[exon,"start"], exons1[exon,"end"], color1)
 	} else {
 		drawCoverage(min(exons1$left), max(exons1$right), yCoverage, coverage1, min(exons1$start), max(exons1$end), color1)
 	}
@@ -873,7 +874,8 @@ for (fusion in 1:nrow(fusions)) {
 	# plot coverage 2
 	if (squishIntrons) {
 		for (exon in 1:nrow(exons2))
-			drawCoverage(gene2Offset+exons2[exon,"left"], gene2Offset+exons2[exon,"right"], yCoverage, coverage2, exons2[exon,"start"], exons2[exon,"end"], color2)
+			if (exons2[exon,"type"] != "CDS") # don't draw coverage twice for coding regions
+				drawCoverage(gene2Offset+exons2[exon,"left"], gene2Offset+exons2[exon,"right"], yCoverage, coverage2, exons2[exon,"start"], exons2[exon,"end"], color2)
 	} else {
 		drawCoverage(gene2Offset+min(exons2$left), gene2Offset+max(exons2$right), yCoverage, coverage2, min(exons2$start), max(exons2$end), color2)
 	}
