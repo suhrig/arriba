@@ -32,7 +32,7 @@ parseFileParameter <- function(parameter, args, mandatory=FALSE) {
 }
 
 if (any(grepl("^--help", args)) || length(args) == 0)
-	stop("Usage: draw_fusions.R --annotation=annotation.gtf --fusions=fusions.tsv --output=output.pdf [--alignments=Aligned.out.bam] [--cytobands=cytobands.tsv] [--minConfidenceForCircosPlot=medium] [--proteinDomains=protein_domains.gff3] [--squishIntrons=TRUE] [--printExonLabels=TRUE] [--pdfWidth=11.692] [--pdfHeight=8.267] [--color1=#e5a5a5] [--color2=#a7c4e5] [--mergeDomainsOverlappingBy=0.9] [--optimizeDomainColors=FALSE]")
+	stop("Usage: draw_fusions.R --annotation=annotation.gtf --fusions=fusions.tsv --output=output.pdf [--alignments=Aligned.out.bam] [--cytobands=cytobands.tsv] [--minConfidenceForCircosPlot=medium] [--proteinDomains=protein_domains.gff3] [--squishIntrons=TRUE] [--printExonLabels=TRUE] [--pdfWidth=11.692] [--pdfHeight=8.267] [--color1=#e5a5a5] [--color2=#a7c4e5] [--mergeDomainsOverlappingBy=0.9] [--optimizeDomainColors=FALSE] [--fontSize=1]")
 exonsFile <- parseFileParameter("annotation", args, T)
 fusionsFile <- parseFileParameter("fusions", args, T)
 outputFile <- parseStringParameter("output", args)
@@ -54,6 +54,7 @@ color1 <- parseStringParameter("color1", args, "#e5a5a5")
 color2 <- parseStringParameter("color2", args, "#a7c4e5")
 mergeDomainsOverlappingBy <- as.numeric(parseStringParameter("mergeDomainsOverlappingBy", args, 0.9))
 optimizeDomainColors <- parseBooleanParameter("optimizeDomainColors", args, F)
+fontSize <- as.numeric(parseStringParameter("fontSize", args, 1))
 
 # check if required packages are installed
 if (!suppressPackageStartupMessages(require(GenomicRanges)))
@@ -199,10 +200,10 @@ drawIdeogram <- function(adjust, left, right, y, cytobands, contig, breakpoint) 
 	tip <- min(bands$left) + (max(bands$right)-min(bands$left)) / (max(bands$end)-min(bands$start)) * breakpoint
 	drawCurlyBrace(left, right, y-0.05+curlyBraceHeight, y-0.05, tip)
 	# draw title of chromosome
-	text((max(bands$right)+min(bands$left))/2, y+0.07, paste("chromosome", contig), font=2)
+	text((max(bands$right)+min(bands$left))/2, y+0.07, paste("chromosome", contig), font=2, cex=fontSize, adj=c(0.5,0))
 	# draw name of band
 	bandName <- bands[which(bands$start <= breakpoint & bands$end >= breakpoint), "name"]
-	text(tip, y+0.03, bandName)
+	text(tip, y+0.03, bandName, cex=fontSize, adj=c(0.5,0))
 	# draw start of chromosome
 	leftArcX <- bands[1,"left"] + (1+cos(seq(pi/2,1.5*pi,len=arcSteps))) * (bands[1,"right"]-bands[1,"left"])
 	leftArcY <- y + sin(seq(pi/2,1.5*pi,len=arcSteps)) * (ideogramHeight/2)
@@ -282,7 +283,7 @@ drawExon <- function(left, right, y, color, title, type) {
 			drawVerticalGradient(rep(left, gradientSteps), rep(right, gradientSteps), seq(y, y+exonHeight/2, len=gradientSteps), rgb(1,1,1,0.6))
 			drawVerticalGradient(rep(left, gradientSteps), rep(right, gradientSteps), seq(y, y-exonHeight/2, len=gradientSteps), rgb(1,1,1,0.6))
 			# add exon label
-			text((left+right)/2, y, title, cex=0.9)
+			text((left+right)/2, y, title, cex=0.9*fontSize)
 		}
 	}
 }
@@ -300,7 +301,7 @@ drawCircos <- function(fusion, fusions, cytobands, minConfidenceForCircosPlot) {
 	geneLabels$gene <- c(fusions[fusion,"gene1"], fusions[fusion,"gene2"])
 	geneLabels$gene <- ifelse(grepl(",", geneLabels$gene), paste0(geneLabels$contig, ":", geneLabels$start), geneLabels$gene)
 	# draw gene labels
-	circos.genomicLabels(geneLabels, labels.column=4, side="outside", cex=1)
+	circos.genomicLabels(geneLabels, labels.column=4, side="outside", cex=fontSize)
 	# draw chromosome labels in connector plot
 	for (contig in unique(cytobands$contig)) {
 		set.current.cell(track.index=2, sector.index=contig) # draw in gene label connector track (track.index=2)
@@ -547,9 +548,9 @@ drawProteinDomains <- function(fusion, exons1, exons2, proteinDomains, color1, c
 
 	# draw gene names, if there are coding exons
 	if (codingLength1 > 0)
-		text(sum(codingExons1$length)/2, geneNamesY, fusion$gene1, font=2)
+		text(sum(codingExons1$length)/2, geneNamesY, fusion$gene1, font=2, cex=fontSize)
 	if (codingLength2 > 0)
-		text(sum(codingExons1$length)+sum(codingExons2$length)/2, geneNamesY, fusion$gene2, font=2)
+		text(sum(codingExons1$length)+sum(codingExons2$length)/2, geneNamesY, fusion$gene2, font=2, cex=fontSize)
 
 	# calculate how many non-adjacent unique domains there are
 	# we need this info to know where to place labels vertically
@@ -577,7 +578,7 @@ drawProteinDomains <- function(fusion, exons1, exons2, proteinDomains, color1, c
 
 	# draw title of plot
 	titleY <- exonsY + exonHeight/2 + (uniqueDomains1 + 1) * 0.05
-	text(0.5, titleY, "RETAINED PROTEIN DOMAINS", font=2)
+	text(0.5, titleY, "RETAINED PROTEIN DOMAINS", font=2, cex=fontSize)
 
 	# draw domain labels for gene1
 	if (length(unlist(retainedDomains1)) > 0) {
@@ -595,7 +596,7 @@ drawProteinDomains <- function(fusion, exons1, exons2, proteinDomains, color1, c
 			if (adjacentDomainsOfSameType) {
 				labelX <- retainedDomains1[domain+1,"start"] + 0.015
 			} else {
-				text(labelX, labelY, retainedDomains1[domain,"proteinDomainName"], adj=c(0,0.5), col=getDarkColor(retainedDomains1[domain,"color"]))
+				text(labelX, labelY, retainedDomains1[domain,"proteinDomainName"], adj=c(0,0.5), col=getDarkColor(retainedDomains1[domain,"color"]), cex=fontSize)
 			}
 			lines(c(labelX-0.005, connectorX, connectorX), c(labelY, labelY, retainedDomains1[domain,"y"]+retainedDomains1[domain,"height"]), col=getDarkColor(retainedDomains1[domain,"color"]))
 			if (!adjacentDomainsOfSameType)
@@ -621,7 +622,7 @@ drawProteinDomains <- function(fusion, exons1, exons2, proteinDomains, color1, c
 			if (adjacentDomainsOfSameType) {
 				labelX <- sum(codingExons1$length) + retainedDomains2[domain+1,"end"] - 0.015
 			} else {
-				text(labelX, labelY, retainedDomains2[domain,"proteinDomainName"], adj=c(1,0.5), col=getDarkColor(retainedDomains2[domain,"color"]))
+				text(labelX, labelY, retainedDomains2[domain,"proteinDomainName"], adj=c(1,0.5), col=getDarkColor(retainedDomains2[domain,"color"]), cex=fontSize)
 			}
 			lines(c(labelX+0.005, connectorX, connectorX), c(labelY, labelY, retainedDomains2[domain,"y"]), col=getDarkColor(retainedDomains2[domain,"color"]))
 			if (!adjacentDomainsOfSameType)
@@ -841,23 +842,23 @@ for (fusion in 1:nrow(fusions)) {
 	}
 
 	# draw gene & transcript names
-	text(max(exons1$right)/2, yGeneNames, fusions[fusion,"gene1"], font=2)
+	text(max(exons1$right)/2, yGeneNames, fusions[fusion,"gene1"], font=2, cex=fontSize, adj=c(0.5,1))
 	if (!grepl(",", head(exons1$transcript,1)))
-		text(max(exons1$right)/2, yGeneNames-0.03, head(exons1$transcript,1), cex=0.9)
-	text(gene2Offset+max(exons2$right)/2, yGeneNames, fusions[fusion,"gene2"], font=2)
+		text(max(exons1$right)/2, yGeneNames-0.03, head(exons1$transcript,1), cex=0.9*fontSize, adj=c(0.5,1))
+	text(gene2Offset+max(exons2$right)/2, yGeneNames, fusions[fusion,"gene2"], font=2, cex=fontSize, adj=c(0.5,1))
 	if (!grepl(",", head(exons2$transcript,1)))
-		text(gene2Offset+max(exons2$right)/2, yGeneNames-0.03, head(exons2$transcript,1), cex=0.9)
+		text(gene2Offset+max(exons2$right)/2, yGeneNames-0.03, head(exons2$transcript,1), cex=0.9*fontSize, adj=c(0.5,1))
 
 	# label breakpoints
-	text(breakpoint1+0.01, yBreakpointLabels, paste0("breakpoint\n", fusions[fusion,"contig1"], ":", fusions[fusion,"breakpoint1"]), adj=c(1,0.5))
-	text(gene2Offset+breakpoint2-0.01, yBreakpointLabels, paste0("breakpoint\n", fusions[fusion,"contig2"], ":", fusions[fusion,"breakpoint2"]), adj=c(0,0.5))
+	text(breakpoint1+0.01, yBreakpointLabels-0.03, paste0("breakpoint\n", fusions[fusion,"contig1"], ":", fusions[fusion,"breakpoint1"]), adj=c(1,0), cex=fontSize)
+	text(gene2Offset+breakpoint2-0.01, yBreakpointLabels-0.03, paste0("breakpoint\n", fusions[fusion,"contig2"], ":", fusions[fusion,"breakpoint2"]), adj=c(0,0), cex=fontSize)
 
 	# draw coverage axis
 	if (alignmentsFile != "") {
 		lines(c(-0.02, -0.01, -0.01, -0.02), c(yCoverage, yCoverage, yCoverage+0.1, yCoverage+0.1))
-		text(-0.025, yCoverage, "0", adj=c(1,0.5), cex=0.9)
-		text(-0.025, yCoverage+0.1, coverageNormalization, adj=c(1,0.5), cex=0.9)
-		text(-0.05, yCoverage+0.04, "Coverage", srt=90, cex=0.9)
+		text(-0.025, yCoverage, "0", adj=c(1,0.5), cex=0.9*fontSize)
+		text(-0.025, yCoverage+0.1, coverageNormalization, adj=c(1,0.5), cex=0.9*fontSize)
+		text(-0.05, yCoverage+0.08, "Coverage", srt=90, cex=0.9*fontSize, adj=c(1,0.5))
 		rect(min(exons1$left), yCoverage, max(exons1$right), yCoverage+0.1, col="#eeeeee", border=NA)
 		rect(gene2Offset+min(exons2$left), yCoverage, gene2Offset+max(exons2$right), yCoverage+0.1, col="#eeeeee", border=NA)
 	}
@@ -950,12 +951,12 @@ for (fusion in 1:nrow(fusions)) {
 		non_template_bases1 <- substr(non_template_bases, 1, floor(nchar(non_template_bases)/2))
 		non_template_bases2 <- substr(non_template_bases, ceiling(nchar(non_template_bases)/2), nchar(non_template_bases))
 		# transcript 1
-		text(fusionOffset2, yTranscript, bquote(.(fusion_transcript1) * phantom(.(non_template_bases1))), col=darkColor1, adj=c(1,0.5))
+		text(fusionOffset2, yTranscript, bquote(.(fusion_transcript1) * phantom(.(non_template_bases1))), col=darkColor1, adj=c(1,0.5), cex=fontSize)
 		# transcript 2
-		text(fusionOffset2, yTranscript, bquote(phantom(.(non_template_bases2)) * .(fusion_transcript2)), col=darkColor2, adj=c(0,0.5))
+		text(fusionOffset2, yTranscript, bquote(phantom(.(non_template_bases2)) * .(fusion_transcript2)), col=darkColor2, adj=c(0,0.5), cex=fontSize)
 		# non-template bases
-		text(fusionOffset2, yTranscript, non_template_bases1, adj=c(1,0.5))
-		text(fusionOffset2, yTranscript, non_template_bases2, adj=c(0,0.5))
+		text(fusionOffset2, yTranscript, non_template_bases1, adj=c(1,0.5), cex=fontSize)
+		text(fusionOffset2, yTranscript, non_template_bases2, adj=c(0,0.5), cex=fontSize)
 	}
 
 	if (is.null(cytobands) || !("circlize" %in% names(sessionInfo()$otherPkgs)) || !("GenomicRanges" %in% names(sessionInfo()$otherPkgs))) {
@@ -972,10 +973,10 @@ for (fusion in 1:nrow(fusions)) {
 
 	# print statistics about supporting alignments
 	plot(0, 0, type="l", xlim=c(0, 1), ylim=c(0, 1), bty="n", xaxt="n", yaxt="n")
-	text(0, 0.575, "SUPPORTING READ COUNT", font=2, adj=c(0,0.5))
-	text(0, 0.525, paste("Split reads in", fusions[fusion,"gene1"], "=", fusions[fusion,"split_reads1"]), adj=c(0,0.5))
-	text(0, 0.475, paste("Split reads in", fusions[fusion,"gene2"], "=", fusions[fusion,"split_reads2"]), adj=c(0,0.5))
-	text(0, 0.425, paste("Discordant mates =", fusions[fusion,"discordant_mates"]), adj=c(0,0.5))
+	text(0, 0.575, "SUPPORTING READ COUNT", font=2, adj=c(0,0.5), cex=fontSize)
+	text(0, 0.525, paste("Split reads in", fusions[fusion,"gene1"], "=", fusions[fusion,"split_reads1"]), adj=c(0,0.5), cex=fontSize)
+	text(0, 0.475, paste("Split reads in", fusions[fusion,"gene2"], "=", fusions[fusion,"split_reads2"]), adj=c(0,0.5), cex=fontSize)
+	text(0, 0.425, paste("Discordant mates =", fusions[fusion,"discordant_mates"]), adj=c(0,0.5), cex=fontSize)
 
 }
 
