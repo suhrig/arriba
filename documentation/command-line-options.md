@@ -125,7 +125,7 @@ This is a helper utility of Arriba. It has three modes, each of which extracts a
 
 - read-through fusions mode (`-r`): The STAR RNA-Seq aligner does not report read-through fusions in the chimeric BAM file. This program extracts reads supporting read-through fusions from the RNA BAM file. The output file should be passed to Arriba via the parameter `-r`.
 
-- FastQ mode (`-f`): If STAR is run without the parameter `--chimSegmentMin`, then the output file `Chimeric.out.sam` is not generated. Arriba requires this file for fusion detection, however. In order to avoid having to rerun STAR on the already aligned reads this utility can be used to extract only those reads from the BAM file, which are eligible for chimeric alignment, i.e., unmapped reads, discordant mates, and clipped reads. The reads are extracted in FastQ format to align them with STAR.
+- FastQ mode (`-f`): If STAR is run without the parameters `--chimSegmentMin` or `--chimOutType SeparateSAMold`, then the output file `Chimeric.out.sam` is not generated. Arriba requires this file for fusion detection, however. In order to avoid having to rerun STAR on the already aligned reads this utility can be used to extract only those reads from the BAM file, which are eligible for chimeric alignment, i.e., unmapped reads, discordant mates, and clipped reads. The reads are extracted in FastQ format to align them with STAR.
 
 - chimeric alignments mode (`-c`): If STAR was run with the parameter `--chimOutType WithinBAM`, then the chimeric alignments need to be extracted to a separate file. This file can then be passed to Arriba via the parameter `-c`.
 
@@ -146,7 +146,7 @@ STAR --outStd BAM_Unsorted --outSAMtype BAM Unsorted SortedByCoordinate [...] |
 extract_reads -g annotation.gtf -r read_through.bam
 ```
 
-Extract chimeric candidates in FastQ format from an existing BAM file, if STAR was run without `--chimSegmentMin`:
+Extract chimeric candidates in FastQ format from an existing BAM file, if STAR was run without `--chimSegmentMin` or `--chimOutType SeparateSAMold`:
 
 ```bash
 extract_reads -x Aligned.out.bam -f reads_as_fastq

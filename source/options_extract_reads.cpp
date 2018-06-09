@@ -35,22 +35,22 @@ void print_usage() {
 	     << endl
 	     << "read-through fusions mode (-r):" << endl
 	     << "  The STAR RNA-Seq aligner does not report read-through fusions " << endl
-	     << "  in the chimeric alignments file (Chimeric.out.sam). This program "
-	     << "  extracts reads supporting read-through fusions from the normal "
+	     << "  in the chimeric alignments file (Chimeric.out.sam). This program " << endl
+	     << "  extracts reads supporting read-through fusions from the normal " << endl
 	     << "  alignments file. The output file should be passed to Arriba via " << endl
 	     << "  the parameter -r." << endl
 	     << "  For optimal performance extract_reads should be run while " << endl
 	     << "  STAR is running (see usage)." << endl
 	     << "FastQ mode (-f):" << endl
-	     << "  If STAR is run without the parameter --chimSegmentMin, then " << endl
-	     << "  the output file Chimeric.out.sam is not generated. Arriba " << endl
-	     << "  requires this file for fusion detection, however. In order " << endl
-	     << "  to avoid having to rerun STAR on the already aligned reads " << endl
-	     << "  this utility can be used to extract only those reads from " << endl
-	     << "  the normal alignments file, which are eligible for chimeric " << endl
-	     << "  alignment, i.e., unmapped reads, discordant mates, and clipped " << endl
-	     << "  reads. The reads are extracted in FastQ format to align them " << endl
-	     << "  anew with STAR." << endl
+	     << "  If STAR is run without the parameters --chimSegmentMin or " << endl
+	     << "  --chimOutType SeparateSAMold, then the output file " << endl
+	     << "  Chimeric.out.sam is not generated. Arriba requires this file " << endl
+	     << "  for fusion detection, however. In order to avoid having to " << endl
+	     << "  rerun STAR on the already aligned reads this utility can be " << endl
+	     << "  used to extract only those reads from the normal alignments " << endl
+	     << "  file, which are eligible for chimeric alignment, i.e., unmapped " << endl
+	     << "  reads, discordant mates, and clipped reads. The reads are " << endl
+	     << "  extracted in FastQ format to align them anew with STAR." << endl
 	     << "chimeric alignments mode (-c):" << endl
 	     << "  If STAR was run with the parameter --chimOutType WithinBAM, " << endl
 	     << "  then the chimeric alignments need to be extracted to a separate " << endl

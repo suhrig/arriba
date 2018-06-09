@@ -6,10 +6,10 @@ Arriba comes with a script `run_arriba.sh` that illustrates the usage of all com
 STAR
 ----
 
-In order for `STAR` to generate chimeric alignments, the parameter `--chimSegmentMin` must be specified. In addition, the following parameters are recommended to improve sensitivity:
+In order for `STAR` to write chimeric alignments to a separate SAM file, the parameters `--chimSegmentMin` and `--chimOutType SeparateSAMold` must be specified. In addition, the following parameters are recommended to improve sensitivity:
 
 ```bash
---chimSegmentMin 10 --chimJunctionOverhangMin 10 --chimScoreMin 1 --chimScoreDropMax 30 --chimScoreJunctionNonGTAG 0 --chimScoreSeparation 1 --alignSJstitchMismatchNmax 5 -1 5 5 --chimSegmentReadGapMax 3
+--chimSegmentMin 10 --chimOutType SeparateSAMold --chimJunctionOverhangMin 10 --chimScoreMin 1 --chimScoreDropMax 30 --chimScoreJunctionNonGTAG 0 --chimScoreSeparation 1 --alignSJstitchMismatchNmax 5 -1 5 5 --chimSegmentReadGapMax 3
 ```
 
 A complete call of `STAR` may look like this:
@@ -22,7 +22,7 @@ STAR \
 	--outSAMtype BAM SortedByCoordinate \
 	--outSAMunmapped Within \
 	--outFilterMultimapNmax 1 --outFilterMismatchNmax 3 \
-	--chimSegmentMin 10 --chimJunctionOverhangMin 10 --chimScoreMin 1 --chimScoreDropMax 30 --chimScoreJunctionNonGTAG 0 --chimScoreSeparation 1 --alignSJstitchMismatchNmax 5 -1 5 5 --chimSegmentReadGapMax 3
+	--chimSegmentMin 10 --chimOutType SeparateSAMold --chimJunctionOverhangMin 10 --chimScoreMin 1 --chimScoreDropMax 30 --chimScoreJunctionNonGTAG 0 --chimScoreSeparation 1 --alignSJstitchMismatchNmax 5 -1 5 5 --chimSegmentReadGapMax 3
 ```
 
 Apart from the parameters concerning chimeric alignment, all parameters may be modified according to the user's preferences.
