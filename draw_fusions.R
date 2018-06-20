@@ -765,15 +765,16 @@ for (fusion in 1:nrow(fusions)) {
 	exons2$left <- exons2$start
 	exons2$right <- exons2$end
 
+	squishedIntronSize <- 200
 	if (squishIntrons) {
 		# hide introns in gene1
 		cumulativeIntronLength <- 0
-		previousExonEnd <- -200
+		previousExonEnd <- -squishedIntronSize
 		for (exon in 1:nrow(exons1)) {
 			if (breakpoint1 > previousExonEnd+1 && breakpoint1 < exons1[exon,"left"])
-				breakpoint1 <- (breakpoint1-previousExonEnd) / (exons1[exon,"left"]-previousExonEnd) * 200 + previousExonEnd - cumulativeIntronLength
+				breakpoint1 <- (breakpoint1-previousExonEnd) / (exons1[exon,"left"]-previousExonEnd) * squishedIntronSize + previousExonEnd - cumulativeIntronLength
 			if (exons1[exon,"left"] > previousExonEnd)
-				cumulativeIntronLength <- cumulativeIntronLength + exons1[exon,"left"] - previousExonEnd - 200
+				cumulativeIntronLength <- cumulativeIntronLength + exons1[exon,"left"] - previousExonEnd - squishedIntronSize
 			if (breakpoint1 >= exons1[exon,"left"] && breakpoint1 <= exons1[exon,"right"]+1)
 				breakpoint1 <- breakpoint1 - cumulativeIntronLength
 			previousExonEnd <- exons1[exon,"right"]
@@ -783,12 +784,12 @@ for (fusion in 1:nrow(fusions)) {
 
 		# hide introns in gene2
 		cumulativeIntronLength <- 0
-		previousExonEnd <- -200
+		previousExonEnd <- -squishedIntronSize
 		for (exon in 1:nrow(exons2)) {
 			if (breakpoint2 > previousExonEnd+1 && breakpoint2 < exons2[exon,"left"])
-				breakpoint2 <- (breakpoint2-previousExonEnd) / (exons2[exon,"left"]-previousExonEnd) * 200 + previousExonEnd - cumulativeIntronLength
+				breakpoint2 <- (breakpoint2-previousExonEnd) / (exons2[exon,"left"]-previousExonEnd) * squishedIntronSize + previousExonEnd - cumulativeIntronLength
 			if (exons2[exon,"left"] > previousExonEnd)
-				cumulativeIntronLength <- cumulativeIntronLength + exons2[exon,"left"] - previousExonEnd - 200
+				cumulativeIntronLength <- cumulativeIntronLength + exons2[exon,"left"] - previousExonEnd - squishedIntronSize
 			if (breakpoint2 >= exons2[exon,"left"] && breakpoint2 <= exons2[exon,"right"]+1)
 				breakpoint2 <- breakpoint2 - cumulativeIntronLength
 			previousExonEnd <- exons2[exon,"right"]
@@ -833,7 +834,8 @@ for (fusion in 1:nrow(fusions)) {
 	yCoverage <- 0.72
 	yExons <- 0.67
 	yFusion <- 0.5
-	yTranscript <- 0.43
+	yTranscript <- 0.45
+	yScale <- 0.407
 
 	# draw ideograms
 	if (!is.null(cytobands)) {
@@ -959,6 +961,28 @@ for (fusion in 1:nrow(fusions)) {
 		text(fusionOffset2, yTranscript, non_template_bases2, adj=c(0,0.5), cex=fontSize)
 	}
 
+	# draw scale
+	realScale <- max(exons1$end - exons1$start, exons2$end - exons2$start)
+	mapScale <- max(exons1$right - exons1$left, exons2$right - exons2$left)
+	# choose scale which is closest to desired scale length
+	desiredScaleSize <- 0.2
+	realScale <- desiredScaleSize / mapScale * realScale
+	mapScale <- desiredScaleSize
+	realScaleOptimalFit <- signif(realScale, 1) # round to most significant digit
+	mapScaleOptimalFit <- realScaleOptimalFit / realScale * mapScale
+	# draw scale line
+	lines(c(0, mapScaleOptimalFit), c(yScale, yScale)) # scale line
+	lines(c(0, 0), c(yScale-0.007, yScale+0.007)) # left whisker
+	lines(c(mapScaleOptimalFit, mapScaleOptimalFit), c(yScale-0.007, yScale+0.007)) # right whisker
+	# draw units above scale line
+	realScaleThousands <- max(0, min(3, floor(log10(realScaleOptimalFit)/3)))
+	scaleUnits <- c("bp", "kbp", "Mbp", "Gbp")
+	scaleLabel <- paste(realScaleOptimalFit/max(1,1000^realScaleThousands), scaleUnits[realScaleThousands+1])
+	text(mapScaleOptimalFit/2, yScale+0.005, scaleLabel, adj=c(0.5,0), cex=fontSize*0.9)
+	if (squishIntrons)
+		text(mapScaleOptimalFit, yScale, expression(italic("  introns not to scale")), adj=c(0,0.5), cex=fontSize*0.9)
+
+	# draw circos plot
 	if (is.null(cytobands) || !("circlize" %in% names(sessionInfo()$otherPkgs)) || !("GenomicRanges" %in% names(sessionInfo()$otherPkgs))) {
 		plot(0, 0, type="l", xlim=c(0, 1), ylim=c(0, 1), bty="n", xaxt="n", yaxt="n")
 	} else {
@@ -967,6 +991,7 @@ for (fusion in 1:nrow(fusions)) {
 		par(mar=c(0, 0, 0, 0))
 	}
 
+	# draw protein domains
 	plot(0, 0, type="l", xlim=c(-0.1, 1.1), ylim=c(0, 1), bty="n", xaxt="n", yaxt="n")
 	if (!is.null(proteinDomains))
 		drawProteinDomains(fusions[fusion,], exons1, exons2, proteinDomains, color1, color2, mergeDomainsOverlappingBy, optimizeDomainColors)
