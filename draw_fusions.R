@@ -807,11 +807,12 @@ for (fusion in 1:nrow(fusions)) {
 		for (exon in 1:nrow(exons1)) {
 			if (breakpoint1 > previousExonEnd+1 && breakpoint1 < exons1[exon,"left"])
 				breakpoint1 <- (breakpoint1-previousExonEnd) / (exons1[exon,"left"]-previousExonEnd) * squishedIntronSize + previousExonEnd - cumulativeIntronLength
-			if (exons1[exon,"left"] > previousExonEnd)
+			if (exons1[exon,"left"] > previousExonEnd) {
 				cumulativeIntronLength <- cumulativeIntronLength + exons1[exon,"left"] - previousExonEnd - squishedIntronSize
+				previousExonEnd <- exons1[exon,"right"]
+			}
 			if (breakpoint1 >= exons1[exon,"left"] && breakpoint1 <= exons1[exon,"right"]+1)
 				breakpoint1 <- breakpoint1 - cumulativeIntronLength
-			previousExonEnd <- exons1[exon,"right"]
 			exons1[exon,"left"] <- exons1[exon,"left"] - cumulativeIntronLength
 			exons1[exon,"right"] <- exons1[exon,"right"] - cumulativeIntronLength
 		}
@@ -822,11 +823,12 @@ for (fusion in 1:nrow(fusions)) {
 		for (exon in 1:nrow(exons2)) {
 			if (breakpoint2 > previousExonEnd+1 && breakpoint2 < exons2[exon,"left"])
 				breakpoint2 <- (breakpoint2-previousExonEnd) / (exons2[exon,"left"]-previousExonEnd) * squishedIntronSize + previousExonEnd - cumulativeIntronLength
-			if (exons2[exon,"left"] > previousExonEnd)
+			if (exons2[exon,"left"] > previousExonEnd) {
 				cumulativeIntronLength <- cumulativeIntronLength + exons2[exon,"left"] - previousExonEnd - squishedIntronSize
+				previousExonEnd <- exons2[exon,"right"]
+			}
 			if (breakpoint2 >= exons2[exon,"left"] && breakpoint2 <= exons2[exon,"right"]+1)
 				breakpoint2 <- breakpoint2 - cumulativeIntronLength
-			previousExonEnd <- exons2[exon,"right"]
 			exons2[exon,"left"] <- exons2[exon,"left"] - cumulativeIntronLength
 			exons2[exon,"right"] <- exons2[exon,"right"] - cumulativeIntronLength
 		}
