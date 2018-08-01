@@ -251,11 +251,13 @@ drawIdeogram <- function(adjust, left, right, y, cytobands, contig, breakpoint) 
 }
 
 drawCoverage <- function(left, right, y, coverage, start, end, color) {
+	maxResolution <- 5000 # max number of data points to draw coverage
 	# draw coverage as bars
 	if (!is.null(coverage)) {
 		coverageData <- as.numeric(coverage[IRanges(start, end)])
-		for (position in 1:length(coverageData))
-			rect(left+(position-1)/(end-start)*(right-left), y, left+position/(end-start)*(right-left), y+coverageData[position]*0.1, col=color, border=NA)
+		# downsample to maxResolution, if there are too many data points
+		coverageData <- aggregate(coverageData, by=list(round(1:length(coverageData) * (right-left) * maxResolution/length(coverageData))), mean)$x
+		polygon(c(left, seq(left, right, length.out=length(coverageData)), right), c(y, y+coverageData*0.1, y), col=color, border=NA)
 	}
 }
 
