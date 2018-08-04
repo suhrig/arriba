@@ -62,6 +62,36 @@ docker run --rm -t \
        arriba.sh
 ```
 
+Installation using Singularity
+------------------------------
+
+Install [Singularity](http://singularity.lbl.gov/) according to the developers' instructions.
+
+Build the Singularity image:
+
+```bash
+wget https://raw.githubusercontent.com/suhrig/arriba/master/Singularity
+singularity build arriba.img Singularity
+```
+
+Run the `download_references.sh` script inside the container. The script downloads the assembly hs37d5 and GencodeV19 annotation. Please refer to the manual installation instructions or modify the `Singularity` file, if you wish to use a different assembly/annotation. The script generates a STAR index from the downloaded files. Note that this step requires ~30 GB of RAM and 8 cores (can be adjusted with `export SINGULARITYENV_THREADS=...`). The files will be extracted to the directory `/path/to/references` in the following example:
+
+```bash
+singularity exec -B /path/to/references:/references arriba.img download_references.sh
+```
+
+Use the following Singularity command to run Arriba from the container. Replace `/path/to/` with the path to the respective input file. Leave the paths after the colons unmodified - these are the paths inside the Singularity container.
+
+```bash
+singularity exec \
+       -B /path/to/output:/output \
+       -B /path/to/references:/references:ro \
+       -B /path/to/read1.fastq.gz:/read1.fastq.gz:ro \
+       -B /path/to/read2.fastq.gz:/read2.fastq.gz:ro \
+       arriba.img \
+       arriba.sh
+```
+
 Output files
 ------------
 
