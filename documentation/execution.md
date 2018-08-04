@@ -9,7 +9,7 @@ STAR
 In order for `STAR` to write chimeric alignments to a separate SAM file, the parameters `--chimSegmentMin` and `--chimOutType SeparateSAMold` must be specified. In addition, the following parameters are recommended to improve sensitivity:
 
 ```bash
---chimSegmentMin 10 --chimOutType SeparateSAMold --chimJunctionOverhangMin 10 --chimScoreMin 1 --chimScoreDropMax 30 --chimScoreJunctionNonGTAG 0 --chimScoreSeparation 1 --alignSJstitchMismatchNmax 5 -1 5 5 --chimSegmentReadGapMax 3
+--chimSegmentMin 10 --chimOutType WithinBAM SoftClip --chimJunctionOverhangMin 10 --chimScoreMin 1 --chimScoreDropMax 30 --chimScoreJunctionNonGTAG 0 --chimScoreSeparation 1 --alignSJstitchMismatchNmax 5 -1 5 5 --chimSegmentReadGapMax 3
 ```
 
 A complete call of `STAR` may look like this:
@@ -22,20 +22,20 @@ STAR \
 	--outSAMtype BAM SortedByCoordinate \
 	--outSAMunmapped Within \
 	--outFilterMultimapNmax 1 --outFilterMismatchNmax 3 \
-	--chimSegmentMin 10 --chimOutType SeparateSAMold --chimJunctionOverhangMin 10 --chimScoreMin 1 --chimScoreDropMax 30 --chimScoreJunctionNonGTAG 0 --chimScoreSeparation 1 --alignSJstitchMismatchNmax 5 -1 5 5 --chimSegmentReadGapMax 3
+	--chimSegmentMin 10 --chimOutType WithinBAM SoftClip --chimJunctionOverhangMin 10 --chimScoreMin 1 --chimScoreDropMax 30 --chimScoreJunctionNonGTAG 0 --chimScoreSeparation 1 --alignSJstitchMismatchNmax 5 -1 5 5 --chimSegmentReadGapMax 3
 ```
 
 Apart from the parameters concerning chimeric alignment, all parameters may be modified according to the user's preferences.
 
-Note: By default, STAR stores chimeric alignments in a separate file named `Chimeric.out.sam`. Alternatively, recent versions of STAR can store chimeric alignments within the file containing normal alignments (`--chimOutType WithinBAM`). Arriba cannot process chimeric alignments stored within the normal alignments. If this is the case, the chimeric alignments need to be extracted to a separate file using the parameter `-c` of the utility `extract_reads` (see section [Command-line options](command-line-options.md#extract_reads)).
+Note: Before version 2.6, STAR stored chimeric alignments in a separate file named `Chimeric.out.sam`. Recent versions can store chimeric alignments within the file containing normal alignments (`--chimOutType WithinBAM`). Users are encouraged to use the latter, because the old behavior will be depecrated soon. However, Arriba cannot process chimeric alignments stored within the normal alignments. If this is the case, the chimeric alignments need to be extracted to a separate file using the parameter `-c` of the utility `extract_reads` (see section [Command-line options](command-line-options.md#extract_reads)).
 
 extract_reads
 -------------
 
-This utility takes the normal alignments as input and extracts all fragments which cross the boundaries of genes. The result is a subset of the normal alignments, stored in a smaller BAM file. `extract_reads` can be run stand-alone, for example:
+This utility takes the normal alignments as input and extracts all fragments which cross the boundaries of genes. Such fragments indicate potential focal deletions and read-through fusions. The result is a subset of the normal alignments, stored in a smaller BAM file. If the chimeric alignments are stored inside the normal alignments (`--chimOutType WithinBAM`) rather than in the separate file `Chimeric.out.sam`, then `extract_reads` must be used to extract the chimeric alignments to a separate file using the switch `-c` as shown in the following examples. `extract_reads` can be run stand-alone, for example:
 
 ```bash
-extract_reads -x Aligned.out.bam -r read_through.bam -g annotation.gtf
+extract_reads -x Aligned.out.bam -g annotation.gtf -r read_through.bam -c chimeric.bam
 ```
 
 The tool can process 100 million reads in approximately 1.5 minutes on a modern CPU. For optimal performance, it is not recommended to run it in stand-alone mode, though, because doing so extends the overall runtime of the workflow. It is more efficient to run the tool in tandem with `STAR`, as illustrated in the following example, because then the entire workflow is parallellized and single-threaded periods are avoided.
@@ -44,13 +44,13 @@ In the following example, `STAR` is instructed to output the normal alignments i
 
 ```bash
 STAR --outStd BAM_Unsorted --outSAMtype BAM Unsorted SortedByCoordinate [...] |
-extract_reads -g annotation.gtf > read_through.bam
+extract_reads -g annotation.gtf -r read_through.bam -c chimeric.bam
 ```
 
 arriba
 ------
 
-Finally, `arriba` is run on the output files of `STAR` (`Aligned.sortedByCoord.out.bam`, `Chimeric.out.sam`) and `extract_reads` (`read_through.bam`). The normal alignments need to be sorted by coordinate and indexed so that `arriba` can lookup specific positions.
+Finally, `arriba` is run on the output files of `STAR` (`Aligned.sortedByCoord.out.bam`) and `extract_reads` (`read_through.bam`, `chimeric.bam`). The normal alignments need to be sorted by coordinate and indexed so that `arriba` can lookup specific positions.
 
 For a detailed explanation of the parameters, please refer to section [Command-line options](command-line-options.md).
 

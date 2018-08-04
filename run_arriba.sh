@@ -32,16 +32,16 @@ STAR \
 	--outStd BAM_Unsorted --outSAMtype BAM Unsorted SortedByCoordinate \
 	--outSAMunmapped Within \
 	--outFilterMultimapNmax 1 --outFilterMismatchNmax 3 \
-	--chimSegmentMin 10 --chimOutType SeparateSAMold --chimJunctionOverhangMin 10 --chimScoreMin 1 --chimScoreDropMax 30 --chimScoreJunctionNonGTAG 0 --chimScoreSeparation 1 --alignSJstitchMismatchNmax 5 -1 5 5 --chimSegmentReadGapMax 3 \
+	--chimSegmentMin 10 --chimOutType WithinBAM SoftClip --chimJunctionOverhangMin 10 --chimScoreMin 1 --chimScoreDropMax 30 --chimScoreJunctionNonGTAG 0 --chimScoreSeparation 1 --alignSJstitchMismatchNmax 5 -1 5 5 --chimSegmentReadGapMax 3 \
 	--limitBAMsortRAM 50000000000 |
-"$BASE_DIR/extract_reads" -g "$ANNOTATION_GTF" -r read_through.bam
+"$BASE_DIR/extract_reads" -g "$ANNOTATION_GTF" -r read_through.bam -c chimeric.bam
 
 # index normal alignments
 samtools index Aligned.sortedByCoord.out.bam
 
 # call arriba
 "$BASE_DIR/arriba" \
-	-c Chimeric.out.sam \
+	-c chimeric.bam \
 	-r read_through.bam \
 	-x Aligned.sortedByCoord.out.bam \
 	-o fusions.tsv \
