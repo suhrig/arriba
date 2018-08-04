@@ -3,7 +3,7 @@ Manual installation
 
 Arriba requires [STAR](https://github.com/alexdobin/STAR) (version >=2.5.3a recommended) and [samtools](http://www.htslib.org/). Download and install the two tools according to the developers' instructions and make them available in your `$PATH`.
 
-Build a STAR index from your genome assembly and annotation. The following commands use the hs37d5 assembly and GencodeV19 annotation. Currently, the only supported assemblies are hg19/hs37d5/GRCh37 and hg38/GRCh38. Support for mm10 is in development. If you use another assembly, then the coordinates in the blacklist will not match and the predictions will contain many false positives. There are no restrictions on the annotation, but Gencode is recommended over RefSeq due to more comprehensive annotation of splice-sites, which improves sensitivity.
+Build a STAR index from your genome assembly and annotation. The following commands use the hs37d5 assembly and GencodeV19 annotation. Currently, the supported assemblies are hg19/hs37d5/GRCh37 and hg38/GRCh38. Support for mm10 is in development. If you use another assembly, then the coordinates in the blacklist will not match and the predictions will contain many false positives. There are no restrictions on the annotation, but Gencode is recommended over RefSeq due to more comprehensive annotation of splice-sites, which improves sensitivity.
 
 ```bash
 # download and extract annotation
