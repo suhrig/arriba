@@ -70,11 +70,11 @@ Install [Singularity](http://singularity.lbl.gov/) according to the developers' 
 Build the Singularity image:
 
 ```bash
-wget https://raw.githubusercontent.com/suhrig/arriba/master/Singularity
-singularity build arriba.img Singularity
+wget https://raw.githubusercontent.com/suhrig/arriba/master/Singularityfile
+singularity build arriba.img Singularityfile
 ```
 
-Run the `download_references.sh` script inside the container. The script downloads the assembly hs37d5 and GencodeV19 annotation. Please refer to the manual installation instructions or modify the `Singularity` file, if you wish to use a different assembly/annotation. The script generates a STAR index from the downloaded files. Note that this step requires ~30 GB of RAM and 8 cores (can be adjusted with `export SINGULARITYENV_THREADS=...`). The files will be extracted to the directory `/path/to/references` in the following example:
+Run the `download_references.sh` script inside the container. The script downloads the assembly hs37d5 and GencodeV19 annotation. Please refer to the manual installation instructions or modify the `Singularityfile`, if you wish to use a different assembly/annotation. The script generates a STAR index from the downloaded files. Note that this step requires ~30 GB of RAM and 8 cores (can be adjusted with `export SINGULARITYENV_THREADS=...`). The files will be extracted to the directory `/path/to/references` in the following example:
 
 ```bash
 singularity exec -B /path/to/references:/references arriba.img download_references.sh
