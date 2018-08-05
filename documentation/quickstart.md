@@ -47,13 +47,13 @@ docker build --tag arriba:latest https://raw.githubusercontent.com/suhrig/arriba
 Run the `download_references.sh` script inside the container. The script downloads the assembly hs37d5 and GencodeV19 annotation. Please refer to the manual installation instructions or modify the `Dockerfile`, if you wish to use a different assembly/annotation. The script generates a STAR index from the downloaded files. Note that this step requires ~30 GB of RAM and 8 cores (can be adjusted with `--env THREADS=...`). The files will be extracted to the directory `/path/to/references` in the following example:
 
 ```bash
-docker run --rm -t -v /path/to/references:/references arriba:latest download_references.sh
+docker run --rm -v /path/to/references:/references arriba:latest download_references.sh
 ```
 
 Use the following Docker command to run Arriba from the container. Replace `/path/to/` with the path to the respective input file. Leave the paths after the colons unmodified - these are the paths inside the Docker container.
 
 ```bash
-docker run --rm -t \
+docker run --rm \
        -v /path/to/output:/output \
        -v /path/to/references:/references:ro \
        -v /path/to/read1.fastq.gz:/read1.fastq.gz:ro \
