@@ -1073,8 +1073,10 @@ for (fusion in 1:nrow(fusions)) {
 
 	# draw protein domains
 	plot(0, 0, type="l", xlim=c(-0.1, 1.1), ylim=c(0, 1), bty="n", xaxt="n", yaxt="n")
+	par(xpd=NA)
 	if (!is.null(proteinDomains))
 		drawProteinDomains(fusions[fusion,], exons1, exons2, proteinDomains, color1, color2, mergeDomainsOverlappingBy, optimizeDomainColors)
+	par(xpd=F)
 
 	# print statistics about supporting alignments
 	plot(0, 0, type="l", xlim=c(0, 1), ylim=c(0, 1), bty="n", xaxt="n", yaxt="n")
