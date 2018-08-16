@@ -866,11 +866,11 @@ for (fusion in 1:nrow(fusions)) {
 	plot(0, 0, type="l", xlim=c(-0.12, 1.12), ylim=c(0.4, 1.1), bty="n", xaxt="n", yaxt="n")
 
 	# vertical coordinates of layers
-	yIdeograms <- 0.94
-	yGeneNames <- 0.58
-	yBreakpointLabels <- 0.86
+	yIdeograms <- ifelse(alignmentsFile != "", 0.94, 0.84)
+	yBreakpointLabels <- ifelse(alignmentsFile != "", 0.86, 0.76)
 	yCoverage <- 0.72
 	yExons <- 0.67
+	yGeneNames <- 0.58
 	yFusion <- 0.5
 	yTranscript <- 0.45
 	yScale <- 0.407
