@@ -39,6 +39,7 @@ options_t get_default_options() {
 	options.mismatch_pvalue_cutoff = 0.01;
 	options.subsampling_threshold = 300;
 	options.high_expression_quantile = 0.998;
+	options.exonic_fraction = 0.2;
 
 	return options;
 }
@@ -161,6 +162,12 @@ void print_usage() {
 	                  "during library preparation. Genes with an expression above the given quantile "
 	                  "are eligible for filtering by the 'pcr_fusions' filter. "
 	                  "Default: " + to_string(static_cast<long double>(default_options.high_expression_quantile)))
+	     << wrap_help("-e EXONIC_FRACTION", "The breakpoints of false-positive predictions of "
+	                  "intragenic events are often both in exons. True predictions are more likely "
+	                  "to have at least one breakpoint in an intron, because introns are larger. "
+	                  "If the fraction of exonic sequence between two breakpoints is smaller than "
+	                  "the given fraction, the 'intragenic_exonic' filter discards the event. "
+	                  "Default: " + to_string(static_cast<long double>(default_options.exonic_fraction)))
 	     << wrap_help("-T", "When set, the column 'fusion_transcript' is populated with "
 	                  "the sequence of the fused genes as assembled from the supporting reads. "
 	                  "Specify the flag twice to also print the fusion transcripts to the file "
@@ -201,7 +208,7 @@ options_t parse_arguments(int argc, char **argv) {
 	// parse arguments
 	opterr = 0;
 	int c;
-	while ((c = getopt(argc, argv, "c:r:x:d:g:G:o:O:a:k:b:s:i:f:E:S:m:L:H:D:R:A:M:K:F:U:TPIh")) != -1) {
+	while ((c = getopt(argc, argv, "c:r:x:d:g:G:o:O:a:k:b:s:i:f:E:S:m:L:H:D:R:A:M:K:F:U:e:TPIh")) != -1) {
 		switch (c) {
 			case 'c':
 				options.chimeric_bam_file = optarg;
@@ -410,6 +417,12 @@ options_t parse_arguments(int argc, char **argv) {
 				break;
 			case 'Q':
 				if (!validate_float(optarg, options.high_expression_quantile, 0, 1)) {
+					cerr << "ERROR: " << "Argument to -" << ((char) c) << " must be between 0 and 1." << endl;
+					exit(1);
+				}
+				break;
+			case 'e':
+				if (!validate_float(optarg, options.exonic_fraction, 0, 1)) {
 					cerr << "ERROR: " << "Argument to -" << ((char) c) << " must be between 0 and 1." << endl;
 					exit(1);
 				}

@@ -44,6 +44,7 @@ struct options_t {
 	float mismatch_pvalue_cutoff;
 	unsigned int subsampling_threshold;
 	float high_expression_quantile;
+	float exonic_fraction;
 };
 
 options_t parse_arguments(int argc, char **argv);

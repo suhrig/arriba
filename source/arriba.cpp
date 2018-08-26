@@ -362,7 +362,7 @@ int main(int argc, char **argv) {
 	// this step must come before all filters that are potentially undone by the 'genomic_support' filter
 	if (options.filters.at("intragenic_exonic")) {
 		cout << "Filtering intragenic fusions with both breakpoints in exonic regions" << flush;
-		cout << " (remaining=" << filter_intragenic_both_exonic(fusions) << ")" << endl;
+		cout << " (remaining=" << filter_intragenic_both_exonic(fusions, exon_annotation_index, options.exonic_fraction) << ")" << endl;
 	}
 
 	// this step must come after e-value calculation,
