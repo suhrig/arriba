@@ -12,7 +12,7 @@ unsigned int filter_intragenic_both_exonic(fusions_t& fusions, const exon_annota
 
 		if ((fusion->second.breakpoint_overlaps_both_genes() || fusion->second.gene1 == fusion->second.gene2) &&
 		    fusion->second.exonic1 && fusion->second.exonic2 &&
-		    !fusion->second.spliced1 && !fusion->second.spliced2) {
+		    !(fusion->second.spliced1 && fusion->second.spliced2)) {
 			// if less then 20% of the region between the breakpoints is exonic,
 			// but the breakpoints are both exonic nonetheless, discard the event,
 			// because it is unlikely that the breakpoints of a structural variant

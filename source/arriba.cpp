@@ -351,7 +351,7 @@ int main(int argc, char **argv) {
 	// because STAR clips reads supporting the same breakpoints at different position
 	// and that spreads the supporting reads over multiple breakpoints
 	cout << "Estimating expected number of fusions by random chance (e-value)" << endl << flush;
-	estimate_expected_fusions(fusions, mapped_reads);
+	estimate_expected_fusions(fusions, mapped_reads, exon_annotation_index);
 
 	// this step must come before all filters that are potentially undone by the 'genomic_support' filter
 	if (options.filters.at("non_coding_neighbors")) {

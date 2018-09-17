@@ -161,6 +161,11 @@ struct fusion_t {
 		return breakpoint_overlaps_both_genes(1) || breakpoint_overlaps_both_genes(2);
 	};
 	bool is_read_through() const { return contig1 == contig2 && breakpoint2 - breakpoint1 < 400000 && direction1 == DOWNSTREAM && direction2 == UPSTREAM; };
+	bool is_intragenic() const {
+		return gene1 == gene2 ||
+		       breakpoint1 >= gene2->start - 10000 && breakpoint1 <= gene2->end + 10000 &&
+		       breakpoint2 >= gene1->start - 10000 && breakpoint2 <= gene1->end + 10000;
+	};
 };
 typedef unordered_map< tuple<unsigned int /*gene1 id*/, unsigned int /*gene2 id*/, contig_t /*contig1*/, contig_t /*contig2*/, position_t /*breakpoint1*/, position_t /*breakpoint2*/, direction_t /*direction1*/, direction_t /*direction2*/>,fusion_t > fusions_t;
 
