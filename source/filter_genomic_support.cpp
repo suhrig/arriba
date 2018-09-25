@@ -311,7 +311,7 @@ unsigned int recover_genomic_support(fusions_t& fusions) {
 		    (fusion->second.filter == FILTERS.at("end_to_end") ||
 		     fusion->second.filter == FILTERS.at("intronic") ||
 		     fusion->second.filter == FILTERS.at("mismappers") ||
-		     fusion->second.filter == FILTERS.at("non_expressed") ||
+		     fusion->second.filter == FILTERS.at("no_coverage") ||
 		     fusion->second.filter == FILTERS.at("pcr_fusions") ||
 		     fusion->second.filter == FILTERS.at("relative_support"))) {
 			fusion->second.filter = NULL;

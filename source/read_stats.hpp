@@ -15,7 +15,7 @@ strandedness_t detect_strandedness(const chimeric_alignments_t& chimeric_alignme
 
 const unsigned int COVERAGE_RESOLUTION = 20; // at what resolution in bp to calculate the coverage
 // for each contig store for every window of <COVERAGE_RESOLUTION> bp whether a read starts/ends here
-// this information is needed by the 'non_expressed' filter
+// this information is needed by the 'no_coverage' filter
 // at a later point, this structure may also store coverage information
 class coverage_t {
 	private:

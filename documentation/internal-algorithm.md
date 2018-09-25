@@ -103,8 +103,8 @@ Event-level filters
 `mismappers`
 : Many alignment artifacts are caused by an excessive number of reference mismatches in close proximity due to sequencing errors or adjacent SNPs. STAR tends to clip reads when it encounters a cluster of mismatches. The clipped segment is then used for a chimeric alignment, which occassionally aligns elsewhere in the genome. The filter mismappers performs a sensitive realignment of both segments. If both segments can be aligned to the same gene (while allowing more mismatches than STAR does), the chimeric alignment is considered to be an artifact. When 80% or more of the supporting reads are classified as being aligned incorrectly, the event is discarded. The threshold can be adjusted using the parameter `-m`.
 
-`non_expressed`
-: For intronic and intragenic breakpoints, this filter checks, if there is some coverage in the vicinity of the breakpoint in the normal alignments. Only reads that are not in the chimeric alignments file are considered. When there are no non-chimeric reads near the breakpoint, this is indicative of an alignment artifact.
+`no_coverage`
+: For intronic and intragenic breakpoints as well as read-through fusions, this filter checks, if there is some coverage in the vicinity of the breakpoint in the normal alignments. Only reads that are not chimeric are considered. When there are no non-chimeric reads near the breakpoint, this is indicative of an alignment artifact.
 
 `genomic_support`
 : This filter recovers events which were discarded by previous filters due to few supporting reads, but which can be explained by genomic rearrangements as evidenced by structural variant calls obtained from whole-genome sequencing data. Arriba considers structural variant calls to match with breakpoints seen in transcriptomic data, when the breakpoints are less then 100 kb apart (see parameter `-D`) and the orientation of the genomic and transcriptomic breakpoints are identical.

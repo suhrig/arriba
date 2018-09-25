@@ -40,7 +40,7 @@
 #include "filter_short_anchor.hpp"
 #include "filter_homologs.hpp"
 #include "filter_mismappers.hpp"
-#include "filter_nonexpressed.hpp"
+#include "filter_no_coverage.hpp"
 #include "filter_genomic_support.hpp"
 #include "recover_many_spliced.hpp"
 #include "recover_isoforms.hpp"
@@ -72,7 +72,7 @@ unordered_map<string,filter_t> FILTERS({
 	{"merge_adjacent", static_cast<string*>(NULL)},
 	{"select_best", static_cast<string*>(NULL)},
 	{"short_anchor", static_cast<string*>(NULL)},
-	{"non_expressed", static_cast<string*>(NULL)},
+	{"no_coverage", static_cast<string*>(NULL)},
 	{"many_spliced", static_cast<string*>(NULL)},
 	{"no_genomic_support", static_cast<string*>(NULL)},
 	{"uninteresting_contigs", static_cast<string*>(NULL)},
@@ -445,9 +445,9 @@ int main(int argc, char **argv) {
 		cout << " (remaining=" << filter_end_to_end_fusions(fusions) << ")" << endl;
 	}
 
-	if (options.filters.at("non_expressed")) {
-		cout << "Filtering fusions with no expression around the breakpoints" << flush;
-		cout << " (remaining=" << filter_nonexpressed(fusions, coverage, exon_annotation_index, max_mate_gap) << ")" << endl;
+	if (options.filters.at("no_coverage")) {
+		cout << "Filtering fusions with no coverage around the breakpoints" << flush;
+		cout << " (remaining=" << filter_no_coverage(fusions, coverage, exon_annotation_index, max_mate_gap) << ")" << endl;
 	}
 
 	// make kmer indices from gene sequences

@@ -1,13 +1,13 @@
 #include "common.hpp"
 #include "annotation.hpp"
-#include "filter_nonexpressed.hpp"
+#include "filter_no_coverage.hpp"
 #include "read_stats.hpp"
 
 using namespace std;
 
-unsigned int filter_nonexpressed(fusions_t& fusions, const coverage_t& coverage, const exon_annotation_index_t& exon_annotation_index, const int max_mate_gap) {
+unsigned int filter_no_coverage(fusions_t& fusions, const coverage_t& coverage, const exon_annotation_index_t& exon_annotation_index, const int max_mate_gap) {
 
-	// for each fusion, check if there is any expression around the breakpoint
+	// for each fusion, check if there is any coverage around the breakpoint
 	unsigned int remaining = 0;
 	for (fusions_t::iterator fusion = fusions.begin(); fusion != fusions.end(); ++fusion) {
 
@@ -15,25 +15,22 @@ unsigned int filter_nonexpressed(fusions_t& fusions, const coverage_t& coverage,
 			continue; // fusion has already been filtered
 
 		if (!fusion->second.is_read_through()) {
-
 			if (fusion->second.split_reads1 + fusion->second.split_reads2 != 0 &&
 			    fusion->second.split_reads1 + fusion->second.discordant_mates != 0 &&
 			    fusion->second.split_reads2 + fusion->second.discordant_mates != 0) {
 				++remaining;
 				continue; // don't filter fusions with high support
 			}
-
-			if (fusion->second.exonic1 && fusion->second.exonic2 ||
-			    fusion->second.spliced1 || fusion->second.spliced2) {
-				++remaining;
-				continue; // don't filter spliced/exonic breakpoints (they probably would not be discarded anyway, because there is plenty of coverage in exons)
-			}
-
-		}  else { // read-through
-
-			if (fusion->second.spliced1 && fusion->second.spliced2) {
+			if (fusion->second.spliced1 || fusion->second.spliced2) {
 				++remaining;
 				continue; // don't filter spliced breakpoints (they are more credible)
+			}
+		} else { // read-through
+			// most read-through fusions have at least one breakpoint at a splice-site
+			// => require both breakpoints to be at splice-sites to be a little more strict
+			if (fusion->second.spliced1 && fusion->second.spliced2) {
+				++remaining;
+				continue;
 			}
 		}
 
@@ -63,7 +60,7 @@ unsigned int filter_nonexpressed(fusions_t& fusions, const coverage_t& coverage,
 			}
 			if (fusion->second.direction1 == UPSTREAM && !coverage.fragment_starts_here(fusion->second.contig1, start, end) ||
 			    fusion->second.direction1 == DOWNSTREAM && !coverage.fragment_ends_here(fusion->second.contig1, start, end)) {
-				fusion->second.filter = FILTERS.at("non_expressed");
+				fusion->second.filter = FILTERS.at("no_coverage");
 				continue;
 			}
 		}
@@ -91,7 +88,7 @@ unsigned int filter_nonexpressed(fusions_t& fusions, const coverage_t& coverage,
 			}
 			if (fusion->second.direction2 == UPSTREAM && !coverage.fragment_starts_here(fusion->second.contig2, start, end) ||
 			    fusion->second.direction2 == DOWNSTREAM && !coverage.fragment_ends_here(fusion->second.contig2, start, end)) {
-				fusion->second.filter = FILTERS.at("non_expressed");
+				fusion->second.filter = FILTERS.at("no_coverage");
 				continue;
 			}
 		}
