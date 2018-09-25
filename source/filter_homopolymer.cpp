@@ -41,9 +41,10 @@ unsigned int filter_homopolymer(chimeric_alignments_t& chimeric_alignments, cons
 				if (sequence[c-1] == sequence[c]) {
 					run++;
 					if (run == homopolymer_length) {
-						if (!is_split_read_spliced(chimeric_alignment->second[SPLIT_READ], exon_annotation_index))
+						if (!is_split_read_spliced(chimeric_alignment->second[SPLIT_READ], exon_annotation_index)) {
 							chimeric_alignment->second.filter = FILTERS.at("homopolymer");
-						goto next_read;
+							goto next_read;
+						}
 					}
 				} else {
 					run = 1;
