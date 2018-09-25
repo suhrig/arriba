@@ -2,7 +2,6 @@
 #define _ASSEMBLY_H 1
 
 #include <string>
-#include <vector>
 #include "common.hpp"
 
 using namespace std;
@@ -25,6 +24,6 @@ void dna_to_reverse_complement(const string& dna, string& reverse_complement);
 
 string dna_to_reverse_complement(const string& dna);
 
-void load_assembly(assembly_t& assembly, const string& fasta_file_path, const contigs_t& contigs, const vector<bool>& interesting_contigs);
+void load_assembly(assembly_t& assembly, const string& fasta_file_path, contigs_t& contigs, const contigs_t& interesting_contigs);
 
 #endif /* _ASSEMBLY_H */

@@ -162,7 +162,7 @@ bool sort_exons_by_coordinate(const exon_annotation_record_t* exon1, const exon_
 	return *exon1 < *exon2;
 }
 
-void read_annotation_gtf(const string& filename, const contigs_t& contigs, const string& gtf_features_string, gene_annotation_t& gene_annotation, exon_annotation_t& exon_annotation, unordered_map<string,gene_t>& gene_names) {
+void read_annotation_gtf(const string& filename, const string& gtf_features_string, contigs_t& contigs, gene_annotation_t& gene_annotation, exon_annotation_t& exon_annotation, unordered_map<string,gene_t>& gene_names) {
 
 	gtf_features_t gtf_features;
 	parse_gtf_features(gtf_features_string, gtf_features);
@@ -206,14 +206,12 @@ void read_annotation_gtf(const string& filename, const contigs_t& contigs, const
 			if (gene_id.substr(0, 3) == "ENS" && (trim_position = gene_id.find_last_of('.', string::npos)) != string::npos)
 				gene_id = gene_id.substr(0, trim_position);
 
+			// convert string representation of contig to numeric ID
 			contig = removeChr(contig);
-			if (contigs.find(contig) == contigs.end()) {
-				cerr << "WARNING: unknown contig in GTF file: " << contig << endl;
-				continue;
-			}
+			pair<contigs_t::iterator,bool> find_contig_by_name = contigs.insert(pair<string,contig_t>(contig, contigs.size())); // this adds a new contig only if it does not yet exist
 
 			// make annotation record
-			annotation_record.contig = contigs.at(contig);
+			annotation_record.contig = find_contig_by_name.first->second;
 			annotation_record.start--; // GTF files are one-based
 			annotation_record.end--; // GTF files are one-based
 			annotation_record.strand = (strand[0] == '+') ? FORWARD : REVERSE;
@@ -373,7 +371,7 @@ void get_exons_from_splice_site(const gene_t gene, const direction_t direction, 
 	exons.clear();
 
 	// nothing to do, if there are no exons on the given contig
-	if (exon_annotation_index[gene->contig].empty())
+	if (gene->contig >= exon_annotation_index.size() || exon_annotation_index[gene->contig].empty())
 		return;
 
 	// find exons in the vicinity of the breakpoint
@@ -550,6 +548,10 @@ int get_spliced_distance(const contig_t contig, position_t position1, position_t
 		swap(direction1, direction2);
 		negate = -1;
 	}
+
+	// take the plain distance, if no exons are annotated for the given contig
+	if (contig >= exon_annotation_index.size())
+		return (position2 - position1) * negate;
 
 	// find exon/intron of position1
 	exon_contig_annotation_index_t::const_iterator p1 = exon_annotation_index[contig].lower_bound(position1);

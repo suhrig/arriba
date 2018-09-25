@@ -10,7 +10,6 @@ pages:
   - 'workflow.md'
   - 'input-files.md'
   - 'output-files.md'
-  - 'execution.md'
   - 'command-line-options.md'
   - 'interpretation-of-results.md'
   - 'current-limitations.md'

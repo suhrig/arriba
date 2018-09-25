@@ -2,6 +2,8 @@
 #include "annotation.hpp"
 #include "filter_multi_mappers.hpp"
 
+#include <iostream>
+
 using namespace std;
 
 unsigned int filter_multi_mappers(chimeric_alignments_t& chimeric_alignments) {

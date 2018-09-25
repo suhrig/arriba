@@ -22,8 +22,8 @@ using namespace std;
 // - chr1:10,000-11,999 gene1
 // - chr1:12,000-13,000 gene1+gene2
 // - chr1:13,001-20,000 gene1
-template <class T> void make_annotation_index(annotation_t<T>& annotation, annotation_index_t<T*>& annotation_index, const contigs_t& contigs) {
-	annotation_index.resize(contigs.size()); // create a contig_annotation_index_t for each contig
+template <class T> void make_annotation_index(annotation_t<T>& annotation, annotation_index_t<T*>& annotation_index) {
+	annotation_index.resize(annotation.size()); // create a contig_annotation_index_t for each contig
 	for (typename annotation_t<T>::iterator feature = annotation.begin(); feature != annotation.end(); ++feature) {
 
 		typename contig_annotation_index_t<T*>::const_iterator overlapping_features = annotation_index[feature->contig].lower_bound(feature->end);
@@ -53,7 +53,11 @@ template <class T> void combine_annotations(const annotation_set_t<T>& genes1, c
 }
 
 template <class T> void get_annotation_by_coordinate(const contig_t contig, position_t start, position_t end, annotation_set_t<T>& annotation_set, const annotation_index_t<T>& annotation_index) {
-//TODO support strand-specific libraries
+	if (contig >= annotation_index.size()) {
+		annotation_set.clear(); // return empty set
+		return;
+	}
+
 	if (start == end) {
 
 		// get all features at position

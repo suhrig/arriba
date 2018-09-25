@@ -1,7 +1,6 @@
 #include <iostream>
 #include <sstream>
 #include <string>
-#include <vector>
 #include "sam.h"
 #include "common.hpp"
 #include "annotation.hpp"
@@ -24,7 +23,7 @@ string dna_to_reverse_complement(const string& dna) {
 	return reverse_complement;
 }
 
-void load_assembly(assembly_t& assembly, const string& fasta_file_path, const contigs_t& contigs, const vector<bool>& interesting_contigs) {
+void load_assembly(assembly_t& assembly, const string& fasta_file_path, contigs_t& contigs, const contigs_t& interesting_contigs) {
 
 	// open FastA file
 	stringstream fasta_file;
@@ -41,14 +40,13 @@ void load_assembly(assembly_t& assembly, const string& fasta_file_path, const co
 				istringstream iss(line.substr(1));
 				string contig_name;
 				iss >> contig_name;
-				if (contigs.find(removeChr(contig_name)) != contigs.end()) {
-					current_contig = contigs.at(removeChr(contig_name));
-				} else {
-					cerr << "WARNING: unknown contig: " << contig_name << endl;
-				}
+				pair<contigs_t::iterator,bool> new_contig = contigs.insert(pair<string,contig_t>(removeChr(contig_name), contigs.size()));
+				current_contig = new_contig.first->second;
+				if (!interesting_contigs.empty() && interesting_contigs.find(contig_name) == interesting_contigs.end())
+					current_contig = -1; // skip uninteresting contigs
 
 			// get sequence
-			} else if (current_contig != -1 && interesting_contigs[current_contig]) { // skip line if contig is undefined or not interesting
+			} else if (current_contig != -1) { // skip line if contig is undefined or not interesting
 				std::transform(line.begin(), line.end(), line.begin(), (int (*)(int))std::toupper); // convert sequence to uppercase
 				assembly[current_contig] += line;
 			}
@@ -56,11 +54,10 @@ void load_assembly(assembly_t& assembly, const string& fasta_file_path, const co
 	}
 
 	// check if we found the sequence for all interesting contigs
-	for (contigs_t::const_iterator contig = contigs.begin(); contig != contigs.end(); ++contig)
-		if (interesting_contigs[contig->second])
-			if (assembly.find(contig->second) == assembly.end()) {
-				cerr << "ERROR: could not find sequence of contig '" << contig->first << "'" << endl;
-				exit(1);
-			}
+	for (contigs_t::const_iterator contig = interesting_contigs.begin(); contig != interesting_contigs.end(); ++contig)
+		if (assembly.find(contig->second) == assembly.end()) {
+			cerr << "ERROR: could not find sequence of contig '" << contig->first << "'" << endl;
+			exit(1);
+		}
 }
 
