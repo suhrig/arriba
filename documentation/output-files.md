@@ -21,14 +21,16 @@ The file `fusions.tsv` (as specified by the parameter `-o`) contains fusions whi
 : These columns indicate the orientation of the fusion. A value of `downstream` means that the partner is fused downstream of the breakpoint, i.e. at a coordinate higher than the breakpoint. A value of `upstream` means the partner is fused at a coordinate lower than the breakpoint. When the prediction of strands or 5'- and 3'-genes fails, this information gives insight into which parts of the fused genes are retained in the fusion.
 
 `split_reads1` and `split_reads2`
-: The number of suppporting split reads (fragments) with an anchor in gene1 or gene2, respectively, is given in these columns. The gene to which the longer segment of the split read aligns is defined as the anchor.
+: The number of suppporting split fragments with an anchor in gene1 or gene2, respectively, is given in these columns. The gene to which the longer segment of the split read aligns is defined as the anchor.
 
 `discordant_mates`
 : This column contains the number of pairs (fragments) of discordant mates (a.k.a. spanning reads or bridge reads) supporting the fusion.
 
+`coverage1` and `coverage2`
+: These two columns show the coverage near breakpoint1 and breakpoint2, respectively. The coverage is calculated as the number of fragments near the breakpoint on the side of the breakpoint that is retained in the fusion transcript. Note that the coverage calculation counts all fragments (even duplicates), whereas the columns `split_reads1`, `split_reads2`, and `discordant_mates` only count non-discarded reads. Fragments discarded due to being duplicates or other types of artifacts can be found in the column `filters`.
+
 `confidence`
 : Each prediction is assigned one of the confidences `low`, `medium`, or `high`. Several characteristics are taken into account, including: the number of supporting reads, the balance of split reads and discordant mates, the distance between the breakpoints, the type of event, whether the breakpoints are intragenic or not, and whether there are other events which corroborate the prediction, e.g. multiple isoforms or balanced translocations. See section [Interpretation of results](interpretation-of-results.md) for further advice on judging the credibility of predictions.
-
 
 `closest_genomic_breakpoint1` and `closest_genomic_breakpoint2`
 : When a matched whole-genome sequencing sample is available, one can feed structural variant calls obtained therefrom into Arriba (see parameter `-d`). Arriba then considers this information during fusion calling, which improves the overall accuracy. These two columns contain the coordinates of the genomic breakpoints which are closest to the transcriptomic breakpoints given in the columns `breakpoint1` and `breakpoint2`.

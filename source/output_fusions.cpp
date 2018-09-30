@@ -13,6 +13,7 @@
 #include "annotation.hpp"
 #include "assembly.hpp"
 #include "output_fusions.hpp"
+#include "read_stats.hpp"
 
 using namespace std;
 
@@ -953,7 +954,7 @@ string get_fusion_peptide_sequence(const string& transcript, const vector<positi
 	return peptide_sequence;
 }
 
-void write_fusions_to_file(fusions_t& fusions, const string& output_file, const assembly_t& assembly, gene_annotation_index_t& gene_annotation_index, exon_annotation_index_t& exon_annotation_index, vector<string> contigs_by_id, const bool print_supporting_reads, const bool print_fusion_sequence, const bool print_peptide_sequence, const bool write_discarded_fusions) {
+void write_fusions_to_file(fusions_t& fusions, const string& output_file, const coverage_t& coverage, const assembly_t& assembly, gene_annotation_index_t& gene_annotation_index, exon_annotation_index_t& exon_annotation_index, vector<string> contigs_by_id, const bool print_supporting_reads, const bool print_fusion_sequence, const bool print_peptide_sequence, const bool write_discarded_fusions) {
 //TODO add "chr", if necessary
 
 	// make a vector of pointers to all fusions
@@ -994,7 +995,7 @@ void write_fusions_to_file(fusions_t& fusions, const string& output_file, const 
 		cerr << "ERROR: Failed to open output file '" << output_file << "'." << endl;
 		exit(1);
 	}
-	out << "#gene1\tgene2\tstrand1(gene/fusion)\tstrand2(gene/fusion)\tbreakpoint1\tbreakpoint2\tsite1\tsite2\ttype\tdirection1\tdirection2\tsplit_reads1\tsplit_reads2\tdiscordant_mates\tconfidence\tclosest_genomic_breakpoint1\tclosest_genomic_breakpoint2\tfilters\tfusion_transcript\tpeptide_sequence\tread_identifiers" << endl;
+	out << "#gene1\tgene2\tstrand1(gene/fusion)\tstrand2(gene/fusion)\tbreakpoint1\tbreakpoint2\tsite1\tsite2\ttype\tdirection1\tdirection2\tsplit_reads1\tsplit_reads2\tdiscordant_mates\tcoverage1\tcoverage2\tconfidence\tclosest_genomic_breakpoint1\tclosest_genomic_breakpoint2\tfilters\tfusion_transcript\tpeptide_sequence\tread_identifiers" << endl;
 	for (auto fusion = sorted_fusions.begin(); fusion != sorted_fusions.end(); ++fusion) {
 
 		// describe site of breakpoint
@@ -1046,6 +1047,9 @@ void write_fusions_to_file(fusions_t& fusions, const string& output_file, const 
 			swap(strand1, strand2);
 		}
 
+		int coverage1 = coverage.get_coverage(contig1, breakpoint1, (direction1 == UPSTREAM) ? DOWNSTREAM : UPSTREAM);
+		int coverage2 = coverage.get_coverage(contig2, breakpoint2, (direction2 == UPSTREAM) ? DOWNSTREAM : UPSTREAM);
+
 		// write line to output file
 		out << gene_to_name(gene1, contig1, breakpoint1, gene_annotation_index) << "\t" << gene_to_name(gene2, contig2, breakpoint2, gene_annotation_index) << "\t"
 		    << get_fusion_strand(strand1, gene1, (**fusion).predicted_strands_ambiguous) << "\t" << get_fusion_strand(strand2, gene2, (**fusion).predicted_strands_ambiguous) << "\t"
@@ -1053,6 +1057,7 @@ void write_fusions_to_file(fusions_t& fusions, const string& output_file, const 
 		    << site1 << "\t" << site2 << "\t"
 		    << get_fusion_type(**fusion) << "\t" << ((direction1 == UPSTREAM) ? "upstream" : "downstream") << "\t" << ((direction2 == UPSTREAM) ? "upstream" : "downstream") << "\t"
 		    << split_reads1 << "\t" << split_reads2 << "\t" << (**fusion).discordant_mates << "\t"
+		    << ((coverage1 >= 0) ? to_string(coverage1) : ".") << "\t" << ((coverage2 >= 0) ? to_string(coverage2) : ".") << "\t"
 		    << confidence << "\t"
 		    << closest_genomic_breakpoint1 << "\t" << closest_genomic_breakpoint2;
 
