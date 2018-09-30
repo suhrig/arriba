@@ -40,7 +40,8 @@ void load_assembly(assembly_t& assembly, const string& fasta_file_path, contigs_
 				istringstream iss(line.substr(1));
 				string contig_name;
 				iss >> contig_name;
-				pair<contigs_t::iterator,bool> new_contig = contigs.insert(pair<string,contig_t>(removeChr(contig_name), contigs.size()));
+				contig_name = removeChr(contig_name);
+				pair<contigs_t::iterator,bool> new_contig = contigs.insert(pair<string,contig_t>(contig_name, contigs.size()));
 				current_contig = new_contig.first->second;
 				if (!interesting_contigs.empty() && interesting_contigs.find(contig_name) == interesting_contigs.end())
 					current_contig = -1; // skip uninteresting contigs
