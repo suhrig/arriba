@@ -173,11 +173,13 @@ void assign_confidence(fusions_t& fusions) {
 		} else {
 			if (fusion->second.evalue > 0.3 || fusion->second.supporting_reads() < 2) {
 				fusion->second.confidence = CONFIDENCE_LOW;
+			} else if (fusion->second.split_reads1 > 20 && fusion->second.split_reads2 > 20 && fusion->second.supporting_reads() > 60) {
+				fusion->second.confidence = CONFIDENCE_HIGH;
 			} else if (fusion->second.is_read_through()) {
 				fusion->second.confidence = CONFIDENCE_LOW;
 				if ((fusion->second.split_reads1 > 0 && fusion->second.split_reads2 > 0 ||
 				     fusion->second.split_reads1 > 0 && fusion->second.discordant_mates > 0 ||
-				     fusion->second.split_reads2 > 0 && fusion->second.discordant_mates > 0) && fusion->second.supporting_reads() > 9) {
+				     fusion->second.split_reads2 > 0 && fusion->second.discordant_mates > 0) && fusion->second.supporting_reads() >= 10) {
 					fusion->second.confidence = CONFIDENCE_MEDIUM;
 				} else {
 					// look for multiple deletions involving the same gene
@@ -234,8 +236,6 @@ void assign_confidence(fusions_t& fusions) {
 				fusion->second.confidence = CONFIDENCE_MEDIUM;
 			} else if ((fusion->second.split_reads1 + fusion->second.split_reads2) * 20 < fusion->second.discordant_mates) {
 				fusion->second.confidence = CONFIDENCE_MEDIUM;
-			} else if (fusion->second.split_reads1 > 30 && fusion->second.split_reads2 > 30 && fusion->second.discordant_mates > 30) {
-				fusion->second.confidence = CONFIDENCE_HIGH;
 			} else if (!fusion->second.spliced1 && !fusion->second.spliced2) {
 				fusion->second.confidence = CONFIDENCE_MEDIUM;
 			} else {
@@ -243,12 +243,12 @@ void assign_confidence(fusions_t& fusions) {
 			}
 
 			if (fusion->second.confidence > CONFIDENCE_LOW &&
-			    fusion->second.evalue > 0.2 && fusion->second.evalue <= 0.3) // decrease the confidence, when the e-value is not overwhelming
+			    fusion->second.evalue > 0.2) // decrease the confidence, when the e-value is not overwhelming
 				fusion->second.confidence--;
 
 			if (fusion->second.confidence < CONFIDENCE_HIGH &&
 			    fusion->second.closest_genomic_breakpoint1 >= 0 && // has genomic support and
-			    (fusion->second.evalue < 0.3 && fusion->second.supporting_reads() >= 2 || // has good evalue or
+			    (fusion->second.evalue < 0.3 && fusion->second.supporting_reads() >= 2 || // has good e-value or
 			     fusion->second.spliced1 && fusion->second.spliced2 && fusion->second.gene1 != fusion->second.gene2 || // was recovered due to splicing or
 			     abs(fusion->second.breakpoint1 - fusion->second.closest_genomic_breakpoint1) + abs(fusion->second.breakpoint2 - fusion->second.closest_genomic_breakpoint2) < 20000 || // genomic breakpoints are very close to transcriptomic breakpoints
 			     fusion->second.contig1 != fusion->second.contig2 || (abs(fusion->second.breakpoint2 - fusion->second.breakpoint1) > 1000000 && fusion->second.gene1 != fusion->second.gene2))) // distant translocation
