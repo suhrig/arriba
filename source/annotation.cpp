@@ -6,6 +6,7 @@
 #include <string>
 #include <sstream>
 #include <set>
+#include <tuple>
 #include <unordered_map>
 #include "sam.h"
 #include "common.hpp"
@@ -168,7 +169,7 @@ void read_annotation_gtf(const string& filename, const string& gtf_features_stri
 	parse_gtf_features(gtf_features_string, gtf_features);
 
 	unordered_map<string,transcript_t> transcripts; // translates transcript IDs to numeric IDs
-	unordered_map<string,gene_t> gene_by_id; // maps gene IDs to genes (used to map exons to genes)
+	unordered_map<tuple<string,contig_t,strand_t>,gene_t> gene_by_id; // maps gene IDs to genes (used to map exons to genes)
 	unordered_map<string,vector<exon_annotation_record_t*> > exons_by_transcript_id; // maps transcript IDs to exons (used to map coding regions to exons)
 	struct coding_region_t {
 		position_t start, end;
@@ -237,7 +238,7 @@ void read_annotation_gtf(const string& filename, const string& gtf_features_stri
 					exon_annotation_record.transcript = transcripts[short_transcript_id] = transcripts.size();
 
 				// make a gene annotation record, if this is the first exon of a gene
-				gene_t gene = gene_by_id[gene_id];
+				gene_t gene = gene_by_id[make_tuple(gene_id, annotation_record.contig, annotation_record.strand)];
 				if (gene == NULL) {
 					gene_annotation_record_t gene_annotation_record;
 					gene_annotation_record.copy(annotation_record);
@@ -248,7 +249,7 @@ void read_annotation_gtf(const string& filename, const string& gtf_features_stri
 					gene_annotation_record.is_protein_coding = false;
 					gene_annotation.push_back(gene_annotation_record);
 					gene = &(*gene_annotation.rbegin());
-					gene_by_id[gene_id] = gene;
+					gene_by_id[make_tuple(gene_id, annotation_record.contig, annotation_record.strand)] = gene;
 				} else { // gene has already been seen previously
 					// expand the boundaries of the gene, so that all exons fit inside
 					if (gene->start > exon_annotation_record.start)
@@ -256,8 +257,8 @@ void read_annotation_gtf(const string& filename, const string& gtf_features_stri
 					if (gene->end < exon_annotation_record.end)
 						gene->end = exon_annotation_record.end;
 					// check if annotation is sensible
-					if (gene->contig != annotation_record.contig || gene->end - gene->start > 5000000) {
-						cout << "WARNING: gene ID '" << gene->name << "' appears to be non-unique and will be ignored" << endl;
+					if (gene->contig != annotation_record.contig || gene->end - gene->start > 3000000) {
+						cout << "WARNING: gene ID '" << gene_id << "' appears to be non-unique and will be ignored" << endl;
 						bogus_genes.insert(gene);
 					}
 				}
