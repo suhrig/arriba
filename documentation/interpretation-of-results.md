@@ -134,18 +134,6 @@ MTAP  UBA52P6       +/+     +/+     9:21818202   9:22012127   splice-site 5'UTR 
 MTAP  RP11-408N14.1 +/+     -/+     9:21818202   9:22210663   splice-site intron      deletion/read-through/5'-5' downstream upstream   3            4            3                medium
 ```
 
-Inspection of events using IGV
-------------------------------
-
-Inspecting the supporting reads of an event using [IGV](http://software.broadinstitute.org/software/igv/) can help identify alignment artifacts. All the information that Arriba uses as a basis for fusion prediction can be found in the files `Chimeric.out.sam` and `read_through.bam`. By loading these files into IGV, all supporting reads of predicted fusions can be checked for alignment artifacts. (Note that the file `Chimeric.out.sam` first needs to be sorted and indexed, before it can be loaded into IGV.) It is advisable to also load the normal alignments, because they provide additional context. For example, they might reveal additional chimeric reads which were missed, because their clipped segment is too short to align uniquely to the genome. Both breakpoints can be opened side-by-side simply by pasting the breakpoint coordinates into the location field separated by white-space. One can zoom in and out the two panes using the `+` and `-` keys. If `arriba` was run with the parameter `-I`, the column `read_identifiers` contains the names of the supporting reads. Reads can be highlighted by name by right-clicking anywhere in one of the panes and choosing `Select by name...`. If you suspect that a predicted event is an alignment artifact, because the alignment quality of the supporting reads looks poor (many mismatches/clipped bases), then you can have IGV search for a better alignment. Right-click a read and choose `Blat read sequence` to perform a sensitive search for alternative alignments that STAR did not find.
-
-![IGV](igv.png)
-
-Visualization of fusions
-------------------------
-
-Arriba comes with a R script that generates simplistic visualizations of the transcripts involved in predicted fusions. The script takes the file `fusions.tsv` and an annotation in GTF format as input. It generates a PDF file with one page for each predicted fusion. Each page depicts the fusion partners, their orientation, the retained exons in the fusion transcript, statistics about the number of supporting reads, and - if the column `fusion_transcript` has a value - an excerpt of the sequence around the breakpoint. If a gene has multiple transcript variants, the script preferrably picks the longest transcript with splice-sites matching the breakpoints.
-
 Cohort analysis
 ---------------
 
