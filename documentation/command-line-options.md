@@ -22,7 +22,7 @@ arriba [-c Chimeric.out.sam] -x Aligned.out.sam \
 : GTF file with gene annotation. The file may be gzip-compressed.
 
 `-G GTF_FEATURES`
-: Comma-/space-separated list of names of GTF features. The names of features in GTF files are not standardized. Different publishers use different names for the same features. For example, Gencode uses `gene_type` for the gene type feature, whereas ENSEMBL uses `gene_biotype`. In order that Arriba can parse the GTF files from various publishers, the names of GTF features is configurable. Alternative names for one and the same feature can be specified by using the pipe symbol as a separator (`|`). Arriba supports a set of names which is suitable for RefSeq, Gencode, and ENSEMBL. Default: `gene_name=gene_name gene_id=gene_id transcript_id=transcript_id gene_status=gene_status|gene_type|gene_biotype status_KNOWN=KNOWN|protein_coding gene_type=gene_type|gene_biotype type_protein_coding=protein_coding feature_exon=exon feature_UTR=UTR feature_gene=gene`
+: Comma-/space-separated list of names of GTF features. The names of features in GTF files are not standardized. Different publishers use different names for the same features. For example, GENCODE uses `gene_type` for the gene type feature, whereas ENSEMBL uses `gene_biotype`. In order that Arriba can parse the GTF files from various publishers, the names of GTF features is configurable. Alternative names for one and the same feature can be specified by using the pipe symbol as a separator (`|`). Arriba supports a set of names which is suitable for RefSeq, GENCODE, and ENSEMBL. Default: `gene_name=gene_name gene_id=gene_id transcript_id=transcript_id gene_status=gene_status|gene_type|gene_biotype status_KNOWN=KNOWN|protein_coding gene_type=gene_type|gene_biotype type_protein_coding=protein_coding feature_exon=exon feature_UTR=UTR feature_gene=gene`
 
 `-a FILE`
 : FastA file with genome sequence (assembly). The file may be gzip-compressed. An index with the file extension `.fai` must exist only if CRAM data is processed.
@@ -122,7 +122,7 @@ draw_fusions.R
 
 ```bash
 draw_fusions.R --annotation=annotation.gtf --fusions=fusions.tsv --output=output.pdf \
-               [--alignments=Aligned.sortedByCoordinate.out.bam] \
+               [--alignments=Aligned.sortedByCoord.out.bam] \
                [--cytobands=cytobands.tsv] [--proteinDomains=protein_domains.gff3] \
                [OPTIONS]
 ```
@@ -169,14 +169,14 @@ draw_fusions.R --annotation=annotation.gtf --fusions=fusions.tsv --output=output
 : GFF3 file containing the genomic coordinates of protein domains. Distributions of Arriba offer protein domain annotations for all supported assemblies in the `database` directory. When this file is given, a plot is generated, which shows the protein domains retained in the fusion transcript. This option requires the Bioconductor package `GenomicRanges`.
 
 `--mergeDomainsOverlappingBy=FRACTION`
-: Occasionally, domains are annotated redundantly. For example, tyrosine kinase domains are frequently annotated as `Protein tyrosine kinase` and `Protein kinase domain`. In order to simplify the visualization, such domains can be merged into one, given that they overlap by the given fraction. The description of the larger domain is used. Default: 0.9
+: Occasionally, domains are annotated redundantly. For example, tyrosine kinase domains are frequently annotated as `Protein tyrosine kinase` and `Protein kinase domain`. In order to simplify the visualization, such domains can be merged into one, given that they overlap by the given fraction. The description of the larger domain is used. Default: `0.9`
 
 `--optimizeDomainColors=TRUE|FALSE`
 : By default, the script colorizes domains according to the colors specified in the file given in `--annotation`. This way, coloring of domains is consistent across all proteins. But since there are more distinct domains than colors, this can lead to different domains having the same color. If this option is set to `TRUE`, the colors are recomputed for each fusion separately. This ensures that the colors have the maximum distance for each individual fusion, but they are no longer consistent across different fusions. Default: `FALSE`
 
 `--fontSize=SIZE`
-: Decimal value to scale the size of text. Default: 1
+: Decimal value to scale the size of text. Default: `1`
 
 `--showIntergenicVicinity=DISTANCE`
-: This option only applies to intergenic breakpoints. If it is set greater than 0, then the genes which are no more than the given distance away from an intergenic breakpoint are drawn. Note that this option is incompatible with `--squishIntrons`. Default: 0
+: This option only applies to intergenic breakpoints. If it is set to a value greater than 0, then the script draws the genes which are no more than the given distance away from an intergenic breakpoint. Note that this option is incompatible with `--squishIntrons`. Default: `0`
 

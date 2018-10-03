@@ -59,7 +59,7 @@ Event-level filters
 : Genes which are not well studied suffer from incomplete annotation. Many exons are annotated as separate genes even though they might actually be part of one and the same gene. Predicted genes named `RP11-...` are common examples for this. When poorly understood genes lie next to each other on the same strand, this would frequently lead to false positive predictions of deletions, because the transcripts that span both genes give rise to reads, which resemble focal deletions. This filter discards deletions, which are predicted between two neighboring genes, if both genes are non-coding or one breakpoint is intergenic.
 
 `intragenic_exonic`
-: Since exons usually make up only a small fraction of a gene, it is more likely that a genomic rearrangement starts and ends in intronic regions. On the transcriptomic level, this manifests as breakpoints at splice-sites or in introns. Many candidates found by STAR have both breakpoints within exons of the same gene. This filter removes such events, because they presumably arise from hairpin structures.
+: Since exons usually make up only a small fraction of a gene, it is more likely that a genomic rearrangement starts and ends in intronic regions. On the transcriptomic level, this manifests as breakpoints at splice-sites or in introns. Many candidates found by STAR have both breakpoints within exons of the same gene. This is particularly true for intragenic events, which are prone to PCR-mediated artifacts. This filter removes intragenic events, if both breakpoints are in exons and more than 80% of the region between the breakpoints is intronic, such that it should be very unlikely that both breakpoints are located inside exons (see parameter `-e`).
 
 `min_support`
 : This filter discards all events with fewer reads than specified by the parameter `-S` (default 2).
@@ -97,14 +97,14 @@ Event-level filters
 `end_to_end`
 : Theoretically, it should be impossible to observe fusions which only retain the 3' ends of the fusion partners, because the promoter would be missing. In reality, end-to-end fused transcripts are observed, albeit rarely. Most of them are false positives. Therefore, this filter discards such events, unless they have a lot of supporting reads, i.e., split-reads in both fusion partners or split-reads and discordant mates.
 
+`no_coverage`
+: For intronic and intragenic breakpoints as well as read-through fusions, this filter checks, if there is some coverage in the vicinity of the breakpoint in the normal alignments. Only reads that are not chimeric are considered. When there are no non-chimeric reads near the breakpoint, this is indicative of an alignment artifact.
+
 `homologs`
 : This filter discards events between genes that have high sequence homology, which frequently leads to erroneous alignments. Homology is quantified by counting the number of shared 16-mers. If more than 30% of the k-mers are shared between the involved genes, the event is filtered. The threshold can be defined via the parameter `-L`.
 
 `mismappers`
 : Many alignment artifacts are caused by an excessive number of reference mismatches in close proximity due to sequencing errors or adjacent SNPs. STAR tends to clip reads when it encounters a cluster of mismatches. The clipped segment is then used for a chimeric alignment, which occassionally aligns elsewhere in the genome. The filter mismappers performs a sensitive realignment of both segments. If both segments can be aligned to the same gene (while allowing more mismatches than STAR does), the chimeric alignment is considered to be an artifact. When 80% or more of the supporting reads are classified as being aligned incorrectly, the event is discarded. The threshold can be adjusted using the parameter `-m`.
-
-`no_coverage`
-: For intronic and intragenic breakpoints as well as read-through fusions, this filter checks, if there is some coverage in the vicinity of the breakpoint in the normal alignments. Only reads that are not chimeric are considered. When there are no non-chimeric reads near the breakpoint, this is indicative of an alignment artifact.
 
 `genomic_support`
 : This filter recovers events which were discarded by previous filters due to few supporting reads, but which can be explained by genomic rearrangements as evidenced by structural variant calls obtained from whole-genome sequencing data. Arriba considers structural variant calls to match with breakpoints seen in transcriptomic data, when the breakpoints are less then 100 kb apart (see parameter `-D`) and the orientation of the genomic and transcriptomic breakpoints are identical.

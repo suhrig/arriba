@@ -136,7 +136,7 @@ void print_usage() {
 	                  "The file may be gzip-compressed. An index with the file extension .fai "
 	                  "must exist only if CRAM files are processed.")
 	     << wrap_help("-b FILE", "File containing blacklisted events (recurrent artifacts "
-	                  "and transcripts observed in healthy tissue.")
+	                  "and transcripts observed in healthy tissue).")
 	     << wrap_help("-k FILE", "File containing known/recurrent fusions. Some cancer "
 	                  "entities are often characterized by fusions between the same pair of genes. "
 	                  "In order to boost sensitivity, a list of known fusions can be supplied using this parameter. "
