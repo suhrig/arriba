@@ -1057,7 +1057,7 @@ void write_fusions_to_file(fusions_t& fusions, const string& output_file, const 
 		    << site1 << "\t" << site2 << "\t"
 		    << get_fusion_type(**fusion) << "\t" << ((direction1 == UPSTREAM) ? "upstream" : "downstream") << "\t" << ((direction2 == UPSTREAM) ? "upstream" : "downstream") << "\t"
 		    << split_reads1 << "\t" << split_reads2 << "\t" << (**fusion).discordant_mates << "\t"
-		    << ((coverage1 >= 0) ? to_string(coverage1) : ".") << "\t" << ((coverage2 >= 0) ? to_string(coverage2) : ".") << "\t"
+		    << ((coverage1 >= 0) ? to_string(static_cast<long long int>(coverage1)) : ".") << "\t" << ((coverage2 >= 0) ? to_string(static_cast<long long int>(coverage2)) : ".") << "\t"
 		    << confidence << "\t"
 		    << closest_genomic_breakpoint1 << "\t" << closest_genomic_breakpoint2;
 

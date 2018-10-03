@@ -163,6 +163,11 @@ bool sort_exons_by_coordinate(const exon_annotation_record_t* exon1, const exon_
 	return *exon1 < *exon2;
 }
 
+struct coding_region_t {
+	position_t start, end;
+	string transcript_id;
+};
+
 void read_annotation_gtf(const string& filename, const string& gtf_features_string, contigs_t& contigs, gene_annotation_t& gene_annotation, exon_annotation_t& exon_annotation, unordered_map<string,gene_t>& gene_names) {
 
 	gtf_features_t gtf_features;
@@ -171,10 +176,6 @@ void read_annotation_gtf(const string& filename, const string& gtf_features_stri
 	unordered_map<string,transcript_t> transcripts; // translates transcript IDs to numeric IDs
 	unordered_map<tuple<string,contig_t,strand_t>,gene_t> gene_by_id; // maps gene IDs to genes (used to map exons to genes)
 	unordered_map<string,vector<exon_annotation_record_t*> > exons_by_transcript_id; // maps transcript IDs to exons (used to map coding regions to exons)
-	struct coding_region_t {
-		position_t start, end;
-		string transcript_id;
-	};
 	vector<coding_region_t> coding_regions; // keeps track of coding regions (used to map coding regions to exons)
 
 	gene_set_t bogus_genes; // genes with bogus annotation are ignored
