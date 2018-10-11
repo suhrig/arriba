@@ -181,6 +181,7 @@ void get_sequence_from_pileup(const pileup_t& pileup, const position_t breakpoin
 			// mark insertions via brackets
 			if (most_frequent_base2.size() > 1) {
 				most_frequent_base2 = "[" + most_frequent_base2.substr(0, most_frequent_base2.size()-1) + "]" + most_frequent_base2[most_frequent_base2.size()-1];
+				positions.resize(positions.size() + most_frequent_base2.size() - 1, -1);
 				if (toupper(most_frequent_base2[most_frequent_base2.size()-1]) == reference_base[0])
 					most_frequent_base2[most_frequent_base2.size()-1] = toupper(most_frequent_base2[most_frequent_base2.size()-1]);
 			}
@@ -298,16 +299,18 @@ void get_fusion_transcript_sequence(fusion_t& fusion, const assembly_t& assembly
 			++base;
 		if (base > 0 && base < sequence1.size()) {
 			sequence1 = sequence1.substr(0, base) + "|" + sequence1.substr(base);
-			positions1.insert(positions1.begin()+base, -1);
+			fill(positions1.begin(), positions1.begin()+base, -1); // mark non-reference bases
+			positions1.insert(positions1.begin()+base, -1); // add position for control character
 			sequence1_has_non_template_bases = true;
 		}
 	} else if (fusion.direction1 == DOWNSTREAM) {
 		int base = sequence1.size()-1;
 		while (base >= 0 && (sequence1[base] == 'a' || sequence1[base] == 't' || sequence1[base] == 'c' || sequence1[base] == 'g'))
 			--base;
-		if (base < sequence1.size()-1 && base >= 0) {
+		if (base+1 < sequence1.size() && base >= 0) {
 			sequence1 = sequence1.substr(0, base+1) + "|" + sequence1.substr(base+1);
-			positions1.insert(positions1.begin()+base+1, -1);
+			fill(positions1.begin()+base+1, positions1.end(), -1); // mark non-reference bases
+			positions1.insert(positions1.begin()+base+1, -1); // add position for control character
 			sequence1_has_non_template_bases = true;
 		}
 	}
@@ -317,16 +320,18 @@ void get_fusion_transcript_sequence(fusion_t& fusion, const assembly_t& assembly
 			++base;
 		if (base > 0 && base < sequence2.size()) {
 			sequence2 = sequence2.substr(0, base) + "|" + sequence2.substr(base);
-			positions2.insert(positions2.begin()+base, -1);
+			fill(positions2.begin(), positions2.begin()+base, -1); // mark non-reference bases
+			positions2.insert(positions2.begin()+base, -1); // add position for control character
 			sequence2_has_non_template_bases = true;
 		}
 	} else if (fusion.direction2 == DOWNSTREAM) {
 		int base = sequence2.size()-1;
 		while (base >= 0 && (sequence2[base] == 'a' || sequence2[base] == 't' || sequence2[base] == 'c' || sequence2[base] == 'g'))
 			--base;
-		if (base < sequence2.size()-1 && base >= 0) {
+		if (base+1 < sequence2.size() && base >= 0) {
 			sequence2 = sequence2.substr(0, base+1) + "|" + sequence2.substr(base+1);
-			positions2.insert(positions2.begin()+base+1, -1);
+			fill(positions2.begin()+base+1, positions2.end(), -1); // mark non-reference bases
+			positions2.insert(positions2.begin()+base+1, -1); // add position for control character
 			sequence2_has_non_template_bases = true;
 		}
 	}
@@ -874,7 +879,7 @@ string get_fusion_peptide_sequence(const string& transcript, const vector<positi
 			codon += transcript[position];
 
 			// compare reference base at given position to check for non-silent SNPs/somatic SNVs
-			if (positions[position] != -1) {
+			if (positions[position] != -1) { // is not a control character or an insertion
 				reference_codon += assembly.at((position <= transcript_5_end) ? gene_5->contig : gene_3->contig)[positions[position]];
 				if (position <= transcript_5_end && gene_5->strand == REVERSE || position >= transcript_3_start && gene_3->strand == REVERSE)
 					reference_codon[reference_codon.size()-1] = dna_to_complement(reference_codon[reference_codon.size()-1]);
@@ -934,17 +939,19 @@ string get_fusion_peptide_sequence(const string& transcript, const vector<positi
 				break;
 		}
 
+
 		// mark end of 5' end as pipe
 		if (position == transcript_5_end && codon.size() <= 1 ||
 		    codon_5_bases == 2 && codon.size() == 0)
-			peptide_sequence += '|';
+			if (peptide_sequence.empty() || peptide_sequence[peptide_sequence.size()-1] != '|')
+				peptide_sequence += '|';
 
 		// mark beginning of 3' end as pipe
 		if (non_template_bases_length > 0)
-			if (peptide_sequence.empty() || peptide_sequence[peptide_sequence.size()-1] != '|')
-				if (position + 2 == transcript_3_start && codon.size() <= 1 ||
-				    codon_3_bases == 1 && codon.size() == 0)
-						peptide_sequence += '|';
+			if (position + 2 == transcript_3_start && codon.size() <= 1 ||
+			    codon_3_bases == 1 && codon.size() == 0)
+				if (peptide_sequence.empty() || peptide_sequence[peptide_sequence.size()-1] != '|')
+					peptide_sequence += '|';
 
 		// check if fusion shifts frame of 3' gene
 		if (position == transcript_3_start && reading_frame_3 != -1)
