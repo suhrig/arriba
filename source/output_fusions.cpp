@@ -954,6 +954,20 @@ string get_fusion_peptide_sequence(const string& transcript, const vector<positi
 	return peptide_sequence;
 }
 
+string is_in_frame(string& fusion_peptide_sequence) {
+	if (fusion_peptide_sequence == ".")
+		return ".";
+	// a fusion is in-frame, if there is at least one amino acid in the 3' end of the fusion
+	// that matches an amino acid of the 3' gene
+	// such amino acids can easily be identified, because they are uppercase in the fusion sequence
+	for (int amino_acid = fusion_peptide_sequence.size() - 1; amino_acid >= 0; --amino_acid)
+		if (fusion_peptide_sequence[amino_acid] >= 'A' && fusion_peptide_sequence[amino_acid] <= 'Z')
+			return "in-frame";
+		else if (fusion_peptide_sequence[amino_acid] == '|')
+			return "out-of-frame";
+	return "out-of-frame";
+}
+
 void write_fusions_to_file(fusions_t& fusions, const string& output_file, const coverage_t& coverage, const assembly_t& assembly, gene_annotation_index_t& gene_annotation_index, exon_annotation_index_t& exon_annotation_index, vector<string> contigs_by_id, const bool print_supporting_reads, const bool print_fusion_sequence, const bool print_peptide_sequence, const bool write_discarded_fusions) {
 //TODO add "chr", if necessary
 
@@ -995,7 +1009,7 @@ void write_fusions_to_file(fusions_t& fusions, const string& output_file, const 
 		cerr << "ERROR: Failed to open output file '" << output_file << "'." << endl;
 		exit(1);
 	}
-	out << "#gene1\tgene2\tstrand1(gene/fusion)\tstrand2(gene/fusion)\tbreakpoint1\tbreakpoint2\tsite1\tsite2\ttype\tdirection1\tdirection2\tsplit_reads1\tsplit_reads2\tdiscordant_mates\tcoverage1\tcoverage2\tconfidence\tclosest_genomic_breakpoint1\tclosest_genomic_breakpoint2\tfilters\tfusion_transcript\tpeptide_sequence\tread_identifiers" << endl;
+	out << "#gene1\tgene2\tstrand1(gene/fusion)\tstrand2(gene/fusion)\tbreakpoint1\tbreakpoint2\tsite1\tsite2\ttype\tdirection1\tdirection2\tsplit_reads1\tsplit_reads2\tdiscordant_mates\tcoverage1\tcoverage2\tconfidence\tclosest_genomic_breakpoint1\tclosest_genomic_breakpoint2\tfilters\tfusion_transcript\treading_frame\tpeptide_sequence\tread_identifiers" << endl;
 	for (auto fusion = sorted_fusions.begin(); fusion != sorted_fusions.end(); ++fusion) {
 
 		// describe site of breakpoint
@@ -1102,9 +1116,10 @@ void write_fusions_to_file(fusions_t& fusions, const string& output_file, const 
 		// print the translated protein sequence
 		out << "\t";
 		if (print_peptide_sequence) {
-			out << get_fusion_peptide_sequence(transcript, positions, **fusion, exon_annotation_index, assembly);
+			string fusion_peptide_sequence = get_fusion_peptide_sequence(transcript, positions, **fusion, exon_annotation_index, assembly);
+			out << is_in_frame(fusion_peptide_sequence) << "\t" << fusion_peptide_sequence;
 		} else {
-			out << ".";
+			out << ".\t.";
 		}
 
 		// if requested, print identifiers of supporting reads
