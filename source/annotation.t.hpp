@@ -10,7 +10,6 @@
 #include "sam.h"
 #include "annotation.hpp"
 #include "read_compressed_file.hpp"
-#include "htslib/faidx.h"
 
 using namespace std;
 
@@ -23,8 +22,8 @@ using namespace std;
 // - chr1:10,000-11,999 gene1
 // - chr1:12,000-13,000 gene1+gene2
 // - chr1:13,001-20,000 gene1
-template <class T> void make_annotation_index(annotation_t<T>& annotation, annotation_index_t<T*>& annotation_index, const contigs_t& contigs) {
-	annotation_index.resize(contigs.size()); // create a contig_annotation_index_t for each contig
+template <class T> void make_annotation_index(annotation_t<T>& annotation, annotation_index_t<T*>& annotation_index) {
+	annotation_index.resize(annotation.size()); // create a contig_annotation_index_t for each contig
 	for (typename annotation_t<T>::iterator feature = annotation.begin(); feature != annotation.end(); ++feature) {
 
 		typename contig_annotation_index_t<T*>::const_iterator overlapping_features = annotation_index[feature->contig].lower_bound(feature->end);
@@ -40,20 +39,9 @@ template <class T> void make_annotation_index(annotation_t<T>& annotation, annot
 			annotation_index[feature->contig][feature->start-1] = overlapping_features->second;
 
 		// add the gene to all gene sets between start and end of the gene
-		for (typename contig_annotation_index_t<T*>::iterator annotation_multiset = annotation_index[feature->contig].lower_bound(feature->end); annotation_multiset->first >= feature->start; --annotation_multiset)
-			annotation_multiset->second.insert(&(*feature));
+		for (typename contig_annotation_index_t<T*>::iterator annotation_set = annotation_index[feature->contig].lower_bound(feature->end); annotation_set->first >= feature->start; --annotation_set)
+			annotation_set->second.insert(&(*feature));
 	}
-}
-
-template <class T> void annotation_multiset_to_set(const annotation_multiset_t<T> annotation_multiset, annotation_set_t<T>& annotation_set) {
-	for (typename annotation_multiset_t<T>::const_iterator i = annotation_multiset.begin(); i != annotation_multiset.end(); i = upper_bound(annotation_multiset.begin(), annotation_multiset.end(), *i))
-		annotation_set.push_back(*i);
-}
-
-template <class T> annotation_set_t<T> annotation_multiset_to_set(const annotation_multiset_t<T> annotation_multiset) {
-	annotation_set_t<T> annotation_set;
-	annotation_multiset_to_set(annotation_multiset, annotation_set);
-	return annotation_set;
 }
 
 template <class T> void combine_annotations(const annotation_set_t<T>& genes1, const annotation_set_t<T>& genes2, annotation_set_t<T>& combined, bool make_union) {
@@ -65,13 +53,17 @@ template <class T> void combine_annotations(const annotation_set_t<T>& genes1, c
 }
 
 template <class T> void get_annotation_by_coordinate(const contig_t contig, position_t start, position_t end, annotation_set_t<T>& annotation_set, const annotation_index_t<T>& annotation_index) {
-//TODO support strand-specific libraries
+	if (contig >= annotation_index.size()) {
+		annotation_set.clear(); // return empty set
+		return;
+	}
+
 	if (start == end) {
 
 		// get all features at position
 		typename contig_annotation_index_t<T>::const_iterator position = annotation_index[contig].lower_bound(start);
 		if (position != annotation_index[contig].end())
-			annotation_multiset_to_set(position->second, annotation_set);
+			annotation_set = position->second;
 		else
 			annotation_set.clear(); // return empty set
 
@@ -80,7 +72,7 @@ template <class T> void get_annotation_by_coordinate(const contig_t contig, posi
 			swap(start, end);
 
 		// get all features at start (+ 2bp)
-		annotation_multiset_t<T> result_start;
+		annotation_set_t<T> result_start;
 		typename contig_annotation_index_t<T>::const_iterator position_start = annotation_index[contig].lower_bound(start);
 		if (position_start != annotation_index[contig].end()) {
 			result_start = position_start->second;
@@ -92,7 +84,7 @@ template <class T> void get_annotation_by_coordinate(const contig_t contig, posi
 		}
 
 		// get all features at end (- 2 bp)
-		annotation_multiset_t<T> result_end;
+		annotation_set_t<T> result_end;
 		typename contig_annotation_index_t<T>::const_iterator position_end = annotation_index[contig].lower_bound(end);
 		if (position_end != annotation_index[contig].end())
 			result_end = position_end->second;
@@ -103,7 +95,7 @@ template <class T> void get_annotation_by_coordinate(const contig_t contig, posi
 		}
 
 		// take intersection of genes at start and end
-		combine_annotations(annotation_multiset_to_set(result_start), annotation_multiset_to_set(result_end), annotation_set);
+		combine_annotations(result_start, result_end, annotation_set);
 	}
 }
 

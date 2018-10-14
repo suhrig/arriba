@@ -57,8 +57,8 @@ void make_kmer_index(const fusions_t& fusions, const assembly_t& assembly, const
 		genes_to_filter.insert(fusion->second.gene2);
 	}
 
+	// store positions of kmers in hash
 	for (gene_set_t::iterator gene = genes_to_filter.begin(); gene != genes_to_filter.end(); ++gene) {
-		// store positions of kmers in hash
 		const string& contig_sequence = assembly.at((**gene).contig);
 		if (kmer_indices.size() <= (**gene).contig)
 			kmer_indices.resize((**gene).contig+1);
@@ -66,9 +66,15 @@ void make_kmer_index(const fusions_t& fusions, const assembly_t& assembly, const
 			if (contig_sequence[pos] != 'N') // don't index masked regions, as long stretches of N's inflate the number of hits
 				kmer_indices[(**gene).contig][kmer_to_int(contig_sequence, pos, kmer_length)].push_back(pos);
 	}
+
+	// sort kmer hits by increasing position, so that we can go through the list sequentially
 	for (kmer_indices_t::iterator kmer_index = kmer_indices.begin(); kmer_index != kmer_indices.end(); ++kmer_index)
-		for (kmer_index_t::iterator kmer_hits = kmer_index->begin(); kmer_hits != kmer_index->end(); ++kmer_hits)
+		for (kmer_index_t::iterator kmer_hits = kmer_index->begin(); kmer_hits != kmer_index->end(); ++kmer_hits) {
 			sort(kmer_hits->second.begin(), kmer_hits->second.end());
+			// when genes overlap the same kmer hit might be added multiple times => only keep unique entries
+			auto last = unique(kmer_hits->second.begin(), kmer_hits->second.end());
+			kmer_hits->second.erase(last, kmer_hits->second.end());
+		}
 }
 
 bool align(int score, const string& read_sequence, string::size_type read_pos, const string& contig_sequence, const string::size_type gene_pos, const position_t gene_start, const position_t gene_end, const kmer_index_t& kmer_index, const char kmer_length, const splice_sites_t& splice_sites, const int min_score, int max_deletions) {
@@ -153,12 +159,10 @@ bool align(int score, const string& read_sequence, string::size_type read_pos, c
 					} else { // there is a mismatch
 
 						mismatch_count++;
-						if (mismatch_count == 1) { // when there is more than one mismatch, do another k-mer lookup
+						if (mismatch_count == 1) // when there is more than one mismatch, do another k-mer lookup
 							if (max_deletions > 0 && read_sequence.length() >= 30 && // do not allow too many deletions/introns and only if the read is reasonably long
-							    align(extended_score, read_sequence, extended_read_pos, contig_sequence, extended_gene_pos, gene_start, gene_end, kmer_index, kmer_length, splice_sites, min_score, max_deletions-1)) {
+							    align(extended_score, read_sequence, extended_read_pos, contig_sequence, extended_gene_pos, gene_start, gene_end, kmer_index, kmer_length, splice_sites, min_score, max_deletions-1))
 								return true;
-							}
-						}
 						extended_score--; // penalize mismatch
 						consecutive_mismatches++;
 						if (consecutive_mismatches >= 4)

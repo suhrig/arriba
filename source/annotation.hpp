@@ -17,27 +17,19 @@ struct gtf_features_t {
 	vector<string> gene_name;
 	vector<string> gene_id;
 	vector<string> transcript_id;
-	vector<string> gene_status;
-	vector<string> status_known;
-	vector<string> gene_type;
-	vector<string> type_protein_coding;
 	vector<string> feature_exon;
-	vector<string> feature_utr;
-	vector<string> feature_gene;
+	vector<string> feature_cds;
 };
-const string DEFAULT_GTF_FEATURES = "gene_name=gene_name gene_id=gene_id transcript_id=transcript_id gene_status=gene_status|gene_type|gene_biotype status_KNOWN=KNOWN|protein_coding gene_type=gene_type|gene_biotype type_protein_coding=protein_coding feature_exon=exon feature_UTR=UTR feature_gene=gene";
+const string DEFAULT_GTF_FEATURES = "gene_name=gene_name gene_id=gene_id transcript_id=transcript_id feature_exon=exon feature_CDS=CDS";
 
 bool parse_gtf_features(string gtf_features_string, gtf_features_t& gtf_features);
 
 string removeChr(string contig);
 string addChr(string contig);
 
-void read_annotation_gtf(const string& filename, const contigs_t& contigs, const string& gtf_features_string, gene_annotation_t& gene_annotation, exon_annotation_t& exon_annotation, unordered_map<string,gene_t>& gene_names);
+void read_annotation_gtf(const string& filename, const string& gtf_features_string, contigs_t& contigs, gene_annotation_t& gene_annotation, exon_annotation_t& exon_annotation, unordered_map<string,gene_t>& gene_names);
 
 template <class T> void make_annotation_index(annotation_t<T>& annotation, annotation_index_t<T*>& annotation_index, const contigs_t& contigs);
-
-template <class T> void annotation_multiset_to_set(annotation_multiset_t<T> annotation_multiset, annotation_set_t<T>& annotation_set);
-template <class T> annotation_set_t<T> annotation_multiset_to_set(annotation_multiset_t<T> annotation_multiset);
 
 bool is_breakpoint_spliced(const gene_t gene, const direction_t direction, const position_t breakpoint, const exon_annotation_index_t& exon_annotation_index);
 

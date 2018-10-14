@@ -18,9 +18,8 @@ void count_mismatches(const alignment_t& alignment, const string& sequence, cons
 	for (unsigned int i = 0; i < alignment.cigar.size(); ++i) {
 		switch (alignment.cigar.operation(i)) {
 			case BAM_CSOFT_CLIP:
-				read_position += alignment.cigar.op_length(i);
-				// fall through
 			case BAM_CHARD_CLIP:
+				read_position += alignment.cigar.op_length(i);
 				// clipping which might result from overlapping with the breakpoint is not counted as mismatch
 				if (!(i == 0 && alignment.strand == REVERSE || i == alignment.cigar.size()-1 && alignment.strand == FORWARD))
 					mismatches++;
@@ -36,6 +35,8 @@ void count_mismatches(const alignment_t& alignment, const string& sequence, cons
 				read_position += alignment.cigar.op_length(i);
 				break;
 			case BAM_CMATCH:
+			case BAM_CEQUAL:
+			case BAM_CDIFF:
 				for (unsigned int operation_i = 1; operation_i <= alignment.cigar.op_length(i); ++operation_i) {
 					if (sequence[read_position] != 'N') {
 						if (sequence[read_position] != assembly.at(alignment.contig)[reference_position])
@@ -92,14 +93,13 @@ bool test_mismatch_probability(const alignment_t& alignment, const string& seque
 		return false;
 }
 
-unsigned int filter_mismatches(chimeric_alignments_t& chimeric_alignments, const assembly_t& assembly, const vector<bool>& interesting_contigs, const float mismatch_probability, const float pvalue_cutoff) {
+unsigned int filter_mismatches(chimeric_alignments_t& chimeric_alignments, const assembly_t& assembly, const contigs_t& interesting_contigs, const float mismatch_probability, const float pvalue_cutoff) {
 
 	// calculate size of genome
 	// we'll need this to calculate the probability of finding a match in the genome given a random sequence of bases
 	long unsigned int genome_size = 0;
-	for (assembly_t::const_iterator contig = assembly.begin(); contig != assembly.end(); ++contig)
-		if (interesting_contigs[contig->first])
-			genome_size += contig->second.size();
+	for (contigs_t::const_iterator contig = interesting_contigs.begin(); contig != interesting_contigs.end(); ++contig)
+		genome_size += assembly.at(contig->second).size();
 
 	unsigned int remaining = 0;
 	for (chimeric_alignments_t::iterator chimeric_alignment = chimeric_alignments.begin(); chimeric_alignment != chimeric_alignments.end(); ++chimeric_alignment) {

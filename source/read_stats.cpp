@@ -1,20 +1,11 @@
+#include <climits>
+#include <iostream>
 #include <list>
-#include <string>
+#include <vector>
+#include "sam.h"
 #include "common.hpp"
 #include "annotation.hpp"
 #include "read_stats.hpp"
-
-unsigned long int count_mapped_reads(const string& bam_file_path, const vector<bool>& interesting_contigs) {
-	unsigned long int result = 0;
-	bam_index_t* bam_index = bam_index_load(bam_file_path.c_str());
-	for (unsigned int i = 0; i < interesting_contigs.size(); ++i) {
-		unsigned long int mapped, unmapped;
-		hts_idx_get_stat(bam_index, i, &mapped, &unmapped);
-		if (interesting_contigs[i]) // only count reads on interesting contigs
-			result += mapped;
-	}
-	return result;
-}
 
 bool estimate_mate_gap_distribution(const chimeric_alignments_t& chimeric_alignments, float& mate_gap_mean, float& mate_gap_stddev, const gene_annotation_index_t& gene_annotation_index, const exon_annotation_index_t& exon_annotation_index) {
 
@@ -111,3 +102,167 @@ strandedness_t detect_strandedness(const chimeric_alignments_t& chimeric_alignme
 	} else
 		return STRANDEDNESS_NO; // not enough signal => assume no
 }
+
+// initialize data structure to compute coverage for windows of size <COVERAGE_RESOLUTION>
+coverage_t::coverage_t(const contigs_t& contigs, const assembly_t& assembly) {
+	fragment_starts.resize(contigs.size());
+	fragment_ends.resize(contigs.size());
+	coverage.resize(contigs.size());
+	for (assembly_t::const_iterator contig = assembly.begin(); contig != assembly.end(); ++contig) {
+		if (!contig->second.empty()) {
+			unsigned int windows = contig->second.size() / COVERAGE_RESOLUTION + 2; //+2 to avoid array-out-of-bounds errors
+			fragment_starts[contig->first].resize(windows);
+			fragment_ends[contig->first].resize(windows);
+			coverage[contig->first].resize(windows);
+		}
+	}
+}
+
+// add alignment to coverage
+void coverage_t::add_fragment(bam1_t* mate1, bam1_t* mate2, const bool is_read_through_alignment) {
+
+	// fake paired-end data, if single-end data given, to avoid NULL pointer exceptions
+	if (mate2 == NULL)
+		mate2 = mate1;
+
+	if (mate1->core.tid >= fragment_starts.size() || fragment_starts[mate1->core.tid].empty() ||
+	    mate2->core.tid >= fragment_starts.size() || fragment_starts[mate2->core.tid].empty())
+		return; // ignore reads on uninteresting contigs
+
+	bool is_chimeric = is_read_through_alignment;
+	if (mate1->core.flag & BAM_FPAIRED) { // paired-end data
+		if (!(mate1->core.flag & BAM_FPROPER_PAIR) || // discordant mates
+	            !(mate1->core.flag & BAM_FREVERSE) && bam_cigar_type(bam_cigar_op(bam_get_cigar(mate1)[0])) == BAM_CSOFT_CLIP || // clipped at start => likely split-read
+	            !(mate2->core.flag & BAM_FREVERSE) && bam_cigar_type(bam_cigar_op(bam_get_cigar(mate2)[0])) == BAM_CSOFT_CLIP ||
+	            (mate1->core.flag & BAM_FREVERSE) && bam_cigar_type(bam_cigar_op(bam_get_cigar(mate1)[mate1->core.n_cigar-1])) == BAM_CSOFT_CLIP || // clipped at end => likely split-read
+	            (mate2->core.flag & BAM_FREVERSE) && bam_cigar_type(bam_cigar_op(bam_get_cigar(mate2)[mate2->core.n_cigar-1])) == BAM_CSOFT_CLIP)
+			is_chimeric = true;
+	} else { // single-end data
+		if (bam_cigar_type(bam_cigar_op(bam_get_cigar(mate1)[0])) == BAM_CSOFT_CLIP ||
+		    bam_cigar_type(bam_cigar_op(bam_get_cigar(mate1)[mate1->core.n_cigar-1])) == BAM_CSOFT_CLIP)
+			is_chimeric = true; // alignment is clipped => likely split-read
+	}
+
+	// store start of fragment
+	if (!is_chimeric) { // the 'no_coverage' filter should only consider non-chimeric reads
+		if (!(mate1->core.flag & BAM_FREVERSE) || !(mate1->core.flag & BAM_FPAIRED))
+			fragment_starts[mate1->core.tid][mate1->core.pos/COVERAGE_RESOLUTION] = true;
+		else
+			fragment_starts[mate2->core.tid][mate2->core.pos/COVERAGE_RESOLUTION] = true;
+	}
+
+	// compute coverage from CIGAR string
+	position_t position1 = mate1->core.pos;
+	position_t position2 = mate2->core.pos;
+	position_t position = min(position1, position2);
+	int window = position/COVERAGE_RESOLUTION;
+	unsigned int i1 = 0;
+	unsigned int i2 = 0;
+	while (true) {
+
+		// go through CIGAR operations of both mates in parallel,
+		// always choosing the one that consumes the smallest amount of the reference
+		uint32_t cigar_op1, cigar_op2;
+		unsigned int op_length1;
+		unsigned int op_length2;
+		// find out how much of the reference the next CIGAR element of each mate would consume
+		if (i1 < mate1->core.n_cigar) {
+			cigar_op1 = bam_get_cigar(mate1)[i1];
+			op_length1 = (bam_cigar_type(bam_cigar_op(cigar_op1)) & 2/*consume reference*/) ? bam_cigar_oplen(cigar_op1) : 0;
+		} else { // CIGAR elements of mate1 completely processed
+			op_length1 = 0;
+			window = max(window, position2/COVERAGE_RESOLUTION);
+		}
+		if (i2 < mate2->core.n_cigar) {
+			cigar_op2 = bam_get_cigar(mate2)[i2];
+			op_length2 = (bam_cigar_type(bam_cigar_op(cigar_op2)) & 2/*consume reference*/) ? bam_cigar_oplen(cigar_op2) : 0;
+		} else { // CIGAR elements of mate2 completely processed
+			op_length2 = 0;
+			window = max(window, position1/COVERAGE_RESOLUTION);
+		}
+		// pick the mate whose next CIGAR element consumes the least amount of reference
+		contig_t contig;
+		uint32_t cigar_op;
+		if (i1 < mate1->core.n_cigar && (position1 + op_length1 < position2 + op_length2 || i2 >= mate2->core.n_cigar)) {
+			i1++;
+			if (op_length1 == 0)
+				continue;
+			cigar_op = cigar_op1;
+			contig = mate1->core.tid;
+			position1 += op_length1;
+			position = position1;
+		} else if (i2 < mate2->core.n_cigar) {
+			i2++;
+			if (op_length2 == 0)
+				continue;
+			cigar_op = cigar_op2;
+			contig = mate2->core.tid;
+			position2 += op_length2;
+			position = position2;
+		} else {
+			break; // all CIGAR elements of both mates have been processed
+		}
+
+		// increase coverage counter of windows that CIGAR element overlaps with
+		if (bam_cigar_type(bam_cigar_op(cigar_op)) & 1/*consume query*/) {
+			while (window <= position/COVERAGE_RESOLUTION) {
+				if (coverage[contig][window] < USHRT_MAX)
+					if (position - window * COVERAGE_RESOLUTION >= COVERAGE_RESOLUTION/2) // read must overlap at least half of the window
+						coverage[contig][window]++;
+				++window;
+			}
+		} else {
+			window = position/COVERAGE_RESOLUTION;
+		}
+
+	}
+
+	// store end of fragment
+	if (!is_chimeric) { // the 'no_coverage' filter should only consider non-chimeric reads
+		if ((mate1->core.flag & BAM_FREVERSE) || !(mate1->core.flag & BAM_FPAIRED))
+			fragment_ends[mate1->core.tid][(position1-1)/COVERAGE_RESOLUTION] = true;
+		else
+			fragment_ends[mate2->core.tid][(position2-1)/COVERAGE_RESOLUTION] = true;
+	}
+}
+
+// returns true, if a fragment begins at the given position
+bool coverage_t::fragment_starts_here(const contig_t contig, const position_t start, const position_t end) const {
+	if (contig >= fragment_starts.size())
+		return false;
+	for (unsigned int window = start/COVERAGE_RESOLUTION + 1; window <= end/COVERAGE_RESOLUTION; ++window) {
+		if (window >= fragment_starts[contig].size())
+			return false;
+		if (fragment_starts[contig][window])
+			return true;
+	}
+	return false;
+}
+
+// returns true, if a fragment ends at the given position
+bool coverage_t::fragment_ends_here(const contig_t contig, const position_t start, const position_t end) const {
+	if (contig >= fragment_ends.size())
+		return false;
+	for (unsigned int window = start/COVERAGE_RESOLUTION; window < end/COVERAGE_RESOLUTION; ++window) {
+		if (window >= fragment_ends[contig].size())
+			return false;
+		if (fragment_ends[contig][window])
+			return true;
+	}
+	return false;
+}
+
+// get coverage within a window of <COVERAGE_RESOLUTION> upstream or downstream of given position
+int coverage_t::get_coverage(const contig_t contig, const position_t position, const direction_t direction) const {
+	if (contig >= coverage.size() || coverage[contig].empty())
+		return -1;
+	if (direction == UPSTREAM) {
+		if (position < COVERAGE_RESOLUTION)
+			return 0;
+		else
+			return coverage[contig][position/COVERAGE_RESOLUTION-1];
+	} else { // direction == DOWNSTREAM
+		return coverage[contig][position/COVERAGE_RESOLUTION+1];
+	}
+}
+

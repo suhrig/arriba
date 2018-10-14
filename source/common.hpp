@@ -34,7 +34,8 @@ struct annotation_record_t {
 	// function to sort annotation records by coordinate
 	inline bool operator < (const annotation_record_t& x) const {
 		if (contig != x.contig) return contig < x.contig;
-		return end < x.end;
+		if (end != x.end) return end < x.end;
+		return start < x.start;
 	}
 	void copy(const annotation_record_t& x) { *this = x; }
 	inline unsigned int length() const { return this->end - this->start; }
@@ -48,21 +49,15 @@ template <class T> class annotation_set_t: public vector<T> {
 			else
 				return existing_element;
 		};
-		using vector<T>::insert;
-};
-template <class T> class annotation_multiset_t: public vector<T> {
-	public:
-		typename annotation_multiset_t<T>::iterator insert(const T& value) { return this->insert(upper_bound(this->begin(), this->end(), value), value); };
-		void insert(typename annotation_multiset_t<T>::const_iterator first, typename annotation_multiset_t<T>::const_iterator last) {
-			int middle = this->size();
+		void insert(typename annotation_set_t<T>::const_iterator first, typename annotation_set_t<T>::const_iterator last) {
 			this->reserve(this->size() + distance(first, last));
-			this->insert(this->end(), first, last);
-			inplace_merge(this->begin(), this->begin() + middle, this->end());
+			for (auto annotation_record = first; annotation_record != last; ++annotation_record)
+				this->insert(*annotation_record);
 		};
 		using vector<T>::insert;
 };
 template <class T> class annotation_t: public list<T> {};
-template <class T> class contig_annotation_index_t: public map< position_t, annotation_multiset_t<T> > {};
+template <class T> class contig_annotation_index_t: public map< position_t, annotation_set_t<T> > {};
 template <class T> class annotation_index_t: public vector< contig_annotation_index_t<T> > {};
 
 struct gene_annotation_record_t: public annotation_record_t {
@@ -70,12 +65,10 @@ struct gene_annotation_record_t: public annotation_record_t {
 	string name;
 	int exonic_length; // sum of the length of all exons in a gene
 	bool is_dummy;
-	bool is_known;
 	bool is_protein_coding;
 };
 typedef gene_annotation_record_t* gene_t;
 typedef annotation_set_t<gene_t> gene_set_t;
-typedef annotation_multiset_t<gene_t> gene_multiset_t;
 typedef annotation_t<gene_annotation_record_t> gene_annotation_t;
 typedef contig_annotation_index_t<gene_t> gene_contig_annotation_index_t;
 typedef annotation_index_t<gene_t> gene_annotation_index_t;
@@ -84,12 +77,11 @@ typedef unsigned int transcript_t;
 struct exon_annotation_record_t: public annotation_record_t {
 	gene_t gene;
 	transcript_t transcript;
-	bool is_transcript_start, is_transcript_end;
-	bool is_utr;
+	exon_annotation_record_t* previous_exon, * next_exon;
+	position_t coding_region_start, coding_region_end;
 };
 typedef exon_annotation_record_t* exon_t;
 typedef annotation_set_t<exon_t> exon_set_t;
-typedef annotation_multiset_t<exon_t> exon_multiset_t;
 typedef annotation_t<exon_annotation_record_t> exon_annotation_t;
 typedef contig_annotation_index_t<exon_t> exon_contig_annotation_index_t;
 typedef annotation_index_t<exon_t> exon_annotation_index_t;
@@ -98,7 +90,6 @@ class cigar_t: public vector<uint32_t> {
 	public:
 		uint32_t operation(unsigned int index) const { return this->at(index) & 15; }; // select lower 4 bits to get the operation of the CIGAR element
 		uint32_t op_length(unsigned int index) const { return this->at(index) >> 4; }; // remove lower 4 bits to get the length of the CIGAR element
-		cigar_t operator=(const bam1_t* bam_record) { this->resize(bam_record->core.n_cigar); for (int i = 0; i < bam_record->core.n_cigar; ++i) { (*this)[i] = bam1_cigar(bam_record)[i]; }; return *this; };
 };
 
 struct alignment_t {
@@ -115,8 +106,8 @@ struct alignment_t {
 	string sequence;
 	gene_set_t genes;
 	alignment_t(): supplementary(false), first_in_pair(false), exonic(false), predicted_strand_ambiguous(true) {};
-	unsigned int preclipping() const { return (cigar.operation(0) & (BAM_CSOFT_CLIP | BAM_CHARD_CLIP)) ? cigar.op_length(0) : 0; };
-	unsigned int postclipping() const { return (cigar.operation(cigar.size()-1) & (BAM_CSOFT_CLIP | BAM_CHARD_CLIP)) ? cigar.op_length(cigar.size()-1) : 0; };
+	unsigned int preclipping() const { return (cigar.operation(0) == BAM_CSOFT_CLIP || cigar.operation(0) == BAM_CHARD_CLIP) ? cigar.op_length(0) : 0; };
+	unsigned int postclipping() const { return (cigar.operation(cigar.size()-1) == BAM_CSOFT_CLIP || cigar.operation(cigar.size()-1) == BAM_CHARD_CLIP) ? cigar.op_length(cigar.size()-1) : 0; };
 };
 const unsigned int MATE1 = 0;
 const unsigned int MATE2 = 1;
@@ -169,6 +160,11 @@ struct fusion_t {
 		return breakpoint_overlaps_both_genes(1) || breakpoint_overlaps_both_genes(2);
 	};
 	bool is_read_through() const { return contig1 == contig2 && breakpoint2 - breakpoint1 < 400000 && direction1 == DOWNSTREAM && direction2 == UPSTREAM; };
+	bool is_intragenic() const {
+		return gene1 == gene2 ||
+		       breakpoint1 >= gene2->start - 10000 && breakpoint1 <= gene2->end + 10000 &&
+		       breakpoint2 >= gene1->start - 10000 && breakpoint2 <= gene1->end + 10000;
+	};
 };
 typedef unordered_map< tuple<unsigned int /*gene1 id*/, unsigned int /*gene2 id*/, contig_t /*contig1*/, contig_t /*contig2*/, position_t /*breakpoint1*/, position_t /*breakpoint2*/, direction_t /*direction1*/, direction_t /*direction2*/>,fusion_t > fusions_t;
 

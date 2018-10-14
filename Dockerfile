@@ -1,35 +1,31 @@
-FROM ubuntu:xenial
+FROM ubuntu:bionic
 MAINTAINER Sebastian Uhrig @ DKFZ
 
-# install utilities
-RUN apt-get update -y && apt-get install -y wget
-
-# install samtools
-RUN apt-get install -y samtools
-
-# install STAR
-RUN wget -q -O - https://github.com/alexdobin/STAR/archive/master.tar.gz | \
-tar -x -z --strip-components=3 -C /usr/local/bin -f - STAR-master/bin/Linux_x86_64_static/STAR
+# install dependencies
+RUN export DEBIAN_FRONTEND=noninteractive && \
+apt-get update -y && \
+apt-get install -y samtools r-base rna-star wget libcurl4-openssl-dev libxml2-dev && \
+Rscript -e 'install.packages("circlize", repos="http://cran.r-project.org"); source("https://bioconductor.org/biocLite.R"); biocLite(c("GenomicRanges", "GenomicAlignments"))'
 
 # install arriba
 RUN URL=$(wget -q -O - https://api.github.com/repos/suhrig/arriba/releases/latest | sed -n -e 's/.*"browser_download_url":\s*"\([^"]*\)".*/\1/p') && \
 wget -q -O - "$URL" | tar -xzf -
 
-ENV THREADS=8
-
-# make script to download references
+# make wrapper script for download_references.sh
 RUN echo '#!/bin/bash\n\
-wget -q -O - ftp://ftp.sanger.ac.uk/pub/gencode/Gencode_human/release_19/gencode.v19.annotation.gtf.gz | \n\
-gunzip -c | sed -e "s/^chrM\t/MT\t/" -e "s/^chr//" > /references/gencode.v19.annotation.gtf \n\
-wget -q -O - ftp://ftp.1000genomes.ebi.ac.uk/vol1/ftp/technical/reference/phase2_reference_assembly_sequence/hs37d5.fa.gz | \n\
-gunzip -c > /references/hs37d5.fa \n\
-mkdir /references/STAR_index_hs37d5_gencode19 \n\
-STAR --runMode genomeGenerate --genomeDir /references/STAR_index_hs37d5_gencode19 --genomeFastaFiles /references/hs37d5.fa --sjdbGTFfile /references/gencode.v19.annotation.gtf --runThreadN $THREADS --sjdbOverhang 150' > /usr/local/bin/download_references.sh && \
+cd /references\n\
+/arriba*/download_references.sh $1 $2 && \\\n\
+cp /arriba*/database/*${1%+*}* /references' > /usr/local/bin/download_references.sh && \
 chmod a+x /usr/local/bin/download_references.sh
 
-# make script to run arriba
+# make wrapper script for run_arriba.sh
 RUN echo '#!/bin/bash\n\
 cd /output\n\
-/arriba*/run_arriba.sh /references/STAR_index_hs37d5_gencode19 /references/gencode.v19.annotation.gtf /references/hs37d5.fa /arriba*/database/blacklist_hg19_hs37d5_GRCh37_*.tsv.gz /read1.fastq.gz /read2.fastq.gz $THREADS' > /usr/local/bin/arriba.sh && \
+/arriba*/run_arriba.sh /references/STAR_index_* /references/*.gtf /references/*.fa /references/blacklist_*.tsv.gz /read1.fastq.gz /read2.fastq.gz ${1-8}' > /usr/local/bin/arriba.sh && \
 chmod a+x /usr/local/bin/arriba.sh
+
+# make wrapper script for draw_fusions.R
+RUN echo '#!/bin/bash\n\
+Rscript /arriba*/draw_fusions.R --annotation=$(ls /references/*.gtf) --fusions=/fusions.tsv --output=/output/fusions.pdf --proteinDomains=$(ls /references/protein_domains_*.gff3) --alignments=/Aligned.sortedByCoord.out.bam --cytobands=$(ls /references/cytobands_*.tsv)' > /usr/local/bin/draw_fusions.sh && \
+chmod a+x /usr/local/bin/draw_fusions.sh
 

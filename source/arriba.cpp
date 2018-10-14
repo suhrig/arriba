@@ -1,13 +1,15 @@
+#include <algorithm>
 #include <iostream>
+#include <set>
+#include <sstream>
+#include <stdlib.h>
+#include <string>
 #include <unordered_map>
 #include <vector>
-#include <string>
-#include <sstream>
-#include <algorithm>
 #include "common.hpp"
 #include "annotation.hpp"
 #include "assembly.hpp"
-#include "options_arriba.hpp"
+#include "options.hpp"
 #include "read_stats.hpp"
 #include "read_chimeric_alignments.hpp"
 #include "filter_multi_mappers.hpp"
@@ -25,7 +27,7 @@
 #include "fusions.hpp"
 #include "filter_relative_support.hpp"
 #include "filter_both_intronic.hpp"
-#include "filter_both_novel.hpp"
+#include "filter_non_coding_neighbors.hpp"
 #include "filter_intragenic_both_exonic.hpp"
 #include "filter_min_support.hpp"
 #include "recover_known_fusions.hpp"
@@ -38,7 +40,7 @@
 #include "filter_short_anchor.hpp"
 #include "filter_homologs.hpp"
 #include "filter_mismappers.hpp"
-#include "filter_nonexpressed.hpp"
+#include "filter_no_coverage.hpp"
 #include "filter_genomic_support.hpp"
 #include "recover_many_spliced.hpp"
 #include "recover_isoforms.hpp"
@@ -59,7 +61,7 @@ unordered_map<string,filter_t> FILTERS({
 	{"mismappers", static_cast<string*>(NULL)},
 	{"relative_support", static_cast<string*>(NULL)},
 	{"intronic", static_cast<string*>(NULL)},
-	{"novel", static_cast<string*>(NULL)},
+	{"non_coding_neighbors", static_cast<string*>(NULL)},
 	{"intragenic_exonic", static_cast<string*>(NULL)},
 	{"min_support", static_cast<string*>(NULL)},
 	{"known_fusions", static_cast<string*>(NULL)},
@@ -70,7 +72,7 @@ unordered_map<string,filter_t> FILTERS({
 	{"merge_adjacent", static_cast<string*>(NULL)},
 	{"select_best", static_cast<string*>(NULL)},
 	{"short_anchor", static_cast<string*>(NULL)},
-	{"non_expressed", static_cast<string*>(NULL)},
+	{"no_coverage", static_cast<string*>(NULL)},
 	{"many_spliced", static_cast<string*>(NULL)},
 	{"no_genomic_support", static_cast<string*>(NULL)},
 	{"uninteresting_contigs", static_cast<string*>(NULL)},
@@ -89,43 +91,65 @@ int main(int argc, char **argv) {
 	// parse command-line options
 	options_t options = parse_arguments(argc, argv);
 
+	// convert options.interesting_contigs from string to contigs_t
+	contigs_t interesting_contigs;
+	if (options.filters.at("uninteresting_contigs") && !options.interesting_contigs.empty()) {
+		istringstream iss(options.interesting_contigs);
+		while (iss) {
+			string contig;
+			iss >> contig;
+			if (!contig.empty())
+				interesting_contigs.insert(pair<string,contig_t>(removeChr(contig),interesting_contigs.size()));
+		}
+	}
+	contigs_t contigs = interesting_contigs;
+
+	// load GTF file
+	cout << "Loading annotation from '" << options.gene_annotation_file << "'" << endl << flush;
+	gene_annotation_t gene_annotation;
+	exon_annotation_t exon_annotation;
+	unordered_map<string,gene_t> gene_names;
+	read_annotation_gtf(options.gene_annotation_file, options.gtf_features, contigs, gene_annotation, exon_annotation, gene_names);
+
+	// sort genes and exons by coordinate (make index)
+	exon_annotation_index_t exon_annotation_index;
+	make_annotation_index(exon_annotation, exon_annotation_index);
+	gene_annotation_index_t gene_annotation_index;
+	make_annotation_index(gene_annotation, gene_annotation_index);
+
+	// load sequences of contigs from assembly
+	cout << "Loading assembly from '" << options.assembly_file << "'" << endl;
+	assembly_t assembly;
+	load_assembly(assembly, options.assembly_file, contigs, interesting_contigs);
+
+	// prevent htslib from downloading the assembly via the Internet, if CRAM is used
+	setenv("REF_PATH", ".", 0);
+
 	// load chimeric alignments
 	chimeric_alignments_t chimeric_alignments;
-	contigs_t contigs;
-	cout << "Reading chimeric alignments from '" << options.chimeric_bam_file << "'" << flush;
-	cout << " (total=" << read_chimeric_alignments(options.chimeric_bam_file, chimeric_alignments, contigs) << ")" << endl;
-
-	// load read-through alignments
-	if (options.read_through_bam_file != "") {
-		cout << "Reading read-through alignments from '" << options.read_through_bam_file << "'" << flush;
-		cout << " (total=" << read_chimeric_alignments(options.read_through_bam_file, chimeric_alignments, contigs, true) << ")" << endl;
+	unsigned long int mapped_reads = 0;
+	coverage_t coverage(contigs, assembly);
+	if (!options.chimeric_bam_file.empty()) { // when STAR was run with --chimOutType SeparateSAMold, chimeric alignments must be read from a separate file named Chimeric.out.sam
+		cout << "Reading chimeric alignments from '" << options.chimeric_bam_file << "'" << flush;
+		cout << " (total=" << read_chimeric_alignments(options.chimeric_bam_file, options.assembly_file, chimeric_alignments, mapped_reads, coverage, contigs, interesting_contigs, gene_annotation_index, true, false) << ")" << endl;
 	}
 
-	if (chimeric_alignments.size() == 0) {
-		cerr << "ERROR: empty input files" << endl;
-		exit(1);
-	}
+	// extract chimeric alignments and read-through alignments from Aligned.out.bam
+	cout << "Reading chimeric alignments from '" << options.rna_bam_file << "'" << flush;
+	cout << " (total=" << read_chimeric_alignments(options.rna_bam_file, options.assembly_file, chimeric_alignments, mapped_reads, coverage, contigs, interesting_contigs, gene_annotation_index, !options.chimeric_bam_file.empty(), true) << ")" << endl;
 
 	// map contig IDs to names
 	vector<string> contigs_by_id(contigs.size());
 	for (contigs_t::iterator i = contigs.begin(); i != contigs.end(); ++i)
 		contigs_by_id[i->second] = i->first;
 
+	// the BAM files may have added some contigs which were not in the GTF file
+	// => add empty indices for the new contigs so that lookups of these contigs won't cause array-out-of-bounds exceptions
+	gene_annotation_index.resize(contigs.size());
+	exon_annotation_index.resize(contigs.size());
+
 	cout << "Filtering multi-mappers and single mates" << flush;
 	cout << " (remaining=" << filter_multi_mappers(chimeric_alignments) << ")" << endl;
-
-	cout << "Loading annotation from '" << options.gene_annotation_file << "'" << endl << flush;
-	// load GTF file
-	gene_annotation_t gene_annotation;
-	exon_annotation_t exon_annotation;
-	unordered_map<string,gene_t> gene_names;
-	read_annotation_gtf(options.gene_annotation_file, contigs, options.gtf_features, gene_annotation, exon_annotation, gene_names);
-
-	// sort genes and exons by coordinate (make index)
-	exon_annotation_index_t exon_annotation_index;
-	make_annotation_index(exon_annotation, exon_annotation_index, contigs);
-	gene_annotation_index_t gene_annotation_index;
-	make_annotation_index(gene_annotation, gene_annotation_index, contigs);
 
 	strandedness_t strandedness = options.strandedness;
 	if (options.strandedness == STRANDEDNESS_AUTO) {
@@ -149,7 +173,7 @@ int main(int argc, char **argv) {
 		position_t region_start;
 		for (exon_contig_annotation_index_t::iterator region = contig->begin(); region != contig->end(); ++region) {
 			gene_t previous_gene = NULL;
-			for (exon_multiset_t::iterator overlapping_exon = region->second.begin(); overlapping_exon != region->second.end(); ++overlapping_exon) {
+			for (exon_set_t::iterator overlapping_exon = region->second.begin(); overlapping_exon != region->second.end(); ++overlapping_exon) {
 				gene_t& current_gene = (**overlapping_exon).gene;
 				if (previous_gene != current_gene) {
 					current_gene->exonic_length += region->first - region_start;
@@ -206,7 +230,7 @@ int main(int argc, char **argv) {
 		gene_annotation_record.strand = FORWARD;
 		gene_annotation_record.exonic_length = 10000; //TODO more exact estimation of exonic_length
 		gene_annotation_record.is_dummy = true;
-		gene_annotation_record.is_known = false;
+		gene_annotation_record.is_protein_coding = false;
 		gene_contig_annotation_index_t::iterator next_known_gene = gene_annotation_index[unmapped_alignments.begin()->contig].lower_bound(unmapped_alignments.begin()->end);
 		for (gene_annotation_t::iterator unmapped_alignment = next(unmapped_alignments.begin()); ; ++unmapped_alignment) {
 			// subsume all unmapped alignments in a range of 10kb into a dummy gene with the generic name "contig:start-end"
@@ -230,7 +254,7 @@ int main(int argc, char **argv) {
 
 	// map yet unmapped alignments to the newly created dummy genes
 	gene_annotation_index.clear();
-	make_annotation_index(gene_annotation, gene_annotation_index, contigs); // index needs to be regenerated after adding dummy genes
+	make_annotation_index(gene_annotation, gene_annotation_index); // index needs to be regenerated after adding dummy genes
 	for (chimeric_alignments_t::iterator i = chimeric_alignments.begin(); i != chimeric_alignments.end(); ++i) {
 		for (mates_t::iterator mate = i->second.begin(); mate != i->second.end(); ++mate) {
 			if (mate->genes.empty())
@@ -249,21 +273,9 @@ int main(int argc, char **argv) {
 		cout << " (remaining=" << filter_duplicates(chimeric_alignments) << ")" << endl;
 	}
 
-	vector<bool> interesting_contigs(contigs.size());
-	if (options.filters.at("uninteresting_contigs") && !options.interesting_contigs.empty()) {
-		istringstream iss(options.interesting_contigs);
-		while (iss) {
-			string contig;
-			iss >> contig;
-			contig = removeChr(contig);
-			if (contigs.find(contig) != contigs.end())
-				interesting_contigs[contigs[contig]] = true;
-		}
+	if (options.filters.at("uninteresting_contigs") && !interesting_contigs.empty()) {
 		cout << "Filtering mates which do not map to interesting contigs (" << options.interesting_contigs << ")" << flush;
-		cout << " (remaining=" << filter_uninteresting_contigs(chimeric_alignments, interesting_contigs) << ")" << endl;
-	} else { // all contigs are interesting
-		for (vector<bool>::iterator i = interesting_contigs.begin(); i != interesting_contigs.end(); ++i)
-			*i = true;
+		cout << " (remaining=" << filter_uninteresting_contigs(chimeric_alignments, contigs, interesting_contigs) << ")" << endl;
 	}
 
 	cout << "Estimating mate gap distribution" << flush;
@@ -310,10 +322,6 @@ int main(int argc, char **argv) {
 		cout << " (remaining=" << filter_hairpin(chimeric_alignments, exon_annotation_index, max_mate_gap) << ")" << endl;
 	}
 
-	cout << "Loading assembly from '" << options.assembly_file << "'" << endl;
-	assembly_t assembly;
-	load_assembly(assembly, options.assembly_file, contigs, interesting_contigs);
-
 	if (options.filters.at("mismatches")) {
 		cout << "Filtering reads with a mismatch p-value <=" << options.mismatch_pvalue_cutoff << flush;
 		cout << " (remaining=" << filter_mismatches(chimeric_alignments, assembly, interesting_contigs, 0.01, options.mismatch_pvalue_cutoff) << ")" << endl;
@@ -338,27 +346,22 @@ int main(int argc, char **argv) {
 		cout << " (remaining=" << merge_adjacent_fusions(fusions, 5) << ")" << endl;
 	}
 
-	unsigned long int mapped_reads = 0;
-	cout << "Counting mapped reads on interesting contigs" << flush;
-	mapped_reads = count_mapped_reads(options.rna_bam_file, interesting_contigs);
-	cout << " (total=" << mapped_reads << ")" << endl;
-
 	// this step must come after the 'merge_adjacent' filter,
 	// because STAR clips reads supporting the same breakpoints at different position
 	// and that spreads the supporting reads over multiple breakpoints
 	cout << "Estimating expected number of fusions by random chance (e-value)" << endl << flush;
-	estimate_expected_fusions(fusions, mapped_reads);
+	estimate_expected_fusions(fusions, mapped_reads, exon_annotation_index);
 
 	// this step must come before all filters that are potentially undone by the 'genomic_support' filter
-	if (options.filters.at("novel")) {
-		cout << "Filtering fusions with both breakpoints in novel/intergenic regions" << flush;
-		cout << " (remaining=" << filter_both_novel(fusions) << ")" << endl;
+	if (options.filters.at("non_coding_neighbors")) {
+		cout << "Filtering fusions with both breakpoints in adjacent non-coding/intergenic regions" << flush;
+		cout << " (remaining=" << filter_non_coding_neighbors(fusions) << ")" << endl;
 	}
 
 	// this step must come before all filters that are potentially undone by the 'genomic_support' filter
 	if (options.filters.at("intragenic_exonic")) {
 		cout << "Filtering intragenic fusions with both breakpoints in exonic regions" << flush;
-		cout << " (remaining=" << filter_intragenic_both_exonic(fusions) << ")" << endl;
+		cout << " (remaining=" << filter_intragenic_both_exonic(fusions, exon_annotation_index, options.exonic_fraction) << ")" << endl;
 	}
 
 	// this step must come after e-value calculation,
@@ -442,6 +445,11 @@ int main(int argc, char **argv) {
 		cout << " (remaining=" << filter_end_to_end_fusions(fusions) << ")" << endl;
 	}
 
+	if (options.filters.at("no_coverage")) {
+		cout << "Filtering fusions with no coverage around the breakpoints" << flush;
+		cout << " (remaining=" << filter_no_coverage(fusions, coverage, exon_annotation_index, max_mate_gap) << ")" << endl;
+	}
+
 	// make kmer indices from gene sequences
 	kmer_indices_t kmer_indices;
 	const char kmer_length = 8; // must not be longer than 16 or else conversion to int will fail
@@ -460,15 +468,6 @@ int main(int argc, char **argv) {
 	if (options.filters.at("mismappers")) {
 		cout << "Re-aligning chimeric reads to filter fusions with >=" << (options.max_mismapper_fraction*100) << "% mis-mappers" << flush;
 		cout << " (remaining=" << filter_mismappers(fusions, kmer_indices, kmer_length, assembly, exon_annotation_index, options.max_mismapper_fraction, max_mate_gap) << ")" << endl;
-	}
-
-	kmer_indices.clear(); // free memory
-
-	// this step must come near the end, because random BAM file accesses are slow
-	// this must come after the 'select_best' filter, so that the 'many_spliced' filter can recover it
-	if (options.filters.at("non_expressed")) {
-		cout << "Filtering fusions with no expression in '" << options.rna_bam_file << "'" << flush;
-		cout << " (remaining=" << filter_nonexpressed(fusions, options.rna_bam_file, chimeric_alignments, exon_annotation_index, max_mate_gap) << ")" << endl;
 	}
 
 	// this step must come after all heuristic filters, to undo them
@@ -496,11 +495,11 @@ int main(int argc, char **argv) {
 	assign_confidence(fusions);
 
 	cout << "Writing fusions to file '" << options.output_file << "'" << endl;
-	write_fusions_to_file(fusions, options.output_file, assembly, gene_annotation_index, exon_annotation_index, contigs_by_id, options.print_supporting_reads, options.print_fusion_sequence, false);
+	write_fusions_to_file(fusions, options.output_file, coverage, assembly, gene_annotation_index, exon_annotation_index, contigs_by_id, options.print_supporting_reads, options.print_fusion_sequence, options.print_peptide_sequence, false);
 
 	if (options.discarded_output_file != "") {
 		cout << "Writing discarded fusions to file '" << options.discarded_output_file << "'" << endl;
-		write_fusions_to_file(fusions, options.discarded_output_file, assembly, gene_annotation_index, exon_annotation_index, contigs_by_id, options.print_supporting_reads_for_discarded_fusions, options.print_fusion_sequence_for_discarded_fusions, true);
+		write_fusions_to_file(fusions, options.discarded_output_file, coverage, assembly, gene_annotation_index, exon_annotation_index, contigs_by_id, options.print_supporting_reads_for_discarded_fusions, options.print_fusion_sequence_for_discarded_fusions, options.print_peptide_sequence_for_discarded_fusions, true);
 	}
 
 	return 0;

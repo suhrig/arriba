@@ -14,7 +14,7 @@
 
 using namespace std;
 
-void estimate_expected_fusions(fusions_t& fusions, const unsigned long int mapped_reads) {
+void estimate_expected_fusions(fusions_t& fusions, const unsigned long int mapped_reads, const exon_annotation_index_t& exon_annotation_index) {
 
 	// find all fusion partners for each gene
 	unordered_map< gene_t,gene_set_t > fusion_partners;
@@ -40,42 +40,61 @@ void estimate_expected_fusions(fusions_t& fusions, const unsigned long int mappe
 		}
 	}
 
-	// estimate the fraction of spliced breakpoints
-	// non-spliced breakpoints get a penalty score based on how much more frequent they are than spliced breakpoints
-	vector<unsigned int/*supporting reads*/> spliced_breakpoints(2);
-	vector<unsigned int/*supporting reads*/> non_spliced_breakpoints(spliced_breakpoints.size());
-	for (fusions_t::iterator i = fusions.begin(); i != fusions.end(); ++i) {
-		unsigned int supporting_reads = i->second.supporting_reads();
-		if (i->second.filter == NULL) {
-			if (i->second.split_reads1 + i->second.split_reads2 > 0 && supporting_reads <= spliced_breakpoints.size()) {
-				if (i->second.spliced1 || i->second.spliced2)
-					spliced_breakpoints[supporting_reads-1]++;
-				else
-					non_spliced_breakpoints[supporting_reads-1]++;
-			}
+	// estimate the fraction of breakpoints by location (splice-site vs. exon vs. intron)
+	// non-spliced breakpoints get a penalty based on how much more frequent they are than spliced breakpoints
+	unsigned int spliced_breakpoints = 0;
+	unsigned int exonic_breakpoints = 0;
+	unsigned int intronic_breakpoints = 0;
+	unsigned int exonic_intronic_breakpoints = 0;
+	for (fusions_t::iterator fusion = fusions.begin(); fusion != fusions.end(); ++fusion) {
+		if (fusion->second.filter == NULL &&
+		    (fusion->second.contig1 != fusion->second.contig2 || fusion->second.breakpoint2 - fusion->second.breakpoint1 > 500000) && // ignore proximity artifacts
+		    fusion->second.supporting_reads() >= 2 && fusion->second.split_reads1 + fusion->second.split_reads2 > 0 && // require at least 2 reads, because most events with 1 read are artifacts
+		    !fusion->second.gene1->is_dummy && !fusion->second.gene2->is_dummy) {
+			if (fusion->second.spliced1 || fusion->second.spliced2)
+				spliced_breakpoints++;
+			else if (fusion->second.exonic1 && fusion->second.exonic2)
+				exonic_breakpoints++;
+			else if (!fusion->second.exonic1 && !fusion->second.exonic2)
+				intronic_breakpoints++;
+			else
+				exonic_intronic_breakpoints++;
 		}
 	}
-	vector<float> spliced_breakpoint_bonus(spliced_breakpoints.size());
-	vector<float> non_spliced_breakpoint_bonus(non_spliced_breakpoints.size());
-	for (unsigned int j = 0; j < spliced_breakpoints.size(); ++j) {
-		spliced_breakpoint_bonus[j] = (float) spliced_breakpoints[j] / (spliced_breakpoints[j] + non_spliced_breakpoints[j]);
-		non_spliced_breakpoint_bonus[j] = (float) non_spliced_breakpoints[j] / (spliced_breakpoints[j] + non_spliced_breakpoints[j]);
-		// if there are not enough data points to estimate the bonuses, they might be 0
-		// in this case we use some reasonable default values
-		if (spliced_breakpoint_bonus[j] == 0 || non_spliced_breakpoint_bonus[j] == 0 || spliced_breakpoints[j] + non_spliced_breakpoints[j] == 0) {
-			spliced_breakpoint_bonus[j] = 0.1;
-			non_spliced_breakpoint_bonus[j] = 0.9;
+	// use some reasonable default values if there are not enough data points to estimate the fractions accurately
+	if (spliced_breakpoints + exonic_breakpoints + intronic_breakpoints + exonic_intronic_breakpoints < 100 ||
+	    spliced_breakpoints == 0 || exonic_breakpoints == 0 || intronic_breakpoints == 0 || exonic_intronic_breakpoints == 0) {
+		spliced_breakpoints = 10;
+		exonic_breakpoints = 65;
+		intronic_breakpoints = 10;
+		exonic_intronic_breakpoints = 15;
+	}
+
+	// penalize intragenic events according to event type (inversion vs. duplication),
+	// because some libraries produce a huge amount of artifacts of on of these two types of events:
+	// stranded libraries produce many inversions/unstranded libraries produce many duplications
+	unsigned int intragenic_duplications = 0;
+	unsigned int intragenic_inversions = 0;
+	for (fusions_t::iterator fusion = fusions.begin(); fusion != fusions.end(); ++fusion) {
+		if (fusion->second.filter == NULL && fusion->second.gene1 == fusion->second.gene2 && fusion->second.split_reads1 + fusion->second.split_reads2 >= 2) {
+			if (fusion->second.direction1 == UPSTREAM && fusion->second.direction2 == DOWNSTREAM)
+				intragenic_duplications++;
+			else if (fusion->second.direction1 == fusion->second.direction2)
+				intragenic_inversions++;
 		}
 	}
+	// avoid multiplication by 0
+	intragenic_inversions = max(1U, intragenic_inversions);
+	intragenic_duplications = max(1U, intragenic_duplications);
 
 	// for each fusion, check if the observed number of supporting reads cannot be explained by random chance,
 	// i.e. if the number is higher than expected given the number of fusion partners in both genes
-	for (fusions_t::iterator i = fusions.begin(); i != fusions.end(); ++i) {
+	for (fusions_t::iterator fusion = fusions.begin(); fusion != fusions.end(); ++fusion) {
 
 		// pick the gene with the most fusion partners
 		float max_fusion_partners = max(
-			10000.0 / i->second.gene1->exonic_length * max(fusion_partner_count[i->second.gene1]-1, 0),
-			10000.0 / i->second.gene2->exonic_length * max(fusion_partner_count[i->second.gene2]-1, 0)
+			10000.0 / fusion->second.gene1->exonic_length * max(fusion_partner_count[fusion->second.gene1]-1, 1),
+			10000.0 / fusion->second.gene2->exonic_length * max(fusion_partner_count[fusion->second.gene2]-1, 1)
 		);
 
 		// calculate expected number of fusions (e-value)
@@ -83,81 +102,76 @@ void estimate_expected_fusions(fusions_t& fusions, const unsigned long int mappe
 		// the more reads there are in the rna.bam file, the more likely we find fusions supported by just a few reads (2-4)
 		// the likelihood increases linearly, therefore we scale up the e-value proportionately to the number of mapped reads
 		// for every 20 million reads, the scaling factor increases by 1 (this is an empirically determined value)
-		int supporting_reads;
-		if (!i->second.breakpoint_overlaps_both_genes()) // for intergenic fusions we take the sum of all supporting reads (split reads + discordant mates)
-			supporting_reads = i->second.supporting_reads();
-		else // for intragenic fusions we ignore discordant mates, because they are very abundant
-			supporting_reads = i->second.split_reads1 + i->second.split_reads2;
-
-		i->second.evalue = max_fusion_partners * max(1.0, mapped_reads / 20000000.0 * pow(0.02, supporting_reads-2));
+		fusion->second.evalue = max_fusion_partners * max(1.0, mapped_reads / 20000000.0 * pow(0.02, fusion->second.supporting_reads()-2));
 
 		// intergenic and intragenic fusions are scored differently, because they have different frequencies
-		if (!(i->second.breakpoint1 >= i->second.gene2->start - 10000 && i->second.breakpoint1 <= i->second.gene2->end + 10000 &&
-		      i->second.breakpoint2 >= i->second.gene1->start - 10000 && i->second.breakpoint2 <= i->second.gene1->end + 10000)) {
+		if (fusion->second.is_intragenic()) {
+
+			// events get a bonus based on their type
+			// the bonus is proportionate to the frequency of the type
+			// we multiply by 2.0 so that the overall effect is neutral, because there are two types (duplication vs. inversion)
+			fusion->second.evalue *= 2.0 / (intragenic_duplications + intragenic_inversions);
+			if (fusion->second.direction1 == UPSTREAM && fusion->second.direction2 == DOWNSTREAM)
+				fusion->second.evalue *= intragenic_duplications;
+			else if (fusion->second.direction1 == fusion->second.direction2)
+				fusion->second.evalue *= intragenic_inversions;
 
 			// the more fusion partners a gene has, the less likely a fusion is true (hence we multiply the e-value by max_fusion_partners)
-			// but the likehood of a false positive decreases near-exponentially with the number of supporting reads (hence we multiply by x^(supporting_reads-2) )
-			if (supporting_reads > 1) {
-				i->second.evalue *= 0.035;
-				if (supporting_reads > 2) {
-					i->second.evalue *= 0.2;
-					if (supporting_reads > 3)
-						i->second.evalue *= pow(0.4, supporting_reads-3);
+			// but the likehood of a false positive decreases near-polynomially with the number of supporting reads
+			if (fusion->second.supporting_reads() >= 1) {
+				fusion->second.evalue *= pow(fusion->second.supporting_reads()-0.42, -2.11) * pow(10, -1.11);
+				int spliced_distance = get_spliced_distance(fusion->second.contig1, fusion->second.breakpoint1, fusion->second.breakpoint2, fusion->second.direction1, fusion->second.direction2, fusion->second.gene1, exon_annotation_index);
+				if (spliced_distance < 1000) {
+					fusion->second.evalue *= pow(max(400, spliced_distance)/1000.0, -2);
+					if (spliced_distance < 400)
+						fusion->second.evalue *= pow(max(1, spliced_distance)/400.0, -4.58);
 				}
 			}
 
-		} else {
+		} else { // intergenic event
 
-			if (supporting_reads > 1) {
-				i->second.evalue *= 0.125;
-				if (supporting_reads > 2) {
-					i->second.evalue *= 0.3;
-					if (supporting_reads > 3)
-						i->second.evalue *= pow(0.4, supporting_reads-3);
+			if (fusion->second.supporting_reads() >= 1) {
+				// the more fusion partners a gene has, the less likely a fusion is true (hence we multiply the e-value by max_fusion_partners)
+				// but the likehood of a false positive decreases near-polynomially with the number of supporting reads
+				fusion->second.evalue *= pow(fusion->second.supporting_reads()-0.73, -2.28) * pow(10, -1.75);
+
+				if (fusion->second.is_read_through()) { // penalize read-through fusions
+					fusion->second.evalue *= pow(max(1, fusion->second.breakpoint2 - fusion->second.breakpoint1)/400000.0, -0.63);
+				} else if (fusion->second.contig1 == fusion->second.contig2 && fusion->second.breakpoint2 - fusion->second.breakpoint1 < 400000) { // penalize proximal events
+					fusion->second.evalue *= pow(max(1, fusion->second.breakpoint2 - fusion->second.breakpoint1)/400000.0, -1.53);
 				}
-
-				// having discordant mates in addition to split reads only gives a small bonus
-				if (i->second.discordant_mates > 0)
-					i->second.evalue *= 0.9;
-
-			} else if (i->second.discordant_mates > 0) { // event is only supported by discordant mates
-				i->second.evalue *= 0.1;
-				if (i->second.discordant_mates > 1)
-					i->second.evalue *= 0.9;
 			}
-
 
 		}
 
-		// breakpoints at splice-sites get a bonus
-		if (supporting_reads > 0) {
-			if (i->second.spliced1 || i->second.spliced2) {
-				if (supporting_reads <= spliced_breakpoint_bonus.size())
-					i->second.evalue *= spliced_breakpoint_bonus[supporting_reads-1];
-				else
-					i->second.evalue *= spliced_breakpoint_bonus[spliced_breakpoints.size()-1];
-			} else {
-				if (supporting_reads <= non_spliced_breakpoint_bonus.size())
-					i->second.evalue *= non_spliced_breakpoint_bonus[supporting_reads-1];
-				else
-					i->second.evalue *= non_spliced_breakpoint_bonus[spliced_breakpoints.size()-1];
-			}
-		}
+		// events get a bonus based on their location
+		// the bonus is proportionate to the frequency of the events
+		// we multiply by 4.0 so that the overall effect is neutral, because there are four possible locations (splice-site vs. intron vs. exon vs. mixed)
+		// we always take max(spliced_breakpoints, ...), because spliced breakpoints should be the rarest or else the estimates are probably faulty
+		fusion->second.evalue *= 4.0 / (spliced_breakpoints + exonic_breakpoints + intronic_breakpoints + exonic_intronic_breakpoints);
+		if (fusion->second.spliced1 || fusion->second.spliced2)
+			fusion->second.evalue *= spliced_breakpoints;
+		else if (fusion->second.exonic1 && fusion->second.exonic2)
+			fusion->second.evalue *= max(spliced_breakpoints, exonic_breakpoints);
+		else if (!fusion->second.exonic1 && !fusion->second.exonic2)
+			fusion->second.evalue *= max(spliced_breakpoints, intronic_breakpoints);
+		else
+			fusion->second.evalue *= max(spliced_breakpoints, exonic_intronic_breakpoints);
 	}
 }
 
 unsigned int filter_relative_support(fusions_t& fusions, const float evalue_cutoff) {
 	unsigned int remaining = 0;
-	for (fusions_t::iterator i = fusions.begin(); i != fusions.end(); ++i) {
-		if (i->second.filter != NULL)
+	for (fusions_t::iterator fusion = fusions.begin(); fusion != fusions.end(); ++fusion) {
+		if (fusion->second.filter != NULL)
 			continue; // fusion has already been filtered
 
 		// throw away fusions which are expected to occur by random chance
-		if (i->second.evalue < evalue_cutoff && // only keep fusions with good e-value
-		    !(i->second.gene1 == i->second.gene2 && i->second.split_reads1 + i->second.split_reads2 == 0)) { // but ignore intragenic fusions only supported by discordant mates
+		if (fusion->second.evalue < evalue_cutoff && // only keep fusions with good e-value
+		    !(fusion->second.is_intragenic() && fusion->second.split_reads1 + fusion->second.split_reads2 == 0)) { // but ignore intragenic fusions only supported by discordant mates
 			remaining++;
 		} else {
-			i->second.filter = FILTERS.at("relative_support");
+			fusion->second.filter = FILTERS.at("relative_support");
 		}
 	}
 	return remaining;

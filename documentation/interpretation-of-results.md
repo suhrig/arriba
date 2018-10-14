@@ -13,7 +13,7 @@ The validation rate alone does not determine the confidence. For example, transc
 
 The predictions are listed from highest to lowest in the output file. The ranking is most influenced by the number of supporting reads. But many additional features are taken into account as well, such as the proximity of the breakpoints (intragenic vs. read-through vs. distal), multiple transcript variants between the same pair of genes, or the level of background noise in a given gene ([e-value](internal-algorithm.md)).
 
-The confidence scoring can be used as a coarse guide for inexperienced users. According to internal tests, about two thirds of the high-confidence predictions correlate with a genomic rearrangement, one third of the medium-confidence predictions, and 5% of the low-confidence predictions. This can be considered a lower bound for the validation rate, since some aberrant transcripts arise via other mechanisms than genomic rearrangements and because some events are easily missed in DNA-Seq data (e.g., breakpoints in long tandem repeats).
+The confidence scoring can be used as a coarse guide for inexperienced users. According to internal tests, about two thirds of the high-confidence predictions correlate with a genomic rearrangement, one third of the medium-confidence predictions, and 5-10% of the low-confidence predictions. This can be considered a lower bound for the validation rate, since some aberrant transcripts arise via other mechanisms than genomic rearrangements and because some events are easily missed in DNA-Seq data (e.g., breakpoints in long tandem repeats).
 
 Medium confidence predictions usually have a high number of supporting reads, but one or more characteristics of the predictions are frequently observed with artifacts. Among other factors, events which lack split reads, might be read-through fusions, or have a high level of background noise are classified as medium-confidence.
 
@@ -133,16 +133,6 @@ MTAP  CDKN2B-AS1    +/+     +/+     9:21818202   9:22120199   splice-site splice
 MTAP  UBA52P6       +/+     +/+     9:21818202   9:22012127   splice-site 5'UTR       deletion/read-through       downstream upstream   1            2            1                high
 MTAP  RP11-408N14.1 +/+     -/+     9:21818202   9:22210663   splice-site intron      deletion/read-through/5'-5' downstream upstream   3            4            3                medium
 ```
-
-Inspection of events using IGV
-------------------------------
-
-Inspecting the supporting reads of an event using [IGV](http://software.broadinstitute.org/software/igv/) can help identify alignment artifacts. All the information that Arriba uses as a basis for fusion prediction can be found in the files `chimeric.bam` and `read_through.bam`. It is advisable to also load the normal alignments, because they provide additional context. For example, they might reveal additional chimeric reads which were missed, because their clipped segment is too short to align uniquely to the genome. Both breakpoints can be opened side-by-side simply by pasting the breakpoint coordinates into the location field separated by white-space. One can zoom in and out the two panes using the `+` and `-` keys. If `arriba` was run with the parameter `-I`, the column `read_identifiers` contains the names of the supporting reads. Reads can be highlighted by name by right-clicking anywhere in one of the panes and choosing `Select by name...`. If you suspect that a predicted event is an alignment artifact, because the alignment quality of the supporting reads looks poor (many mismatches/clipped bases), then you can have IGV search for a better alignment. Right-click a read and choose `Blat read sequence` to perform a sensitive search for alternative alignments that STAR did not find.
-
-Visualization of fusions
-------------------------
-
-Arriba comes with a R script that generates simplistic visualizations of the transcripts involved in predicted fusions. The script takes the file `fusions.tsv` and an annotation in GTF format as input. It generates a PDF file with one page for each predicted fusion. Each page depicts the fusion partners, their orientation, the retained exons in the fusion transcript, statistics about the number of supporting reads, and - if the column `fusion_transcript` has a value - an excerpt of the sequence around the breakpoint. If a gene has multiple transcript variants, the script preferrably picks the longest transcript with splice-sites matching the breakpoints.
 
 Cohort analysis
 ---------------

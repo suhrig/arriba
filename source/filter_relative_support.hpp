@@ -6,7 +6,7 @@
 
 using namespace std;
 
-void estimate_expected_fusions(fusions_t& fusions, const unsigned long int mapped_reads);
+void estimate_expected_fusions(fusions_t& fusions, const unsigned long int mapped_reads, const exon_annotation_index_t& exon_annotation_index);
 
 unsigned int filter_relative_support(fusions_t& fusions, const float evalue_cutoff);
 

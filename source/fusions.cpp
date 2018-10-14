@@ -396,14 +396,14 @@ unsigned int find_fusions(chimeric_alignments_t& chimeric_alignments, fusions_t&
 				if (mate1->contig > mate2->contig || mate1->contig == mate2->contig && mate1_breakpoint > mate2_breakpoint)
 					swap(mate1, mate2);
 
-				// if this is an intragenic event, require discordant mates to be close to breakpoints
-				bool intragenic = fusion->second.breakpoint1 >= fusion->second.gene2->start - 10000 && fusion->second.breakpoint1 <= fusion->second.gene2->end + 10000 &&
-				                  fusion->second.breakpoint2 >= fusion->second.gene1->start - 10000 && fusion->second.breakpoint2 <= fusion->second.gene1->end + 10000;
+				// if the precise breakpoint is known (i.e., there are split reads), the discordant mate must not run over the breakpoint (at most 2bp)
+				// if the precise breakpoint is not known (i.e., there are only discordant mates), we are more permissive (max_mate_gap)
+				int max_overlap_with_breakpoint = (fusion->second.split_read1_list.size() + fusion->second.split_read2_list.size() > 0) ? 2 : max_mate_gap;
 
-				if (((fusion->second.direction1 == DOWNSTREAM && mate1->strand == FORWARD && (!intragenic || mate1->end >= fusion->second.breakpoint1 - max_mate_gap) && (mate1->end-2 <= fusion->second.breakpoint1 && fusion->second.split_reads1 + fusion->second.split_reads2 > 0 || mate1->end-max_mate_gap <= fusion->second.breakpoint1 && fusion->second.split_reads1 + fusion->second.split_reads2 == 0)) ||
-				     (fusion->second.direction1 == UPSTREAM   && mate1->strand == REVERSE && (!intragenic || mate1->start <= fusion->second.breakpoint1 + max_mate_gap) && (mate1->start+2 >= fusion->second.breakpoint1 && fusion->second.split_reads1+fusion->second.split_reads2 > 0 || mate1->start+max_mate_gap >= fusion->second.breakpoint1 && fusion->second.split_reads1+fusion->second.split_reads2 == 0))) &&
-				    ((fusion->second.direction2 == DOWNSTREAM && mate2->strand == FORWARD && (!intragenic || mate2->start >= fusion->second.breakpoint2 - max_mate_gap) && (mate2->end-2 <= fusion->second.breakpoint2 && fusion->second.split_reads1 + fusion->second.split_reads2 > 0 || mate2->end-max_mate_gap <= fusion->second.breakpoint2 && fusion->second.split_reads1 + fusion->second.split_reads2 == 0)) ||
-				     (fusion->second.direction2 == UPSTREAM   && mate2->strand == REVERSE && (!intragenic || mate2->start <= fusion->second.breakpoint2 + max_mate_gap) && (mate2->start+2 >= fusion->second.breakpoint2 && fusion->second.split_reads1+fusion->second.split_reads2 > 0 || mate2->start+max_mate_gap >= fusion->second.breakpoint2 && fusion->second.split_reads1+fusion->second.split_reads2 == 0)))) {
+				if (((fusion->second.direction1 == DOWNSTREAM && mate1->strand == FORWARD && (!fusion->second.is_intragenic() || mate1->end   >= fusion->second.breakpoint1 - max_mate_gap) && mate1->end   <= fusion->second.breakpoint1 + max_overlap_with_breakpoint) ||
+				     (fusion->second.direction1 == UPSTREAM   && mate1->strand == REVERSE && (!fusion->second.is_intragenic() || mate1->start <= fusion->second.breakpoint1 + max_mate_gap) && mate1->start >= fusion->second.breakpoint1 - max_overlap_with_breakpoint)) &&
+				    ((fusion->second.direction2 == DOWNSTREAM && mate2->strand == FORWARD && (!fusion->second.is_intragenic() || mate2->end   >= fusion->second.breakpoint2 - max_mate_gap) && mate2->end   <= fusion->second.breakpoint2 + max_overlap_with_breakpoint) ||
+				     (fusion->second.direction2 == UPSTREAM   && mate2->strand == REVERSE && (!fusion->second.is_intragenic() || mate2->start <= fusion->second.breakpoint2 + max_mate_gap) && mate2->start >= fusion->second.breakpoint2 - max_overlap_with_breakpoint))) {
 
 					fusion->second.discordant_mate_list.push_back(*discordant_mate);
 
