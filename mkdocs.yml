@@ -4,6 +4,7 @@ site_author: 'Sebastian Uhrig'
 site_url: 'https://github.com/suhrig/arriba/'
 repo_url: 'https://github.com/suhrig/arriba/'
 docs_dir: 'documentation'
+theme: 'readthedocs'
 pages:
   - 'Home': 'index.md'
   - 'quickstart.md'
