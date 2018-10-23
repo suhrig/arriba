@@ -6,9 +6,9 @@ Arriba has only a single prerequisite: [STAR](https://github.com/alexdobin/STAR)
 Compile the latest stable version of Arriba or use the precompiled binaries in the download file. **Note: You should not use `git clone` to download Arriba, because the git repository does not include the blacklist! Instead, download the latest tarball from the [releases page](https://github.com/suhrig/arriba/releases/) as shown here:**
 
 ```bash
-wget https://github.com/suhrig/arriba/releases/download/v1.0.0/arriba_v1.0.0.tar.gz
-tar -xzf arriba_v1.0.0.tar.gz
-cd arriba_v1.0.0 && make # or use precompiled binaries
+wget https://github.com/suhrig/arriba/releases/download/v1.0.1/arriba_v1.0.1.tar.gz
+tar -xzf arriba_v1.0.1.tar.gz
+cd arriba_v1.0.1 && make # or use precompiled binaries
 ```
 
 Arriba requires an assembly in FastA format, gene annotation in GTF format, and a STAR index built from the two. You can use your preferred assembly and annotation, as long as their coordinates are compatible with hg19/hs37d5/GRCh37 or hg38/GRCh38. Support for mm10 is in development. If you use another assembly, then the coordinates in the blacklist will not match and the predictions will contain many false positives. GENCODE annotation is recommended over RefSeq due to more comprehensive annotation of splice-sites, which improves sensitivity. If you do not already have the files and a STAR index, you can use the script `download_references.sh`. It downloads the files to the current working directory and builds a STAR index. Run the script without arguments to see a list of available files. Note that this step requires ~30 GB of RAM and 8 cores (or whatever number of cores you pass as the second argument).

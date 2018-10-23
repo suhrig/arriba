@@ -9,7 +9,7 @@
 using namespace std;
 
 const string HELP_CONTACT = "https://github.com/suhrig/arriba/";
-const string ARRIBA_VERSION = "1.0.0";
+const string ARRIBA_VERSION = "1.0.1";
 
 string wrap_help(const string& option, const string& text, const unsigned short int max_line_width = 80);
 
