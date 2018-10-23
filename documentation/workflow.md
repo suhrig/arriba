@@ -19,7 +19,7 @@ In order for STAR to search for chimeric alignments, the parameter `--chimSegmen
 --chimSegmentMin 10 --chimOutType WithinBAM SoftClip --chimJunctionOverhangMin 10 --chimScoreMin 1 --chimScoreDropMax 30 --chimScoreJunctionNonGTAG 0 --chimScoreSeparation 1 --alignSJstitchMismatchNmax 5 -1 5 5 --chimSegmentReadGapMax 3
 ```
 
-Arriba does not care, if the BAM files are sorted/indexed or not. For maximum speed, STAR's output should be piped directly to Arriba, such that chimeric reads are extracted while STAR is still running. STAR can be instructed to write alignments to `STDOUT` using the parameter `--outStd BAM_Unsorted`.
+Arriba does not care, if the BAM files are sorted/indexed or not. For maximum speed, STAR's output should be piped directly to Arriba, such that chimeric reads are extracted while STAR is still running. STAR can be instructed to write alignments to `STDOUT` using the parameters `--outStd BAM_Unsorted` and `--outSAMtype BAM Unsorted`. Furthermore, it is recommended to pipe the alignments in uncompressed format to Arriba (`--outBAMcompression 0`), because BAM compression is not parallelized well in STAR and [becomes a bottleneck when using more than six to eight threads](https://github.com/alexdobin/STAR/issues/351).
 
 A complete call of STAR in conjunction with Arriba may look like this:
 
@@ -28,7 +28,7 @@ STAR \
 	--runThreadN 8 \
 	--genomeDir /path/to/STAR_index --genomeLoad NoSharedMemory \
 	--readFilesIn read1.fastq.gz read2.fastq.gz --readFilesCommand zcat \
-	--outStd BAM_Unsorted --outSAMtype BAM Unsorted --outSAMunmapped Within \
+	--outStd BAM_Unsorted --outSAMtype BAM Unsorted --outSAMunmapped Within --outBAMcompression 0 \
 	--outFilterMultimapNmax 1 --outFilterMismatchNmax 3 \
 	--chimSegmentMin 10 --chimOutType WithinBAM SoftClip --chimJunctionOverhangMin 10 --chimScoreMin 1 --chimScoreDropMax 30 --chimScoreJunctionNonGTAG 0 --chimScoreSeparation 1 --alignSJstitchMismatchNmax 5 -1 5 5 --chimSegmentReadGapMax 3 |
 arriba \

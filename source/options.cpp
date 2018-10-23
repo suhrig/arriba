@@ -49,19 +49,23 @@ bool output_directory_exists(const string& output_file) {
 
 bool validate_int(const char* optarg, int& value, const int min_value, const int max_value) {
 	value = atoi(optarg);
-	if (optarg != "0" && value == 0)
+	if (string(optarg) != string("0") && value == 0)
 		return false;
 	return value >= min_value && value <= max_value;
 }
 
 bool validate_int(const char* optarg, unsigned int& value, const unsigned int min_value, const unsigned int max_value) {
 	int signed_int;
-	return validate_int(optarg, signed_int, min_value, max_value);
+	if (validate_int(optarg, signed_int, min_value, max_value)) {
+		value = signed_int;
+		return true;
+	} else
+		return false;
 }
 
 bool validate_float(const char* optarg, float& value, const float min_value, const float max_value) {
 	value = atof(optarg);
-	if (optarg != "0" && value == 0)
+	if (string(optarg) != string("0") && value == 0)
 		return false;
 	return value >= min_value && value <= max_value;
 }
@@ -240,7 +244,7 @@ options_t parse_arguments(int argc, char **argv) {
 	// parse arguments
 	opterr = 0;
 	int c;
-	while ((c = getopt(argc, argv, "c:x:d:g:G:o:O:a:k:b:s:i:f:E:S:m:L:H:D:R:A:M:K:F:U:e:TPIh")) != -1) {
+	while ((c = getopt(argc, argv, "c:x:d:g:G:o:O:a:b:k:s:i:f:E:S:m:L:H:D:R:A:M:K:V:F:U:Q:e:TPIh")) != -1) {
 		switch (c) {
 			case 'c':
 				options.chimeric_bam_file = optarg;
@@ -359,7 +363,7 @@ options_t parse_arguments(int argc, char **argv) {
 				}
 				break;
 			case 'E':
-				if (!validate_float(optarg, options.evalue_cutoff) || options.evalue_cutoff <= 0) {
+				if (!validate_float(optarg, options.evalue_cutoff, 0)) {
 					cerr << "ERROR: " << "Argument to -" << ((char) c) << " must be greater than 0." << endl;
 					exit(1);
 				}
@@ -419,20 +423,20 @@ options_t parse_arguments(int argc, char **argv) {
 				}
 				break;
 			case 'V':
-				if (!validate_float(optarg, options.mismatch_pvalue_cutoff) || options.mismatch_pvalue_cutoff <= 0) {
-					cerr << "ERROR: " << "Argument to -" << ((char) c) << " must be greater than 0." << endl;
+				if (!validate_float(optarg, options.mismatch_pvalue_cutoff, 0, 1)) {
+					cerr << "ERROR: " << "Argument to -" << ((char) c) << " must be between 0 and 1." << endl;
 					exit(1);
 				}
 				break;
 			case 'F':
 				if (!validate_int(optarg, options.fragment_length, 1)) {
-					cerr << "ERROR: " << "Argument to -" << ((char) c) << " must be greater than 0." << endl;
+					cerr << "ERROR: " << "Argument to -" << ((char) c) << " must be an integer greater than 0." << endl;
 					exit(1);
 				}
 				break;
 			case 'U':
 				if (!validate_int(optarg, options.subsampling_threshold, 1, SHRT_MAX)) {
-					cerr << "ERROR: " << "Argument to -" << ((char) c) << " must be between 1 and " << SHRT_MAX << "." << endl;
+					cerr << "ERROR: " << "Argument to -" << ((char) c) << " must be an integer between 1 and " << SHRT_MAX << "." << endl;
 					exit(1);
 				}
 				break;
