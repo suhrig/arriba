@@ -1,7 +1,7 @@
-Rendering publication-quality figures
--------------------------------------
+Publication-quality figures
+---------------------------
 
-Arriba comes with an R script that generates publication-quality visualizations of the transcripts involved in predicted fusions. It generates a PDF file with one page for each predicted fusion. Each page depicts the fusion partners, their orientation, the retained exons in the fusion transcript, statistics about the number of supporting reads, and - if the column `fusion_transcript` has a value - an excerpt of the sequence around the breakpoint.
+Arriba comes with an R script `draw_fusions.R` that renders publication-quality visualizations of the transcripts involved in predicted fusions. It generates a PDF file with one page for each predicted fusion. Each page depicts the fusion partners, their orientation, the retained exons in the fusion transcript, statistics about the number of supporting reads, and - if the column `fusion_transcript` has a value - an excerpt of the sequence around the breakpoint.
 
 ![Example fusion figure](draw-fusions-example.png)
 
@@ -19,7 +19,7 @@ If there are still multiple eligible transcripts, then the one with the longest 
 
 **Manual execution**
 
-In order to use the script, [R Project](http://r-project.org/) must be installed. Optionally, a few additional packages need to be installed, if ideograms, circos plots, and coverage tracks should be drawn. Use the following R commands to install these packages:
+In order to use the script, [R Project](http://r-project.org/) must be installed. Optionally, a few additional R packages need to be installed, if ideograms, circos plots, and coverage tracks should be drawn. Use the following R commands to install these packages:
 
 ```R
 install.packages("circlize")
