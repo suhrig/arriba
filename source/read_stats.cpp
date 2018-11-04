@@ -57,7 +57,7 @@ bool estimate_mate_gap_distribution(const chimeric_alignments_t& chimeric_alignm
 		for (list<int>::iterator i = mate_gaps.begin(); i != mate_gaps.end(); ++i)
 			if (*i > mate_gap_mean - mate_gap_stddev || *i < mate_gap_mean + mate_gap_stddev)
 				within_range++;
-		if (1.0*within_range/mate_gaps.size() < 0.683 || no_more_outliers)
+		if (1.0*within_range/count < 0.683 || no_more_outliers)
 			break; // all outliers have been removed
 
 		// remove outliers, if the mate gap distribution is not yet normally distributed
@@ -65,6 +65,7 @@ bool estimate_mate_gap_distribution(const chimeric_alignments_t& chimeric_alignm
 		for (list<int>::iterator i = mate_gaps.begin(); i != mate_gaps.end();) {
 			if (*i < mate_gap_mean - 3*mate_gap_stddev || *i > mate_gap_mean + 3*mate_gap_stddev) {
 				i = mate_gaps.erase(i); // remove outlier
+				count--;
 				no_more_outliers = false;
 			} else {
 				++i;
