@@ -73,7 +73,13 @@ typedef annotation_t<gene_annotation_record_t> gene_annotation_t;
 typedef contig_annotation_index_t<gene_t> gene_contig_annotation_index_t;
 typedef annotation_index_t<gene_t> gene_annotation_index_t;
 
-typedef unsigned int transcript_t;
+struct transcript_annotation_record_t {
+	position_t start;
+	position_t end;
+};
+typedef annotation_t<transcript_annotation_record_t> transcript_annotation_t;
+typedef transcript_annotation_record_t* transcript_t;
+
 struct exon_annotation_record_t: public annotation_record_t {
 	gene_t gene;
 	transcript_t transcript;
@@ -96,9 +102,9 @@ struct alignment_t {
 	bool supplementary;
 	bool first_in_pair;
 	bool exonic;
-	strand_t strand;
-	strand_t predicted_strand;
-	bool predicted_strand_ambiguous;
+	strand_t strand; // strand which the read aligns to
+	strand_t predicted_strand; // strand which is predicted to be transcribed
+	bool predicted_strand_ambiguous; // true, if transcribed strand cannot be predicted reliably
 	contig_t contig;
 	position_t start;
 	position_t end;

@@ -107,9 +107,10 @@ int main(int argc, char **argv) {
 	// load GTF file
 	cout << "Loading annotation from '" << options.gene_annotation_file << "'" << endl << flush;
 	gene_annotation_t gene_annotation;
+	transcript_annotation_t transcript_annotation;
 	exon_annotation_t exon_annotation;
 	unordered_map<string,gene_t> gene_names;
-	read_annotation_gtf(options.gene_annotation_file, options.gtf_features, contigs, gene_annotation, exon_annotation, gene_names);
+	read_annotation_gtf(options.gene_annotation_file, options.gtf_features, contigs, gene_annotation, transcript_annotation, exon_annotation, gene_names);
 
 	// sort genes and exons by coordinate (make index)
 	exon_annotation_index_t exon_annotation_index;
