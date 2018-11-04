@@ -83,9 +83,30 @@ void estimate_expected_fusions(fusions_t& fusions, const unsigned long int mappe
 				intragenic_inversions++;
 		}
 	}
-	// avoid multiplication by 0
-	intragenic_inversions = max(1U, intragenic_inversions);
-	intragenic_duplications = max(1U, intragenic_duplications);
+	// use reasonable defaut values, if sample size is too small
+	if (intragenic_inversions + intragenic_duplications < 100) {
+		intragenic_inversions = 1;
+		intragenic_duplications = 1;
+	}
+
+	// some samples have an extraordinary number of intragenic events
+	// if this is the case, we penalize intragenic events proportionately
+	// consider only spliced events to compute the ratio, otherwise we would penalize TCR- and IG-rearranged tumors too much
+	unsigned int spliced_events_in_same_gene = 0;
+	unsigned int spliced_events_in_different_genes = 0;
+	for (fusions_t::iterator fusion = fusions.begin(); fusion != fusions.end(); ++fusion) {
+		if (fusion->second.spliced1 && fusion->second.spliced2) {
+			if (fusion->second.gene1 == fusion->second.gene2)
+				spliced_events_in_same_gene++;
+			else
+				spliced_events_in_different_genes++;
+		}
+	}
+	// use reasonable defaut values, if sample size is too small
+	if (spliced_events_in_same_gene + spliced_events_in_different_genes < 100) {
+		spliced_events_in_same_gene = 0; // effectively disables penalty
+		spliced_events_in_different_genes = 100;
+	}
 
 	// for each fusion, check if the observed number of supporting reads cannot be explained by random chance,
 	// i.e. if the number is higher than expected given the number of fusion partners in both genes
@@ -127,6 +148,10 @@ void estimate_expected_fusions(fusions_t& fusions, const unsigned long int mappe
 						fusion->second.evalue *= pow(max(1, spliced_distance)/400.0, -4.58);
 				}
 			}
+
+			// penalize intragenic events, if there are excessively many, i.e.
+			// when the ratio of intragenic to intergenic events exceeds 0.25 (a value determined empirically from good-quality samples)
+			fusion->second.evalue *= max(1.0, spliced_events_in_same_gene / 0.25 / spliced_events_in_different_genes);
 
 		} else { // intergenic event
 
