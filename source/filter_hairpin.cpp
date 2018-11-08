@@ -15,6 +15,8 @@ bool is_breakpoint_within_aligned_segment(const position_t breakpoint, const ali
 				reference_position += alignment.cigar.op_length(cigar_element);
 				break;
 			case BAM_CMATCH:
+			case BAM_CDIFF:
+			case BAM_CEQUAL:
 				if (breakpoint >= reference_position && breakpoint <= reference_position + alignment.cigar.op_length(cigar_element))
 					return	true;
 				reference_position += alignment.cigar.op_length(cigar_element);

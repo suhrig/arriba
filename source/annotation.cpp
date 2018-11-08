@@ -453,6 +453,8 @@ void annotate_alignment(alignment_t& alignment, gene_set_t& gene_set, const exon
 			switch (alignment.cigar.operation(i)) {
 				case BAM_CREF_SKIP:
 				case BAM_CMATCH:
+				case BAM_CDIFF:
+				case BAM_CEQUAL:
 				case BAM_CDEL:
 					reference_position += alignment.cigar.op_length(i);
 			}
