@@ -60,7 +60,7 @@ void make_kmer_index(const fusions_t& fusions, const assembly_t& assembly, const
 	// store positions of kmers in hash
 	for (gene_set_t::iterator gene = genes_to_filter.begin(); gene != genes_to_filter.end(); ++gene) {
 		const string& contig_sequence = assembly.at((**gene).contig);
-		if (kmer_indices.size() <= (**gene).contig)
+		if ((int) kmer_indices.size() <= (**gene).contig)
 			kmer_indices.resize((**gene).contig+1);
 		for (position_t pos = (**gene).start; pos + kmer_length < (**gene).end; pos++)
 			if (contig_sequence[pos] != 'N') // don't index masked regions, as long stretches of N's inflate the number of hits
@@ -82,8 +82,8 @@ bool align(int score, const string& read_sequence, int read_pos, const string& c
 	int skipped_bases = 0;
 
 	for (/* read_pos comes from parameters */;
-	     read_pos + kmer_length < read_sequence.length() && // don't run over end of read
-	     read_pos + min_score <= read_sequence.length() + score + 2*kmer_length; // give up, when we can impossibly get above min_score, because we are near the end of the read
+	     read_pos + kmer_length < (int) read_sequence.length() && // don't run over end of read
+	     read_pos + min_score <= (int) read_sequence.length() + score + 2*kmer_length; // give up, when we can impossibly get above min_score, because we are near the end of the read
 	                                                                             // 2*kmer_length takes into account that the score can improve, if we can extend to the left (up to kmer_length)
 	     read_pos++, score--, skipped_bases++) { // if a base cannot be aligned, go to the next, but give -1 penalty and increase the number of skipped bases
 
@@ -137,7 +137,7 @@ bool align(int score, const string& read_sequence, int read_pos, const string& c
 				unsigned int mismatch_count = 0;
 				unsigned int consecutive_mismatches = 0;
 				splice_sites_t::const_iterator next_splice_site = splice_sites.lower_bound(extended_gene_pos - 1);
-				while (extended_read_pos < read_sequence.length() && extended_gene_pos <= gene_end) {
+				while (extended_read_pos < (int) read_sequence.length() && extended_gene_pos <= gene_end) {
 
 					// try a spliced alignment, if we run over a splice-site
 					if (next_splice_site != splice_sites.end()) {

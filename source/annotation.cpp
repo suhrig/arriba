@@ -76,7 +76,7 @@ void remove_gene(const gene_t gene_to_remove, gene_annotation_t& gene_annotation
 }
 
 void remove_transcript(const transcript_t transcript_to_remove, gene_annotation_t& gene_annotation, exon_annotation_t& exon_annotation) {
-	gene_t gene;
+	gene_t gene = NULL;
 
 	// remove all exons belonging to transcript
 	for (exon_annotation_t::iterator exon = exon_annotation.begin(); exon != exon_annotation.end();) {
@@ -388,7 +388,7 @@ bool filter_exons_near_splice_site(const gene_t gene, const direction_t directio
 bool is_breakpoint_spliced(const gene_t gene, const direction_t direction, const position_t breakpoint, const exon_annotation_index_t& exon_annotation_index) {
 
 	// nothing to do, if there are no exons on the given contig
-	if (gene->contig >= exon_annotation_index.size() || exon_annotation_index[gene->contig].empty())
+	if ((unsigned int) gene->contig >= exon_annotation_index.size() || exon_annotation_index[gene->contig].empty())
 		return false;
 
 	// find exons in the vicinity of the breakpoint
@@ -560,7 +560,7 @@ int get_spliced_distance(const contig_t contig, position_t position1, position_t
 	}
 
 	// take the plain distance, if no exons are annotated for the given contig
-	if (contig >= exon_annotation_index.size() || exon_annotation_index[contig].empty())
+	if ((unsigned int) contig >= exon_annotation_index.size() || exon_annotation_index[contig].empty())
 		return position2 - position1;
 
 	// find exon/intron of position1 & 2

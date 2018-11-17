@@ -55,7 +55,7 @@ unsigned int filter_homopolymer(chimeric_alignments_t& chimeric_alignments, cons
 
 		++remaining;
 
-		next_read: NULL; // NULL is a dummy statement for the goto label
+		next_read: continue;
 	}
 
 	return remaining;

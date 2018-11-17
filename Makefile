@@ -1,7 +1,7 @@
 HTSLIB := htslib-1.8
 SOURCE := source
 CXX := g++
-CXXFLAGS := -pthread -std=c++0x -O2 -I$(SOURCE) -I$(HTSLIB)/htslib
+CXXFLAGS := -Wall -Wno-parentheses -pthread -std=c++0x -O2 -I$(SOURCE) -I$(HTSLIB)/htslib
 LDFLAGS := -lz -llzma -lbz2
 
 all: arriba

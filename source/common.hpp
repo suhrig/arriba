@@ -154,8 +154,8 @@ struct fusion_t {
 	short unsigned int split_reads1, split_reads2, discordant_mates;
 	float evalue; // expected number of fusions with the given properties by random chance
 	position_t breakpoint1, breakpoint2;
-	position_t closest_genomic_breakpoint1, closest_genomic_breakpoint2;
 	position_t anchor_start1, anchor_start2;
+	position_t closest_genomic_breakpoint1, closest_genomic_breakpoint2;
 	gene_t gene1, gene2;
 	vector<chimeric_alignments_t::iterator> split_read1_list, split_read2_list, discordant_mate_list;
 	filter_t filter; // name of the filter which discarded the fusion (NULL means not discarded)

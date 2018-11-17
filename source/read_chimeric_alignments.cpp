@@ -51,7 +51,7 @@ void add_chimeric_alignment(chimeric_alignments_t& chimeric_alignments, const ba
 	alignment.supplementary = is_supplementary;
 	if (!is_supplementary) { // only keep sequence in memory, if this is not the supplementary alignment (because then it's already stored in the split-read)
 		alignment.sequence.resize(bam_record->core.l_qseq);
-		for (unsigned int i = 0; i < bam_record->core.l_qseq; ++i)
+		for (int i = 0; i < bam_record->core.l_qseq; ++i)
 			alignment.sequence[i] = seq_nt16_str[bam_seqi(bam_get_seq(bam_record), i)];
 	}
 
@@ -126,7 +126,6 @@ bool extract_read_through_alignment(chimeric_alignments_t& chimeric_alignments, 
 
 		// check for possibility (1) => find intron in CIGAR string which spans the fusion genes
 		unsigned int forward_cigar_op, reverse_cigar_op;
-		unsigned int forward_matches_before_intron, reverse_matches_before_intron;
 		position_t forward_read_pos, reverse_read_pos;
 		bool forward_mate_has_intron = (forward_mate == NULL) ? false : find_spanning_intron(forward_mate, forward_gene_end, reverse_gene_start, forward_cigar_op, forward_read_pos);
 		bool reverse_mate_has_intron = (reverse_mate == NULL) ? false : find_spanning_intron(reverse_mate, forward_gene_end, reverse_gene_start, reverse_cigar_op, reverse_read_pos);
@@ -198,7 +197,7 @@ unsigned int read_chimeric_alignments(const string& bam_file_path, const string&
 	// and make a map tid -> contig, because the contig IDs in the BAM file need not necessarily match the contig IDs in the GTF file
 	tid_to_contig_t tid_to_contig(bam_header->n_targets);
 	vector<bool> interesting_tids(bam_header->n_targets);
-	for (uint32_t target = 0; target < bam_header->n_targets; ++target) {
+	for (int target = 0; target < bam_header->n_targets; ++target) {
 		string contig_name = removeChr(bam_header->target_name[target]);
 		contigs.insert(pair<string,contig_t>(contig_name, contigs.size())); // this fails (i.e., nothing is inserted), if the contig already exists
 		tid_to_contig[target] = contigs[contig_name];

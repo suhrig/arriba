@@ -6,7 +6,7 @@
 
 using namespace std;
 
-unsigned int filter_proximal_read_through(chimeric_alignments_t& chimeric_alignments, const unsigned int min_distance);
+unsigned int filter_proximal_read_through(chimeric_alignments_t& chimeric_alignments, const int min_distance);
 
 #endif /* _FILTER_PROXIMAL_READ_THROUGH_H */
 

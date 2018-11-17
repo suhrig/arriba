@@ -18,7 +18,7 @@ bool is_homolog(const gene_t gene1, const gene_t gene2, const kmer_indices_t& km
 		return false;
 
 	// find the smaller of the two genes
-	gene_t small_gene = gene1;(gene1->length() > gene2->length()) ? gene2 : gene1;
+	gene_t small_gene = gene1;
 	gene_t big_gene = gene2;
 	if (small_gene->length() > big_gene->length())
 		swap(small_gene, big_gene);

@@ -126,8 +126,8 @@ void coverage_t::add_fragment(bam1_t* mate1, bam1_t* mate2, const bool is_read_t
 	if (mate2 == NULL)
 		mate2 = mate1;
 
-	if (mate1->core.tid >= fragment_starts.size() || fragment_starts[mate1->core.tid].empty() ||
-	    mate2->core.tid >= fragment_starts.size() || fragment_starts[mate2->core.tid].empty())
+	if ((unsigned int) mate1->core.tid >= fragment_starts.size() || fragment_starts[mate1->core.tid].empty() ||
+	    (unsigned int) mate2->core.tid >= fragment_starts.size() || fragment_starts[mate2->core.tid].empty())
 		return; // ignore reads on uninteresting contigs
 
 	bool is_chimeric = is_read_through_alignment;
@@ -229,10 +229,10 @@ void coverage_t::add_fragment(bam1_t* mate1, bam1_t* mate2, const bool is_read_t
 
 // returns true, if a fragment begins at the given position
 bool coverage_t::fragment_starts_here(const contig_t contig, const position_t start, const position_t end) const {
-	if (contig >= fragment_starts.size())
+	if ((unsigned int) contig >= fragment_starts.size())
 		return false;
-	for (unsigned int window = start/COVERAGE_RESOLUTION + 1; window <= end/COVERAGE_RESOLUTION; ++window) {
-		if (window >= fragment_starts[contig].size())
+	for (int window = start/COVERAGE_RESOLUTION + 1; window <= end/COVERAGE_RESOLUTION; ++window) {
+		if ((unsigned int) window >= fragment_starts[contig].size())
 			return false;
 		if (fragment_starts[contig][window])
 			return true;
@@ -242,10 +242,10 @@ bool coverage_t::fragment_starts_here(const contig_t contig, const position_t st
 
 // returns true, if a fragment ends at the given position
 bool coverage_t::fragment_ends_here(const contig_t contig, const position_t start, const position_t end) const {
-	if (contig >= fragment_ends.size())
+	if ((unsigned int) contig >= fragment_ends.size())
 		return false;
-	for (unsigned int window = start/COVERAGE_RESOLUTION; window < end/COVERAGE_RESOLUTION; ++window) {
-		if (window >= fragment_ends[contig].size())
+	for (int window = start/COVERAGE_RESOLUTION; window < end/COVERAGE_RESOLUTION; ++window) {
+		if ((unsigned int) window >= fragment_ends[contig].size())
 			return false;
 		if (fragment_ends[contig][window])
 			return true;
@@ -255,7 +255,7 @@ bool coverage_t::fragment_ends_here(const contig_t contig, const position_t star
 
 // get coverage within a window of <COVERAGE_RESOLUTION> upstream or downstream of given position
 int coverage_t::get_coverage(const contig_t contig, const position_t position, const direction_t direction) const {
-	if (contig >= coverage.size() || coverage[contig].empty())
+	if ((unsigned int) contig >= coverage.size() || coverage[contig].empty())
 		return -1;
 	if (direction == UPSTREAM) {
 		if (position < COVERAGE_RESOLUTION)

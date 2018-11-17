@@ -171,7 +171,7 @@ int main(int argc, char **argv) {
 	// calculate sum of the lengths of all exons for each gene
 	// we will need this to normalize the number of events over the gene length
 	for (exon_annotation_index_t::iterator contig = exon_annotation_index.begin(); contig != exon_annotation_index.end(); ++contig) {
-		position_t region_start;
+		position_t region_start = 0;
 		for (exon_contig_annotation_index_t::iterator region = contig->begin(); region != contig->end(); ++region) {
 			gene_t previous_gene = NULL;
 			for (exon_set_t::iterator overlapping_exon = region->second.begin(); overlapping_exon != region->second.end(); ++overlapping_exon) {

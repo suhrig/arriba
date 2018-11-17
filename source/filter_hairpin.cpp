@@ -17,8 +17,8 @@ bool is_breakpoint_within_aligned_segment(const position_t breakpoint, const ali
 			case BAM_CMATCH:
 			case BAM_CDIFF:
 			case BAM_CEQUAL:
-				if (breakpoint >= reference_position && breakpoint <= reference_position + alignment.cigar.op_length(cigar_element))
-					return	true;
+				if (breakpoint >= reference_position && breakpoint <= reference_position + (int) alignment.cigar.op_length(cigar_element))
+					return true;
 				reference_position += alignment.cigar.op_length(cigar_element);
 				break;
 		}
@@ -50,14 +50,10 @@ unsigned int filter_hairpin(chimeric_alignments_t& chimeric_alignments, exon_ann
 			}
 		}
 
-		const float fragment_size = max_mate_gap + chimeric_alignment->second[MATE1].sequence.length() * 2;
-
 		if (chimeric_alignment->second.size() == 2) { // discordant mates
 
 			position_t breakpoint1 = (chimeric_alignment->second[MATE1].strand == FORWARD) ? chimeric_alignment->second[MATE1].end : chimeric_alignment->second[MATE1].start;
 			position_t breakpoint2 = (chimeric_alignment->second[MATE2].strand == FORWARD) ? chimeric_alignment->second[MATE2].end : chimeric_alignment->second[MATE2].start;
-			direction_t direction1 = (chimeric_alignment->second[MATE1].strand == FORWARD) ? DOWNSTREAM : UPSTREAM;
-			direction_t direction2 = (chimeric_alignment->second[MATE2].strand == FORWARD) ? DOWNSTREAM : UPSTREAM;
 
 			if (is_breakpoint_within_aligned_segment(breakpoint1, chimeric_alignment->second[MATE2]) ||
 			    is_breakpoint_within_aligned_segment(breakpoint2, chimeric_alignment->second[MATE1])) {
@@ -68,15 +64,7 @@ unsigned int filter_hairpin(chimeric_alignments_t& chimeric_alignments, exon_ann
 		} else { // split read
 
 			position_t breakpoint_split_read = (chimeric_alignment->second[SPLIT_READ].strand == FORWARD) ? chimeric_alignment->second[SPLIT_READ].start : chimeric_alignment->second[SPLIT_READ].end;
-			direction_t direction_split_read = (chimeric_alignment->second[SPLIT_READ].strand == FORWARD) ? UPSTREAM : DOWNSTREAM;
 			position_t breakpoint_supplementary = (chimeric_alignment->second[SUPPLEMENTARY].strand == FORWARD) ? chimeric_alignment->second[SUPPLEMENTARY].end : chimeric_alignment->second[SUPPLEMENTARY].start;
-			direction_t direction_supplementary = (chimeric_alignment->second[SUPPLEMENTARY].strand == FORWARD) ? DOWNSTREAM : UPSTREAM;
-			position_t gap_start_mate1 = (chimeric_alignment->second[MATE1].strand == FORWARD) ? chimeric_alignment->second[MATE1].end : chimeric_alignment->second[MATE1].start;
-			direction_t direction_gap_start_mate1 = (chimeric_alignment->second[MATE1].strand == FORWARD) ? DOWNSTREAM : UPSTREAM;
-			position_t gap_start_split_read = (chimeric_alignment->second[SPLIT_READ].strand == FORWARD) ? chimeric_alignment->second[SPLIT_READ].end : chimeric_alignment->second[SPLIT_READ].start;
-			direction_t direction_gap_start_split_read = (chimeric_alignment->second[SPLIT_READ].strand == FORWARD) ? DOWNSTREAM : UPSTREAM;
-			position_t start_mate1 = (chimeric_alignment->second[MATE1].strand == FORWARD) ? chimeric_alignment->second[MATE1].start : chimeric_alignment->second[MATE1].end;
-			direction_t direction_start_mate1 = (chimeric_alignment->second[MATE1].strand == FORWARD) ? UPSTREAM : DOWNSTREAM;
 			if (is_breakpoint_within_aligned_segment(breakpoint_split_read, chimeric_alignment->second[SUPPLEMENTARY]) ||
 			    is_breakpoint_within_aligned_segment(breakpoint_supplementary, chimeric_alignment->second[SPLIT_READ]) ||
 			    is_breakpoint_within_aligned_segment(breakpoint_supplementary, chimeric_alignment->second[MATE1])) {
