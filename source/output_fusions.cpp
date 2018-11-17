@@ -728,9 +728,11 @@ int get_reading_frame(const vector<position_t>& transcribed_bases, const int fro
 			((float)transcript->second)/(1 + abs(from - to)), // % of transcribed bases inside exons
 			((float)transcript->second)/(1 + transcript_length[transcript->first]) // % of exonic regions being transcribed
 		);
-		// if the similarity scores tie, preferentially pick a transcript which has a coding region at the breakpoint
+		// if the similarity scores tie, preferentially pick the longest transcript with a coding region at the breakpoint
 		if (similarity > current_best_similarity ||
-		    similarity == current_best_similarity && !transcript_is_coding_at_breakpoint[best_transcript] && transcript_is_coding_at_breakpoint[transcript->first]) {
+		    similarity == current_best_similarity && !transcript_is_coding_at_breakpoint[best_transcript] && transcript_is_coding_at_breakpoint[transcript->first] ||
+		    similarity == current_best_similarity && transcript_is_coding_at_breakpoint[best_transcript] == transcript_is_coding_at_breakpoint[transcript->first] && transcript->first->end - transcript->first->start > best_transcript->end - best_transcript->start ||
+		    similarity == current_best_similarity && transcript_is_coding_at_breakpoint[best_transcript] == transcript_is_coding_at_breakpoint[transcript->first] && transcript->first->end - transcript->first->start == best_transcript->end - best_transcript->start && transcript->first->id < best_transcript->id) { // IDs as tie breaker ensures deterministic behavior
 			best_transcript = transcript->first;
 			current_best_similarity = similarity;
 		}

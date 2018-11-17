@@ -74,6 +74,7 @@ typedef contig_annotation_index_t<gene_t> gene_contig_annotation_index_t;
 typedef annotation_index_t<gene_t> gene_annotation_index_t;
 
 struct transcript_annotation_record_t {
+	unsigned int id;
 	position_t start;
 	position_t end;
 };

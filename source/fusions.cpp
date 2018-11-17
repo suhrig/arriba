@@ -202,7 +202,7 @@ void predict_transcript_start(fusion_t& fusion) {
 
 unsigned int find_fusions(chimeric_alignments_t& chimeric_alignments, fusions_t& fusions, exon_annotation_index_t& exon_annotation_index, const int max_mate_gap, const unsigned int subsampling_threshold) {
 
-	typedef unordered_map< tuple<gene_t/*gene1*/,gene_t/*gene2*/>, vector<chimeric_alignments_t::iterator> > discordant_mates_by_gene_pair_t;
+	typedef unordered_map< tuple<unsigned int/*gene1->id*/,unsigned int/*gene2->id*/>, vector<chimeric_alignments_t::iterator> > discordant_mates_by_gene_pair_t;
 	discordant_mates_by_gene_pair_t discordant_mates_by_gene_pair; // contains the discordant mates for each pair of genes
 
 	bool subsampled_fusions = false;
@@ -361,7 +361,7 @@ unsigned int find_fusions(chimeric_alignments_t& chimeric_alignments, fusions_t&
 
 					// store the discordant mates in a hashmap for fast lookup
 					// we will need this later to find all the discordant mates supporting a given fusion
-					discordant_mates_by_gene_pair[make_tuple(*gene1, *gene2)].push_back(chimeric_alignment);
+					discordant_mates_by_gene_pair[make_tuple((**gene1).id, (**gene2).id)].push_back(chimeric_alignment);
 				}
 			}
 		}
@@ -374,7 +374,7 @@ unsigned int find_fusions(chimeric_alignments_t& chimeric_alignments, fusions_t&
 			continue; // don't look for discordant mates, if the fusion has been filtered
 
 		// get list of discordant mates supporting a fusion between the given gene pair
-		discordant_mates_by_gene_pair_t::iterator discordant_mates = discordant_mates_by_gene_pair.find(make_tuple(fusion->second.gene1, fusion->second.gene2));
+		discordant_mates_by_gene_pair_t::iterator discordant_mates = discordant_mates_by_gene_pair.find(make_tuple(fusion->second.gene1->id, fusion->second.gene2->id));
 		if (discordant_mates != discordant_mates_by_gene_pair.end()) {
 
 			// discard those discordant mates which point in the wrong direction (away from the breakpoint)

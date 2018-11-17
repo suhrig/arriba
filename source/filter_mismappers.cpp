@@ -77,9 +77,9 @@ void make_kmer_index(const fusions_t& fusions, const assembly_t& assembly, const
 		}
 }
 
-bool align(int score, const string& read_sequence, string::size_type read_pos, const string& contig_sequence, const string::size_type gene_pos, const position_t gene_start, const position_t gene_end, const kmer_index_t& kmer_index, const char kmer_length, const splice_sites_t& splice_sites, const int min_score, int max_deletions) {
+bool align(int score, const string& read_sequence, int read_pos, const string& contig_sequence, const int gene_pos, const position_t gene_start, const position_t gene_end, const kmer_index_t& kmer_index, const char kmer_length, const splice_sites_t& splice_sites, const int min_score, int max_deletions) {
 
-	unsigned int skipped_bases = 0;
+	int skipped_bases = 0;
 
 	for (/* read_pos comes from parameters */;
 	     read_pos + kmer_length < read_sequence.length() && // don't run over end of read

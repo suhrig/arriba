@@ -193,32 +193,44 @@ int main(int argc, char **argv) {
 		annotate_alignments(mates->second, exon_annotation_index);
 
 	// if the alignment does not map to an exon, try to map it to a gene
-	for (chimeric_alignments_t::iterator i = chimeric_alignments.begin(); i != chimeric_alignments.end(); ++i) {
-		for (mates_t::iterator mate = i->second.begin(); mate != i->second.end(); ++mate) {
+	for (chimeric_alignments_t::iterator chimeric_alignment = chimeric_alignments.begin(); chimeric_alignment != chimeric_alignments.end(); ++chimeric_alignment) {
+		for (mates_t::iterator mate = chimeric_alignment->second.begin(); mate != chimeric_alignment->second.end(); ++mate) {
 			if (mate->genes.empty())
 				get_annotation_by_coordinate(mate->contig, mate->start, mate->end, mate->genes, gene_annotation_index);
 		}
 		// try to resolve ambiguous mappings using mapping information from mate
-		if (i->second.size() == 3) {
+		if (chimeric_alignment->second.size() == 3) {
 			gene_set_t combined;
-			combine_annotations(i->second[SPLIT_READ].genes, i->second[MATE1].genes, combined);
-			if (i->second[MATE1].genes.empty() || combined.size() < i->second[MATE1].genes.size())
-				i->second[MATE1].genes = combined;
-			if (i->second[SPLIT_READ].genes.empty() || combined.size() < i->second[SPLIT_READ].genes.size())
-				i->second[SPLIT_READ].genes = combined;
+			combine_annotations(chimeric_alignment->second[SPLIT_READ].genes, chimeric_alignment->second[MATE1].genes, combined);
+			if (chimeric_alignment->second[MATE1].genes.empty() || combined.size() < chimeric_alignment->second[MATE1].genes.size())
+				chimeric_alignment->second[MATE1].genes = combined;
+			if (chimeric_alignment->second[SPLIT_READ].genes.empty() || combined.size() < chimeric_alignment->second[SPLIT_READ].genes.size())
+				chimeric_alignment->second[SPLIT_READ].genes = combined;
 		}
 	}
 
 	// if the alignment maps neither to an exon nor to a gene, make a dummy gene which subsumes all alignments with a distance of 10kb
 	gene_annotation_t unmapped_alignments;
 	for (chimeric_alignments_t::iterator chimeric_alignment = chimeric_alignments.begin(); chimeric_alignment != chimeric_alignments.end(); ++chimeric_alignment) {
-		for (mates_t::iterator mate = chimeric_alignment->second.begin(); mate != chimeric_alignment->second.end(); ++mate) {
-			if (mate->genes.empty()) { // put all unmapped alignments in a annotation_t structure for sorting by coordinate
-				gene_annotation_record_t gene_annotation_record;
-				gene_annotation_record.contig = mate->contig;
-				gene_annotation_record.start = mate->start;
-				gene_annotation_record.end =  mate->end;
+		gene_annotation_record_t gene_annotation_record;
+		if (chimeric_alignment->second.size() == 3) { // split-read
+			if (chimeric_alignment->second[SPLIT_READ].genes.empty()) {
+				gene_annotation_record.contig = chimeric_alignment->second[SPLIT_READ].contig;
+				gene_annotation_record.start = gene_annotation_record.end = (chimeric_alignment->second[SPLIT_READ].strand == FORWARD) ? chimeric_alignment->second[SPLIT_READ].start : chimeric_alignment->second[SPLIT_READ].end;
 				unmapped_alignments.push_back(gene_annotation_record);
+			}
+			if (chimeric_alignment->second[SUPPLEMENTARY].genes.empty()) {
+				gene_annotation_record.contig = chimeric_alignment->second[SUPPLEMENTARY].contig;
+				gene_annotation_record.start = gene_annotation_record.end = (chimeric_alignment->second[SUPPLEMENTARY].strand == FORWARD) ? chimeric_alignment->second[SUPPLEMENTARY].end : chimeric_alignment->second[SUPPLEMENTARY].start;
+				unmapped_alignments.push_back(gene_annotation_record);
+			}
+		} else { // discordant mates
+			for (mates_t::iterator mate = chimeric_alignment->second.begin(); mate != chimeric_alignment->second.end(); ++mate) {
+				if (mate->genes.empty()) {
+					gene_annotation_record.contig = mate->contig;
+					gene_annotation_record.start = gene_annotation_record.end = (mate->strand == FORWARD) ? mate->end : mate->start;
+					unmapped_alignments.push_back(gene_annotation_record);
+				}
 			}
 		}
 	}
@@ -256,11 +268,14 @@ int main(int argc, char **argv) {
 	// map yet unmapped alignments to the newly created dummy genes
 	gene_annotation_index.clear();
 	make_annotation_index(gene_annotation, gene_annotation_index); // index needs to be regenerated after adding dummy genes
-	for (chimeric_alignments_t::iterator i = chimeric_alignments.begin(); i != chimeric_alignments.end(); ++i) {
-		for (mates_t::iterator mate = i->second.begin(); mate != i->second.end(); ++mate) {
+	for (chimeric_alignments_t::iterator chimeric_alignment = chimeric_alignments.begin(); chimeric_alignment != chimeric_alignments.end(); ++chimeric_alignment) {
+		for (mates_t::iterator mate = chimeric_alignment->second.begin(); mate != chimeric_alignment->second.end(); ++mate) {
 			if (mate->genes.empty())
 				get_annotation_by_coordinate(mate->contig, mate->start, mate->end, mate->genes, gene_annotation_index);
 		}
+		if (chimeric_alignment->second.size() == 3) // split-read
+			if (chimeric_alignment->second[MATE1].genes.empty()) // copy dummy gene from split-read, if mate1 still has no annotation
+				chimeric_alignment->second[MATE1].genes = chimeric_alignment->second[SPLIT_READ].genes;
 	}
 
 	// assign IDs to genes

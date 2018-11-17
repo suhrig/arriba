@@ -184,6 +184,7 @@ void read_annotation_gtf(const string& filename, const string& gtf_features_stri
 	stringstream gtf_file;
 	autodecompress_file(filename, gtf_file);
 	string line;
+	unsigned int new_id = 0; // ID generator for genes and transcripts
 	while (getline(gtf_file, line)) {
 		if (!line.empty() && line[0] != '#') { // skip comment lines
 
@@ -238,6 +239,7 @@ void read_annotation_gtf(const string& filename, const string& gtf_features_stri
 				exon_annotation_record.transcript = transcripts[short_transcript_id];
 				if (exon_annotation_record.transcript == NULL) { // this is the first time we encounter this transcript ID => make a new transcript_annotation_record_t
 					transcript_annotation_record_t transcript_annotation_record;
+					transcript_annotation_record.id = new_id++;
 					transcript_annotation_record.start = -1; // is set once we have loaded all exons
 					transcript_annotation_record.end = -1; // is set once we have loaded all exons
 					transcript_annotation.push_back(transcript_annotation_record);
@@ -250,7 +252,7 @@ void read_annotation_gtf(const string& filename, const string& gtf_features_stri
 					gene_annotation_record_t gene_annotation_record;
 					gene_annotation_record.copy(annotation_record);
 					gene_annotation_record.name = gene_name;
-					gene_annotation_record.id = gene_annotation.size();
+					gene_annotation_record.id = new_id++;
 					gene_annotation_record.exonic_length = 0; // is calculated later in arriba.cpp
 					gene_annotation_record.is_dummy = false;
 					gene_annotation_record.is_protein_coding = false;
