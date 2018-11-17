@@ -163,7 +163,8 @@ void coverage_t::add_fragment(bam1_t* mate1, bam1_t* mate2, const bool is_read_t
 
 		// go through CIGAR operations of both mates in parallel,
 		// always choosing the one that consumes the smallest amount of the reference
-		uint32_t cigar_op1, cigar_op2;
+		uint32_t cigar_op1 = 0;
+		uint32_t cigar_op2 = 0;
 		unsigned int op_length1;
 		unsigned int op_length2;
 		// find out how much of the reference the next CIGAR element of each mate would consume

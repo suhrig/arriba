@@ -42,7 +42,7 @@ void autodecompress_file(const string& file_path, stringstream& file_content) {
 				cerr << "ERROR: failed to load file '" << file_path << "' into memory." << endl;
 				exit(1);
 			}
-		} while (bytes_read == buffer_size);
+		} while (bytes_read == (unsigned int) buffer_size);
 
 		// free resources
 		bgzf_close(compressed_file);

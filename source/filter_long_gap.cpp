@@ -40,7 +40,7 @@ unsigned int filter_long_gap(chimeric_alignments_t& chimeric_alignments) {
 
 			// look for long gap
 			for (unsigned int i = 1; i < mate->cigar.size()-1; ++i) {
-				if (mate->cigar.operation(i) == BAM_CREF_SKIP && (mate->cigar.op_length(i) >= min_long_gap || size_of_deletion >= min_long_gap && size_of_deletion <= max_long_gap)) {
+				if (mate->cigar.operation(i) == BAM_CREF_SKIP && ((int) mate->cigar.op_length(i) >= min_long_gap || size_of_deletion >= min_long_gap && size_of_deletion <= max_long_gap)) {
 
 					// look for short matching segment flanking the gap on the left
 					unsigned int matching_segment_left = 0;

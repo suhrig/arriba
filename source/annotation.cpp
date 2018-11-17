@@ -206,7 +206,7 @@ void read_annotation_gtf(const string& filename, const string& gtf_features_stri
 				continue;
 
 			// if Gencode, remove version number from gene ID
-			string::size_type trim_position;
+			string::size_type trim_position = string::npos;
 			if (gene_id.substr(0, 3) == "ENS" && (trim_position = gene_id.find_last_of('.', string::npos)) != string::npos)
 				gene_id = gene_id.substr(0, trim_position);
 

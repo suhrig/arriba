@@ -53,7 +53,7 @@ template <class T> void combine_annotations(const annotation_set_t<T>& genes1, c
 }
 
 template <class T> void get_annotation_by_coordinate(const contig_t contig, position_t start, position_t end, annotation_set_t<T>& annotation_set, const annotation_index_t<T>& annotation_index) {
-	if (contig >= annotation_index.size()) {
+	if ((unsigned int) contig >= annotation_index.size()) {
 		annotation_set.clear(); // return empty set
 		return;
 	}
