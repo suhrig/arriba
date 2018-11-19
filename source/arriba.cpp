@@ -155,7 +155,7 @@ int main(int argc, char **argv) {
 	strandedness_t strandedness = options.strandedness;
 	if (options.strandedness == STRANDEDNESS_AUTO) {
 		cout << "Detecting strandedness" << flush;
-		strandedness = detect_strandedness(chimeric_alignments, gene_annotation_index);
+		strandedness = detect_strandedness(chimeric_alignments, gene_annotation_index, exon_annotation_index);
 		switch (strandedness) {
 			case STRANDEDNESS_YES: cout << " (yes)" << endl; break;
 			case STRANDEDNESS_REVERSE: cout << " (reverse)" << endl; break;

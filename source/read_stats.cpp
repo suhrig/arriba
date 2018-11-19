@@ -1,4 +1,5 @@
 #include <climits>
+#include <cmath>
 #include <iostream>
 #include <list>
 #include <vector>
@@ -76,29 +77,52 @@ bool estimate_mate_gap_distribution(const chimeric_alignments_t& chimeric_alignm
 	return true;
 }
 
-strandedness_t detect_strandedness(const chimeric_alignments_t& chimeric_alignments, const gene_annotation_index_t& gene_annotation_index) {
+strandedness_t detect_strandedness(const chimeric_alignments_t& chimeric_alignments, const gene_annotation_index_t& gene_annotation_index, const exon_annotation_index_t& exon_annotation_index) {
+
+	const unsigned int sample_size = 100; // examine at least this many reads to determine strandedness
+	const float threshold = 0.75; // fraction of reads which must support strandedness to be convinced
+
 	unsigned int count = 0;
 	unsigned int matching_strand = 0;
 	for (chimeric_alignments_t::const_iterator chimeric_alignment = chimeric_alignments.begin(); chimeric_alignment != chimeric_alignments.end(); ++chimeric_alignment) {
-		if (chimeric_alignment->second.filter == NULL) {
-			gene_set_t genes;
-			alignment_t const* first_in_pair = (chimeric_alignment->second[MATE1].first_in_pair) ? &(chimeric_alignment->second[MATE1]) : &(chimeric_alignment->second[MATE2]);
-			get_annotation_by_coordinate(first_in_pair->contig, first_in_pair->start, first_in_pair->end, genes, gene_annotation_index);
-			if (genes.size() == 1) {
-				if (first_in_pair->strand == (**genes.begin()).strand)
-					matching_strand++;
-				count++;
-				if (count >= 100000)
-					break; // the sample size should be sufficient
+		if (chimeric_alignment->second.size() == 3) { // split-read
+
+			// use only read-through alignments and duplications to determine strandedness,
+			// because with inversions and translocations it is not clear what the originating strand is
+			if (chimeric_alignment->second[SPLIT_READ].contig == chimeric_alignment->second[SUPPLEMENTARY].contig &&
+			    chimeric_alignment->second[SPLIT_READ].strand == chimeric_alignment->second[SUPPLEMENTARY].strand &&
+			    abs(chimeric_alignment->second[SPLIT_READ].start - chimeric_alignment->second[SUPPLEMENTARY].start) < 400000) {
+
+				// use only reads with unambigously map to a single gene
+				gene_set_t genes;
+				get_annotation_by_coordinate(chimeric_alignment->second[SPLIT_READ].contig, chimeric_alignment->second[SPLIT_READ].start, chimeric_alignment->second[SPLIT_READ].end, genes, gene_annotation_index);
+				if (genes.size() == 1) {
+
+					// use only reads which are spliced, because this is a sure indication that the read originates from the gene
+					direction_t direction = (chimeric_alignment->second[SPLIT_READ].strand == FORWARD) ? UPSTREAM : DOWNSTREAM;
+					position_t position = (chimeric_alignment->second[SPLIT_READ].strand == FORWARD) ? chimeric_alignment->second[SPLIT_READ].start : chimeric_alignment->second[SPLIT_READ].end;
+					if (is_breakpoint_spliced(*genes.begin(), direction, position, exon_annotation_index)) {
+
+						// check if alignment matches strand of annotated gene
+						if (chimeric_alignment->second[SPLIT_READ].first_in_pair && chimeric_alignment->second[SPLIT_READ].strand == (**genes.begin()).strand ||
+						    chimeric_alignment->second[MATE1].first_in_pair && chimeric_alignment->second[MATE1].strand == (**genes.begin()).strand)
+							matching_strand++;
+
+						count++;
+						if (count >= sample_size)
+							break; // we have sufficient statistical power
+
+					}
+				}
 			}
 		}
 	}
 
-	if (count < 10000) {
+	if (count < sample_size) {
 		return STRANDEDNESS_NO; // not enough statistical power => assume no
-	} else if (matching_strand < 0.3 * count) {
+	} else if (matching_strand < (1-threshold) * count) {
 		return STRANDEDNESS_REVERSE;
-	} else if (matching_strand > 0.7 * count) {
+	} else if (matching_strand > threshold * count) {
 		return STRANDEDNESS_YES;
 	} else
 		return STRANDEDNESS_NO; // not enough signal => assume no
