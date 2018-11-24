@@ -437,7 +437,7 @@ int main(int argc, char **argv) {
 
 	if (!options.genomic_breakpoints_file.empty() && options.filters.at("no_genomic_support")) {
 		cout << "Assigning confidence scores to events" << endl << flush;
-		assign_confidence(fusions);
+		assign_confidence(fusions, coverage);
 
 		// this step must come after assigning confidence scores
 		cout << "Filtering low-confidence events with no support from WGS" << flush;
@@ -508,7 +508,7 @@ int main(int argc, char **argv) {
 
 	// this step must come after the 'isoforms' filter, because recovered isoforms need to be scored anew
 	cout << "Assigning confidence scores to events" << endl << flush;
-	assign_confidence(fusions);
+	assign_confidence(fusions, coverage);
 
 	cout << "Writing fusions to file '" << options.output_file << "'" << endl;
 	write_fusions_to_file(fusions, options.output_file, coverage, assembly, gene_annotation_index, exon_annotation_index, contigs_by_id, options.print_supporting_reads, options.print_fusion_sequence, options.print_peptide_sequence, false);

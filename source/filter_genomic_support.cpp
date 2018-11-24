@@ -8,6 +8,7 @@
 #include "common.hpp"
 #include "annotation.hpp"
 #include "read_compressed_file.hpp"
+#include "read_stats.hpp"
 #include "filter_genomic_support.hpp"
 
 using namespace std;
@@ -155,7 +156,7 @@ unsigned int mark_genomic_support(fusions_t& fusions, const string& genomic_brea
 	return marked;
 }
 
-void assign_confidence(fusions_t& fusions) {
+void assign_confidence(fusions_t& fusions, const coverage_t& coverage) {
 
 	// order fusions by gene pair
 	// => the confidence in an event is increased, when there are other events between the same pair of genes
@@ -242,9 +243,13 @@ void assign_confidence(fusions_t& fusions) {
 				fusion->second.confidence = CONFIDENCE_HIGH;
 			}
 
-			if (fusion->second.confidence > CONFIDENCE_LOW &&
-			    fusion->second.evalue > 0.2) // decrease the confidence, when the e-value is not overwhelming
-				fusion->second.confidence--;
+			// decrease the confidence, when the number of supporting reads is not overwhelming compared to the coverage
+			int coverage1 = coverage.get_coverage(fusion->second.contig1, fusion->second.breakpoint1, (fusion->second.direction1 == UPSTREAM) ? DOWNSTREAM : UPSTREAM);
+			int coverage2 = coverage.get_coverage(fusion->second.contig2, fusion->second.breakpoint2, (fusion->second.direction2 == UPSTREAM) ? DOWNSTREAM : UPSTREAM);
+			if (fusion->second.confidence > CONFIDENCE_LOW)
+				if (fusion->second.evalue > 0.2 ||
+				    ((float) (fusion->second.split_read1_list.size() + fusion->second.split_read2_list.size() + fusion->second.discordant_mate_list.size())) / max(coverage1, coverage2) < 0.01)
+					fusion->second.confidence--;
 
 			if (fusion->second.confidence < CONFIDENCE_HIGH &&
 			    fusion->second.closest_genomic_breakpoint1 >= 0 && // has genomic support and
