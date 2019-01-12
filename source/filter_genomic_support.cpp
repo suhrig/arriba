@@ -169,19 +169,40 @@ void assign_confidence(fusions_t& fusions, const coverage_t& coverage) {
 	// assign a confidence to each fusion
 	for (fusions_t::iterator fusion = fusions.begin(); fusion != fusions.end(); ++fusion) {
 
+		// calculate supporting reads as fraction of coverage
+		// we use the sizes of the read lists rather than supporting_reads() because the latter ignores duplicates, but the coverage does not
+		int coverage1 = coverage.get_coverage(fusion->second.contig1, fusion->second.breakpoint1, (fusion->second.direction1 == UPSTREAM) ? DOWNSTREAM : UPSTREAM);
+		int coverage2 = coverage.get_coverage(fusion->second.contig2, fusion->second.breakpoint2, (fusion->second.direction2 == UPSTREAM) ? DOWNSTREAM : UPSTREAM);
+		float coverage_fraction = ((float) (fusion->second.split_read1_list.size() + fusion->second.split_read2_list.size() + fusion->second.discordant_mate_list.size())) / max(1, max(coverage1, coverage2));
+
 		if (fusion->second.filter != NULL) {
+			// discarded events get low confidence, no matter what
 			fusion->second.confidence = CONFIDENCE_LOW;
+
 		} else {
+
+			// non-discarded events get high confidence by default, which my be reduced by penalties
+			fusion->second.confidence = CONFIDENCE_HIGH;
+
 			if (fusion->second.evalue > 0.3 || fusion->second.supporting_reads() < 2) {
-				fusion->second.confidence = CONFIDENCE_LOW;
-			} else if (fusion->second.split_reads1 > 20 && fusion->second.split_reads2 > 20 && fusion->second.supporting_reads() > 60) {
-				fusion->second.confidence = CONFIDENCE_HIGH;
+				fusion->second.confidence = CONFIDENCE_LOW; // events with poor support get low confidence, regardless of the location
+
 			} else if (fusion->second.is_read_through()) {
+				// read-through events get low confidence by default,
+				// but this may improve, if they have good support or
+				// if there are many read-through fusions all hinting at the same genomic event
 				fusion->second.confidence = CONFIDENCE_LOW;
+
+				// increase confidence of read-through fusion, if is has many supporting reads
 				if ((fusion->second.split_reads1 > 0 && fusion->second.split_reads2 > 0 ||
 				     fusion->second.split_reads1 > 0 && fusion->second.discordant_mates > 0 ||
-				     fusion->second.split_reads2 > 0 && fusion->second.discordant_mates > 0) && fusion->second.supporting_reads() >= 10) {
-					fusion->second.confidence = CONFIDENCE_MEDIUM;
+				     fusion->second.split_reads2 > 0 && fusion->second.discordant_mates > 0) &&
+				     fusion->second.supporting_reads() >= 10) {
+					if (fusion->second.split_reads1 + fusion->second.split_reads2 >= 10 && coverage_fraction > 0.07)
+						fusion->second.confidence = CONFIDENCE_HIGH;
+					else
+						fusion->second.confidence = CONFIDENCE_MEDIUM;
+
 				} else {
 					// look for multiple deletions involving the same gene
 					unsigned int number_of_deletions = 0;
@@ -209,57 +230,36 @@ void assign_confidence(fusions_t& fusions, const coverage_t& coverage) {
 							++number_of_deletions;
 							}
 					}
-					if (number_of_deletions >= 1)
+					if (number_of_deletions >= 1) // there is at least one additional fusion which may arise from the same deletion
 						fusion->second.confidence = CONFIDENCE_MEDIUM;
 				}
 
 			} else if (fusion->second.breakpoint_overlaps_both_genes() || fusion->second.gene1 == fusion->second.gene2) { // intragenic event
-				if (fusion->second.split_reads1 + fusion->second.split_reads2 == 0) {
-					fusion->second.confidence = CONFIDENCE_LOW;
-				} else if (!fusion->second.exonic1 && !fusion->second.exonic2) {
-					if (fusion->second.split_reads1 > 0 && fusion->second.split_reads2 > 0) {
-						fusion->second.confidence = CONFIDENCE_HIGH;
-					} else {
-						fusion->second.confidence = CONFIDENCE_MEDIUM;
+
+				// by default intragenic events get low confidence, because there are so many artifacts
+				fusion->second.confidence = CONFIDENCE_LOW;
+
+				if (fusion->second.split_reads1 + fusion->second.split_reads2 > 0) {
+					if (!fusion->second.exonic1 && !fusion->second.exonic2) {
+						// most intragenic artifacts have both breakpoints in exons
+						// => increase confidence a bit, if the breakpoints are in introns
+						if (fusion->second.split_reads1 > 0 && fusion->second.split_reads2 > 0)
+							fusion->second.confidence = CONFIDENCE_HIGH;
+						else
+							fusion->second.confidence = CONFIDENCE_MEDIUM;
+					} else if (!fusion->second.exonic1 || !fusion->second.exonic2) {
+						// one breakpoint is in an intron, the other isn't
+						// => also increase confidence a bit, but require some more split reads
+						if (fusion->second.split_reads1 > 3 && fusion->second.split_reads2 > 3)
+							fusion->second.confidence = CONFIDENCE_HIGH;
+						else
+							fusion->second.confidence = CONFIDENCE_MEDIUM;
 					}
-				} else if (!fusion->second.exonic1 || !fusion->second.exonic2) {
-					if (fusion->second.split_reads1 > 3 && fusion->second.split_reads2 > 3) {
-						fusion->second.confidence = CONFIDENCE_HIGH;
-					} else {
-						fusion->second.confidence = CONFIDENCE_MEDIUM;
-					}
-				} else {
-					fusion->second.confidence = CONFIDENCE_LOW;
 				}
-			} else if (fusion->second.split_reads1 + fusion->second.split_reads2 == 0 ||
-			           fusion->second.split_reads1 + fusion->second.discordant_mates == 0 ||
-			           fusion->second.split_reads2 + fusion->second.discordant_mates == 0) {
-				fusion->second.confidence = CONFIDENCE_MEDIUM;
-			} else if ((fusion->second.split_reads1 + fusion->second.split_reads2) * 20 < fusion->second.discordant_mates) {
-				fusion->second.confidence = CONFIDENCE_MEDIUM;
-			} else if (!fusion->second.spliced1 && !fusion->second.spliced2) {
-				fusion->second.confidence = CONFIDENCE_MEDIUM;
-			} else {
-				fusion->second.confidence = CONFIDENCE_HIGH;
+
 			}
 
-			// decrease the confidence, when the number of supporting reads is not overwhelming compared to the coverage
-			int coverage1 = coverage.get_coverage(fusion->second.contig1, fusion->second.breakpoint1, (fusion->second.direction1 == UPSTREAM) ? DOWNSTREAM : UPSTREAM);
-			int coverage2 = coverage.get_coverage(fusion->second.contig2, fusion->second.breakpoint2, (fusion->second.direction2 == UPSTREAM) ? DOWNSTREAM : UPSTREAM);
-			if (fusion->second.confidence > CONFIDENCE_LOW)
-				if (fusion->second.evalue > 0.2 ||
-				    ((float) (fusion->second.split_read1_list.size() + fusion->second.split_read2_list.size() + fusion->second.discordant_mate_list.size())) / max(coverage1, coverage2) < 0.01)
-					fusion->second.confidence--;
-
-			if (fusion->second.confidence < CONFIDENCE_HIGH &&
-			    fusion->second.closest_genomic_breakpoint1 >= 0 && // has genomic support and
-			    (fusion->second.evalue < 0.3 && fusion->second.supporting_reads() >= 2 || // has good e-value or
-			     fusion->second.spliced1 && fusion->second.spliced2 && fusion->second.gene1 != fusion->second.gene2 || // was recovered due to splicing or
-			     abs(fusion->second.breakpoint1 - fusion->second.closest_genomic_breakpoint1) + abs(fusion->second.breakpoint2 - fusion->second.closest_genomic_breakpoint2) < 20000 || // genomic breakpoints are very close to transcriptomic breakpoints
-			     fusion->second.contig1 != fusion->second.contig2 || (abs(fusion->second.breakpoint2 - fusion->second.breakpoint1) > 1000000 && fusion->second.gene1 != fusion->second.gene2))) // distant translocation
-				fusion->second.confidence++;
-
-			// increase confidence, when there are multiple spliced events
+			// increase confidence, when there are multiple spliced events between the same pair of genes
 			if (fusion->second.confidence < CONFIDENCE_HIGH &&
 			    fusion->second.spliced1 && fusion->second.spliced2 && !fusion->second.is_read_through() && fusion->second.gene1 != fusion->second.gene2) {
 				unsigned int number_of_spliced_breakpoints = 0;
@@ -280,6 +280,46 @@ void assign_confidence(fusions_t& fusions, const coverage_t& coverage) {
 				if (number_of_spliced_breakpoints > 0)
 					fusion->second.confidence++;
 			}
+
+			// true events are likely to have at least one spliced breakpoint => penalize if not
+			// unless the event is intragenic, because then non-spliced breakpoints are actually more credible, because it's not a circRNA
+			if (fusion->second.gene1 != fusion->second.gene2)
+				if (fusion->second.confidence > CONFIDENCE_LOW)
+					if (!fusion->second.spliced1 && !fusion->second.spliced2)
+						fusion->second.confidence--;
+
+			// events with excellent support get high confidence, regardless of whether their breakpoints are spliced
+			if (fusion->second.split_reads1 > 20 && fusion->second.split_reads2 > 20 && fusion->second.supporting_reads() > 60)
+				fusion->second.confidence = CONFIDENCE_HIGH;
+
+			// decrease the confidence, when something does not look right with the number of supporting reads
+			if (fusion->second.confidence > CONFIDENCE_LOW) {
+
+				// there should be supporting reads from both ends of the fusion
+				if (fusion->second.split_reads1 + fusion->second.split_reads2 == 0 ||
+				    fusion->second.split_reads1 + fusion->second.discordant_mates == 0 ||
+				    fusion->second.split_reads2 + fusion->second.discordant_mates == 0) {
+					fusion->second.confidence--;
+
+				// the ratio of split reads and discordant mates should be somewhat balanced
+				} else if ((fusion->second.split_reads1 + fusion->second.split_reads2) * 20 < fusion->second.discordant_mates) {
+					fusion->second.confidence--;
+
+				// the number of supporting reads is not overwhelming compared to the coverage
+				} else if (fusion->second.evalue > 0.2 || coverage_fraction < 0.01) {
+					fusion->second.confidence = CONFIDENCE_MEDIUM;
+				}
+
+			}
+
+			// increase confidence when there is a supporting SV
+			if (fusion->second.confidence < CONFIDENCE_HIGH &&
+			    fusion->second.closest_genomic_breakpoint1 >= 0 && // has genomic support and
+			    (fusion->second.evalue < 0.3 && fusion->second.supporting_reads() >= 2 || // has good e-value or
+			     fusion->second.spliced1 && fusion->second.spliced2 && fusion->second.gene1 != fusion->second.gene2 || // was recovered due to splicing or
+			     abs(fusion->second.breakpoint1 - fusion->second.closest_genomic_breakpoint1) + abs(fusion->second.breakpoint2 - fusion->second.closest_genomic_breakpoint2) < 20000 || // genomic breakpoints are very close to transcriptomic breakpoints
+			     fusion->second.contig1 != fusion->second.contig2 || (abs(fusion->second.breakpoint2 - fusion->second.breakpoint1) > 1000000 && fusion->second.gene1 != fusion->second.gene2))) // distant translocation
+				fusion->second.confidence++;
 
 		}
 	}
