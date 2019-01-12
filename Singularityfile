@@ -8,7 +8,7 @@ Maintainer Sebastian Uhrig @ DKFZ
 # install dependencies
 export DEBIAN_FRONTEND=noninteractive
 apt-get update -y
-apt-get install -y samtools r-base rna-star wget libcurl4-openssl-dev libxml2-dev
+apt-get install -y --no-install-recommends build-essential samtools r-base rna-star wget ca-certificates libcurl4-openssl-dev libxml2-dev
 Rscript -e 'install.packages("circlize", repos="http://cran.r-project.org"); source("https://bioconductor.org/biocLite.R"); biocLite(c("GenomicRanges", "GenomicAlignments"))'
 
 # install arriba
