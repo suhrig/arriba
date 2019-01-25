@@ -23,7 +23,7 @@ void autodecompress_file(const string& file_path, stringstream& file_content) {
 		// open compressed file
 		BGZF* compressed_file;
 		compressed_file = bgzf_open(file_path.c_str(), "rb");
-		if(compressed_file == NULL) {
+		if (compressed_file == NULL) {
 			cerr << "ERROR: failed to open/decompress file '" << file_path << "'." << endl;
 			exit(1);
 		}
@@ -38,7 +38,7 @@ void autodecompress_file(const string& file_path, stringstream& file_content) {
 			}
 			buffer[bytes_read] = '\0';
 			file_content << buffer;
-			if (!file_content.good()) {
+			if (file_content.fail()) {
 				cerr << "ERROR: failed to load file '" << file_path << "' into memory." << endl;
 				exit(1);
 			}
@@ -52,14 +52,16 @@ void autodecompress_file(const string& file_path, stringstream& file_content) {
 		
 		// copy file content to stringstream object
 		ifstream uncompressed_file(file_path);
-		if (!uncompressed_file.good()) {
+		if (uncompressed_file.fail()) {
 			cerr << "ERROR: failed to open file '" << file_path << "'." << endl;
 			exit(1);
 		}
-		file_content << uncompressed_file.rdbuf();
-		if (!file_content.good()) {
-			cerr << "ERROR: failed to load file '" << file_path << "' into memory." << endl;
-			exit(1);
+		if (uncompressed_file.rdbuf()->in_avail() > 0) { // don't attempt to read anything, when the input file is empty, or else it will cause an error
+			file_content << uncompressed_file.rdbuf();
+			if (file_content.fail()) {
+				cerr << "ERROR: failed to load file '" << file_path << "' into memory." << endl;
+				exit(1);
+			}
 		}
 		uncompressed_file.close();
 	}
