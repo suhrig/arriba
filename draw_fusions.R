@@ -32,7 +32,7 @@ parseFileParameter <- function(parameter, args, mandatory=FALSE) {
 }
 
 if (any(grepl("^--help", args)) || length(args) == 0)
-	stop("Usage: draw_fusions.R --annotation=annotation.gtf --fusions=fusions.tsv --output=output.pdf [--alignments=Aligned.out.bam] [--cytobands=cytobands.tsv] [--minConfidenceForCircosPlot=medium] [--proteinDomains=protein_domains.gff3] [--squishIntrons=TRUE] [--printExonLabels=TRUE] [--pdfWidth=11.692] [--pdfHeight=8.267] [--color1=#e5a5a5] [--color2=#a7c4e5] [--mergeDomainsOverlappingBy=0.9] [--optimizeDomainColors=FALSE] [--fontSize=1] [--showIntergenicVicinity=0]")
+	stop("Usage: draw_fusions.R --annotation=annotation.gtf --fusions=fusions.tsv --output=output.pdf [--alignments=Aligned.out.bam] [--cytobands=cytobands.tsv] [--minConfidenceForCircosPlot=medium] [--proteinDomains=protein_domains.gff3] [--squishIntrons=TRUE] [--printExonLabels=TRUE] [--render3dEffect=TRUE] [--pdfWidth=11.692] [--pdfHeight=8.267] [--color1=#e5a5a5] [--color2=#a7c4e5] [--mergeDomainsOverlappingBy=0.9] [--optimizeDomainColors=FALSE] [--fontSize=1] [--showIntergenicVicinity=0]")
 exonsFile <- parseFileParameter("annotation", args, T)
 fusionsFile <- parseFileParameter("fusions", args, T)
 outputFile <- parseStringParameter("output", args)
@@ -48,6 +48,7 @@ if (!(minConfidenceForCircosPlot %in% c("low", "medium", "high")))
 proteinDomainsFile <- parseFileParameter("proteinDomains", args)
 squishIntrons <- parseBooleanParameter("squishIntrons", args, T)
 printExonLabels <- parseBooleanParameter("printExonLabels", args, T)
+render3dEffect <- parseBooleanParameter("render3dEffect", args, T)
 pdfWidth <- as.numeric(parseStringParameter("pdfWidth", args, "11.692"))
 pdfHeight <- as.numeric(parseStringParameter("pdfHeight", args, "8.267"))
 color1 <- parseStringParameter("color1", args, "#e5a5a5")
@@ -176,6 +177,8 @@ drawVerticalGradient <- function(left, right, y, color, selection=NULL) {
 		)
 	}
 }
+if (!render3dEffect) # nullify function, if no 3D effect should be drawn
+	drawVerticalGradient <- function(left, right, y, color, selection=NULL) { }
 
 drawCurlyBrace <- function(left, right, top, bottom, tip) {
 	smoothness <- 20
