@@ -11,6 +11,8 @@ If a gene has multiple transcript variants, the script picks a transcript in the
 
 - transcripts tagged as `appris_principal`
 
+- transcripts tagged as `appris_candidate`
+
 - transcripts tagged as `appris_alternative`
 
 - transcripts tagged as `CCDS`

@@ -674,18 +674,20 @@ findExons <- function(exons, contig, gene, direction, breakpoint) {
 	# find the consensus transcript, if there are multiple hits
 	if (length(unique(candidateExons$transcript)) > 1) {
 		consensusTranscript <-
-			ifelse(grepl("appris_principal_1", candidateExons$attributes), 10,
-			ifelse(grepl("appris_principal_2", candidateExons$attributes), 9,
-			ifelse(grepl("appris_principal_3", candidateExons$attributes), 8,
-			ifelse(grepl("appris_principal_4", candidateExons$attributes), 7,
-			ifelse(grepl("appris_principal_5", candidateExons$attributes), 6,
-			ifelse(grepl("appris_principal", candidateExons$attributes), 5,
+			ifelse(grepl("appris_principal_1", candidateExons$attributes), 12,
+			ifelse(grepl("appris_principal_2", candidateExons$attributes), 11,
+			ifelse(grepl("appris_principal_3", candidateExons$attributes), 10,
+			ifelse(grepl("appris_principal_4", candidateExons$attributes), 9,
+			ifelse(grepl("appris_principal_5", candidateExons$attributes), 8,
+			ifelse(grepl("appris_principal", candidateExons$attributes), 7,
+			ifelse(grepl("appris_candidate_longest", candidateExons$attributes), 6,
+			ifelse(grepl("appris_candidate", candidateExons$attributes), 5,
 			ifelse(grepl("appris_alternative_1", candidateExons$attributes), 4,
 			ifelse(grepl("appris_alternative_2", candidateExons$attributes), 3,
 			ifelse(grepl("appris_alternative", candidateExons$attributes), 2,
 			ifelse(grepl("CCDS", candidateExons$attributes), 1,
 			0
-		))))))))))
+		))))))))))))
 		candidateExons <- candidateExons[consensusTranscript == max(consensusTranscript),]
 	}
 	# use the transcript with the longest coding sequence, if there are still multiple hits
