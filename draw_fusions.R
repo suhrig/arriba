@@ -487,6 +487,20 @@ drawProteinDomains <- function(fusion, exons1, exons2, proteinDomains, color1, c
 		retainedDomains2$color <- colors[retainedDomains2$proteinDomainID]
 	}
 
+	# reverse exons and protein domains, if on the reverse strand
+	if (any(codingExons1$strand == "-")) {
+		codingExons1$length <- rev(codingExons1$length)
+		temp <- retainedDomains1$end
+		retainedDomains1$end <- codingLength1 - retainedDomains1$start
+		retainedDomains1$start <- codingLength1 - temp
+	}
+	if (any(codingExons2$strand == "-")) {
+		codingExons2$length <- rev(codingExons2$length)
+		temp <- retainedDomains2$end
+		retainedDomains2$end <- codingLength2 - retainedDomains2$start
+		retainedDomains2$start <- codingLength2 - temp
+	}
+
 	# normalize length to 1
 	codingExons1$length <- codingExons1$length / (codingLength1 + codingLength2)
 	codingExons2$length <- codingExons2$length / (codingLength1 + codingLength2)
