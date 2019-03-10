@@ -604,8 +604,9 @@ drawProteinDomains <- function(fusion, exons1, exons2, proteinDomains, color1, c
 	uniqueDomains2 <- countUniqueDomains(retainedDomains2)
 
 	# draw title of plot
-	titleY <- exonsY + exonHeight/2 + (uniqueDomains1 + 1) * 0.05
-	text(0.5, titleY, "RETAINED PROTEIN DOMAINS", font=2, cex=fontSize)
+	titleY <- exonsY + exonHeight/2 + (uniqueDomains1 + 2) * 0.05
+	text(0.5, titleY+0.01, "RETAINED PROTEIN DOMAINS", adj=c(0.5, 0), font=2, cex=fontSize)
+	text(0.5, titleY, ifelse(fusion$reading_frame != ".", paste(fusion$reading_frame, "fusion"), "reading frame unclear"), adj=c(0.5, 1), cex=fontSize)
 
 	# draw domain labels for gene1
 	if (length(unlist(retainedDomains1)) > 0) {
