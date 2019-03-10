@@ -235,7 +235,8 @@ void print_usage() {
 	                  "are separated by commas. Specify the flag twice to also print the read "
 	                  "identifiers to the file containing discarded fusions (-O). Default: " + string((default_options.print_supporting_reads) ? "on" : "off"))
 	     << wrap_help("-h", "Print help and exit.")
-	     << "For more information or help, visit: " << HELP_CONTACT << endl;
+	     << "For more information or help, visit: " << HELP_CONTACT << endl
+	     << "The user manual is available at: " << MANUAL_URL << endl;
 }
 
 options_t parse_arguments(int argc, char **argv) {
