@@ -6,8 +6,8 @@ CXXFLAGS := -Wall -Wno-parentheses -pthread -std=c++0x -O2 -I$(SOURCE) -I$(HTSLI
 # the following two variables are needed to pass the location of headers/libraries in a bioconda build environment
 CPPFLAGS := 
 LDFLAGS := 
+# LIBS is overwritten with static libraries, when a static build is made
 LIBS := -lz -lm -lbz2 -llzma
-LIBS_A := $(STATIC_LIBS)/libdeflate.a $(STATIC_LIBS)/libz.a $(STATIC_LIBS)/libbz2.a $(STATIC_LIBS)/liblzma.a
 
 all: arriba
 
@@ -25,4 +25,4 @@ clean:
 	$(MAKE) -C $(HTSLIB) clean
 
 static:
-	$(MAKE) LIBS="$(LIBS_A)" CPPFLAGS="-DHAVE_LIBDEFLATE -I$(STATIC_LIBS) -I../$(STATIC_LIBS)"
+	$(MAKE) LIBS="$(wildcard $(STATIC_LIBS)/*.a)" CPPFLAGS="-DHAVE_LIBDEFLATE -I$(STATIC_LIBS) -I../$(STATIC_LIBS)"
