@@ -5,7 +5,7 @@ CXX := g++
 CXXFLAGS := -Wall -Wno-parentheses -pthread -std=c++0x -O2 -I$(SOURCE) -I$(HTSLIB)/htslib
 CPPFLAGS := 
 LIBS := -lz -lm -lbz2 -llzma
-LIBS_A := $(STATIC_LIBS)/libz.a $(STATIC_LIBS)/libbz2.a $(STATIC_LIBS)/liblzma.a
+LIBS_A := $(STATIC_LIBS)/libdeflate.a $(STATIC_LIBS)/libz.a $(STATIC_LIBS)/libbz2.a $(STATIC_LIBS)/liblzma.a
 
 all: arriba
 
@@ -23,4 +23,4 @@ clean:
 	$(MAKE) -C $(HTSLIB) clean
 
 static:
-	$(MAKE) LIBS="$(LIBS_A)" CXXFLAGS="$(CXXFLAGS) -I$(STATIC_LIBS)" CPPFLAGS="-I../$(STATIC_LIBS)"
+	$(MAKE) LIBS="$(LIBS_A)" CXXFLAGS="$(CXXFLAGS) -I$(STATIC_LIBS)" CPPFLAGS="-DHAVE_LIBDEFLATE -I../$(STATIC_LIBS)"
