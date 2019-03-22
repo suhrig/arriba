@@ -72,6 +72,19 @@ singularity exec \
        arriba.sh
 ```
 
+Installation using Bioconda
+---------------------------
+
+Install [Miniconda](https://conda.io/) according to the developers' instructions.
+
+Install the `arriba` package:
+
+```bash
+conda install -c conda-forge -c bioconda arriba=1.0.1
+```
+
+Run the scripts `download_references.sh` and `run_arriba.sh` as explained in the [manual installation instructions](#manual-installation). The blacklists are located in `$CONDA_PREFIX/var/lib/arriba`.
+
 Output files
 ------------
 
