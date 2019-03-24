@@ -32,7 +32,7 @@ parseFileParameter <- function(parameter, args, mandatory=FALSE) {
 }
 
 if (any(grepl("^--help", args)) || length(args) == 0)
-	stop("Usage: draw_fusions.R --annotation=annotation.gtf --fusions=fusions.tsv --output=output.pdf [--alignments=Aligned.out.bam] [--cytobands=cytobands.tsv] [--minConfidenceForCircosPlot=medium] [--proteinDomains=protein_domains.gff3] [--squishIntrons=TRUE] [--printExonLabels=TRUE] [--render3dEffect=TRUE] [--pdfWidth=11.692] [--pdfHeight=8.267] [--color1=#e5a5a5] [--color2=#a7c4e5] [--mergeDomainsOverlappingBy=0.9] [--optimizeDomainColors=FALSE] [--fontSize=1] [--showIntergenicVicinity=0]")
+	stop("Usage: draw_fusions.R --annotation=annotation.gtf --fusions=fusions.tsv --output=output.pdf [--alignments=Aligned.sortedByCoord.out.bam] [--cytobands=cytobands.tsv] [--minConfidenceForCircosPlot=medium] [--proteinDomains=protein_domains.gff3] [--squishIntrons=TRUE] [--printExonLabels=TRUE] [--render3dEffect=TRUE] [--pdfWidth=11.692] [--pdfHeight=8.267] [--color1=#e5a5a5] [--color2=#a7c4e5] [--mergeDomainsOverlappingBy=0.9] [--optimizeDomainColors=FALSE] [--fontSize=1] [--showIntergenicVicinity=0]")
 exonsFile <- parseFileParameter("annotation", args, T)
 fusionsFile <- parseFileParameter("fusions", args, T)
 outputFile <- parseStringParameter("output", args)

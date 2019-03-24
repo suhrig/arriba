@@ -43,7 +43,7 @@ Many of the false positives fall into one of the following categories. For many 
 
 Even in healthy tissue it happens very frequently that transcripts are produced which are composed of exons from two neighboring genes on the same strand. These transcripts often contain all but the last exon of the 5' gene and all but the first exon of the 3' gene. They are caused by RNA polymerases missing the stop sign at the end of the 5' gene and "reading through" until reaching the next stop sign at the end of the 3' gene. The splicesome then removes the intergenic region between the two genes, yielding a chimeric transcript.
 
-![read-through fusion](read-through-fusion.svg)
+![read-through fusion](read-through-fusion.png)
 
 For some genes, this is a common phenomenon, which is not reflected in the gene annotation, however, and therefore appears like an aberrant transcript at first glance. The [SLC45A3:ELK4 fusion](https://doi.org/10.1158/0008-5472.CAN-08-4926), which has been discovered in prostate cancer and has also been described in benign prostate tissue, is one such example. It is risky to discard all read-through events, however, because they might be the result of a focal deletion, which fuses two neighboring genes together. For example, the [GOPC:ROS1 fusion](https://doi.org/10.1002/gcc.10207) in glioblastoma multiforme is caused by a 240 kb deletion. Arriba uses [a comprehensive blacklist](input-files.md#blacklist) trained on collections of RNA-Seq samples from healthy tissue to remove likely harmless transcript variants. Rare transcript variants still bypass this filter often enough. Read-through events are therefore tagged as `deletion/read-through` to make the user aware of a potential false positive. Further evidence should be sought to substantiate the prediction, such as:
 
@@ -105,7 +105,7 @@ BCAS4 BCAS3 +/+     +/+     20:49411711 17:59431723 splice-site splice-site tran
 
 Balanced translocations (i.e., swapping of chromosome arms) often lead to a similar situation. Again, multiple transcript variants may be produced, but here some transcripts have one gene as the 5' end and other transcripts the other gene. This is because balanced translocations fuse the 5' end of the first gene to the 3' end of the second gene and vice versa.
 
-![balanced translocation](balanced-translocation.svg)
+![balanced translocation](balanced-translocation.png)
 
 Example:
 
