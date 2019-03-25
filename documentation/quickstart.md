@@ -6,9 +6,9 @@ Arriba has only a single prerequisite: [STAR](https://github.com/alexdobin/STAR)
 Compile the latest stable version of Arriba or use the precompiled binaries in the download file. **Note: You should not use `git clone` to download Arriba, because the git repository does not include the blacklist! Instead, download the latest tarball from the [releases page](https://github.com/suhrig/arriba/releases/) as shown here:**
 
 ```bash
-wget https://github.com/suhrig/arriba/releases/download/v1.0.1/arriba_v1.0.1.tar.gz
-tar -xzf arriba_v1.0.1.tar.gz
-cd arriba_v1.0.1 && make # or use precompiled binaries
+wget https://github.com/suhrig/arriba/releases/download/v1.1.0/arriba_v1.1.0.tar.gz
+tar -xzf arriba_v1.1.0.tar.gz
+cd arriba_v1.1.0 && make # or use precompiled binaries
 ```
 
 Arriba requires an assembly in FastA format, gene annotation in GTF format, and a STAR index built from the two. You can use your preferred assembly and annotation, as long as their coordinates are compatible with hg19/hs37d5/GRCh37 or hg38/GRCh38. Support for mm10 is in development. If you use another assembly, then the coordinates in the blacklist will not match and the predictions will contain many false positives. GENCODE annotation is recommended over RefSeq due to more comprehensive annotation of splice-sites, which improves sensitivity. If you do not already have the files and a STAR index, you can use the script `download_references.sh`. It downloads the files to the current working directory and builds a STAR index. Run the script without arguments to see a list of available files. Note that this step requires ~30 GB of RAM and 8 cores (or whatever number of cores you pass as the second argument).
@@ -33,7 +33,7 @@ Install [Docker](https://www.docker.com/) according to the developers' instructi
 Run the script `download_references.sh` inside the Docker container. It downloads the assembly and gene annotation to the directory `/path/to/references` and builds a STAR index. Run the script without arguments to see a list of available files. Note that this step requires ~30 GB of RAM and 8 cores (or whatever number of cores you pass as the second argument).
 
 ```bash
-docker run --rm -v /path/to/references:/references uhrigs/arriba:1.0.1 download_references.sh hs37d5+GENCODE19
+docker run --rm -v /path/to/references:/references uhrigs/arriba:1.1.0 download_references.sh hs37d5+GENCODE19
 ```
 
 Use the following Docker command to run Arriba from the container. Replace `/path/to/` with the path to the respective input file. Leave the paths after the colons unmodified - these are the paths inside the Docker container.
@@ -44,7 +44,7 @@ docker run --rm \
        -v /path/to/references:/references:ro \
        -v /path/to/read1.fastq.gz:/read1.fastq.gz:ro \
        -v /path/to/read2.fastq.gz:/read2.fastq.gz:ro \
-       uhrigs/arriba:1.0.1 \
+       uhrigs/arriba:1.1.0 \
        arriba.sh
 ```
 
@@ -57,7 +57,7 @@ The Docker container is compatible with Singularity. If desired, it can be conve
 
 ```bash
 mkdir /path/to/references
-singularity exec -B /path/to/references:/references docker://uhrigs/arriba:1.0.1 download_references.sh hs37d5+GENCODE19
+singularity exec -B /path/to/references:/references docker://uhrigs/arriba:1.1.0 download_references.sh hs37d5+GENCODE19
 ```
 
 Use the following Singularity command to run Arriba from the container. Replace `/path/to/` with the path to the respective input file. Leave the paths after the colons unmodified - these are the paths inside the Singularity container.
@@ -68,7 +68,7 @@ singularity exec \
        -B /path/to/references:/references:ro \
        -B /path/to/read1.fastq.gz:/read1.fastq.gz:ro \
        -B /path/to/read2.fastq.gz:/read2.fastq.gz:ro \
-       docker://uhrigs/arriba:1.0.1 \
+       docker://uhrigs/arriba:1.1.0 \
        arriba.sh
 ```
 
@@ -80,7 +80,7 @@ Install [Miniconda](https://conda.io/) according to the developers' instructions
 Install the `arriba` package:
 
 ```bash
-conda install -c conda-forge -c bioconda arriba=1.0.1
+conda install -c conda-forge -c bioconda arriba=1.1.0
 ```
 
 Run the scripts `download_references.sh` and `run_arriba.sh` as explained in the [manual installation instructions](#manual-installation). The blacklists are located in `$CONDA_PREFIX/var/lib/arriba`.

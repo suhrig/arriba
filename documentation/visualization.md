@@ -65,7 +65,7 @@ docker run --rm \
        -v /path/to/fusions.tsv:/fusions.tsv:ro \
        -v /path/to/Aligned.sortedByCoord.out.bam:/Aligned.sortedByCoord.out.bam:ro \
        -v /path/to/Aligned.sortedByCoord.out.bam.bai:/Aligned.sortedByCoord.out.bam.bai:ro \
-       uhrigs/arriba:1.0.1 \
+       uhrigs/arriba:1.1.0 \
        draw_fusions.sh
 ```
 
@@ -80,7 +80,7 @@ singularity exec \
        -B /path/to/fusions.tsv:/fusions.tsv:ro \
        -B /path/to/Aligned.sortedByCoord.out.bam:/Aligned.sortedByCoord.out.bam:ro \
        -B /path/to/Aligned.sortedByCoord.out.bam.bai:/Aligned.sortedByCoord.out.bam.bai:ro \
-       docker://uhrigs/arriba:1.0.1 \
+       docker://uhrigs/arriba:1.1.0 \
        draw_fusions.sh
 ```
 
