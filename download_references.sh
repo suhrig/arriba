@@ -32,7 +32,7 @@ COMBINATIONS["GRCh38+GENCODE28"]="GRCh38+GENCODE28"
 COMBINATIONS["GRCh38+RefSeq"]="GRCh38+RefSeq_hg38"
 COMBINATIONS["GRCh38+ENSEMBL93"]="GRCh38+ENSEMBL93"
 
-if [ $# -gt 2 ] || [ -z "${COMBINATIONS[$1]}" ] || ! [[ $2 =~ ^(|[1-9][0-9]*)$ ]]; then
+if [ $# -gt 2 ] || [ -z "$1" ] || [ -z "${COMBINATIONS[$1]}" ] || ! [[ $2 =~ ^(|[1-9][0-9]*)$ ]]; then
 	echo "Usage: $(basename $0) ASSEMBLY+ANNOTATION [THREADS]" 1>&2
 	echo "Available assemblies and annotations: ${!COMBINATIONS[@]}" 1>&2
 	exit 1

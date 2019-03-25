@@ -4,12 +4,11 @@ MAINTAINER Sebastian Uhrig @ DKFZ
 # install dependencies
 RUN export DEBIAN_FRONTEND=noninteractive && \
 apt-get update -y && \
-apt-get install -y samtools r-base rna-star wget libcurl4-openssl-dev libxml2-dev && \
+apt-get install -y --no-install-recommends build-essential samtools r-base rna-star wget ca-certificates libcurl4-openssl-dev libxml2-dev && \
 Rscript -e 'install.packages("circlize", repos="http://cran.r-project.org"); source("https://bioconductor.org/biocLite.R"); biocLite(c("GenomicRanges", "GenomicAlignments"))'
 
 # install arriba
-RUN URL=$(wget -q -O - https://api.github.com/repos/suhrig/arriba/releases/latest | sed -n -e 's/.*"browser_download_url":\s*"\([^"]*\)".*/\1/p') && \
-wget -q -O - "$URL" | tar -xzf -
+RUN wget -q -O - "https://github.com/suhrig/arriba/releases/download/v1.0.1/arriba_v1.0.1.tar.gz" | tar -xzf -
 
 # make wrapper script for download_references.sh
 RUN echo '#!/bin/bash\n\

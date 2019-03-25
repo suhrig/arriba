@@ -9,7 +9,7 @@ using namespace std;
 
 bool estimate_mate_gap_distribution(const chimeric_alignments_t& chimeric_alignments, float& mate_gap_mean, float& mate_gap_stddev, const gene_annotation_index_t& gene_annotation_index, const exon_annotation_index_t& exon_annotation_index);
 
-strandedness_t detect_strandedness(const chimeric_alignments_t& chimeric_alignments, const gene_annotation_index_t& gene_annotation_index);
+strandedness_t detect_strandedness(const chimeric_alignments_t& chimeric_alignments, const gene_annotation_index_t& gene_annotation_index, const exon_annotation_index_t& exon_annotation_index);
 
 const int COVERAGE_RESOLUTION = 20; // at what resolution in bp to calculate the coverage
 // for each contig store for every window of <COVERAGE_RESOLUTION> bp whether a read starts/ends here

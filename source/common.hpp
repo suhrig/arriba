@@ -73,7 +73,14 @@ typedef annotation_t<gene_annotation_record_t> gene_annotation_t;
 typedef contig_annotation_index_t<gene_t> gene_contig_annotation_index_t;
 typedef annotation_index_t<gene_t> gene_annotation_index_t;
 
-typedef unsigned int transcript_t;
+struct transcript_annotation_record_t {
+	unsigned int id;
+	position_t start;
+	position_t end;
+};
+typedef annotation_t<transcript_annotation_record_t> transcript_annotation_t;
+typedef transcript_annotation_record_t* transcript_t;
+
 struct exon_annotation_record_t: public annotation_record_t {
 	gene_t gene;
 	transcript_t transcript;
@@ -96,9 +103,9 @@ struct alignment_t {
 	bool supplementary;
 	bool first_in_pair;
 	bool exonic;
-	strand_t strand;
-	strand_t predicted_strand;
-	bool predicted_strand_ambiguous;
+	strand_t strand; // strand which the read aligns to
+	strand_t predicted_strand; // strand which is predicted to be transcribed
+	bool predicted_strand_ambiguous; // true, if transcribed strand cannot be predicted reliably
 	contig_t contig;
 	position_t start;
 	position_t end;
@@ -147,8 +154,8 @@ struct fusion_t {
 	short unsigned int split_reads1, split_reads2, discordant_mates;
 	float evalue; // expected number of fusions with the given properties by random chance
 	position_t breakpoint1, breakpoint2;
-	position_t closest_genomic_breakpoint1, closest_genomic_breakpoint2;
 	position_t anchor_start1, anchor_start2;
+	position_t closest_genomic_breakpoint1, closest_genomic_breakpoint2;
 	gene_t gene1, gene2;
 	vector<chimeric_alignments_t::iterator> split_read1_list, split_read2_list, discordant_mate_list;
 	filter_t filter; // name of the filter which discarded the fusion (NULL means not discarded)

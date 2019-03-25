@@ -11,7 +11,7 @@
 using namespace std;
 
 typedef unsigned int kmer_as_int_t; // represent kmer as integer
-typedef unordered_map< kmer_as_int_t, vector<string::size_type> > kmer_index_t; // store coordinates of kmers
+typedef unordered_map< kmer_as_int_t, vector<int> > kmer_index_t; // store coordinates of kmers
 typedef vector<kmer_index_t> kmer_indices_t; // one index per contig
 
 kmer_as_int_t kmer_to_int(const string& kmer, const string::size_type position, const char kmer_length);

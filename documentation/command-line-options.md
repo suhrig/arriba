@@ -165,6 +165,9 @@ draw_fusions.R --annotation=annotation.gtf --fusions=fusions.tsv --output=output
 `--printExonLabels=TRUE|FALSE`
 : By default the number of an exon is printed inside each exon, which is taken from the attribute `exon_number` of the GTF annotation. When a gene has many exons, the boxes may be too narrow to contain the labels, resulting in unreadable exon labels. In these situations, it may be better to turn off exon labels. Default: `TRUE`
 
+`--render3dEffect=TRUE|FALSE`
+: Whether light and shadow should be rendered to give objects a 3D effect. Default: `TRUE`
+
 `--proteinDomains=FILE`
 : GFF3 file containing the genomic coordinates of protein domains. Distributions of Arriba offer protein domain annotations for all supported assemblies in the `database` directory. When this file is given, a plot is generated, which shows the protein domains retained in the fusion transcript. This option requires the Bioconductor package `GenomicRanges`.
 

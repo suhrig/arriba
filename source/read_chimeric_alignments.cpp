@@ -51,7 +51,7 @@ void add_chimeric_alignment(chimeric_alignments_t& chimeric_alignments, const ba
 	alignment.supplementary = is_supplementary;
 	if (!is_supplementary) { // only keep sequence in memory, if this is not the supplementary alignment (because then it's already stored in the split-read)
 		alignment.sequence.resize(bam_record->core.l_qseq);
-		for (unsigned int i = 0; i < bam_record->core.l_qseq; ++i)
+		for (int i = 0; i < bam_record->core.l_qseq; ++i)
 			alignment.sequence[i] = seq_nt16_str[bam_seqi(bam_get_seq(bam_record), i)];
 	}
 
@@ -126,7 +126,6 @@ bool extract_read_through_alignment(chimeric_alignments_t& chimeric_alignments, 
 
 		// check for possibility (1) => find intron in CIGAR string which spans the fusion genes
 		unsigned int forward_cigar_op, reverse_cigar_op;
-		unsigned int forward_matches_before_intron, reverse_matches_before_intron;
 		position_t forward_read_pos, reverse_read_pos;
 		bool forward_mate_has_intron = (forward_mate == NULL) ? false : find_spanning_intron(forward_mate, forward_gene_end, reverse_gene_start, forward_cigar_op, forward_read_pos);
 		bool reverse_mate_has_intron = (reverse_mate == NULL) ? false : find_spanning_intron(reverse_mate, forward_gene_end, reverse_gene_start, reverse_cigar_op, reverse_read_pos);
@@ -198,7 +197,7 @@ unsigned int read_chimeric_alignments(const string& bam_file_path, const string&
 	// and make a map tid -> contig, because the contig IDs in the BAM file need not necessarily match the contig IDs in the GTF file
 	tid_to_contig_t tid_to_contig(bam_header->n_targets);
 	vector<bool> interesting_tids(bam_header->n_targets);
-	for (uint32_t target = 0; target < bam_header->n_targets; ++target) {
+	for (int target = 0; target < bam_header->n_targets; ++target) {
 		string contig_name = removeChr(bam_header->target_name[target]);
 		contigs.insert(pair<string,contig_t>(contig_name, contigs.size())); // this fails (i.e., nothing is inserted), if the contig already exists
 		tid_to_contig[target] = contigs[contig_name];
@@ -213,6 +212,7 @@ unsigned int read_chimeric_alignments(const string& bam_file_path, const string&
 		exit(1);
 	}
 	buffered_bam_records_t buffered_bam_records; // holds the first mate until we have found the second
+	bool no_chimeric_reads = true;
 	while (sam_read1(bam_file, bam_header, bam_record) >= 0) {
 
 		if (is_rna_bam_file)
@@ -224,12 +224,15 @@ unsigned int read_chimeric_alignments(const string& bam_file_path, const string&
 
 		if (separate_chimeric_bam_file && !is_rna_bam_file && (bam_record->core.flag & BAM_FSECONDARY)) { // extract supplementary reads from Chimeric.out.sam
 			add_chimeric_alignment(chimeric_alignments, bam_record, 0, 0, false, false, true);
+			no_chimeric_reads = false;
 			continue; // supplementary alignments are added directly; all other reads need to be buffered until we have found the mate (see below)
 		}
 
 		if (is_rna_bam_file && (bam_record->core.flag & BAM_FSUPPLEMENTARY)) { // extract supplementary reads from Aligned.out.bam
-			if (!separate_chimeric_bam_file) // don't load supplementary reads twice (from Chimeric.out.sam and from Aligned.out.bam)
+			if (!separate_chimeric_bam_file) { // don't load supplementary reads twice (from Chimeric.out.sam and from Aligned.out.bam)
 				add_chimeric_alignment(chimeric_alignments, bam_record, 0, 0, false, false, true);
+				no_chimeric_reads = false;
+			}
 			continue;
 		}
 
@@ -268,6 +271,7 @@ unsigned int read_chimeric_alignments(const string& bam_file_path, const string&
 				add_chimeric_alignment(chimeric_alignments, bam_record);
 				if (previously_seen_mate != NULL)
 					add_chimeric_alignment(chimeric_alignments, previously_seen_mate);
+				no_chimeric_reads = false;
 
 			} else { // this is Aligned.out.bam => load only discordant mates and split reads, and only when there is no Chimeric.out.sam
 
@@ -279,6 +283,7 @@ unsigned int read_chimeric_alignments(const string& bam_file_path, const string&
 						add_chimeric_alignment(chimeric_alignments, bam_record);
 						if (previously_seen_mate != NULL)
 							add_chimeric_alignment(chimeric_alignments, previously_seen_mate);
+						no_chimeric_reads = false;
 					}
 				} else { // only add read-through alignment, if it is not already a chimeric alignment
 					is_read_through_alignment = extract_read_through_alignment(chimeric_alignments, bam_record, previously_seen_mate, gene_annotation_index, separate_chimeric_bam_file);
@@ -296,6 +301,19 @@ unsigned int read_chimeric_alignments(const string& bam_file_path, const string&
 	bam_destroy1(bam_record);
 	bam_hdr_destroy(bam_header);
 	sam_close(bam_file);
+
+	// sanity check: input files should not be empty
+	if (is_rna_bam_file && mapped_reads == 0) {
+		cerr << "ERROR: no normal reads found" << endl;
+		exit(1);
+	}
+	if (separate_chimeric_bam_file && !is_rna_bam_file || // this is Chimeric.out.sam
+	    !separate_chimeric_bam_file) { // this is Aligned.out.bam and STAR was run with --chimOutType WithinBAM
+		if (no_chimeric_reads) {
+			cerr << "ERROR: no split reads or discordant mates found (STAR must either be run with '--chimOutType WithinBAM' or the file 'Chimeric.out.sam' must be passed to Arriba via the argument -c)" << endl;
+			exit(1);
+		}
+	}
 
 	return chimeric_alignments.size();
 }

@@ -43,7 +43,7 @@ void pileup_chimeric_alignments(vector<chimeric_alignments_t::iterator>& chimeri
 		position_t reference_offset = read.start;
 		int subtract_from_next_element = 0;
 		position_t intron_start;
-		for (int cigar_element = 0; cigar_element < read.cigar.size(); cigar_element++) {
+		for (unsigned int cigar_element = 0; cigar_element < read.cigar.size(); cigar_element++) {
 			switch (read.cigar.operation(cigar_element)) {
 				case BAM_CINS:
 					pileup[reference_offset][read_sequence.substr(read_offset, read.cigar.op_length(cigar_element)+1)]++;
@@ -58,7 +58,7 @@ void pileup_chimeric_alignments(vector<chimeric_alignments_t::iterator>& chimeri
 					subtract_from_next_element = 0;
 					break;
 				case BAM_CDEL:
-					for (position_t base = 0; base < read.cigar.op_length(cigar_element) - subtract_from_next_element; ++base, ++reference_offset)
+					for (position_t base = 0; base < (int) read.cigar.op_length(cigar_element) - subtract_from_next_element; ++base, ++reference_offset)
 						pileup[reference_offset]["-"]++; // indicate deletion by dash
 					subtract_from_next_element = 0;
 					break;
@@ -75,7 +75,7 @@ void pileup_chimeric_alignments(vector<chimeric_alignments_t::iterator>& chimeri
 				case BAM_CMATCH:
 				case BAM_CEQUAL:
 				case BAM_CDIFF:
-					for (position_t base = 0; base < read.cigar.op_length(cigar_element) - subtract_from_next_element; ++base, ++read_offset, ++reference_offset)
+					for (position_t base = 0; base < (int) read.cigar.op_length(cigar_element) - subtract_from_next_element; ++base, ++read_offset, ++reference_offset)
 						pileup[reference_offset][read_sequence.substr(read_offset,1)]++;
 					subtract_from_next_element = 0;
 					break;
@@ -98,7 +98,6 @@ void get_sequence_from_pileup(const pileup_t& pileup, const position_t breakpoin
 
 	// for each position, find the most frequent allele in the pileup
 	bool intron_open = false; // keep track of whether the current position is in an intron
-	position_t intron_start; // keep track of beginning of current intron (if intron_open is true)
 	bool intron_closed = true; // keep track of whether the current position is in an intron
 	for (pileup_t::const_iterator position = pileup.begin(); position != pileup.end(); ++position) {
 
@@ -152,7 +151,6 @@ void get_sequence_from_pileup(const pileup_t& pileup, const position_t breakpoin
 				sequence += "___";
 				positions.resize(positions.size() + 3, -1);
 				intron_open = true;
-				intron_start = position->first;
 				intron_closed = false;
 			}
 
@@ -220,10 +218,10 @@ void get_fusion_transcript_sequence(fusion_t& fusion, const assembly_t& assembly
 	pileup_chimeric_alignments(fusion.discordant_mate_list, MATE2, false, fusion.direction2, fusion.breakpoint2, pileup2);
 
 	// look for non-template bases inserted between the fused genes
-	int non_template_bases = 0;
+	unsigned int non_template_bases = 0;
 	if (!fusion.spliced1 && !fusion.spliced2) {
 
-		map<int, unsigned int> non_template_bases_count;
+		map<unsigned int/*number of non-template bases*/, unsigned int/*number of reads with given number of non-template bases*/> non_template_bases_count;
 		for (auto read = fusion.split_read1_list.begin(); read != fusion.split_read2_list.end(); ++read) {
 
 			// continue with split_read2_list if we have processed the split_read1_list
@@ -234,11 +232,13 @@ void get_fusion_transcript_sequence(fusion_t& fusion, const assembly_t& assembly
 			}
 
 			// there are non-template bases, if the sum of the clipped bases of split read and supplementary alignment are greater than the read length
-			int clipped_split_read = ((**read).second[SPLIT_READ].strand == FORWARD) ? (**read).second[SPLIT_READ].cigar.op_length(0) : (**read).second[SPLIT_READ].cigar.op_length((**read).second[SPLIT_READ].cigar.size()-1);
-			int clipped_supplementary = ((**read).second[SUPPLEMENTARY].strand == FORWARD) ? (**read).second[SUPPLEMENTARY].cigar.op_length((**read).second[SUPPLEMENTARY].cigar.size()-1) : (**read).second[SUPPLEMENTARY].cigar.op_length(0);
-			int unmapped_bases = clipped_split_read + clipped_supplementary - (**read).second[SPLIT_READ].sequence.size();
-			if (++non_template_bases_count[unmapped_bases] > non_template_bases_count[non_template_bases])
-				non_template_bases = unmapped_bases;
+			unsigned int clipped_split_read = ((**read).second[SPLIT_READ].strand == FORWARD) ? (**read).second[SPLIT_READ].preclipping() : (**read).second[SPLIT_READ].postclipping();
+			unsigned int clipped_supplementary = ((**read).second[SUPPLEMENTARY].strand == FORWARD) ? (**read).second[SUPPLEMENTARY].postclipping() : (**read).second[SUPPLEMENTARY].preclipping();
+			if (clipped_split_read + clipped_supplementary >= (**read).second[SPLIT_READ].sequence.size()) {
+				unsigned int unmapped_bases = clipped_split_read + clipped_supplementary - (**read).second[SPLIT_READ].sequence.size();
+				if (++non_template_bases_count[unmapped_bases] > non_template_bases_count[non_template_bases])
+					non_template_bases = unmapped_bases;
+			}
 		}
 
 	}
@@ -295,9 +295,9 @@ void get_fusion_transcript_sequence(fusion_t& fusion, const assembly_t& assembly
 	bool sequence2_has_non_template_bases = false;
 	if (fusion.direction1 == UPSTREAM) {
 		int base = 0;
-		while (base < sequence1.size() && (sequence1[base] == 'a' || sequence1[base] == 't' || sequence1[base] == 'c' || sequence1[base] == 'g'))
+		while (base < (int) sequence1.size() && (sequence1[base] == 'a' || sequence1[base] == 't' || sequence1[base] == 'c' || sequence1[base] == 'g'))
 			++base;
-		if (base > 0 && base < sequence1.size()) {
+		if (base > 0 && base < (int) sequence1.size()) {
 			sequence1 = sequence1.substr(0, base) + "|" + sequence1.substr(base);
 			fill(positions1.begin(), positions1.begin()+base, -1); // mark non-reference bases
 			positions1.insert(positions1.begin()+base, -1); // add position for control character
@@ -307,7 +307,7 @@ void get_fusion_transcript_sequence(fusion_t& fusion, const assembly_t& assembly
 		int base = sequence1.size()-1;
 		while (base >= 0 && (sequence1[base] == 'a' || sequence1[base] == 't' || sequence1[base] == 'c' || sequence1[base] == 'g'))
 			--base;
-		if (base+1 < sequence1.size() && base >= 0) {
+		if (base+1 < (int) sequence1.size() && base >= 0) {
 			sequence1 = sequence1.substr(0, base+1) + "|" + sequence1.substr(base+1);
 			fill(positions1.begin()+base+1, positions1.end(), -1); // mark non-reference bases
 			positions1.insert(positions1.begin()+base+1, -1); // add position for control character
@@ -316,9 +316,9 @@ void get_fusion_transcript_sequence(fusion_t& fusion, const assembly_t& assembly
 	}
 	if (fusion.direction2 == UPSTREAM) {
 		int base = 0;
-		while (base < sequence2.size() && (sequence2[base] == 'a' || sequence2[base] == 't' || sequence2[base] == 'c' || sequence2[base] == 'g'))
+		while (base < (int) sequence2.size() && (sequence2[base] == 'a' || sequence2[base] == 't' || sequence2[base] == 'c' || sequence2[base] == 'g'))
 			++base;
-		if (base > 0 && base < sequence2.size()) {
+		if (base > 0 && base < (int) sequence2.size()) {
 			sequence2 = sequence2.substr(0, base) + "|" + sequence2.substr(base);
 			fill(positions2.begin(), positions2.begin()+base, -1); // mark non-reference bases
 			positions2.insert(positions2.begin()+base, -1); // add position for control character
@@ -328,7 +328,7 @@ void get_fusion_transcript_sequence(fusion_t& fusion, const assembly_t& assembly
 		int base = sequence2.size()-1;
 		while (base >= 0 && (sequence2[base] == 'a' || sequence2[base] == 't' || sequence2[base] == 'c' || sequence2[base] == 'g'))
 			--base;
-		if (base+1 < sequence2.size() && base >= 0) {
+		if (base+1 < (int) sequence2.size() && base >= 0) {
 			sequence2 = sequence2.substr(0, base+1) + "|" + sequence2.substr(base+1);
 			fill(positions2.begin()+base+1, positions2.end(), -1); // mark non-reference bases
 			positions2.insert(positions2.begin()+base+1, -1); // add position for control character
@@ -728,9 +728,11 @@ int get_reading_frame(const vector<position_t>& transcribed_bases, const int fro
 			((float)transcript->second)/(1 + abs(from - to)), // % of transcribed bases inside exons
 			((float)transcript->second)/(1 + transcript_length[transcript->first]) // % of exonic regions being transcribed
 		);
-		// if the similarity scores tie, preferentially pick a transcript which has a coding region at the breakpoint
+		// if the similarity scores tie, preferentially pick the longest transcript with a coding region at the breakpoint
 		if (similarity > current_best_similarity ||
-		    similarity == current_best_similarity && !transcript_is_coding_at_breakpoint[best_transcript] && transcript_is_coding_at_breakpoint[transcript->first]) {
+		    similarity == current_best_similarity && !transcript_is_coding_at_breakpoint[best_transcript] && transcript_is_coding_at_breakpoint[transcript->first] ||
+		    similarity == current_best_similarity && transcript_is_coding_at_breakpoint[best_transcript] == transcript_is_coding_at_breakpoint[transcript->first] && transcript->first->end - transcript->first->start > best_transcript->end - best_transcript->start ||
+		    similarity == current_best_similarity && transcript_is_coding_at_breakpoint[best_transcript] == transcript_is_coding_at_breakpoint[transcript->first] && transcript->first->end - transcript->first->start == best_transcript->end - best_transcript->start && transcript->first->id < best_transcript->id) { // IDs as tie breaker ensures deterministic behavior
 			best_transcript = transcript->first;
 			current_best_similarity = similarity;
 		}

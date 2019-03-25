@@ -32,7 +32,7 @@ parseFileParameter <- function(parameter, args, mandatory=FALSE) {
 }
 
 if (any(grepl("^--help", args)) || length(args) == 0)
-	stop("Usage: draw_fusions.R --annotation=annotation.gtf --fusions=fusions.tsv --output=output.pdf [--alignments=Aligned.out.bam] [--cytobands=cytobands.tsv] [--minConfidenceForCircosPlot=medium] [--proteinDomains=protein_domains.gff3] [--squishIntrons=TRUE] [--printExonLabels=TRUE] [--pdfWidth=11.692] [--pdfHeight=8.267] [--color1=#e5a5a5] [--color2=#a7c4e5] [--mergeDomainsOverlappingBy=0.9] [--optimizeDomainColors=FALSE] [--fontSize=1] [--showIntergenicVicinity=0]")
+	stop("Usage: draw_fusions.R --annotation=annotation.gtf --fusions=fusions.tsv --output=output.pdf [--alignments=Aligned.sortedByCoord.out.bam] [--cytobands=cytobands.tsv] [--minConfidenceForCircosPlot=medium] [--proteinDomains=protein_domains.gff3] [--squishIntrons=TRUE] [--printExonLabels=TRUE] [--render3dEffect=TRUE] [--pdfWidth=11.692] [--pdfHeight=8.267] [--color1=#e5a5a5] [--color2=#a7c4e5] [--mergeDomainsOverlappingBy=0.9] [--optimizeDomainColors=FALSE] [--fontSize=1] [--showIntergenicVicinity=0]")
 exonsFile <- parseFileParameter("annotation", args, T)
 fusionsFile <- parseFileParameter("fusions", args, T)
 outputFile <- parseStringParameter("output", args)
@@ -48,6 +48,7 @@ if (!(minConfidenceForCircosPlot %in% c("low", "medium", "high")))
 proteinDomainsFile <- parseFileParameter("proteinDomains", args)
 squishIntrons <- parseBooleanParameter("squishIntrons", args, T)
 printExonLabels <- parseBooleanParameter("printExonLabels", args, T)
+render3dEffect <- parseBooleanParameter("render3dEffect", args, T)
 pdfWidth <- as.numeric(parseStringParameter("pdfWidth", args, "11.692"))
 pdfHeight <- as.numeric(parseStringParameter("pdfHeight", args, "8.267"))
 color1 <- parseStringParameter("color1", args, "#e5a5a5")
@@ -176,6 +177,8 @@ drawVerticalGradient <- function(left, right, y, color, selection=NULL) {
 		)
 	}
 }
+if (!render3dEffect) # nullify function, if no 3D effect should be drawn
+	drawVerticalGradient <- function(left, right, y, color, selection=NULL) { }
 
 drawCurlyBrace <- function(left, right, top, bottom, tip) {
 	smoothness <- 20
@@ -484,6 +487,20 @@ drawProteinDomains <- function(fusion, exons1, exons2, proteinDomains, color1, c
 		retainedDomains2$color <- colors[retainedDomains2$proteinDomainID]
 	}
 
+	# reverse exons and protein domains, if on the reverse strand
+	if (any(codingExons1$strand == "-")) {
+		codingExons1$length <- rev(codingExons1$length)
+		temp <- retainedDomains1$end
+		retainedDomains1$end <- codingLength1 - retainedDomains1$start
+		retainedDomains1$start <- codingLength1 - temp
+	}
+	if (any(codingExons2$strand == "-")) {
+		codingExons2$length <- rev(codingExons2$length)
+		temp <- retainedDomains2$end
+		retainedDomains2$end <- codingLength2 - retainedDomains2$start
+		retainedDomains2$start <- codingLength2 - temp
+	}
+
 	# normalize length to 1
 	codingExons1$length <- codingExons1$length / (codingLength1 + codingLength2)
 	codingExons2$length <- codingExons2$length / (codingLength1 + codingLength2)
@@ -587,8 +604,9 @@ drawProteinDomains <- function(fusion, exons1, exons2, proteinDomains, color1, c
 	uniqueDomains2 <- countUniqueDomains(retainedDomains2)
 
 	# draw title of plot
-	titleY <- exonsY + exonHeight/2 + (uniqueDomains1 + 1) * 0.05
-	text(0.5, titleY, "RETAINED PROTEIN DOMAINS", font=2, cex=fontSize)
+	titleY <- exonsY + exonHeight/2 + (uniqueDomains1 + 2) * 0.05
+	text(0.5, titleY+0.01, "RETAINED PROTEIN DOMAINS", adj=c(0.5, 0), font=2, cex=fontSize)
+	text(0.5, titleY, ifelse(fusion$reading_frame != ".", paste(fusion$reading_frame, "fusion"), "reading frame unclear"), adj=c(0.5, 1), cex=fontSize)
 
 	# draw domain labels for gene1
 	if (length(unlist(retainedDomains1)) > 0) {
@@ -671,18 +689,20 @@ findExons <- function(exons, contig, gene, direction, breakpoint) {
 	# find the consensus transcript, if there are multiple hits
 	if (length(unique(candidateExons$transcript)) > 1) {
 		consensusTranscript <-
-			ifelse(grepl("appris_principal_1", candidateExons$attributes), 10,
-			ifelse(grepl("appris_principal_2", candidateExons$attributes), 9,
-			ifelse(grepl("appris_principal_3", candidateExons$attributes), 8,
-			ifelse(grepl("appris_principal_4", candidateExons$attributes), 7,
-			ifelse(grepl("appris_principal_5", candidateExons$attributes), 6,
-			ifelse(grepl("appris_principal", candidateExons$attributes), 5,
+			ifelse(grepl("appris_principal_1", candidateExons$attributes), 12,
+			ifelse(grepl("appris_principal_2", candidateExons$attributes), 11,
+			ifelse(grepl("appris_principal_3", candidateExons$attributes), 10,
+			ifelse(grepl("appris_principal_4", candidateExons$attributes), 9,
+			ifelse(grepl("appris_principal_5", candidateExons$attributes), 8,
+			ifelse(grepl("appris_principal", candidateExons$attributes), 7,
+			ifelse(grepl("appris_candidate_longest", candidateExons$attributes), 6,
+			ifelse(grepl("appris_candidate", candidateExons$attributes), 5,
 			ifelse(grepl("appris_alternative_1", candidateExons$attributes), 4,
 			ifelse(grepl("appris_alternative_2", candidateExons$attributes), 3,
 			ifelse(grepl("appris_alternative", candidateExons$attributes), 2,
 			ifelse(grepl("CCDS", candidateExons$attributes), 1,
 			0
-		))))))))))
+		))))))))))))
 		candidateExons <- candidateExons[consensusTranscript == max(consensusTranscript),]
 	}
 	# use the transcript with the longest coding sequence, if there are still multiple hits

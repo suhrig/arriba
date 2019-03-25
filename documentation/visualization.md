@@ -11,6 +11,8 @@ If a gene has multiple transcript variants, the script picks a transcript in the
 
 - transcripts tagged as `appris_principal`
 
+- transcripts tagged as `appris_candidate`
+
 - transcripts tagged as `appris_alternative`
 
 - transcripts tagged as `CCDS`
@@ -63,7 +65,7 @@ docker run --rm \
        -v /path/to/fusions.tsv:/fusions.tsv:ro \
        -v /path/to/Aligned.sortedByCoord.out.bam:/Aligned.sortedByCoord.out.bam:ro \
        -v /path/to/Aligned.sortedByCoord.out.bam.bai:/Aligned.sortedByCoord.out.bam.bai:ro \
-       arriba:latest \
+       uhrigs/arriba:1.0.1 \
        draw_fusions.sh
 ```
 
@@ -78,9 +80,13 @@ singularity exec \
        -B /path/to/fusions.tsv:/fusions.tsv:ro \
        -B /path/to/Aligned.sortedByCoord.out.bam:/Aligned.sortedByCoord.out.bam:ro \
        -B /path/to/Aligned.sortedByCoord.out.bam.bai:/Aligned.sortedByCoord.out.bam.bai:ro \
-       arriba.img \
+       docker://uhrigs/arriba:1.0.1 \
        draw_fusions.sh
 ```
+
+**Execution via Bioconda**
+
+When Arriba was installed via Bioconda, the script `draw_fusions.R` is available in the `$PATH` and can be executed as explained above. The database files (protein domain track, cytobands) are located in `$CONDA_PREFIX/var/lib/arriba`.
 
 Inspection of events using IGV
 ------------------------------
