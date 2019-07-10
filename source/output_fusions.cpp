@@ -828,7 +828,7 @@ string get_fusion_peptide_sequence(const string& transcript, const vector<positi
 
 	// determine reading frame of 5' gene
 	gene_t gene_5 = (fusion.transcript_start == TRANSCRIPT_START_GENE1) ? fusion.gene1 : fusion.gene2;
-	exon_t start_exon_5;
+	exon_t start_exon_5 = NULL;
 	int reading_frame_5 = get_reading_frame(positions, transcript_5_end, transcript_5_start, gene_5, exon_annotation_index, assembly, start_exon_5);
 	if (reading_frame_5 == -1)
 		return "."; // 5' gene has no coding exons overlapping the transcribed region
@@ -837,8 +837,11 @@ string get_fusion_peptide_sequence(const string& transcript, const vector<positi
 
 	// determine reading frame of 3' gene
 	gene_t gene_3 = (fusion.transcript_start == TRANSCRIPT_START_GENE1) ? fusion.gene2 : fusion.gene1;
-	exon_t start_exon_3;
-	int reading_frame_3 = get_reading_frame(positions, transcript_3_start, transcript_3_end, gene_3, exon_annotation_index, assembly, start_exon_3);
+	strand_t predicted_strand_3 = (fusion.transcript_start == TRANSCRIPT_START_GENE1) ? fusion.predicted_strand2 : fusion.predicted_strand1;
+	exon_t start_exon_3 = NULL;
+	int reading_frame_3 = -1;
+	if (gene_3->strand == predicted_strand_3) // it makes no sense to determine the reading frame in case of anti-sense transcription
+		reading_frame_3 = get_reading_frame(positions, transcript_3_start, transcript_3_end, gene_3, exon_annotation_index, assembly, start_exon_3);
 
 	// translate DNA to protein
 	string peptide_sequence;
