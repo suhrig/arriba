@@ -1,5 +1,5 @@
 # input directories
-HTSLIB := htslib-1.8
+HTSLIB := htslib
 SOURCE := source
 STATIC_LIBS := static_libs_centos6.9
 
