@@ -242,10 +242,18 @@ void print_usage() {
 options_t parse_arguments(int argc, char **argv) {
 	options_t options = get_default_options();
 
+	// throw error when first argument is not prefixed with a dash
+	// for some reason getopt does not detect this error and simply skips the argument
+	if (argc > 1 && (string(argv[1]).empty() || argv[1][0] != '-')) {
+		cerr << "ERROR: Cannot interpret the first argument \"" << argv[1] << "\"." << endl;
+		exit(1);
+	}
+
 	// parse arguments
 	opterr = 0;
 	int c;
 	while ((c = getopt(argc, argv, "c:x:d:g:G:o:O:a:b:k:s:i:f:E:S:m:L:H:D:R:A:M:K:V:F:U:Q:e:TPIh")) != -1) {
+
 		switch (c) {
 			case 'c':
 				options.chimeric_bam_file = optarg;
@@ -487,6 +495,12 @@ options_t parse_arguments(int argc, char **argv) {
 						break;
 				}
 		}
+
+		if (optind < argc && (string(argv[optind]).empty() || argv[optind][0] != '-')) {
+			cerr << "ERROR: Option -" << ((char) c) << " has more than one argument. Arguments with blanks must be wrapped in quotes." << endl;
+			exit(1);
+		}
+
 	}
 
 	// check for mandatory arguments
