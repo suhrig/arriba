@@ -200,8 +200,10 @@ drawIdeogram <- function(adjust, left, right, y, cytobands, contig, breakpoint) 
 	ideogramWidth <- 0.4
 	# extract bands of given contig
 	bands <- cytobands[cytobands$contig==contig,]
-	if (nrow(bands) == 0)
-		stop(paste("Giemsa bands of contig", contig, "not found"))
+	if (nrow(bands) == 0) {
+		warning(paste("Ideogram of contig", contig, "cannot be drawn, because no Giemsa staining information is available."))
+		return(NULL)
+	}
 	# scale width of ideogram to fit inside given region
 	bands$left <- bands$start / max(cytobands$end) * ideogramWidth
 	bands$right <- bands$end / max(cytobands$end) * ideogramWidth
@@ -302,6 +304,13 @@ drawExon <- function(left, right, y, color, title, type) {
 }
 
 drawCircos <- function(fusion, fusions, cytobands, minConfidenceForCircosPlot) {
+	# check if Giemsa staining information is available
+	for (contig in unlist(fusions[fusion,c("contig1", "contig2")])) {
+		if (!any(cytobands$contig==contig)) {
+			warning(paste0("Circos plot cannot be drawn, because no Giemsa staining information is available for contig ", contig, "."))
+			return(NULL)
+		}
+	}
 	# initialize with empty circos plot
 	circos.clear()
 	circos.initializeWithIdeogram(cytoband=cytobands, plotType=NULL)
