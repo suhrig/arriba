@@ -20,7 +20,7 @@ struct gtf_features_t {
 	vector<string> feature_exon;
 	vector<string> feature_cds;
 };
-const string DEFAULT_GTF_FEATURES = "gene_name=gene_name gene_id=gene_id transcript_id=transcript_id feature_exon=exon feature_CDS=CDS";
+const string DEFAULT_GTF_FEATURES = "gene_name=gene_name|gene_id gene_id=gene_id transcript_id=transcript_id feature_exon=exon feature_CDS=CDS";
 
 bool parse_gtf_features(string gtf_features_string, gtf_features_t& gtf_features);
 
