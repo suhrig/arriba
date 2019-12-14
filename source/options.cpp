@@ -252,6 +252,7 @@ options_t parse_arguments(int argc, char **argv) {
 	// parse arguments
 	opterr = 0;
 	int c;
+	string junction_suffix(".junction");
 	while ((c = getopt(argc, argv, "c:x:d:g:G:o:O:a:b:k:s:i:f:E:S:m:L:H:D:R:A:M:K:V:F:U:Q:e:TPIh")) != -1) {
 
 		switch (c) {
@@ -259,6 +260,11 @@ options_t parse_arguments(int argc, char **argv) {
 				options.chimeric_bam_file = optarg;
 				if (access(options.chimeric_bam_file.c_str(), R_OK) != 0) {
 					cerr << "ERROR: File '" << options.chimeric_bam_file << "' not found." << endl;
+					exit(1);
+				}
+				if (options.chimeric_bam_file.size() >= junction_suffix.size() &&
+				    options.chimeric_bam_file.substr(options.chimeric_bam_file.size() - junction_suffix.size()) == junction_suffix) {
+					cerr << "WARNING: It seems you passed the chimeric junction file ('Chimeric.out.junction') to the parameter -c. However, this parameter takes the chimeric alignments file ('Chimeric.out.sam') as input." << endl;
 					exit(1);
 				}
 				break;
