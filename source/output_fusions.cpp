@@ -969,6 +969,18 @@ string get_fusion_peptide_sequence(const string& transcript, const vector<positi
 string is_in_frame(string& fusion_peptide_sequence) {
 	if (fusion_peptide_sequence == ".")
 		return ".";
+	// declare fusion as out-of-frame, if there is a stop codon before the junction
+	// unless there are in-frame codons between this stop codon and the junction
+	int fusion_junction = fusion_peptide_sequence.rfind('|');
+	int stop_codon_before_junction = fusion_peptide_sequence.rfind('*', fusion_junction);
+	bool in_frame_codons_before_junction = !(stop_codon_before_junction < fusion_junction);
+	for (int amino_acid = stop_codon_before_junction; amino_acid < fusion_junction; ++amino_acid)
+		if (fusion_peptide_sequence[amino_acid] >= 'A' && fusion_peptide_sequence[amino_acid] <= 'Z') {
+			in_frame_codons_before_junction = true;
+			break;
+		}
+	if (!in_frame_codons_before_junction)
+		return "out-of-frame";
 	// a fusion is in-frame, if there is at least one amino acid in the 3' end of the fusion
 	// that matches an amino acid of the 3' gene
 	// such amino acids can easily be identified, because they are uppercase in the fusion sequence
