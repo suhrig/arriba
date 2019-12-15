@@ -172,6 +172,11 @@ struct fusion_t {
 		       breakpoint1 >= gene2->start - 10000 && breakpoint1 <= gene2->end + 10000 &&
 		       breakpoint2 >= gene1->start - 10000 && breakpoint2 <= gene1->end + 10000;
 	};
+	bool both_breakpoints_spliced() {
+		return spliced1 && spliced2 &&
+		       (gene1->strand == gene2->strand && direction1 != direction2 ||
+		        gene1->strand != gene2->strand && direction1 == direction2);
+	};
 };
 typedef unordered_map< tuple<unsigned int /*gene1 id*/, unsigned int /*gene2 id*/, contig_t /*contig1*/, contig_t /*contig2*/, position_t /*breakpoint1*/, position_t /*breakpoint2*/, direction_t /*direction1*/, direction_t /*direction2*/>,fusion_t > fusions_t;
 
