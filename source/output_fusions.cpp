@@ -364,6 +364,12 @@ void get_fusion_transcript_sequence(fusion_t& fusion, const assembly_t& assembly
 		positions.insert(positions.end(), positions1.begin(), positions1.end());
 	}
 
+	// Arriba uses question marks to denote ambiguous bases;
+	// sequencers typically use 'N's
+	// => convert 'N's to '?'
+	for (size_t i = 0; i < sequence.size(); ++i)
+		if (sequence[i] == 'n' || sequence[i] == 'N')
+			sequence[i] = '?';
 }
 
 bool sort_fusions_by_support(const fusion_t* x, const fusion_t* y) {
