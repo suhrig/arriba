@@ -50,7 +50,8 @@ unsigned int filter_pcr_fusions(fusions_t& fusions, const chimeric_alignments_t&
 	// which appeared as though the mate overlaps a breakpoint
 	// => onnly consider discordant mates with this many clipped bases (or more) to overlap the breakpoint
 	const unsigned int min_clipped_length = 3;
-	// genes fused during PCR often have multiple breakpoints within exons (rather than at splice-sites)
+	// genes fused during polymerase chain reaction (PCR)/reverse transcription (RT)
+	// often have multiple breakpoints within exons (rather than at splice-sites)
 	// => we consider the following to be many exonic breakpoints
 	const unsigned int max_exonic_breakpoints_by_gene_pair = 8;
 
@@ -58,8 +59,8 @@ unsigned int filter_pcr_fusions(fusions_t& fusions, const chimeric_alignments_t&
 	unordered_map< tuple<gene_t/*gene1*/,gene_t/*gene2*/>, unsigned int > exonic_breakpoints_by_gene_pair;
 	for (fusions_t::iterator fusion = fusions.begin(); fusion != fusions.end(); ++fusion) {
 		if (fusion->second.gene1 != fusion->second.gene2 && // it is perfectly normal to have many breakpoints within the same gene (hairpin fusions)
-		    !fusion->second.spliced1 && !fusion->second.spliced2 && // breakpoints at splice sites are almost exclusively a result of splicing and thus, no PCR-mediated fusions
-		    fusion->second.exonic1 && fusion->second.exonic2 && // PCR fusions only contain spliced transcripts, so we ignore intronic/intergenic breakpoints
+		    !fusion->second.spliced1 && !fusion->second.spliced2 && // breakpoints at splice sites are almost exclusively a result of splicing and thus, no PCR/RT-mediated fusions
+		    fusion->second.exonic1 && fusion->second.exonic2 && // PCR/RT fusions only contain spliced transcripts, so we ignore intronic/intergenic breakpoints
 		    fusion->second.split_read1_list.size() + fusion->second.split_read2_list.size() > 0 && // require a split read for exact location of the breakpoint
 		    fusion->second.filter != FILTERS.at("merge_adjacent") && // slightly varying alignments may lead to adjacent breakpoints, we should not count them as separate breakpoints
 		    fusion->second.filter != FILTERS.at("uninteresting_contigs")) { // skip uninteresting contigs to save some runtime/memory
@@ -68,7 +69,7 @@ unsigned int filter_pcr_fusions(fusions_t& fusions, const chimeric_alignments_t&
 		}
 	}
 
-	// PCR fusions are mostly observed between highly expressed genes
+	// PCR/RT fusions are mostly observed between highly expressed genes
 	// we use the number of chimeric reads as a proxy to measure expression
 	unordered_map<gene_t,unsigned int> read_count_by_gene;
 	for (chimeric_alignments_t::const_iterator chimeric_alignment = chimeric_alignments.begin(); chimeric_alignment != chimeric_alignments.end(); ++chimeric_alignment) {
@@ -103,7 +104,7 @@ unsigned int filter_pcr_fusions(fusions_t& fusions, const chimeric_alignments_t&
 		high_expression_threshold = read_count_by_gene[genes_sorted_by_reads[quantile]];
 	}
 
-	// remove fusions with a lot of characteristics of PCR-mediated fusions
+	// remove fusions with a lot of characteristics of PCR/RT-mediated fusions
 	for (fusions_t::iterator fusion = fusions.begin(); fusion != fusions.end(); ++fusion) {
 
 		if (fusion->second.filter != NULL && // fusion has already been filtered
@@ -111,39 +112,53 @@ unsigned int filter_pcr_fusions(fusions_t& fusions, const chimeric_alignments_t&
 		    !((fusion->second.spliced1 || fusion->second.spliced2) && (fusion->second.filter == FILTERS.at("relative_support") || fusion->second.filter == FILTERS.at("min_support"))))
 			continue;
 
-		// PCR-mediated fusions often have both breakpoints within exons,
+		// PCR/RT-mediated fusions often have both breakpoints within exons,
 		// but sometimes one (or even both) of them can be in introns or even at splice-sites
 		// the latter only happens with very highly expressed genes
-		// => count the number of potentially PCR-mediated breakpoints and
-		//    penalize events with one/two PCR-mediated breakpoints more
+		// => count the number of potentially PCR/RT-mediated breakpoints and
+		//    penalize events with one/two PCR/RT-mediated breakpoints more
 		float potential_pcr_breakpoints = 0;
 		if (!fusion->second.exonic1) {
-			potential_pcr_breakpoints += 0.5; // intron => unclear if it is a PCR artifact (not likely, but possible)
+			potential_pcr_breakpoints += 0.5; // intron => unclear if it is a PCR/RT artifact (not likely, but possible)
 		} else if (!fusion->second.spliced1) {
-			potential_pcr_breakpoints += 1; // breakpoint inside exon => very likely PCR artifact
-		} // else: splice-site => probably from splicing and not PCR-mediated
+			potential_pcr_breakpoints += 1; // breakpoint inside exon => very likely PCR/RT artifact
+		} // else: splice-site => probably from splicing and not PCR/RT-mediated
 		if (!fusion->second.exonic2) {
-			potential_pcr_breakpoints += 0.5; // intron => unclear if it is a PCR artifact (not likely, but possible)
+			potential_pcr_breakpoints += 0.5; // intron => unclear if it is a PCR/RT artifact (not likely, but possible)
 		} else if (!fusion->second.spliced2) {
-			potential_pcr_breakpoints += 1; // breakpoint inside exon => very likely PCR artifact
-		} // else: splice-site => probably from splicing and not PCR-mediated
+			potential_pcr_breakpoints += 1; // breakpoint inside exon => very likely PCR/RT artifact
+		} // else: splice-site => probably from splicing and not PCR/RT-mediated
 
-		// PCR artifacts usually have no/few split reads
+		// PCR/RT artifacts usually have no/few split reads
 		// then again, some true events have no split reads, because of alignment issues (e.g., many inserted non-template bases)
 		// we check if some of the discordant mates overlap the breakpoint and are clipped there
 		// if so, they are counted as split reads
-		unsigned int total_split_reads = fusion->second.split_reads1 + fusion->second.split_reads2;
+		unsigned int clipped_discordant_mates1 = 0;
+		unsigned int clipped_discordant_mates2 = 0;
 		for (auto discordant_mates = fusion->second.discordant_mate_list.begin(); discordant_mates != fusion->second.discordant_mate_list.end(); ++discordant_mates) {
 			if ((**discordant_mates).second.filter == NULL) {
 				for (mates_t::iterator mate = (**discordant_mates).second.begin(); mate != (**discordant_mates).second.end(); ++mate) {
-					if (mate->strand == FORWARD && mate->postclipping() >= min_clipped_length && (mate->contig == fusion->second.contig1 && mate->end == fusion->second.breakpoint1 || mate->contig == fusion->second.contig2 && mate->end == fusion->second.breakpoint2) ||
-					    mate->strand == REVERSE && mate->preclipping()  >= min_clipped_length && (mate->contig == fusion->second.contig1 && mate->start == fusion->second.breakpoint1 || mate->contig == fusion->second.contig2 && mate->start == fusion->second.breakpoint2)) {
-						total_split_reads++;
-						break;
+					if (mate->strand == FORWARD && mate->postclipping() >= min_clipped_length) {
+						if (mate->contig == fusion->second.contig1 && mate->end == fusion->second.breakpoint1) {
+							clipped_discordant_mates1++;
+						} else if (mate->contig == fusion->second.contig2 && mate->end == fusion->second.breakpoint2) {
+							clipped_discordant_mates2++;
+						}
+					} else if (mate->strand == REVERSE && mate->preclipping() >= min_clipped_length) {
+						if (mate->contig == fusion->second.contig1 && mate->start == fusion->second.breakpoint1) {
+							clipped_discordant_mates1++;
+						} else if (mate->contig == fusion->second.contig2 && mate->start == fusion->second.breakpoint2) {
+							clipped_discordant_mates2++;
+						}
 					}
 				}
 			}
 		}
+
+		// add the clipped discordant mates to the split reads
+		// we take the min of both counts, because PCR/RT artifacts often have clipped reads on only one side
+		// and because we would potentially count the same fragment twice, if both discordant mates overlap both breakpoints
+		unsigned int total_split_reads = min(clipped_discordant_mates1, clipped_discordant_mates2) + fusion->second.split_reads1 + fusion->second.split_reads2;
 
 		// find the highest expressed genes overlapping the breakpoint
 		gene_t gene1 = find_higher_expressed_gene(fusion->second.contig1, fusion->second.breakpoint1, gene_annotation_index, read_count_by_gene, fusion->second.gene1);
@@ -159,18 +174,18 @@ unsigned int filter_pcr_fusions(fusions_t& fusions, const chimeric_alignments_t&
 			find_or_default(exonic_breakpoints_by_gene_pair, make_tuple(fusion->second.gene1, fusion->second.gene2), (unsigned int) 0)
 		);
 
-		// check if the event exhibits the characteristics of a PCR-mediated fusion
+		// check if the event exhibits the characteristics of a PCR/RT-mediated fusion
 		if (
-			// PCR artifacts often have very few split reads
+			// PCR/RT artifacts often have very few split reads
 			// => check if the event has <=2 split reads or fewer than 1 supporting read per 10,000 chimeric reads
 			total_split_reads <= 2 + 0.0001 * (gene1_expression + gene2_expression) &&
-			// PCR artifacts often have many discordant mates, but only few split reads
+			// PCR/RT artifacts often have many discordant mates, but only few split reads
 			// => the number of split reads and discordant mates must be unbalanced (unless the total number of reads is very low)
 			(total_split_reads * 2 <= fusion->second.discordant_mates || total_split_reads <= 2) &&
-			// PCR artifacts occur between highly expressed genes
+			// PCR/RT artifacts occur between highly expressed genes
 			// => the sum of the chimeric reads of the fused genes must be in the top percentile
 			gene1_expression + gene2_expression > high_expression_threshold &&
-			// PCR artifacts typically have breakpoints inside exons, otherwise they might be true events
+			// PCR/RT artifacts typically have breakpoints inside exons, otherwise they might be true events
 			// => if we see an intronic/spliced breakpoint, only discard the event, if the genes are expressed at extreme levels
 			(
 				// both breakpoints in exons or one in exon and the other in intron => discard event
