@@ -10,7 +10,7 @@ Arriba is the winner of the [DREAM SMC-RNA Challenge](https://www.synapse.org/SM
 License
 -------
 
-Apart from the script `draw_fusions.R` all software/code of Arriba is disributed under the MIT/Expat License. The script `draw_fusions.R` is distributed under the GNU GPL v3 due to dependencies on GPL-licensed R packages. The terms and conditions of both licenses can be found in the [LICENSE file](https://raw.githubusercontent.com/suhrig/arriba/master/LICENSE).
+Apart from the script `draw_fusions.R` all software/code of Arriba is distributed under the MIT/Expat License. The script `draw_fusions.R` is distributed under the GNU GPL v3 due to dependencies on GPL-licensed R packages. The terms and conditions of both licenses can be found in the [LICENSE file](https://raw.githubusercontent.com/suhrig/arriba/master/LICENSE).
 
 Citing
 ------
