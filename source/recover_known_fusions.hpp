@@ -5,9 +5,10 @@
 #include <unordered_map>
 #include "common.hpp"
 #include "annotation.hpp"
+#include "read_stats.hpp"
 
 using namespace std;
 
-unsigned int recover_known_fusions(fusions_t& fusions, const string& known_fusions_file_path, const unordered_map<string,gene_t>& genes);
+unsigned int recover_known_fusions(fusions_t& fusions, const string& known_fusions_file_path, const unordered_map<string,gene_t>& genes, const coverage_t& coverage);
 
 #endif /* _RECOVER_KNOWN_FUSIONS_H */

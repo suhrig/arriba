@@ -84,13 +84,13 @@ The file has two columns separated by a tab. Each line lists a pair of genes. Th
 Structural variant calls from WGS
 ---------------------------------
 
-If whole-genome sequencing (WGS) data is available, the sensitivity and specificity of Arriba can be improved by passing a list of structural variants detected from WGS to Arriba:
+If whole-genome sequencing (WGS) data is available, the sensitivity and specificity of Arriba can be improved by passing a list of structural variants detected from WGS to Arriba via the parameter `-d`. This has the following effects:
 
 - Certain filters are overruled or run with extra sensitive settings, when an event is confirmed by WGS data.
 
 - To reduce the false positive rate, Arriba does not report low-confidence events unless they can be matched with a structural variant found in the WGS data.
 
-Both of these behaviors can be disabled by disabling the filters `genomic_support` and `no_genomic_support`, respectively. Providing Arriba with a list of structural variant calls then does not influence the calls, but it still has the benefit of filling the columns `closest_genomic_breakpoint1` and `closest_genomic_breakpoint2` with the breakpoints of the structural variant which is closest to a fusion.
+Both of these behaviors can be disabled by disabling the filters `genomic_support` and `no_genomic_support`, respectively. Providing Arriba with a list of structural variant calls then does not influence the calls, but it still has the benefit of filling the columns `closest_genomic_breakpoint1` and `closest_genomic_breakpoint2` with the breakpoints of the structural variant which is closest to a fusion. If the structural variant calls were obtained from whole-exome sequencing (WES) data rather than WGS data, the filter `no_genomic_support` should be disabled, since WES has poor coverage in most regions of the genome, such that many structural variants are missed.
 
 The file must contain four columns separated by tabs. The first two columns contain the breakpoints of the structural variants in the format `CONTIG:POSITION`. The last two columns contain the orientation of the breakpoints. The accepted values are:
 
@@ -98,5 +98,15 @@ The file must contain four columns separated by tabs. The first two columns cont
 
 - `upstream` or `-`: the fusion partner is fused at a coordinate lower than the breakpoint
 
+Example:
+
+```
+1:54420491	6:9248349	+	-
+20:46703288	20:46734546	-	+
+17:61499820	20:45133874	+	+
+3:190967119	7:77868317	-	-
+```
+
 Arriba checks if the orientation of the structural variant matches that of a fusion detected in the RNA-Seq data. If, for example, Arriba predicts the 5' end of a gene to be retained in a fusion, then a structural variant is expected to confirm this, or else the variant is not considered to be related.
 
+Note: Arriba was designed for alignments from RNA-Seq data. It should not be run on WGS data directly. Many assumptions made by Arriba about the data (statistical models, blacklist, etc.) only apply to RNA-Seq data and are not valid for DNA-Seq data. For such data, a structural variant calling algorithm should be used and the results should be passed to Arriba.

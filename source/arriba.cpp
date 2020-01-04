@@ -1,4 +1,5 @@
 #include <algorithm>
+#include <ctime>
 #include <iostream>
 #include <set>
 #include <sstream>
@@ -82,6 +83,13 @@ unordered_map<string,filter_t> FILTERS({
 	{"homologs", static_cast<string*>(NULL)}
 });
 
+string get_time_string() {
+	time_t now = time(0);
+	char buffer[100];
+	strftime(buffer, sizeof(buffer), "[%Y-%m-%dT%X]", localtime(&now));
+	return buffer;
+}
+
 int main(int argc, char **argv) {
 
 	// initialize filter names
@@ -105,7 +113,7 @@ int main(int argc, char **argv) {
 	contigs_t contigs = interesting_contigs;
 
 	// load GTF file
-	cout << "Loading annotation from '" << options.gene_annotation_file << "'" << endl << flush;
+	cout << get_time_string() << " Loading annotation from '" << options.gene_annotation_file << "'" << endl << flush;
 	gene_annotation_t gene_annotation;
 	transcript_annotation_t transcript_annotation;
 	exon_annotation_t exon_annotation;
@@ -119,7 +127,7 @@ int main(int argc, char **argv) {
 	make_annotation_index(gene_annotation, gene_annotation_index);
 
 	// load sequences of contigs from assembly
-	cout << "Loading assembly from '" << options.assembly_file << "'" << endl;
+	cout << get_time_string() << " Loading assembly from '" << options.assembly_file << "'" << endl;
 	assembly_t assembly;
 	load_assembly(assembly, options.assembly_file, contigs, interesting_contigs);
 
@@ -131,12 +139,12 @@ int main(int argc, char **argv) {
 	unsigned long int mapped_reads = 0;
 	coverage_t coverage(contigs, assembly);
 	if (!options.chimeric_bam_file.empty()) { // when STAR was run with --chimOutType SeparateSAMold, chimeric alignments must be read from a separate file named Chimeric.out.sam
-		cout << "Reading chimeric alignments from '" << options.chimeric_bam_file << "'" << flush;
+		cout << get_time_string() << " Reading chimeric alignments from '" << options.chimeric_bam_file << "'" << flush;
 		cout << " (total=" << read_chimeric_alignments(options.chimeric_bam_file, options.assembly_file, chimeric_alignments, mapped_reads, coverage, contigs, interesting_contigs, gene_annotation_index, true, false) << ")" << endl;
 	}
 
 	// extract chimeric alignments and read-through alignments from Aligned.out.bam
-	cout << "Reading chimeric alignments from '" << options.rna_bam_file << "'" << flush;
+	cout << get_time_string() << " Reading chimeric alignments from '" << options.rna_bam_file << "'" << flush;
 	cout << " (total=" << read_chimeric_alignments(options.rna_bam_file, options.assembly_file, chimeric_alignments, mapped_reads, coverage, contigs, interesting_contigs, gene_annotation_index, !options.chimeric_bam_file.empty(), true) << ")" << endl;
 
 	// map contig IDs to names
@@ -149,12 +157,12 @@ int main(int argc, char **argv) {
 	gene_annotation_index.resize(contigs.size());
 	exon_annotation_index.resize(contigs.size());
 
-	cout << "Filtering multi-mappers and single mates" << flush;
+	cout << get_time_string() << " Filtering multi-mappers and single mates" << flush;
 	cout << " (remaining=" << filter_multi_mappers(chimeric_alignments) << ")" << endl;
 
 	strandedness_t strandedness = options.strandedness;
 	if (options.strandedness == STRANDEDNESS_AUTO) {
-		cout << "Detecting strandedness" << flush;
+		cout << get_time_string() << " Detecting strandedness" << flush;
 		strandedness = detect_strandedness(chimeric_alignments, gene_annotation_index, exon_annotation_index);
 		switch (strandedness) {
 			case STRANDEDNESS_YES: cout << " (yes)" << endl; break;
@@ -163,11 +171,11 @@ int main(int argc, char **argv) {
 		}
 	}
 	if (strandedness != STRANDEDNESS_NO) {
-		cout << "Assigning strands to alignments" << endl << flush;
+		cout << get_time_string() << " Assigning strands to alignments" << endl << flush;
 		assign_strands_from_strandedness(chimeric_alignments, strandedness);
 	}
 
-	cout << "Annotating alignments" << flush << endl;
+	cout << get_time_string() << " Annotating alignments" << flush << endl;
 	// calculate sum of the lengths of all exons for each gene
 	// we will need this to normalize the number of events over the gene length
 	for (exon_annotation_index_t::iterator contig = exon_annotation_index.begin(); contig != exon_annotation_index.end(); ++contig) {
@@ -285,16 +293,16 @@ int main(int argc, char **argv) {
 		gene->id = gene_id++;
 
 	if (options.filters.at("duplicates")) {
-		cout << "Filtering duplicates" << flush;
+		cout << get_time_string() << " Filtering duplicates" << flush;
 		cout << " (remaining=" << filter_duplicates(chimeric_alignments) << ")" << endl;
 	}
 
 	if (options.filters.at("uninteresting_contigs") && !interesting_contigs.empty()) {
-		cout << "Filtering mates which do not map to interesting contigs (" << options.interesting_contigs << ")" << flush;
+		cout << get_time_string() << " Filtering mates which do not map to interesting contigs (" << options.interesting_contigs << ")" << flush;
 		cout << " (remaining=" << filter_uninteresting_contigs(chimeric_alignments, contigs, interesting_contigs) << ")" << endl;
 	}
 
-	cout << "Estimating mate gap distribution" << flush;
+	cout << get_time_string() << " Estimating mate gap distribution" << flush;
 	float mate_gap_mean, mate_gap_stddev;
 	int max_mate_gap;
 	if (estimate_mate_gap_distribution(chimeric_alignments, mate_gap_mean, mate_gap_stddev, gene_annotation_index, exon_annotation_index)) {
@@ -304,79 +312,79 @@ int main(int argc, char **argv) {
 		max_mate_gap = options.fragment_length;
 	
 	if (options.filters.at("read_through")) {
-		cout << "Filtering read-through fragments with a distance <=" << options.min_read_through_distance << "bp" << flush;
+		cout << get_time_string() << " Filtering read-through fragments with a distance <=" << options.min_read_through_distance << "bp" << flush;
 		cout << " (remaining=" << filter_proximal_read_through(chimeric_alignments, options.min_read_through_distance) << ")" << endl;
 	}
 
 	if (options.filters.at("inconsistently_clipped")) {
-		cout << "Filtering inconsistently clipped mates" << flush;
+		cout << get_time_string() << " Filtering inconsistently clipped mates" << flush;
 		cout << " (remaining=" << filter_inconsistently_clipped_mates(chimeric_alignments) << ")" << endl;
 	}
 
 	if (options.filters.at("homopolymer")) {
-		cout << "Filtering breakpoints adjacent to homopolymers >=" << options.homopolymer_length << "nt" << flush;
+		cout << get_time_string() << " Filtering breakpoints adjacent to homopolymers >=" << options.homopolymer_length << "nt" << flush;
 		cout << " (remaining=" << filter_homopolymer(chimeric_alignments, options.homopolymer_length, exon_annotation_index) << ")" << endl;
 	}
 
 	if (options.filters.at("small_insert_size")) {
-		cout << "Filtering fragments with small insert size" << flush;
+		cout << get_time_string() << " Filtering fragments with small insert size" << flush;
 		cout << " (remaining=" << filter_small_insert_size(chimeric_alignments, 5) << ")" << endl;
 	}
 
 	if (options.filters.at("long_gap")) {
-		cout << "Filtering alignments with long gaps" << flush;
+		cout << get_time_string() << " Filtering alignments with long gaps" << flush;
 		cout << " (remaining=" << filter_long_gap(chimeric_alignments) << ")" << endl;
 	}
 
 	if (options.filters.at("same_gene")) {
-		cout << "Filtering fragments with both mates in the same gene" << flush;
+		cout << get_time_string() << " Filtering fragments with both mates in the same gene" << flush;
 		cout << " (remaining=" << filter_same_gene(chimeric_alignments, exon_annotation_index) << ")" << endl;
 	}
 
 	if (options.filters.at("hairpin")) {
-		cout << "Filtering fusions arising from hairpin structures" << flush;
+		cout << get_time_string() << " Filtering fusions arising from hairpin structures" << flush;
 		cout << " (remaining=" << filter_hairpin(chimeric_alignments, exon_annotation_index, max_mate_gap) << ")" << endl;
 	}
 
 	if (options.filters.at("mismatches")) {
-		cout << "Filtering reads with a mismatch p-value <=" << options.mismatch_pvalue_cutoff << flush;
+		cout << get_time_string() << " Filtering reads with a mismatch p-value <=" << options.mismatch_pvalue_cutoff << flush;
 		cout << " (remaining=" << filter_mismatches(chimeric_alignments, assembly, interesting_contigs, 0.01, options.mismatch_pvalue_cutoff) << ")" << endl;
 	}
 
 	if (options.filters.at("low_entropy")) {
-		cout << "Filtering reads with low entropy (k-mer content >=" << (options.max_kmer_content*100) << "%)" << flush;
+		cout << get_time_string() << " Filtering reads with low entropy (k-mer content >=" << (options.max_kmer_content*100) << "%)" << flush;
 		cout << " (remaining=" << filter_low_entropy(chimeric_alignments, 3, options.max_kmer_content) << ")" << endl;
 	}
 
-	cout << "Finding fusions and counting supporting reads" << flush;
+	cout << get_time_string() << " Finding fusions and counting supporting reads" << flush;
 	fusions_t fusions;
 	cout << " (total=" << find_fusions(chimeric_alignments, fusions, exon_annotation_index, max_mate_gap, options.subsampling_threshold) << ")" << endl;
 
 	if (!options.genomic_breakpoints_file.empty()) {
-		cout << "Marking fusions with support from whole-genome sequencing in '" << options.genomic_breakpoints_file << "'" << flush;
+		cout << get_time_string() << " Marking fusions with support from whole-genome sequencing in '" << options.genomic_breakpoints_file << "'" << flush;
 		cout << " (marked=" << mark_genomic_support(fusions, options.genomic_breakpoints_file, contigs, options.max_genomic_breakpoint_distance) << ")" << endl;
 	}
 
 	if (options.filters.at("merge_adjacent")) {
-		cout << "Merging adjacent fusion breakpoints" << flush;
+		cout << get_time_string() << " Merging adjacent fusion breakpoints" << flush;
 		cout << " (remaining=" << merge_adjacent_fusions(fusions, 5) << ")" << endl;
 	}
 
 	// this step must come after the 'merge_adjacent' filter,
 	// because STAR clips reads supporting the same breakpoints at different position
 	// and that spreads the supporting reads over multiple breakpoints
-	cout << "Estimating expected number of fusions by random chance (e-value)" << endl << flush;
+	cout << get_time_string() << " Estimating expected number of fusions by random chance (e-value)" << endl << flush;
 	estimate_expected_fusions(fusions, mapped_reads, exon_annotation_index);
 
 	// this step must come before all filters that are potentially undone by the 'genomic_support' filter
 	if (options.filters.at("non_coding_neighbors")) {
-		cout << "Filtering fusions with both breakpoints in adjacent non-coding/intergenic regions" << flush;
+		cout << get_time_string() << " Filtering fusions with both breakpoints in adjacent non-coding/intergenic regions" << flush;
 		cout << " (remaining=" << filter_non_coding_neighbors(fusions) << ")" << endl;
 	}
 
 	// this step must come before all filters that are potentially undone by the 'genomic_support' filter
 	if (options.filters.at("intragenic_exonic")) {
-		cout << "Filtering intragenic fusions with both breakpoints in exonic regions" << flush;
+		cout << get_time_string() << " Filtering intragenic fusions with both breakpoints in exonic regions" << flush;
 		cout << " (remaining=" << filter_intragenic_both_exonic(fusions, exon_annotation_index, options.exonic_fraction) << ")" << endl;
 	}
 
@@ -384,25 +392,25 @@ int main(int argc, char **argv) {
 	// because fusions with few supporting reads heavily influence the e-value
 	// it must come before all filters that are potentially undone by the 'genomic_support' filter
 	if (options.filters.at("min_support")) {
-		cout << "Filtering fusions with <" << options.min_support << " supporting reads" << flush;
+		cout << get_time_string() << " Filtering fusions with <" << options.min_support << " supporting reads" << flush;
 		cout << " (remaining=" << filter_min_support(fusions, options.min_support) << ")" << endl;
 	}
 
 	if (options.filters.at("relative_support")) {
-		cout << "Filtering fusions with an e-value >=" << options.evalue_cutoff << flush;
+		cout << get_time_string() << " Filtering fusions with an e-value >=" << options.evalue_cutoff << flush;
 		cout << " (remaining=" << filter_relative_support(fusions, options.evalue_cutoff) << ")" << endl;
 	}
 
 	// this step must come before all filters that are potentially undone by the 'genomic_support' filter
 	if (options.filters.at("intronic")) {
-		cout << "Filtering fusions with both breakpoints in intronic/intergenic regions" << flush;
+		cout << get_time_string() << " Filtering fusions with both breakpoints in intronic/intergenic regions" << flush;
 		cout << " (remaining=" << filter_both_intronic(fusions) << ")" << endl;
 	}
 
 	// this step must come right after the 'relative_support' and 'min_support' filters
 	if (!options.known_fusions_file.empty() && options.filters.at("known_fusions")) {
-		cout << "Searching for known fusions in '" << options.known_fusions_file << "'" << flush;
-		cout << " (remaining=" << recover_known_fusions(fusions, options.known_fusions_file, gene_names) << ")" << endl;
+		cout << get_time_string() << " Searching for known fusions in '" << options.known_fusions_file << "'" << flush;
+		cout << " (remaining=" << recover_known_fusions(fusions, options.known_fusions_file, gene_names, coverage) << ")" << endl;
 	}
 
 	// this step must come after the 'merge_adjacent' filter,
@@ -410,20 +418,20 @@ int main(int argc, char **argv) {
 	// it must come before the 'spliced' and 'many_spliced' filters,
 	// which are prone to recovering PCR-mediated fusions
 	if (options.filters.at("pcr_fusions")) {
-		cout << "Filtering PCR fusions between genes with an expression above the " << (options.high_expression_quantile*100) << "% quantile" << flush;
+		cout << get_time_string() << " Filtering PCR/RT fusions between genes with an expression above the " << (options.high_expression_quantile*100) << "% quantile" << flush;
 		cout << " (remaining=" << filter_pcr_fusions(fusions, chimeric_alignments, options.high_expression_quantile, gene_annotation_index) << ")" << endl;
 	}
 
 	// this step must come closely after the 'relative_support' and 'min_support' filters
 	if (options.filters.at("spliced")) {
-		cout << "Searching for fusions with spliced split reads" << flush;
+		cout << get_time_string() << " Searching for fusions with spliced split reads" << flush;
 		cout << " (remaining=" << recover_both_spliced(fusions, 200) << ")" << endl;
 	}
 
 	// this step must come after the 'merge_adjacent' filter,
 	// because merging might yield a different best breakpoint
 	if (options.filters.at("select_best")) {
-		cout << "Selecting best breakpoints from genes with multiple breakpoints" << flush;
+		cout << get_time_string() << " Selecting best breakpoints from genes with multiple breakpoints" << flush;
 		cout << " (remaining=" << select_most_supported_breakpoints(fusions) << ")" << endl;
 	}
 
@@ -431,38 +439,38 @@ int main(int argc, char **argv) {
 	// an event to pass all filters by recovering multiple breakpoints which evidence the same event
 	// moreover, this step must come after all the filters the 'relative_support' and 'min_support' filters
 	if (options.filters.at("many_spliced")) {
-		cout << "Searching for fusions with >=" << options.min_spliced_events << " spliced events" << flush;
+		cout << get_time_string() << " Searching for fusions with >=" << options.min_spliced_events << " spliced events" << flush;
 		cout << " (remaining=" << recover_many_spliced(fusions, options.min_spliced_events) << ")" << endl;
 	}
 
 	if (!options.genomic_breakpoints_file.empty() && options.filters.at("no_genomic_support")) {
-		cout << "Assigning confidence scores to events" << endl << flush;
+		cout << get_time_string() << " Assigning confidence scores to events" << endl << flush;
 		assign_confidence(fusions, coverage);
 
 		// this step must come after assigning confidence scores
-		cout << "Filtering low-confidence events with no support from WGS" << flush;
+		cout << get_time_string() << " Filtering low-confidence events with no support from WGS" << flush;
 		cout << " (remaining=" << filter_no_genomic_support(fusions) << ")" << endl;
 	}
 
 	// this step must come after the 'select_best' filter, because the 'select_best' filter prefers
 	// soft-clipped breakpoints, which are easier to remove by blacklisting, because they are more recurrent
 	if (options.filters.at("blacklist") && !options.blacklist_file.empty()) {
-		cout << "Filtering blacklisted fusions in '" << options.blacklist_file << "'" << flush;
+		cout << get_time_string() << " Filtering blacklisted fusions in '" << options.blacklist_file << "'" << flush;
 		cout << " (remaining=" << filter_blacklisted_ranges(fusions, options.blacklist_file, contigs, gene_names, options.evalue_cutoff, max_mate_gap) << ")" << endl;
 	}
 
 	if (options.filters.at("short_anchor")) {
-		cout << "Filtering fusions with anchors <=" << options.min_anchor_length << "nt" << flush;
+		cout << get_time_string() << " Filtering fusions with anchors <=" << options.min_anchor_length << "nt" << flush;
 		cout << " (remaining=" << filter_short_anchor(fusions, options.min_anchor_length) << ")" << endl;
 	}
 
 	if (options.filters.at("end_to_end")) {
-		cout << "Filtering end-to-end fusions with low support" << flush;
+		cout << get_time_string() << " Filtering end-to-end fusions with low support" << flush;
 		cout << " (remaining=" << filter_end_to_end_fusions(fusions) << ")" << endl;
 	}
 
 	if (options.filters.at("no_coverage")) {
-		cout << "Filtering fusions with no coverage around the breakpoints" << flush;
+		cout << get_time_string() << " Filtering fusions with no coverage around the breakpoints" << flush;
 		cout << " (remaining=" << filter_no_coverage(fusions, coverage, exon_annotation_index, max_mate_gap) << ")" << endl;
 	}
 
@@ -470,51 +478,51 @@ int main(int argc, char **argv) {
 	kmer_indices_t kmer_indices;
 	const char kmer_length = 8; // must not be longer than 16 or else conversion to int will fail
 	if (options.filters.at("homologs") || options.filters.at("mismappers")) {
-		cout << "Indexing gene sequences" << endl << flush;
+		cout << get_time_string() << " Indexing gene sequences" << endl << flush;
 		make_kmer_index(fusions, assembly, kmer_length, kmer_indices);
 	}
 
 	// this step must come near the end, because it is expensive in terms of memory consumption
 	if (options.filters.at("homologs")) {
-		cout << "Filtering genes with >=" << (options.max_homolog_identity*100) << "% identity" << flush;
+		cout << get_time_string() << " Filtering genes with >=" << (options.max_homolog_identity*100) << "% identity" << flush;
 		cout << " (remaining=" << filter_homologs(fusions, kmer_indices, kmer_length, assembly, options.max_homolog_identity) << ")" << endl;
 	}
 
 	// this step must come near the end, because it is expensive in terms of memory and CPU consumption
 	if (options.filters.at("mismappers")) {
-		cout << "Re-aligning chimeric reads to filter fusions with >=" << (options.max_mismapper_fraction*100) << "% mis-mappers" << flush;
+		cout << get_time_string() << " Re-aligning chimeric reads to filter fusions with >=" << (options.max_mismapper_fraction*100) << "% mis-mappers" << flush;
 		cout << " (remaining=" << filter_mismappers(fusions, kmer_indices, kmer_length, assembly, exon_annotation_index, options.max_mismapper_fraction, max_mate_gap) << ")" << endl;
 	}
 
 	// this step must come after all heuristic filters, to undo them
 	if (!options.genomic_breakpoints_file.empty() && options.filters.at("genomic_support")) {
-		cout << "Searching for fusions with support from WGS" << flush;
+		cout << get_time_string() << " Searching for fusions with support from WGS" << flush;
 		cout << " (remaining=" << recover_genomic_support(fusions) << ")" << endl;
 	}
 
 	if (!options.genomic_breakpoints_file.empty() && options.filters.at("genomic_support") || options.filters.at("many_spliced")) {
 		// the 'select_best' filter needs to be run again, to remove redundant events recovered by the 'genomic_support' and 'many_spliced' filters
 		if (options.filters.at("select_best")) {
-			cout << "Selecting best breakpoints from genes with multiple breakpoints" << flush;
+			cout << get_time_string() << " Selecting best breakpoints from genes with multiple breakpoints" << flush;
 			cout << " (remaining=" << select_most_supported_breakpoints(fusions) << ")" << endl;
 		}
 	}
 
 	// this filter must come last, because it should only recover isoforms of fusions which pass all other filters
 	if (options.filters.at("isoforms")) {
-		cout << "Searching for additional isoforms" << flush;
+		cout << get_time_string() << " Searching for additional isoforms" << flush;
 		cout << " (remaining=" << recover_isoforms(fusions) << ")" << endl;
 	}
 
 	// this step must come after the 'isoforms' filter, because recovered isoforms need to be scored anew
-	cout << "Assigning confidence scores to events" << endl << flush;
+	cout << get_time_string() << " Assigning confidence scores to events" << endl << flush;
 	assign_confidence(fusions, coverage);
 
-	cout << "Writing fusions to file '" << options.output_file << "'" << endl;
+	cout << get_time_string() << " Writing fusions to file '" << options.output_file << "'" << endl;
 	write_fusions_to_file(fusions, options.output_file, coverage, assembly, gene_annotation_index, exon_annotation_index, contigs_by_id, options.print_supporting_reads, options.print_fusion_sequence, options.print_peptide_sequence, false);
 
 	if (options.discarded_output_file != "") {
-		cout << "Writing discarded fusions to file '" << options.discarded_output_file << "'" << endl;
+		cout << get_time_string() << " Writing discarded fusions to file '" << options.discarded_output_file << "'" << endl;
 		write_fusions_to_file(fusions, options.discarded_output_file, coverage, assembly, gene_annotation_index, exon_annotation_index, contigs_by_id, options.print_supporting_reads_for_discarded_fusions, options.print_fusion_sequence_for_discarded_fusions, options.print_peptide_sequence_for_discarded_fusions, true);
 	}
 

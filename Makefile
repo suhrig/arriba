@@ -1,7 +1,7 @@
 # input directories
-HTSLIB := htslib-1.8
+HTSLIB := htslib
 SOURCE := source
-STATIC_LIBS := static_libs_centos6.9
+STATIC_LIBS := static_libs_centos6.10
 
 # compiler flags
 CXX := g++
@@ -31,7 +31,7 @@ clean:
 	$(MAKE) -C $(HTSLIB) clean
 
 release:
-	$(MAKE) LIBS_SO="" LIBS_A="$(LIBS_A) $(wildcard $(STATIC_LIBS)/*.a)" CPPFLAGS="-DHAVE_LIBDEFLATE $(CPPFLAGS) -I../$(STATIC_LIBS)"
+	$(MAKE) LIBS_SO="" LIBS_A="$(LIBS_A) $(wildcard $(STATIC_LIBS)/*.a)" CPPFLAGS="-DHAVE_LIBDEFLATE $(CPPFLAGS) -I$(STATIC_LIBS) -I../$(STATIC_LIBS)"
 
 bioconda:
 	$(MAKE) LIBS_SO="-ldl -lhts -ldeflate $(LIBS_SO)" LIBS_A="" CPPFLAGS="-DHAVE_LIBDEFLATE $(CPPFLAGS)" LDFLAGS="$(LDFLAGS)"

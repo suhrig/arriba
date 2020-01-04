@@ -364,6 +364,12 @@ void get_fusion_transcript_sequence(fusion_t& fusion, const assembly_t& assembly
 		positions.insert(positions.end(), positions1.begin(), positions1.end());
 	}
 
+	// Arriba uses question marks to denote ambiguous bases;
+	// sequencers typically use 'N's
+	// => convert 'N's to '?'
+	for (size_t i = 0; i < sequence.size(); ++i)
+		if (sequence[i] == 'n' || sequence[i] == 'N')
+			sequence[i] = '?';
 }
 
 bool sort_fusions_by_support(const fusion_t* x, const fusion_t* y) {
@@ -828,7 +834,7 @@ string get_fusion_peptide_sequence(const string& transcript, const vector<positi
 
 	// determine reading frame of 5' gene
 	gene_t gene_5 = (fusion.transcript_start == TRANSCRIPT_START_GENE1) ? fusion.gene1 : fusion.gene2;
-	exon_t start_exon_5;
+	exon_t start_exon_5 = NULL;
 	int reading_frame_5 = get_reading_frame(positions, transcript_5_end, transcript_5_start, gene_5, exon_annotation_index, assembly, start_exon_5);
 	if (reading_frame_5 == -1)
 		return "."; // 5' gene has no coding exons overlapping the transcribed region
@@ -837,8 +843,11 @@ string get_fusion_peptide_sequence(const string& transcript, const vector<positi
 
 	// determine reading frame of 3' gene
 	gene_t gene_3 = (fusion.transcript_start == TRANSCRIPT_START_GENE1) ? fusion.gene2 : fusion.gene1;
-	exon_t start_exon_3;
-	int reading_frame_3 = get_reading_frame(positions, transcript_3_start, transcript_3_end, gene_3, exon_annotation_index, assembly, start_exon_3);
+	strand_t predicted_strand_3 = (fusion.transcript_start == TRANSCRIPT_START_GENE1) ? fusion.predicted_strand2 : fusion.predicted_strand1;
+	exon_t start_exon_3 = NULL;
+	int reading_frame_3 = -1;
+	if (gene_3->strand == predicted_strand_3) // it makes no sense to determine the reading frame in case of anti-sense transcription
+		reading_frame_3 = get_reading_frame(positions, transcript_3_start, transcript_3_end, gene_3, exon_annotation_index, assembly, start_exon_3);
 
 	// translate DNA to protein
 	string peptide_sequence;
@@ -966,6 +975,18 @@ string get_fusion_peptide_sequence(const string& transcript, const vector<positi
 string is_in_frame(string& fusion_peptide_sequence) {
 	if (fusion_peptide_sequence == ".")
 		return ".";
+	// declare fusion as out-of-frame, if there is a stop codon before the junction
+	// unless there are in-frame codons between this stop codon and the junction
+	int fusion_junction = fusion_peptide_sequence.rfind('|');
+	int stop_codon_before_junction = fusion_peptide_sequence.rfind('*', fusion_junction);
+	bool in_frame_codons_before_junction = !(stop_codon_before_junction < fusion_junction);
+	for (int amino_acid = stop_codon_before_junction; amino_acid < fusion_junction; ++amino_acid)
+		if (fusion_peptide_sequence[amino_acid] >= 'A' && fusion_peptide_sequence[amino_acid] <= 'Z') {
+			in_frame_codons_before_junction = true;
+			break;
+		}
+	if (!in_frame_codons_before_junction)
+		return "out-of-frame";
 	// a fusion is in-frame, if there is at least one amino acid in the 3' end of the fusion
 	// that matches an amino acid of the 3' gene
 	// such amino acids can easily be identified, because they are uppercase in the fusion sequence
