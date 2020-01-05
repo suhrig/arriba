@@ -5,9 +5,6 @@ The filters are listed in the order in which they are applied. Read-level filter
 Read-level filters
 ------------------
 
-`multimappers`
-: The chimeric alignments file should contain two alignments for every pair of discordant mates (alignment of the first read & alignment of the second read), and three alignments for split reads (alignments of the first & second read and a supplementary alignment of the clipped segment). Older versions of STAR occasionally reported additional alignments. The filter `multimappers` ensures that for each fragment the exact number of supporting alignments are present. Fragments with too few or too many alignments are removed. This may change in future versions of Arriba, if the developer of STAR adds support for multi-mapping chimeric alignments.
-
 `duplicates`
 : Arriba removes PCR duplicates based on identical end coordinates of fragments. It is not necessary to mark duplicates via an external tool, since Arriba identifies duplicates itself. The library attribute (`LB`) of the read group tag (`RG`) in the BAM header is not yet respected by Arriba.
 

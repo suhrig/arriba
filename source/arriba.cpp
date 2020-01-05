@@ -13,7 +13,6 @@
 #include "options.hpp"
 #include "read_stats.hpp"
 #include "read_chimeric_alignments.hpp"
-#include "filter_multi_mappers.hpp"
 #include "filter_uninteresting_contigs.hpp"
 #include "filter_inconsistently_clipped.hpp"
 #include "filter_homopolymer.hpp"
@@ -156,9 +155,6 @@ int main(int argc, char **argv) {
 	// => add empty indices for the new contigs so that lookups of these contigs won't cause array-out-of-bounds exceptions
 	gene_annotation_index.resize(contigs.size());
 	exon_annotation_index.resize(contigs.size());
-
-	cout << get_time_string() << " Filtering multi-mappers and single mates " << flush;
-	cout << "(remaining=" << filter_multi_mappers(chimeric_alignments) << ")" << endl;
 
 	strandedness_t strandedness = options.strandedness;
 	if (options.strandedness == STRANDEDNESS_AUTO) {
