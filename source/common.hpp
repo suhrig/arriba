@@ -126,7 +126,7 @@ class mates_t: public vector<alignment_t> {
 		bool single_end;
 		mates_t(): filter(NULL) {};
 };
-typedef unordered_map<string,mates_t> chimeric_alignments_t;
+typedef map<string,mates_t> chimeric_alignments_t;
 
 typedef unsigned char confidence_t;
 const confidence_t CONFIDENCE_LOW = 0;
