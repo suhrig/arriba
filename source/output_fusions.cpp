@@ -1158,7 +1158,7 @@ void write_fusions_to_file(fusions_t& fusions, const string& output_file, const 
 			for (auto read = all_supporting_reads.begin(); read != all_supporting_reads.end(); ++read) {
 				if (read != all_supporting_reads.begin())
 					out << ",";
-				out << (**read).first.substr(0, (**read).first.find_last_of(',')); // clip HI tag, which was appended to the read name separated by a comma
+				out << strip_hi_tag_from_read_name((**read).first);
 			}
 		} else {
 			out << ".";

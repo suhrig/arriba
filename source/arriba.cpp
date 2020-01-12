@@ -13,15 +13,16 @@
 #include "options.hpp"
 #include "read_stats.hpp"
 #include "read_chimeric_alignments.hpp"
+#include "filter_duplicates.hpp"
 #include "filter_uninteresting_contigs.hpp"
 #include "filter_inconsistently_clipped.hpp"
 #include "filter_homopolymer.hpp"
-#include "filter_duplicates.hpp"
 #include "filter_proximal_read_through.hpp"
 #include "filter_same_gene.hpp"
 #include "filter_small_insert_size.hpp"
 #include "filter_long_gap.hpp"
 #include "filter_hairpin.hpp"
+#include "filter_multimappers.hpp"
 #include "filter_mismatches.hpp"
 #include "filter_low_entropy.hpp"
 #include "fusions.hpp"
@@ -49,14 +50,15 @@
 using namespace std;
 
 unordered_map<string,filter_t> FILTERS({
+	{"duplicates", static_cast<string*>(NULL)},
 	{"inconsistently_clipped", static_cast<string*>(NULL)},
 	{"homopolymer", static_cast<string*>(NULL)},
-	{"duplicates", static_cast<string*>(NULL)},
 	{"read_through", static_cast<string*>(NULL)},
 	{"same_gene", static_cast<string*>(NULL)},
 	{"small_insert_size", static_cast<string*>(NULL)},
 	{"long_gap", static_cast<string*>(NULL)},
 	{"hairpin", static_cast<string*>(NULL)},
+	{"multimappers", static_cast<string*>(NULL)},
 	{"mismatches", static_cast<string*>(NULL)},
 	{"mismappers", static_cast<string*>(NULL)},
 	{"relative_support", static_cast<string*>(NULL)},
@@ -364,6 +366,12 @@ int main(int argc, char **argv) {
 	if (options.filters.at("merge_adjacent")) {
 		cout << get_time_string() << " Merging adjacent fusion breakpoints " << flush;
 		cout << "(remaining=" << merge_adjacent_fusions(fusions, 5) << ")" << endl;
+	}
+
+	// this step must come before the e-value calculation, or else multi-mapping reads are counted redundantly
+	if (options.filters.at("multimappers")) {
+		cout << get_time_string() << " Filtering multi-mapping fusions by alignment score and read support " << flush;
+		cout << "(remaining=" << filter_multimappers(chimeric_alignments, fusions, exon_annotation_index, assembly) << ")" << endl;
 	}
 
 	// this step must come after the 'merge_adjacent' filter,

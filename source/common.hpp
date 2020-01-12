@@ -124,9 +124,12 @@ class mates_t: public vector<alignment_t> {
 	public:
 		filter_t filter; // name of the filter which discarded the reads (NULL means not discarded)
 		bool single_end;
-		mates_t(): filter(NULL) {};
+		bool multimapper;
+		mates_t(): filter(NULL), single_end(false), multimapper(false) {};
 };
-typedef map<string,mates_t> chimeric_alignments_t;
+typedef map<string,mates_t> chimeric_alignments_t; // this must be an ordered map, because finding multi-mapping reads requires reads to be grouped by name
+// convenience function to undo appending of the HI tag separated by a comma to distinguish multi-mapping reads
+inline string strip_hi_tag_from_read_name(const string& read_name) { return read_name.substr(0, read_name.find_last_of(',')); };
 
 typedef unsigned char confidence_t;
 const confidence_t CONFIDENCE_LOW = 0;
