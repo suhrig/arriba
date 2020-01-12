@@ -253,7 +253,15 @@ options_t parse_arguments(int argc, char **argv) {
 	opterr = 0;
 	int c;
 	string junction_suffix(".junction");
+	unordered_map<char,unsigned int> duplicate_arguments;
 	while ((c = getopt(argc, argv, "c:x:d:g:G:o:O:a:b:k:s:i:f:E:S:m:L:H:D:R:A:M:K:V:F:U:Q:e:TPIh")) != -1) {
+
+		// throw error if the same argument is specified more than once
+		duplicate_arguments[c]++;
+		if (!(duplicate_arguments[c] <= 1 || (c == 'I' || c == 'T' || c == 'P') && duplicate_arguments[c] <= 2)) {
+			cerr << "ERROR: Argument -" << ((char) c) << " specified too often" << endl;
+			exit(1);
+		}
 
 		switch (c) {
 			case 'c':
