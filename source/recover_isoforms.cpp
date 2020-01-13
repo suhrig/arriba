@@ -12,21 +12,21 @@ unsigned int recover_isoforms(fusions_t& fusions) {
 	// make a lookup table for all the genes that have fusions that passed all filters
 	map< tuple<gene_t,gene_t,direction_t,direction_t>, fusion_t* > fused_gene_pairs;
 	for (fusions_t::iterator fusion = fusions.begin(); fusion != fusions.end(); ++fusion)
-		if (fusion->second.filter == NULL)
+		if (fusion->second.filter == FILTER_none)
 			fused_gene_pairs[make_tuple(fusion->second.gene1, fusion->second.gene2, (direction_t) fusion->second.direction1, (direction_t) fusion->second.direction2)] = &fusion->second;
 
 	unsigned int remaining = 0;
 	for (fusions_t::iterator fusion = fusions.begin(); fusion != fusions.end(); ++fusion) {
 
-		if (fusion->second.filter == NULL) { // fusion has not been filtered, no need to recover
+		if (fusion->second.filter == FILTER_none) { // fusion has not been filtered, no need to recover
 			remaining++;
 			continue;
 		}
 
-		if (fusion->second.filter == FILTERS.at("merge_adjacent") || // don't recover alternative alignments
-		    fusion->second.filter == FILTERS.at("blacklist") || // don't recover normal splice variants and artifacts
-		    fusion->second.filter == FILTERS.at("end_to_end") || // don't recover alignments that happen to end at splice-sites
-		    fusion->second.filter == FILTERS.at("duplicates") || // don't recover fusions supported by nothing but duplicates
+		if (fusion->second.filter == FILTER_merge_adjacent || // don't recover alternative alignments
+		    fusion->second.filter == FILTER_blacklist || // don't recover normal splice variants and artifacts
+		    fusion->second.filter == FILTER_end_to_end || // don't recover alignments that happen to end at splice-sites
+		    fusion->second.filter == FILTER_duplicates || // don't recover fusions supported by nothing but duplicates
 		    fusion->second.gene1 == fusion->second.gene2) // don't recover circular RNAs
 			continue;
 
@@ -36,7 +36,7 @@ unsigned int recover_isoforms(fusions_t& fusions) {
 			if (fused_gene_pair != fused_gene_pairs.end() &&
 			    (abs(fused_gene_pair->second->breakpoint1 - fusion->second.breakpoint1) > MAX_SPLICE_SITE_DISTANCE || // don't recover alternative alignments
 			     abs(fused_gene_pair->second->breakpoint2 - fusion->second.breakpoint2) > MAX_SPLICE_SITE_DISTANCE)) {
-				fusion->second.filter = NULL;
+				fusion->second.filter = FILTER_none;
 				remaining++;
 			}
 		}

@@ -13,7 +13,7 @@ unsigned int filter_uninteresting_contigs(chimeric_alignments_t& chimeric_alignm
 	unsigned int remaining = 0;
 	for (chimeric_alignments_t::iterator chimeric_alignment = chimeric_alignments.begin(); chimeric_alignment != chimeric_alignments.end(); ++chimeric_alignment) {
 
-		if (chimeric_alignment->second.filter != NULL)
+		if (chimeric_alignment->second.filter != FILTER_none)
 			continue; // the read has already been filtered
 
 		// all mates must be on an interesting contig
@@ -22,7 +22,7 @@ unsigned int filter_uninteresting_contigs(chimeric_alignments_t& chimeric_alignm
 				++remaining;
 				break;
 			} else if (!interesting_contigs_bool[mate->contig]) {
-				chimeric_alignment->second.filter = FILTERS.at("uninteresting_contigs");
+				chimeric_alignment->second.filter = FILTER_uninteresting_contigs;
 				break;
 			}
 		}

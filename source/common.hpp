@@ -17,8 +17,45 @@ typedef bool strand_t;
 const strand_t FORWARD = true;
 const strand_t REVERSE = false;
 
-typedef const string* filter_t;
-extern unordered_map<string,filter_t> FILTERS;
+typedef unsigned char filter_t;
+class filters_t: public vector<string> {
+	public: filter_t define(const string& filter_name) { push_back(filter_name); return size()-1; };
+};
+static filters_t FILTERS;
+const filter_t FILTER_none = FILTERS.define("");
+const filter_t FILTER_duplicates = FILTERS.define("duplicates");
+const filter_t FILTER_inconsistently_clipped = FILTERS.define("inconsistently_clipped");
+const filter_t FILTER_homopolymer = FILTERS.define("homopolymer");
+const filter_t FILTER_read_through = FILTERS.define("read_through");
+const filter_t FILTER_same_gene = FILTERS.define("same_gene");
+const filter_t FILTER_small_insert_size = FILTERS.define("small_insert_size");
+const filter_t FILTER_long_gap = FILTERS.define("long_gap");
+const filter_t FILTER_hairpin = FILTERS.define("hairpin");
+const filter_t FILTER_multimappers = FILTERS.define("multimappers");
+const filter_t FILTER_mismatches = FILTERS.define("mismatches");
+const filter_t FILTER_mismappers = FILTERS.define("mismappers");
+const filter_t FILTER_relative_support = FILTERS.define("relative_support");
+const filter_t FILTER_intronic = FILTERS.define("intronic");
+const filter_t FILTER_non_coding_neighbors = FILTERS.define("non_coding_neighbors");
+const filter_t FILTER_intragenic_exonic = FILTERS.define("intragenic_exonic");
+const filter_t FILTER_min_support = FILTERS.define("min_support");
+const filter_t FILTER_known_fusions = FILTERS.define("known_fusions");
+const filter_t FILTER_spliced = FILTERS.define("spliced");
+const filter_t FILTER_blacklist = FILTERS.define("blacklist");
+const filter_t FILTER_end_to_end = FILTERS.define("end_to_end");
+const filter_t FILTER_pcr_fusions = FILTERS.define("pcr_fusions");
+const filter_t FILTER_merge_adjacent = FILTERS.define("merge_adjacent");
+const filter_t FILTER_select_best = FILTERS.define("select_best");
+const filter_t FILTER_short_anchor = FILTERS.define("short_anchor");
+const filter_t FILTER_no_coverage = FILTERS.define("no_coverage");
+const filter_t FILTER_many_spliced = FILTERS.define("many_spliced");
+const filter_t FILTER_no_genomic_support = FILTERS.define("no_genomic_support");
+const filter_t FILTER_uninteresting_contigs = FILTERS.define("uninteresting_contigs");
+const filter_t FILTER_genomic_support = FILTERS.define("genomic_support");
+const filter_t FILTER_isoforms = FILTERS.define("isoforms");
+const filter_t FILTER_low_entropy = FILTERS.define("low_entropy");
+const filter_t FILTER_homologs = FILTERS.define("homologs");
+// when more than 64 filters are added, the size of the filter member of the fusion_t class needs to be enlarged
 
 typedef short int contig_t;
 typedef unordered_map<string,contig_t> contigs_t;
@@ -122,10 +159,10 @@ const unsigned int SPLIT_READ = 1;
 const unsigned int SUPPLEMENTARY = 2;
 class mates_t: public vector<alignment_t> {
 	public:
-		filter_t filter; // name of the filter which discarded the reads (NULL means not discarded)
 		bool single_end;
 		bool multimapper;
-		mates_t(): filter(NULL), single_end(false), multimapper(false) {};
+		filter_t filter; // ID of the filter which discarded the reads
+		mates_t(): single_end(false), multimapper(false), filter(FILTER_none) {};
 };
 typedef map<string,mates_t> chimeric_alignments_t; // this must be an ordered map, because finding multi-mapping reads requires reads to be grouped by name
 // convenience function to undo appending of the HI tag separated by a comma to distinguish multi-mapping reads
@@ -145,24 +182,27 @@ const transcript_start_t TRANSCRIPT_START_GENE1 = true;
 const transcript_start_t TRANSCRIPT_START_GENE2 = false;
 
 struct fusion_t {
-	direction_t direction1:1, direction2:1;
-	strand_t predicted_strand1:1, predicted_strand2:1;
-	bool predicted_strands_ambiguous:1;
+	// the following members are ordered for mininum struct size
+        bool transcript_start_ambiguous:1;
+	short unsigned int split_reads1:15;
 	transcript_start_t transcript_start:1;
-	bool transcript_start_ambiguous:1;
-	bool exonic1:1, exonic2:1;
-	bool spliced1:1, spliced2:1;
-	confidence_t confidence:2;
+	short unsigned int split_reads2:15;
+        bool spliced1:1, spliced2:1;
+        bool exonic1:1, exonic2:1;
+	strand_t predicted_strand1:1, predicted_strand2:1;
+	direction_t direction1:1, direction2:1;
+        confidence_t confidence:2;
+	filter_t filter:6; // ID of the filter that discarded the fusion
+	bool predicted_strands_ambiguous:1;
+        short unsigned int discordant_mates:15;
 	contig_t contig1, contig2;
-	short unsigned int split_reads1, split_reads2, discordant_mates;
 	float evalue; // expected number of fusions with the given properties by random chance
 	position_t breakpoint1, breakpoint2;
 	position_t anchor_start1, anchor_start2;
 	position_t closest_genomic_breakpoint1, closest_genomic_breakpoint2;
 	gene_t gene1, gene2;
 	vector<chimeric_alignments_t::iterator> split_read1_list, split_read2_list, discordant_mate_list;
-	filter_t filter; // name of the filter which discarded the fusion (NULL means not discarded)
-	fusion_t(): exonic1(false), exonic2(false), split_reads1(0), split_reads2(0), discordant_mates(0), anchor_start1(0), anchor_start2(0), closest_genomic_breakpoint1(-1), closest_genomic_breakpoint2(-1), filter(NULL) {};
+	fusion_t(): split_reads1(0), split_reads2(0), exonic1(false), exonic2(false), filter(FILTER_none), discordant_mates(0), anchor_start1(0), anchor_start2(0), closest_genomic_breakpoint1(-1), closest_genomic_breakpoint2(-1) {};
 	unsigned int supporting_reads() const { return split_reads1 + split_reads2 + discordant_mates; };
 	bool breakpoint_overlaps_both_genes(const unsigned int which_breakpoint = 0) const {
 		if (which_breakpoint == 1) return breakpoint1 >= gene2->start && breakpoint1 <= gene2->end;

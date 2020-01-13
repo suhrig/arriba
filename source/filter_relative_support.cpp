@@ -20,7 +20,7 @@ void estimate_expected_fusions(fusions_t& fusions, const unsigned long int mappe
 	unordered_map< gene_t,gene_set_t > fusion_partners;
 	unordered_map< tuple<gene_t,position_t,position_t>,char > overlap_duplicates;
 	for (fusions_t::iterator fusion = fusions.begin(); fusion != fusions.end(); ++fusion) {
-		if (fusion->second.filter == NULL && fusion->second.gene1 != fusion->second.gene2) {
+		if (fusion->second.filter == FILTER_none && fusion->second.gene1 != fusion->second.gene2) {
 			if (!overlap_duplicates[make_tuple(fusion->second.gene2, fusion->second.breakpoint1, fusion->second.breakpoint2)]++)
 				fusion_partners[fusion->second.gene2].insert(fusion->second.gene1);
 			if (!overlap_duplicates[make_tuple(fusion->second.gene1, fusion->second.breakpoint1, fusion->second.breakpoint2)]++)
@@ -47,7 +47,7 @@ void estimate_expected_fusions(fusions_t& fusions, const unsigned long int mappe
 	unsigned int intronic_breakpoints = 0;
 	unsigned int exonic_intronic_breakpoints = 0;
 	for (fusions_t::iterator fusion = fusions.begin(); fusion != fusions.end(); ++fusion) {
-		if (fusion->second.filter == NULL &&
+		if (fusion->second.filter == FILTER_none &&
 		    (fusion->second.contig1 != fusion->second.contig2 || fusion->second.breakpoint2 - fusion->second.breakpoint1 > 500000) && // ignore proximity artifacts
 		    fusion->second.supporting_reads() >= 2 && fusion->second.split_reads1 + fusion->second.split_reads2 > 0 && // require at least 2 reads, because most events with 1 read are artifacts
 		    !fusion->second.gene1->is_dummy && !fusion->second.gene2->is_dummy) {
@@ -76,7 +76,7 @@ void estimate_expected_fusions(fusions_t& fusions, const unsigned long int mappe
 	unsigned int intragenic_duplications = 0;
 	unsigned int intragenic_inversions = 0;
 	for (fusions_t::iterator fusion = fusions.begin(); fusion != fusions.end(); ++fusion) {
-		if (fusion->second.filter == NULL && fusion->second.gene1 == fusion->second.gene2 && fusion->second.split_reads1 + fusion->second.split_reads2 >= 2) {
+		if (fusion->second.filter == FILTER_none && fusion->second.gene1 == fusion->second.gene2 && fusion->second.split_reads1 + fusion->second.split_reads2 >= 2) {
 			if (fusion->second.direction1 == UPSTREAM && fusion->second.direction2 == DOWNSTREAM)
 				intragenic_duplications++;
 			else if (fusion->second.direction1 == fusion->second.direction2)
@@ -188,7 +188,7 @@ void estimate_expected_fusions(fusions_t& fusions, const unsigned long int mappe
 unsigned int filter_relative_support(fusions_t& fusions, const float evalue_cutoff) {
 	unsigned int remaining = 0;
 	for (fusions_t::iterator fusion = fusions.begin(); fusion != fusions.end(); ++fusion) {
-		if (fusion->second.filter != NULL)
+		if (fusion->second.filter != FILTER_none)
 			continue; // fusion has already been filtered
 
 		// throw away fusions which are expected to occur by random chance
@@ -196,7 +196,7 @@ unsigned int filter_relative_support(fusions_t& fusions, const float evalue_cuto
 		    !(fusion->second.is_intragenic() && fusion->second.split_reads1 + fusion->second.split_reads2 == 0)) { // but ignore intragenic fusions only supported by discordant mates
 			remaining++;
 		} else {
-			fusion->second.filter = FILTERS.at("relative_support");
+			fusion->second.filter = FILTER_relative_support;
 		}
 	}
 	return remaining;

@@ -25,7 +25,7 @@ unsigned int select_most_supported_breakpoints(fusions_t& fusions) {
 
 	for (fusions_t::iterator fusion = fusions.begin(); fusion != fusions.end(); ++fusion) {
 
-		if (fusion->second.filter != NULL)
+		if (fusion->second.filter != FILTER_none)
 			continue; // fusion has already been filtered
 
 		gene_pair_t gene_pair = make_tuple(fusion->second.gene1, fusion->second.gene2, (direction_t) fusion->second.direction1, (direction_t) fusion->second.direction2);
@@ -60,13 +60,13 @@ unsigned int select_most_supported_breakpoints(fusions_t& fusions) {
 	unsigned int remaining = 0;
 	for (fusions_t::iterator fusion = fusions.begin(); fusion != fusions.end(); ++fusion) {
 
-		if (fusion->second.filter != NULL)
+		if (fusion->second.filter != FILTER_none)
 			continue; // the fusion has already been filtered
 
 		if (fusion == best_breakpoints[make_tuple(fusion->second.gene1, fusion->second.gene2, (direction_t) fusion->second.direction1, (direction_t) fusion->second.direction2)])
 			remaining++;
 		else
-			fusion->second.filter = FILTERS.at("select_best");
+			fusion->second.filter = FILTER_select_best;
 
 	}
 	return remaining;

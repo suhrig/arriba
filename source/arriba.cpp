@@ -49,41 +49,6 @@
 
 using namespace std;
 
-unordered_map<string,filter_t> FILTERS({
-	{"duplicates", static_cast<string*>(NULL)},
-	{"inconsistently_clipped", static_cast<string*>(NULL)},
-	{"homopolymer", static_cast<string*>(NULL)},
-	{"read_through", static_cast<string*>(NULL)},
-	{"same_gene", static_cast<string*>(NULL)},
-	{"small_insert_size", static_cast<string*>(NULL)},
-	{"long_gap", static_cast<string*>(NULL)},
-	{"hairpin", static_cast<string*>(NULL)},
-	{"multimappers", static_cast<string*>(NULL)},
-	{"mismatches", static_cast<string*>(NULL)},
-	{"mismappers", static_cast<string*>(NULL)},
-	{"relative_support", static_cast<string*>(NULL)},
-	{"intronic", static_cast<string*>(NULL)},
-	{"non_coding_neighbors", static_cast<string*>(NULL)},
-	{"intragenic_exonic", static_cast<string*>(NULL)},
-	{"min_support", static_cast<string*>(NULL)},
-	{"known_fusions", static_cast<string*>(NULL)},
-	{"spliced", static_cast<string*>(NULL)},
-	{"blacklist", static_cast<string*>(NULL)},
-	{"end_to_end", static_cast<string*>(NULL)},
-	{"pcr_fusions", static_cast<string*>(NULL)},
-	{"merge_adjacent", static_cast<string*>(NULL)},
-	{"select_best", static_cast<string*>(NULL)},
-	{"short_anchor", static_cast<string*>(NULL)},
-	{"no_coverage", static_cast<string*>(NULL)},
-	{"many_spliced", static_cast<string*>(NULL)},
-	{"no_genomic_support", static_cast<string*>(NULL)},
-	{"uninteresting_contigs", static_cast<string*>(NULL)},
-	{"genomic_support", static_cast<string*>(NULL)},
-	{"isoforms", static_cast<string*>(NULL)},
-	{"low_entropy", static_cast<string*>(NULL)},
-	{"homologs", static_cast<string*>(NULL)}
-});
-
 string get_time_string() {
 	time_t now = time(0);
 	char buffer[100];
@@ -92,10 +57,6 @@ string get_time_string() {
 }
 
 int main(int argc, char **argv) {
-
-	// initialize filter names
-	for (auto i = FILTERS.begin(); i != FILTERS.end(); ++i)
-		i->second = &i->first; // filters are represented by pointers to the name of the filter (this saves memory compared to storing strings)
 
 	// parse command-line options
 	options_t options = parse_arguments(argc, argv);

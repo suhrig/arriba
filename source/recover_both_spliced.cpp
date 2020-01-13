@@ -15,12 +15,12 @@ unsigned int recover_both_spliced(fusions_t& fusions, const unsigned int max_fus
 	// look for any supporting reads between two genes
 	map< tuple<gene_t,gene_t,direction_t,direction_t>, vector<fusion_t*> > fusions_by_gene_pair;
 	for (fusions_t::iterator fusion = fusions.begin(); fusion != fusions.end(); ++fusion)
-		if (fusion->second.filter == NULL ||
-		    (fusion->second.both_breakpoints_spliced() && fusion->second.filter != FILTERS.at("merge_adjacent")) ||
-		    (fusion->second.both_breakpoints_spliced() && fusion->second.filter == FILTERS.at("pcr_fusions")) || // when there is risk of PCR-mediated fusions, only consider spliced events
-		    fusion->second.filter == FILTERS.at("intronic") ||
-		    fusion->second.filter == FILTERS.at("relative_support") ||
-		    fusion->second.filter == FILTERS.at("min_support")) {
+		if (fusion->second.filter == FILTER_none ||
+		    (fusion->second.both_breakpoints_spliced() && fusion->second.filter != FILTER_merge_adjacent) ||
+		    (fusion->second.both_breakpoints_spliced() && fusion->second.filter == FILTER_pcr_fusions) || // when there is risk of PCR-mediated fusions, only consider spliced events
+		    fusion->second.filter == FILTER_intronic ||
+		    fusion->second.filter == FILTER_relative_support ||
+		    fusion->second.filter == FILTER_min_support) {
 			fusions_by_gene_pair[make_tuple(fusion->second.gene1, fusion->second.gene2, (direction_t) fusion->second.direction1, (direction_t) fusion->second.direction2)].push_back(&fusion->second);
 		}
 
@@ -32,7 +32,7 @@ unsigned int recover_both_spliced(fusions_t& fusions, const unsigned int max_fus
 	for (char mode = MODE_COUNTING; mode <= MODE_RECOVER; ++mode) {
 		for (fusions_t::iterator fusion = fusions.begin(); fusion != fusions.end(); ++fusion) {
 
-			if (fusion->second.filter == NULL) { // fusion has not been filtered, no need to recover
+			if (fusion->second.filter == FILTER_none) { // fusion has not been filtered, no need to recover
 				if (mode == MODE_RECOVER)
 					remaining++;
 				continue;
@@ -41,10 +41,10 @@ unsigned int recover_both_spliced(fusions_t& fusions, const unsigned int max_fus
 			if (fusion->second.gene1 == fusion->second.gene2)
 				continue; // don't recover intragenic events (this would produce too many hits)
 
-			if (fusion->second.filter != NULL &&
-			    fusion->second.filter != FILTERS.at("relative_support") &&
-			    fusion->second.filter != FILTERS.at("min_support") &&
-			    fusion->second.filter != FILTERS.at("pcr_fusions") && fusion->second.discordant_mates <= fusion->second.split_reads1 + fusion->second.split_reads2)
+			if (fusion->second.filter != FILTER_none &&
+			    fusion->second.filter != FILTER_relative_support &&
+			    fusion->second.filter != FILTER_min_support &&
+			    fusion->second.filter != FILTER_pcr_fusions && fusion->second.discordant_mates <= fusion->second.split_reads1 + fusion->second.split_reads2)
 				continue; // we won't recover fusions which were not discarded due to low support
 
 			if (!fusion->second.both_breakpoints_spliced())
@@ -57,7 +57,7 @@ unsigned int recover_both_spliced(fusions_t& fusions, const unsigned int max_fus
 			auto fusions_of_given_gene_pair = fusions_by_gene_pair.find(make_tuple(fusion->second.gene1, fusion->second.gene2, (direction_t) fusion->second.direction1, (direction_t) fusion->second.direction2));
 			if (fusions_of_given_gene_pair != fusions_by_gene_pair.end())
 				for (auto another_fusion = fusions_of_given_gene_pair->second.begin(); another_fusion != fusions_of_given_gene_pair->second.end(); ++another_fusion)
-					if (fusion->second.filter == FILTERS.at("pcr_fusions")) {
+					if (fusion->second.filter == FILTER_pcr_fusions) {
 						if ((**another_fusion).both_breakpoints_spliced() && (**another_fusion).discordant_mates <= (**another_fusion).split_reads1 + (**another_fusion).split_reads2)
 							sum_of_supporting_reads++; // if there is risk of PCR-mediated fusions, ignore the number of supporting reads and count the event as 1 read
 					} else { // the event is probably not PCR-mediated => actually count the number of supporting reads
@@ -74,7 +74,7 @@ unsigned int recover_both_spliced(fusions_t& fusions, const unsigned int max_fus
 						if ((**another_fusion).both_breakpoints_spliced() ||
 						    (((fusion->second.direction1 == DOWNSTREAM) != /*xor*/ (fusion->second.breakpoint1 > (**another_fusion).breakpoint1)) &&
 						     ((fusion->second.direction2 == DOWNSTREAM) != /*xor*/ (fusion->second.breakpoint2 > (**another_fusion).breakpoint2))))
-							if (fusion->second.filter == FILTERS.at("pcr_fusions")) {
+							if (fusion->second.filter == FILTER_pcr_fusions) {
 								if ((**another_fusion).both_breakpoints_spliced() && (**another_fusion).discordant_mates <= (**another_fusion).split_reads1 + (**another_fusion).split_reads2)
 									sum_of_supporting_reads++; // if there is risk of PCR-mediated fusions, ignore the number of supporting reads and count the event as 1 read
 							} else { // the event is probably not PCR-mediated => actually count the number of supporting reads
@@ -84,7 +84,7 @@ unsigned int recover_both_spliced(fusions_t& fusions, const unsigned int max_fus
 			if (sum_of_supporting_reads >= 2) { // require at least two reads or else the false positive rate sky-rockets
 				if (mode == MODE_RECOVER) { // we are in recover mode => actually recover the fusion by clearing the filters
 					if (fusion->second.supporting_reads() >= min_supporting_reads && !fusion->second.is_read_through() && !fusion->second.breakpoint_overlaps_both_genes()) {
-						fusion->second.filter = NULL;
+						fusion->second.filter = FILTER_none;
 						remaining++;
 					}
 				} else { // mode == MODE_COUNTING

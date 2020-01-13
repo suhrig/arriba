@@ -104,7 +104,7 @@ unsigned int filter_mismatches(chimeric_alignments_t& chimeric_alignments, const
 	unsigned int remaining = 0;
 	for (chimeric_alignments_t::iterator chimeric_alignment = chimeric_alignments.begin(); chimeric_alignment != chimeric_alignments.end(); ++chimeric_alignment) {
 
-		if (chimeric_alignment->second.filter != NULL)
+		if (chimeric_alignment->second.filter != FILTER_none)
 			continue; // read has already been filtered
 
 		// discard chimeric alignments which have too many mismatches
@@ -112,13 +112,13 @@ unsigned int filter_mismatches(chimeric_alignments_t& chimeric_alignments, const
 			
 			if (test_mismatch_probability(chimeric_alignment->second[MATE1], chimeric_alignment->second[MATE1].sequence, assembly, mismatch_probability, genome_size, pvalue_cutoff) ||
 			    test_mismatch_probability(chimeric_alignment->second[MATE2], chimeric_alignment->second[MATE2].sequence, assembly, mismatch_probability, genome_size, pvalue_cutoff)) {
-				chimeric_alignment->second.filter = FILTERS.at("mismatches");
+				chimeric_alignment->second.filter = FILTER_mismatches;
 				continue;
 			}
 		} else { // split read
 			if (test_mismatch_probability(chimeric_alignment->second[MATE1], chimeric_alignment->second[MATE1].sequence, assembly, mismatch_probability, genome_size, pvalue_cutoff) ||
 			    test_mismatch_probability(chimeric_alignment->second[SUPPLEMENTARY], (chimeric_alignment->second[SUPPLEMENTARY].strand == chimeric_alignment->second[SPLIT_READ].strand) ? chimeric_alignment->second[SPLIT_READ].sequence : dna_to_reverse_complement(chimeric_alignment->second[SPLIT_READ].sequence), assembly, mismatch_probability, genome_size, pvalue_cutoff)) {
-				chimeric_alignment->second.filter = FILTERS.at("mismatches");
+				chimeric_alignment->second.filter = FILTER_mismatches;
 				continue;
 			}
 		}

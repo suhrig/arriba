@@ -16,7 +16,7 @@ bool is_split_read_spliced(const alignment_t& split_read, const exon_annotation_
 unsigned int filter_homopolymer(chimeric_alignments_t& chimeric_alignments, const unsigned int homopolymer_length, const exon_annotation_index_t& exon_annotation_index) {
 	unsigned int remaining = 0;
 	for (chimeric_alignments_t::iterator chimeric_alignment = chimeric_alignments.begin(); chimeric_alignment != chimeric_alignments.end(); ++chimeric_alignment) {
-		if (chimeric_alignment->second.filter != NULL)
+		if (chimeric_alignment->second.filter != FILTER_none)
 			continue; // read has already been filtered
 
 		if (chimeric_alignment->second.size() == 3) { // these are alignments of a split read
@@ -42,7 +42,7 @@ unsigned int filter_homopolymer(chimeric_alignments_t& chimeric_alignments, cons
 					run++;
 					if (run == homopolymer_length) {
 						if (!is_split_read_spliced(chimeric_alignment->second[SPLIT_READ], exon_annotation_index)) {
-							chimeric_alignment->second.filter = FILTERS.at("homopolymer");
+							chimeric_alignment->second.filter = FILTER_homopolymer;
 							goto next_read;
 						}
 					}

@@ -62,8 +62,8 @@ unsigned int filter_pcr_fusions(fusions_t& fusions, const chimeric_alignments_t&
 		    !fusion->second.spliced1 && !fusion->second.spliced2 && // breakpoints at splice sites are almost exclusively a result of splicing and thus, no PCR/RT-mediated fusions
 		    fusion->second.exonic1 && fusion->second.exonic2 && // PCR/RT fusions only contain spliced transcripts, so we ignore intronic/intergenic breakpoints
 		    fusion->second.split_read1_list.size() + fusion->second.split_read2_list.size() > 0 && // require a split read for exact location of the breakpoint
-		    fusion->second.filter != FILTERS.at("merge_adjacent") && // slightly varying alignments may lead to adjacent breakpoints, we should not count them as separate breakpoints
-		    fusion->second.filter != FILTERS.at("uninteresting_contigs")) { // skip uninteresting contigs to save some runtime/memory
+		    fusion->second.filter != FILTER_merge_adjacent && // slightly varying alignments may lead to adjacent breakpoints, we should not count them as separate breakpoints
+		    fusion->second.filter != FILTER_uninteresting_contigs) { // skip uninteresting contigs to save some runtime/memory
 			exonic_breakpoints_by_gene_pair[make_tuple(fusion->second.gene1, fusion->second.gene2)]++;
 			exonic_breakpoints_by_gene_pair[make_tuple(fusion->second.gene2, fusion->second.gene1)]++;
 		}
@@ -107,9 +107,9 @@ unsigned int filter_pcr_fusions(fusions_t& fusions, const chimeric_alignments_t&
 	// remove fusions with a lot of characteristics of PCR/RT-mediated fusions
 	for (fusions_t::iterator fusion = fusions.begin(); fusion != fusions.end(); ++fusion) {
 
-		if (fusion->second.filter != NULL && // fusion has already been filtered
+		if (fusion->second.filter != FILTER_none && // fusion has already been filtered
 		    // also tag filtered events, if they are spliced to prevent the filters 'spliced' and 'many_spliced' from recovering them
-		    !((fusion->second.spliced1 || fusion->second.spliced2) && (fusion->second.filter == FILTERS.at("relative_support") || fusion->second.filter == FILTERS.at("min_support"))))
+		    !((fusion->second.spliced1 || fusion->second.spliced2) && (fusion->second.filter == FILTER_relative_support || fusion->second.filter == FILTER_min_support)))
 			continue;
 
 		// PCR/RT-mediated fusions often have both breakpoints within exons,
@@ -136,7 +136,7 @@ unsigned int filter_pcr_fusions(fusions_t& fusions, const chimeric_alignments_t&
 		unsigned int clipped_discordant_mates1 = 0;
 		unsigned int clipped_discordant_mates2 = 0;
 		for (auto discordant_mates = fusion->second.discordant_mate_list.begin(); discordant_mates != fusion->second.discordant_mate_list.end(); ++discordant_mates) {
-			if ((**discordant_mates).second.filter == NULL) {
+			if ((**discordant_mates).second.filter == FILTER_none) {
 				for (mates_t::iterator mate = (**discordant_mates).second.begin(); mate != (**discordant_mates).second.end(); ++mate) {
 					if (mate->strand == FORWARD && mate->postclipping() >= min_clipped_length) {
 						if (mate->contig == fusion->second.contig1 && mate->end == fusion->second.breakpoint1) {
@@ -200,13 +200,13 @@ unsigned int filter_pcr_fusions(fusions_t& fusions, const chimeric_alignments_t&
 				fusion->second.supporting_reads() <= 1
 			)
 		   )
-			fusion->second.filter = FILTERS.at("pcr_fusions");
+			fusion->second.filter = FILTER_pcr_fusions;
 
 	}
 
 	unsigned int remaining = 0;
 	for (fusions_t::iterator fusion = fusions.begin(); fusion != fusions.end(); ++fusion)
-		if (fusion->second.filter == NULL)
+		if (fusion->second.filter == FILTER_none)
 			++remaining;
 	return remaining;
 }

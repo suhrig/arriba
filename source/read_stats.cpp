@@ -14,7 +14,7 @@ bool estimate_mate_gap_distribution(const chimeric_alignments_t& chimeric_alignm
 	list<int> mate_gaps;
 	unsigned int count = 0;
 	for (chimeric_alignments_t::const_iterator chimeric_alignment = chimeric_alignments.begin(); chimeric_alignment != chimeric_alignments.end(); ++chimeric_alignment) {
-		if (chimeric_alignment->second.filter != NULL || chimeric_alignment->second.single_end)
+		if (chimeric_alignment->second.filter != FILTER_none || chimeric_alignment->second.single_end)
 			continue;
 		if (chimeric_alignment->second.size() == 3) { // split read
 

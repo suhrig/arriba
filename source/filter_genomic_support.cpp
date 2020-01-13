@@ -175,7 +175,7 @@ void assign_confidence(fusions_t& fusions, const coverage_t& coverage) {
 		int coverage2 = coverage.get_coverage(fusion->second.contig2, fusion->second.breakpoint2, (fusion->second.direction2 == UPSTREAM) ? DOWNSTREAM : UPSTREAM);
 		float coverage_fraction = ((float) (fusion->second.split_read1_list.size() + fusion->second.split_read2_list.size() + fusion->second.discordant_mate_list.size())) / max(1, max(coverage1, coverage2));
 
-		if (fusion->second.filter != NULL) {
+		if (fusion->second.filter != FILTER_none) {
 			// discarded events get low confidence, no matter what
 			fusion->second.confidence = CONFIDENCE_LOW;
 
@@ -208,7 +208,7 @@ void assign_confidence(fusions_t& fusions, const coverage_t& coverage) {
 					unsigned int number_of_deletions = 0;
 					auto fusions_of_gene = fusions_by_gene.find(fusion->second.gene1);
 					for (auto fusion_of_gene = fusions_of_gene->second.begin(); fusion_of_gene != fusions_of_gene->second.end(); ++fusion_of_gene) {
-						if ((**fusion_of_gene).filter == NULL &&
+						if ((**fusion_of_gene).filter == FILTER_none &&
 						    (**fusion_of_gene).split_reads1 + (**fusion_of_gene).split_reads2 > 0 &&
 						    (**fusion_of_gene).direction1 == DOWNSTREAM && (**fusion_of_gene).direction2 == UPSTREAM &&
 						    ((**fusion_of_gene).gene1 == fusion->second.gene1 && (**fusion_of_gene).gene2 != fusion->second.gene2 || // don't count different isoforms
@@ -220,7 +220,7 @@ void assign_confidence(fusions_t& fusions, const coverage_t& coverage) {
 					}
 					fusions_of_gene = fusions_by_gene.find(fusion->second.gene2);
 					for (auto fusion_of_gene = fusions_of_gene->second.begin(); fusion_of_gene != fusions_of_gene->second.end(); ++fusion_of_gene) {
-						if ((**fusion_of_gene).filter == NULL &&
+						if ((**fusion_of_gene).filter == FILTER_none &&
 						    (**fusion_of_gene).split_reads1 + (**fusion_of_gene).split_reads2 > 0 &&
 						    (**fusion_of_gene).direction1 == DOWNSTREAM && (**fusion_of_gene).direction2 == UPSTREAM &&
 						    ((**fusion_of_gene).gene1 == fusion->second.gene1 && (**fusion_of_gene).gene2 != fusion->second.gene2 || // don't count different isoforms
@@ -330,10 +330,10 @@ unsigned int filter_no_genomic_support(fusions_t& fusions) {
 
 	unsigned int remaining = 0;
 	for (fusions_t::iterator fusion = fusions.begin(); fusion != fusions.end(); ++fusion) {
-		if (fusion->second.filter == NULL) {
+		if (fusion->second.filter == FILTER_none) {
 			if (fusion->second.closest_genomic_breakpoint1 < 0 && // no genomic support
 			     fusion->second.confidence == CONFIDENCE_LOW)
-				fusion->second.filter = FILTERS.at("no_genomic_support");
+				fusion->second.filter = FILTER_no_genomic_support;
 			else
 				remaining++;
 		}
@@ -347,19 +347,19 @@ unsigned int recover_genomic_support(fusions_t& fusions) {
 	unsigned int remaining = 0;
 	for (fusions_t::iterator fusion = fusions.begin(); fusion != fusions.end(); ++fusion) {
 
-		if (fusion->second.filter == NULL) {
+		if (fusion->second.filter == FILTER_none) {
 			remaining++;
 			continue; // no need to recover fusions that were not filtered
 		}
 
 		if (fusion->second.closest_genomic_breakpoint1 >= 0 && // fusion has genomic support
-		    (fusion->second.filter == FILTERS.at("end_to_end") ||
-		     fusion->second.filter == FILTERS.at("intronic") ||
-		     fusion->second.filter == FILTERS.at("mismappers") ||
-		     fusion->second.filter == FILTERS.at("no_coverage") ||
-		     fusion->second.filter == FILTERS.at("pcr_fusions") ||
-		     fusion->second.filter == FILTERS.at("relative_support"))) {
-			fusion->second.filter = NULL;
+		    (fusion->second.filter == FILTER_end_to_end ||
+		     fusion->second.filter == FILTER_intronic ||
+		     fusion->second.filter == FILTER_mismappers ||
+		     fusion->second.filter == FILTER_no_coverage ||
+		     fusion->second.filter == FILTER_pcr_fusions ||
+		     fusion->second.filter == FILTER_relative_support)) {
+			fusion->second.filter = FILTER_none;
 			remaining++;
 		}
 	}

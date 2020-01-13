@@ -68,18 +68,18 @@ unsigned int filter_homologs(fusions_t& fusions, const kmer_indices_t& kmer_indi
 	// we need to iterate over them many times
 	list<fusion_t*> remaining_fusions;
 	for (fusions_t::iterator fusion = fusions.begin(); fusion != fusions.end(); ++fusion)
-		if (fusion->second.filter == NULL)
+		if (fusion->second.filter == FILTER_none)
 			remaining_fusions.push_front(&fusion->second);
 
 	// discard fusion, if gene1 and gene2 are homologs
 	for (auto fusion = remaining_fusions.begin(); fusion != remaining_fusions.end(); ++fusion) {
 
-		if ((**fusion).filter != NULL)
+		if ((**fusion).filter != FILTER_none)
 			continue;
 
 		if (is_homolog((**fusion).gene1, (**fusion).gene2, kmer_indices, kmer_length, assembly, max_identity_fraction)) {
 
-			(**fusion).filter = FILTERS.at("homologs");
+			(**fusion).filter = FILTER_homologs;
 
 		} else {
 
@@ -89,7 +89,7 @@ unsigned int filter_homologs(fusions_t& fusions, const kmer_indices_t& kmer_indi
 			//    if so, keep the one with more supporting reads or lower e-value
 			for (auto other_fusion = next(fusion); other_fusion != remaining_fusions.end(); ++other_fusion) {
 
-				if ((**other_fusion).filter != NULL)
+				if ((**other_fusion).filter != FILTER_none)
 					continue;
 
 				// check if geneA of fusion == geneA of other fusion
@@ -121,9 +121,9 @@ unsigned int filter_homologs(fusions_t& fusions, const kmer_indices_t& kmer_indi
 					if (anchor1 > anchor2 ||
 					    anchor1 == anchor2 && (**fusion).supporting_reads() > (**other_fusion).supporting_reads() ||
 					    anchor1 == anchor2 && (**fusion).supporting_reads() == (**other_fusion).supporting_reads() && (**fusion).evalue <= (**other_fusion).evalue) {
-						(**other_fusion).filter = FILTERS.at("homologs");
+						(**other_fusion).filter = FILTER_homologs;
 					} else {
-						(**fusion).filter = FILTERS.at("homologs");
+						(**fusion).filter = FILTER_homologs;
 						break;
 					}
 				}
@@ -134,7 +134,7 @@ unsigned int filter_homologs(fusions_t& fusions, const kmer_indices_t& kmer_indi
 	// count fusions remaining after filtering
 	unsigned int remaining = 0;
 	for (auto fusion = remaining_fusions.begin(); fusion != remaining_fusions.end(); ++fusion)
-		if ((**fusion).filter == NULL)
+		if ((**fusion).filter == FILTER_none)
 			++remaining;
 	return remaining;
 }

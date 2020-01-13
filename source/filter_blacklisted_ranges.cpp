@@ -229,7 +229,7 @@ unsigned int filter_blacklisted_ranges(fusions_t& fusions, const string& blackli
 	unordered_map< tuple<contig_t,position_t>, set<fusion_t*> > fusions_by_coordinate;
 	for (fusions_t::iterator fusion = fusions.begin(); fusion != fusions.end(); ++fusion) {
 
-		if (fusion->second.filter != NULL && fusion->second.closest_genomic_breakpoint1 < 0)
+		if (fusion->second.filter != FILTER_none && fusion->second.closest_genomic_breakpoint1 < 0)
 			continue; // fusion has already been filtered and won't be recovered by the 'genomic_support' filter
 
 		// assign fusions within a window of ...bps to the same index key
@@ -276,7 +276,7 @@ unsigned int filter_blacklisted_ranges(fusions_t& fusions, const string& blackli
 					    matches_blacklist_item(item2, **fusion, 2, evalue_cutoff, max_mate_gap) ||
 					    matches_blacklist_item(item1, **fusion, 2, evalue_cutoff, max_mate_gap) &&
 					    matches_blacklist_item(item2, **fusion, 1, evalue_cutoff, max_mate_gap)) {
-						(**fusion).filter = FILTERS.at("blacklist");
+						(**fusion).filter = FILTER_blacklist;
 						fusions_near_coordinate->second.erase(fusion++); // remove fusion from index, so we don't check it again
 					} else {
 						++fusion;
@@ -289,7 +289,7 @@ unsigned int filter_blacklisted_ranges(fusions_t& fusions, const string& blackli
 	// count remaining fusions
 	unsigned int remaining = 0;
 	for (fusions_t::iterator fusion = fusions.begin(); fusion != fusions.end(); ++fusion)
-		if (fusion->second.filter == NULL)
+		if (!fusion->second.filter != FILTER_none)
 			remaining++;
 	return remaining;
 }

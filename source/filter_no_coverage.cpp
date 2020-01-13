@@ -11,7 +11,7 @@ unsigned int filter_no_coverage(fusions_t& fusions, const coverage_t& coverage, 
 	unsigned int remaining = 0;
 	for (fusions_t::iterator fusion = fusions.begin(); fusion != fusions.end(); ++fusion) {
 
-		if (fusion->second.filter != NULL)
+		if (fusion->second.filter != FILTER_none)
 			continue; // fusion has already been filtered
 
 		if (!fusion->second.is_read_through()) {
@@ -60,7 +60,7 @@ unsigned int filter_no_coverage(fusions_t& fusions, const coverage_t& coverage, 
 			}
 			if (fusion->second.direction1 == UPSTREAM && !coverage.fragment_starts_here(fusion->second.contig1, start, end) ||
 			    fusion->second.direction1 == DOWNSTREAM && !coverage.fragment_ends_here(fusion->second.contig1, start, end)) {
-				fusion->second.filter = FILTERS.at("no_coverage");
+				fusion->second.filter = FILTER_no_coverage;
 				continue;
 			}
 		}
@@ -88,7 +88,7 @@ unsigned int filter_no_coverage(fusions_t& fusions, const coverage_t& coverage, 
 			}
 			if (fusion->second.direction2 == UPSTREAM && !coverage.fragment_starts_here(fusion->second.contig2, start, end) ||
 			    fusion->second.direction2 == DOWNSTREAM && !coverage.fragment_ends_here(fusion->second.contig2, start, end)) {
-				fusion->second.filter = FILTERS.at("no_coverage");
+				fusion->second.filter = FILTER_no_coverage;
 				continue;
 			}
 		}

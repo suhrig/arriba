@@ -21,7 +21,7 @@ unsigned int merge_adjacent_fusions(fusions_t& fusions, const int max_distance) 
 	vector<fusion_t*> sorted_fusions;
 	sorted_fusions.reserve(fusions.size());
 	for (fusions_t::iterator fusion = fusions.begin(); fusion != fusions.end(); ++fusion)
-		if (fusion->second.filter == NULL) // only merge fusions which have not been filtered before
+		if (fusion->second.filter == FILTER_none) // only merge fusions which have not been filtered before
 			sorted_fusions.push_back(&fusion->second);
 	sort(sorted_fusions.begin(), sorted_fusions.end(), sort_fusions_by_coordinate);
 
@@ -78,13 +78,13 @@ unsigned int merge_adjacent_fusions(fusions_t& fusions, const int max_distance) 
 			(**fusion).split_reads1 += sum_split_reads1;
 			(**fusion).split_reads2 += sum_split_reads2;
 			for (unsigned int k = 0; k < adjacent_fusions.size(); ++k)
-				adjacent_fusions[k]->filter = FILTERS.at("merge_adjacent");
+				adjacent_fusions[k]->filter = FILTER_merge_adjacent;
 		}
 	}
 
 	unsigned int remaining = 0;
 	for (fusions_t::iterator fusion = fusions.begin(); fusion != fusions.end(); ++fusion)
-		if (fusion->second.filter == NULL)
+		if (fusion->second.filter == FILTER_none)
 			remaining++;
 	return remaining;
 }

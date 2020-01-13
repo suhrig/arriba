@@ -25,7 +25,7 @@ void pileup_chimeric_alignments(vector<chimeric_alignments_t::iterator>& chimeri
 
 	for (auto chimeric_alignment = chimeric_alignments.begin(); chimeric_alignment != chimeric_alignments.end(); ++chimeric_alignment) {
 
-		if ((**chimeric_alignment).second.filter == FILTERS.at("duplicates"))
+		if ((**chimeric_alignment).second.filter == FILTER_duplicates)
 			continue; // skip duplicates
 
 		alignment_t& read = (**chimeric_alignment).second[mate]; // introduce alias for cleaner code
@@ -1007,7 +1007,7 @@ void write_fusions_to_file(fusions_t& fusions, const string& output_file, const 
 	if (write_discarded_fusions)
 		sorted_fusions.reserve(fusions.size());
 	for (fusions_t::iterator fusion = fusions.begin(); fusion != fusions.end(); ++fusion)
-		if (write_discarded_fusions != (fusion->second.filter == NULL)) // either write filtered or unfiltered fusions
+		if (write_discarded_fusions != (fusion->second.filter == FILTER_none)) // either write filtered or unfiltered fusions
 			sorted_fusions.push_back(&(fusion->second));
 
 	// don't sort the discarded fusions
@@ -1107,15 +1107,15 @@ void write_fusions_to_file(fusions_t& fusions, const string& output_file, const 
 
 		// count the number of reads discarded by a given filter
 		map<string,unsigned int> filters;
-		if ((**fusion).filter != NULL)
-			filters[*(**fusion).filter] = 0;
+		if ((**fusion).filter != FILTER_none)
+			filters[FILTERS[(**fusion).filter]] = 0;
 		vector<chimeric_alignments_t::iterator> all_supporting_reads;
 		all_supporting_reads.insert(all_supporting_reads.end(), (**fusion).split_read1_list.begin(), (**fusion).split_read1_list.end());
 		all_supporting_reads.insert(all_supporting_reads.end(), (**fusion).split_read2_list.begin(), (**fusion).split_read2_list.end());
 		all_supporting_reads.insert(all_supporting_reads.end(), (**fusion).discordant_mate_list.begin(), (**fusion).discordant_mate_list.end());
 		for (auto chimeric_alignment = all_supporting_reads.begin(); chimeric_alignment != all_supporting_reads.end(); ++chimeric_alignment)
-			if ((**chimeric_alignment).second.filter != NULL)
-				filters[*(**chimeric_alignment).second.filter]++;
+			if ((**chimeric_alignment).second.filter != FILTER_none)
+				filters[FILTERS[(**chimeric_alignment).second.filter]]++;
 
 		// output filters
 		out << "\t";

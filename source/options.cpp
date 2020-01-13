@@ -74,8 +74,9 @@ options_t get_default_options() {
 	options_t options;
 
 	options.interesting_contigs = "1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 X Y";
-	for (auto i = FILTERS.begin(); i != FILTERS.end(); ++i)
-		options.filters[i->first] = true;
+	for (size_t i = 0; i < FILTERS.size(); ++i)
+		if (i != FILTER_none)
+			options.filters[FILTERS[i]] = true;
 	options.evalue_cutoff = 0.3;
 	options.min_support = 2;
 	options.max_mismapper_fraction = 0.8;

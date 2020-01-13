@@ -49,7 +49,7 @@ void make_kmer_index(const fusions_t& fusions, const assembly_t& assembly, const
 	// find genes which are involved in fusions which have not been discarded yet
 	gene_set_t genes_to_filter;
 	for (fusions_t::const_iterator fusion = fusions.begin(); fusion != fusions.end(); ++fusion) {
-		if (fusion->second.filter != NULL)
+		if (fusion->second.filter != FILTER_none)
 			continue;
 		if (fusion->second.gene1 == fusion->second.gene2)
 			continue; // comparing sequence similarity only makes sense between different genes
@@ -213,17 +213,18 @@ bool align_both_strands(const string& read_sequence, const int read_length, cons
 	return false;
 }
 
-void count_mismappers(vector<chimeric_alignments_t::iterator>& chimeric_alignments_list, short unsigned int& mismappers, short unsigned int& total_reads, short unsigned int& supporting_reads) {
+short unsigned int count_mismappers(vector<chimeric_alignments_t::iterator>& chimeric_alignments_list, short unsigned int& mismappers, short unsigned int& total_reads, short unsigned int supporting_reads) {
 	for (auto chimeric_alignment = chimeric_alignments_list.begin(); chimeric_alignment != chimeric_alignments_list.end(); ++chimeric_alignment) {
-		if ((**chimeric_alignment).second.filter == NULL) {
+		if ((**chimeric_alignment).second.filter == FILTER_none) {
 			total_reads++;
-		} else if ((**chimeric_alignment).second.filter == FILTERS.at("mismappers")) {
+		} else if ((**chimeric_alignment).second.filter == FILTER_mismappers) {
 			total_reads++;
 			mismappers++;
 			if (supporting_reads > 0)
 				supporting_reads--;
 		}
 	}
+	return supporting_reads;
 }
 
 // extend split read and compare against reference to check if STAR clipped prematurely (mostly due to accumulation of SNPs)
@@ -265,7 +266,7 @@ unsigned int filter_mismappers(fusions_t& fusions, const kmer_indices_t& kmer_in
 		if (fusion->second.gene1 == fusion->second.gene2)
 			continue; // re-aligning the read only makes sense between different genes
 
-		if (fusion->second.filter != NULL)
+		if (fusion->second.filter != FILTER_none)
 			continue;
 
 		//TODO hotfix to prevent MTAP:CDKN2B-AS1 from being removed
@@ -278,7 +279,7 @@ unsigned int filter_mismappers(fusions_t& fusions, const kmer_indices_t& kmer_in
 		all_split_reads.insert(all_split_reads.end(), fusion->second.split_read2_list.begin(), fusion->second.split_read2_list.end());
 		for (auto chimeric_alignment = all_split_reads.begin(); chimeric_alignment != all_split_reads.end(); ++chimeric_alignment) {
 
-			if ((**chimeric_alignment).second.filter != NULL)
+			if ((**chimeric_alignment).second.filter != FILTER_none)
 				continue; // read has already been filtered
 
 			// introduce aliases for cleaner code
@@ -290,20 +291,20 @@ unsigned int filter_mismappers(fusions_t& fusions, const kmer_indices_t& kmer_in
 				if (extend_split_read(split_read, assembly, min_align_percent) ||
 				    align_both_strands(split_read.sequence.substr(0, split_read.preclipping()), split_read.sequence.size(), max_mate_gap, fusion->second.contig1 == fusion->second.contig2, supplementary.start, supplementary.end, kmer_indices, assembly, exon_annotation_index, splice_sites_by_gene, split_read.genes, kmer_length, min_align_percent, min_score) || // clipped segment aligns to donor
 				    align_both_strands(mate1.sequence.substr(mate1.preclipping()), mate1.sequence.size(), max_mate_gap, fusion->second.contig1 == fusion->second.contig2, mate1.start, mate1.end, kmer_indices, assembly, exon_annotation_index, splice_sites_by_gene, supplementary.genes, kmer_length, min_align_percent, min_score)) { // non-spliced mate aligns to acceptor
-					(**chimeric_alignment).second.filter = FILTERS.at("mismappers");
+					(**chimeric_alignment).second.filter = FILTER_mismappers;
 				}
 			} else { // split_read.strand == REVERSE
 				if (extend_split_read(split_read, assembly, min_align_percent) ||
 				    align_both_strands(split_read.sequence.substr(split_read.sequence.length() - split_read.postclipping()), split_read.sequence.size(), max_mate_gap, fusion->second.contig1 == fusion->second.contig2, supplementary.start, supplementary.end, kmer_indices, assembly, exon_annotation_index, splice_sites_by_gene, split_read.genes, kmer_length, min_align_percent, min_score) || // clipped segment aligns to donor
 				    align_both_strands(mate1.sequence.substr(0, mate1.sequence.length() - mate1.postclipping()), mate1.sequence.size(), max_mate_gap, fusion->second.contig1 == fusion->second.contig2, mate1.start, mate1.end, kmer_indices, assembly, exon_annotation_index, splice_sites_by_gene, supplementary.genes, kmer_length, min_align_percent, min_score)) { // non-spliced mate aligns to acceptor
-					(**chimeric_alignment).second.filter = FILTERS.at("mismappers");
+					(**chimeric_alignment).second.filter = FILTER_mismappers;
 				}
 			}
 		}
 
 		// re-align discordant mates
 		for (auto chimeric_alignment = fusion->second.discordant_mate_list.begin(); chimeric_alignment != fusion->second.discordant_mate_list.end(); ++chimeric_alignment) {
-			if ((**chimeric_alignment).second.filter != NULL)
+			if ((**chimeric_alignment).second.filter != FILTER_none)
 				continue; // read has already been filtered
 
 			if ((**chimeric_alignment).second.size() == 2) { // discordant mates
@@ -314,7 +315,7 @@ unsigned int filter_mismappers(fusions_t& fusions, const kmer_indices_t& kmer_in
 
 				if (align_both_strands(mate1.sequence, mate1.sequence.size(), max_mate_gap, fusion->second.contig1 == fusion->second.contig2, mate1.start, mate1.end, kmer_indices, assembly, exon_annotation_index, splice_sites_by_gene, mate2.genes, kmer_length, min_align_percent, min_score) ||
 				    align_both_strands(mate2.sequence, mate2.sequence.size(), max_mate_gap, fusion->second.contig1 == fusion->second.contig2, mate2.start, mate2.end, kmer_indices, assembly, exon_annotation_index, splice_sites_by_gene, mate1.genes, kmer_length, min_align_percent, min_score)) {
-					(**chimeric_alignment).second.filter = FILTERS.at("mismappers");
+					(**chimeric_alignment).second.filter = FILTER_mismappers;
 				}
 			}
 		}
@@ -325,18 +326,18 @@ unsigned int filter_mismappers(fusions_t& fusions, const kmer_indices_t& kmer_in
 	unsigned int remaining = 0;
 	for (fusions_t::iterator fusion = fusions.begin(); fusion != fusions.end(); ++fusion) {
 
-		if (fusion->second.filter != NULL)
+		if (fusion->second.filter != FILTER_none)
 			continue; // fusion has already been filtered
 
 		short unsigned int total_reads = 0;
 		short unsigned int mismappers = 0;
-		count_mismappers(fusion->second.split_read1_list, mismappers, total_reads, fusion->second.split_reads1);
-		count_mismappers(fusion->second.split_read2_list, mismappers, total_reads, fusion->second.split_reads2);
-		count_mismappers(fusion->second.discordant_mate_list, mismappers, total_reads, fusion->second.discordant_mates);
+		fusion->second.split_reads1 = count_mismappers(fusion->second.split_read1_list, mismappers, total_reads, fusion->second.split_reads1);
+		fusion->second.split_reads2 = count_mismappers(fusion->second.split_read2_list, mismappers, total_reads, fusion->second.split_reads2);
+		fusion->second.discordant_mates = count_mismappers(fusion->second.discordant_mate_list, mismappers, total_reads, fusion->second.discordant_mates);
 
 		// remove fusions with mostly mismappers
 		if (mismappers > 0 && mismappers >= floor(max_mismapper_fraction * total_reads))
-			fusion->second.filter = FILTERS.at("mismappers");
+			fusion->second.filter = FILTER_mismappers;
 		else
 			remaining++;
 

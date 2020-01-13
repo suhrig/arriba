@@ -7,7 +7,7 @@ using namespace std;
 unsigned int filter_intragenic_both_exonic(fusions_t& fusions, const exon_annotation_index_t& exon_annotation_index, const float exonic_fraction) {
 	unsigned int remaining = 0;
 	for (fusions_t::iterator fusion = fusions.begin(); fusion != fusions.end(); ++fusion) {
-		if (fusion->second.filter != NULL)
+		if (fusion->second.filter != FILTER_none)
 			continue; // read has already been filtered
 
 		if ((fusion->second.breakpoint_overlaps_both_genes() || fusion->second.gene1 == fusion->second.gene2) &&
@@ -23,7 +23,7 @@ unsigned int filter_intragenic_both_exonic(fusions_t& fusions, const exon_annota
 			int spliced_distance = get_spliced_distance(fusion->second.contig1, fusion->second.breakpoint1, fusion->second.breakpoint2, fusion->second.direction1, fusion->second.direction2, fusion->second.gene1, exon_annotation_index);
 			int distance = fusion->second.breakpoint2 - fusion->second.breakpoint1;
 			if (spliced_distance == distance || spliced_distance / distance < exonic_fraction) {
-				fusion->second.filter = FILTERS.at("intragenic_exonic");
+				fusion->second.filter = FILTER_intragenic_exonic;
 				continue;
 			}
 		}

@@ -14,19 +14,19 @@ unsigned int recover_many_spliced(fusions_t& fusions, const unsigned int min_spl
 		    (fusion->second.spliced1 || fusion->second.spliced2) &&
 		    fusion->second.gene1 != fusion->second.gene2 &&
 		    !fusion->second.breakpoint_overlaps_both_genes() &&
-		    (fusion->second.filter == NULL ||
-		     fusion->second.filter == FILTERS.at("inconsistently_clipped") ||
-		     fusion->second.filter == FILTERS.at("homopolymer") ||
-		     fusion->second.filter == FILTERS.at("relative_support") ||
-		     fusion->second.filter == FILTERS.at("min_support") ||
-		     fusion->second.filter == FILTERS.at("select_best"))) {
+		    (fusion->second.filter == FILTER_none ||
+		     fusion->second.filter == FILTER_inconsistently_clipped ||
+		     fusion->second.filter == FILTER_homopolymer ||
+		     fusion->second.filter == FILTER_relative_support ||
+		     fusion->second.filter == FILTER_min_support ||
+		     fusion->second.filter == FILTER_select_best)) {
 			spliced_fusions_by_gene_pair[make_tuple(fusion->second.gene1, fusion->second.gene2)]++;
 		}
 
 	unsigned int remaining = 0;
 	for (fusions_t::iterator fusion = fusions.begin(); fusion != fusions.end(); ++fusion) {
 
-		if (fusion->second.filter == NULL) { // fusion has not been filtered, no need to recover
+		if (fusion->second.filter == FILTER_none) { // fusion has not been filtered, no need to recover
 			remaining++;
 			continue;
 		}
@@ -36,14 +36,14 @@ unsigned int recover_many_spliced(fusions_t& fusions, const unsigned int min_spl
 		    fusion->second.breakpoint_overlaps_both_genes())
 			continue; // don't recover events between partners which are likely to occur by chance
 
-		if (fusion->second.filter == FILTERS.at("inconsistently_clipped") ||
-                    fusion->second.filter == FILTERS.at("homopolymer") ||
-                    fusion->second.filter == FILTERS.at("relative_support") ||
-                    fusion->second.filter == FILTERS.at("min_support") ||
-                    fusion->second.filter == FILTERS.at("select_best")) {
+		if (fusion->second.filter == FILTER_inconsistently_clipped ||
+                    fusion->second.filter == FILTER_homopolymer ||
+                    fusion->second.filter == FILTER_relative_support ||
+                    fusion->second.filter == FILTER_min_support ||
+                    fusion->second.filter == FILTER_select_best) {
 			if ((fusion->second.spliced1 || fusion->second.spliced2) &&
 			    spliced_fusions_by_gene_pair[make_tuple(fusion->second.gene1, fusion->second.gene2)] >= min_spliced_events) {
-				fusion->second.filter = NULL;
+				fusion->second.filter = FILTER_none;
 				remaining++;
 			}
 		}

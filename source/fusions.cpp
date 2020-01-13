@@ -41,7 +41,7 @@ void predict_fusion_strands(fusion_t& fusion) {
 
 	for (auto discordant_mate = fusion.discordant_mate_list.begin(); discordant_mate != fusion.discordant_mate_list.end(); ++discordant_mate) {
 		if (!(**discordant_mate).second[MATE1].predicted_strand_ambiguous &&
-		    (**discordant_mate).second.filter != FILTERS.at("hairpin")) { // skip discordant mates arising from hairpin structures, because they are usually ambiguous
+		    (**discordant_mate).second.filter != FILTER_hairpin) { // skip discordant mates arising from hairpin structures, because they are usually ambiguous
 
 			// find out which mate supports breakpoint1
 			alignment_t* mate1 = &(**discordant_mate).second[MATE1];
@@ -257,17 +257,13 @@ unsigned int find_fusions(chimeric_alignments_t& chimeric_alignments, fusions_t&
 					fusion.breakpoint1 = breakpoint1; fusion.breakpoint2 = breakpoint2;
 					fusion.exonic1 = exonic1 || fusion.exonic1; fusion.exonic2 = exonic2 || fusion.exonic2;
 
-					if (fusion.supporting_reads() == 0) {
-						if (chimeric_alignment->second.filter == NULL)
-							fusion.filter = NULL;
-						else
-							fusion.filter = chimeric_alignment->second.filter;
-					}
+					if (fusion.supporting_reads() == 0)
+						fusion.filter = chimeric_alignment->second.filter;
 
 					if (fusion.split_reads1 >= subsampling_threshold && !swapped ||
 					    fusion.split_reads2 >= subsampling_threshold &&  swapped ||
-					    chimeric_alignment->second.filter != NULL && !swapped && fusion.split_read1_list.size() >= subsampling_threshold ||
-					    chimeric_alignment->second.filter != NULL &&  swapped && fusion.split_read2_list.size() >= subsampling_threshold) {
+					    chimeric_alignment->second.filter != FILTER_none && !swapped && fusion.split_read1_list.size() >= subsampling_threshold ||
+					    chimeric_alignment->second.filter != FILTER_none &&  swapped && fusion.split_read2_list.size() >= subsampling_threshold) {
 
 						// subsampling improves performance, especially in multiple myeloma samples
 						subsampled_fusions = true;
@@ -289,11 +285,11 @@ unsigned int find_fusions(chimeric_alignments_t& chimeric_alignments, fusions_t&
 						// increase split read counters for the given fusion
 						if (swapped) {
 							fusion.split_read2_list.push_back(chimeric_alignment);
-							if (chimeric_alignment->second.filter == NULL)
+							if (chimeric_alignment->second.filter == FILTER_none)
 								fusion.split_reads2++;
 						} else {
 							fusion.split_read1_list.push_back(chimeric_alignment);
-							if (chimeric_alignment->second.filter == NULL)
+							if (chimeric_alignment->second.filter == FILTER_none)
 								fusion.split_reads1++;
 						}
 
@@ -341,9 +337,9 @@ unsigned int find_fusions(chimeric_alignments_t& chimeric_alignments, fusions_t&
 					fusion.breakpoint1 = breakpoint1; fusion.breakpoint2 = breakpoint2;
 					fusion.exonic1 = exonic1 || fusion.exonic1; fusion.exonic2 = exonic2 || fusion.exonic2;
 
-					if (chimeric_alignment->second.filter == NULL) {
-						fusion.filter = NULL;
-					} else if (is_new_fusion || fusion.filter != NULL) {
+					if (chimeric_alignment->second.filter == FILTER_none) {
+						fusion.filter = FILTER_none;
+					} else if (is_new_fusion || fusion.filter != FILTER_none) {
 						fusion.filter = chimeric_alignment->second.filter;
 					}
 
@@ -370,7 +366,7 @@ unsigned int find_fusions(chimeric_alignments_t& chimeric_alignments, fusions_t&
 	// for each fusion, count the supporting discordant mates
 	for (fusions_t::iterator fusion = fusions.begin(); fusion != fusions.end(); ++fusion) {
 
-		if (fusion->second.filter != NULL)
+		if (fusion->second.filter != FILTER_none)
 			continue; // don't look for discordant mates, if the fusion has been filtered
 
 		// get list of discordant mates supporting a fusion between the given gene pair
@@ -381,7 +377,7 @@ unsigned int find_fusions(chimeric_alignments_t& chimeric_alignments, fusions_t&
 			for (auto discordant_mate = discordant_mates->second.begin(); discordant_mate != discordant_mates->second.end(); ++discordant_mate) {
 
 				// ignore discarded reads, if we already have a lot of supporting reads (improves performance in multiple myeloma samples)
-				if ((*discordant_mate)->second.filter != NULL && fusion->second.discordant_mate_list.size() >= subsampling_threshold) {
+				if ((*discordant_mate)->second.filter != FILTER_none && fusion->second.discordant_mate_list.size() >= subsampling_threshold) {
 					subsampled_fusions = true;
 					continue;
 				}
@@ -407,7 +403,7 @@ unsigned int find_fusions(chimeric_alignments_t& chimeric_alignments, fusions_t&
 
 					fusion->second.discordant_mate_list.push_back(*discordant_mate);
 
-					if ((**discordant_mate).second.filter == NULL)
+					if ((**discordant_mate).second.filter == FILTER_none)
 						fusion->second.discordant_mates++;
 
 					// expand the size of the anchor
@@ -460,7 +456,7 @@ unsigned int find_fusions(chimeric_alignments_t& chimeric_alignments, fusions_t&
 		predict_transcript_start(fusion->second);
 
 		// count fusions which have at least one non-filtered read
-		if (fusion->second.filter == NULL)
+		if (fusion->second.filter == FILTER_none)
 			remaining++;
 	}
 
