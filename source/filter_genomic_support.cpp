@@ -71,10 +71,9 @@ unsigned int mark_genomic_support(fusions_t& fusions, const string& genomic_brea
 	unordered_map< tuple<contig_t, contig_t, direction_t, direction_t>, map< position_t/*breakpoint1*/, vector<position_t/*breakpoint2*/> > > genomic_breakpoints;
 
 	// load genomic breakpoints from file into index
-	stringstream genomic_breakpoints_file;
-	autodecompress_file(genomic_breakpoints_file_path, genomic_breakpoints_file);
+	autodecompress_file_t genomic_breakpoints_file(genomic_breakpoints_file_path);
 	string line;
-	while (getline(genomic_breakpoints_file, line)) {
+	while (genomic_breakpoints_file.getline(line)) {
 		if (!line.empty() && line[0] != '#') {
 
 			// parse line

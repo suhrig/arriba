@@ -25,14 +25,11 @@ string dna_to_reverse_complement(const string& dna) {
 
 void load_assembly(assembly_t& assembly, const string& fasta_file_path, contigs_t& contigs, const contigs_t& interesting_contigs) {
 
-	// open FastA file
-	stringstream fasta_file;
-	autodecompress_file(fasta_file_path, fasta_file);
-
-	// read line by line
+	// read FastA file line by line
+	autodecompress_file_t fasta_file(fasta_file_path);
 	string line;
 	contig_t current_contig = -1;
-	while (getline(fasta_file, line)) {
+	while (fasta_file.getline(line)) {
 		if (!line.empty()) {
 
 			// get contig name

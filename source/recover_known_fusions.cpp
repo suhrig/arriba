@@ -16,11 +16,10 @@ using namespace std;
 unsigned int recover_known_fusions(fusions_t& fusions, const string& known_fusions_file_path, const unordered_map<string,gene_t>& genes, const coverage_t& coverage) {
 
 	// load known fusions from file
-	stringstream known_fusions_file;
-	autodecompress_file(known_fusions_file_path, known_fusions_file);
+	autodecompress_file_t known_fusions_file(known_fusions_file_path);
 	set< tuple<gene_t,gene_t> > known_fusions;
 	string line;
-	while (getline(known_fusions_file, line)) {
+	while (known_fusions_file.getline(line)) {
 		if (!line.empty() && line[0] != '#') {
 			istringstream iss(line);
 			string gene1, gene2;

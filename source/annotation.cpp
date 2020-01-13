@@ -181,11 +181,10 @@ void read_annotation_gtf(const string& filename, const string& gtf_features_stri
 
 	gene_set_t bogus_genes; // genes with bogus annotation are ignored
 
-	stringstream gtf_file;
-	autodecompress_file(filename, gtf_file);
+	autodecompress_file_t gtf_file(filename);
 	string line;
 	unsigned int new_id = 0; // ID generator for genes and transcripts
-	while (getline(gtf_file, line)) {
+	while (gtf_file.getline(line)) {
 		if (!line.empty() && line[0] != '#') { // skip comment lines
 
 			istringstream iss(line);

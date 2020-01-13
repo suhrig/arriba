@@ -244,10 +244,9 @@ unsigned int filter_blacklisted_ranges(fusions_t& fusions, const string& blackli
 	}
 
 	// load blacklist from file
-	stringstream blacklist_file;
-	autodecompress_file(blacklist_file_path, blacklist_file);
+	autodecompress_file_t blacklist_file(blacklist_file_path);
 	string line;
-	while (getline(blacklist_file, line)) {
+	while (blacklist_file.getline(line)) {
 
 		// skip comment lines
 		if (line.empty() || line[0] == '#')
