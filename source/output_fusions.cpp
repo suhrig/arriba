@@ -379,9 +379,14 @@ bool sort_fusions_by_support(const fusion_t* x, const fusion_t* y) {
 		return x->supporting_reads() > y->supporting_reads();
 	else if (x->evalue != y->evalue)
 		return x->evalue < y->evalue;
+	else if (x->gene1->id != y->gene1->id)      // the following rules don't really sort, they only ensure deterministic sorting and
+		return x->gene1->id < y->gene1->id; // that fusions between the same pair of genes are grouped together if e-value and
+	else if (x->gene2->id != y->gene2->id)      // supporting reads are equal
+		return x->gene2->id < y->gene2->id;
+	else if (x->breakpoint1 != y->breakpoint1)
+		return x->breakpoint1 < y->breakpoint1;
 	else
-		return x->gene1->start + x->gene2->start < y->gene1->start + y->gene2->start; // this does not really sort, it only ensures that fusions between the
-		                                                                              // same pair of genes are grouped together, if e-value and supporting reads are equal
+		return x->breakpoint2 < y->breakpoint2;
 }
 // make helper struct which groups events between the same pair of genes together,
 // such that events with only few supporting reads are listed near the best event (the one with the most supporting reads)
