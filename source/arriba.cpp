@@ -1,10 +1,12 @@
 #include <algorithm>
 #include <ctime>
+#include <iomanip>
 #include <iostream>
 #include <set>
 #include <sstream>
 #include <stdlib.h>
 #include <string>
+#include <sys/resource.h>
 #include <unordered_map>
 #include <vector>
 #include "common.hpp"
@@ -56,7 +58,22 @@ string get_time_string() {
 	return buffer;
 }
 
+string get_hhmmss_string(unsigned long long seconds) {
+	ostringstream oss;
+	oss << setfill('0');
+	oss << setw(2) << (seconds/3600) << ":";
+	seconds %= 3600;
+	oss << setw(2) << (seconds/60) << ":";
+	seconds %= 60;
+	oss << setw(2) <<  seconds;
+	return oss.str();
+}
+
 int main(int argc, char **argv) {
+
+	// measure elapsed time
+	time_t start_time;
+	time(&start_time);
 
 	// parse command-line options
 	options_t options = parse_arguments(argc, argv);
@@ -490,6 +507,16 @@ int main(int argc, char **argv) {
 		cout << get_time_string() << " Writing discarded fusions to file '" << options.discarded_output_file << "' " << endl;
 		write_fusions_to_file(fusions, options.discarded_output_file, coverage, assembly, gene_annotation_index, exon_annotation_index, contigs_by_id, options.print_supporting_reads_for_discarded_fusions, options.print_fusion_sequence_for_discarded_fusions, options.print_peptide_sequence_for_discarded_fusions, true);
 	}
+
+	// print resource usage stats end exit
+	time_t end_time;
+	time(&end_time);
+	struct rusage usage;
+	getrusage(RUSAGE_SELF, &usage);
+	cout << get_time_string() << " Done "
+	     << "(elapsed time=" << get_hhmmss_string(difftime(end_time, start_time)) << ", "
+	     << "CPU time=" << get_hhmmss_string(usage.ru_utime.tv_sec + usage.ru_stime.tv_sec) << ", "
+	     << "peak memory=" << setprecision(3) << (usage.ru_maxrss/1024.0/1024) << "gb)" << endl;
 
 	return 0;
 }
