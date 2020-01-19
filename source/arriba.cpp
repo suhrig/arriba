@@ -261,11 +261,11 @@ int main(int argc, char **argv) {
 		cout << "(remaining=" << filter_uninteresting_contigs(chimeric_alignments, contigs, interesting_contigs) << ")" << endl;
 	}
 
-	cout << get_time_string() << " Estimating mate gap distribution " << flush;
-	float mate_gap_mean, mate_gap_stddev;
+	cout << get_time_string() << " Estimating fragment length " << flush;
+	float mate_gap_mean, mate_gap_stddev, read_length_mean;
 	int max_mate_gap;
-	if (estimate_mate_gap_distribution(chimeric_alignments, mate_gap_mean, mate_gap_stddev, gene_annotation_index, exon_annotation_index)) {
-		cout << "(mean=" << mate_gap_mean << ", stddev=" << mate_gap_stddev << ")" << endl;
+	if (estimate_fragment_length(chimeric_alignments, mate_gap_mean, mate_gap_stddev, read_length_mean, gene_annotation_index, exon_annotation_index)) {
+		cout << "(mate gap mean=" << mate_gap_mean << ", mate gap stddev=" << mate_gap_stddev << ", read length mean=" << read_length_mean << ")" << endl;
 		max_mate_gap = max(0, (int) (mate_gap_mean + 3*mate_gap_stddev));
 	} else
 		max_mate_gap = options.fragment_length;
@@ -444,7 +444,7 @@ int main(int argc, char **argv) {
 	const char kmer_length = 8; // must not be longer than 16 or else conversion to int will fail
 	if (options.filters.at("homologs") || options.filters.at("mismappers")) {
 		cout << get_time_string() << " Indexing gene sequences " << endl << flush;
-		make_kmer_index(fusions, assembly, kmer_length, kmer_indices);
+		make_kmer_index(fusions, assembly, max_mate_gap + 2*read_length_mean, kmer_length, kmer_indices);
 	}
 
 	// this step must come near the end, because it is expensive in terms of memory consumption

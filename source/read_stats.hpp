@@ -7,7 +7,7 @@
 
 using namespace std;
 
-bool estimate_mate_gap_distribution(const chimeric_alignments_t& chimeric_alignments, float& mate_gap_mean, float& mate_gap_stddev, const gene_annotation_index_t& gene_annotation_index, const exon_annotation_index_t& exon_annotation_index);
+bool estimate_fragment_length(const chimeric_alignments_t& chimeric_alignments, float& mate_gap_mean, float& mate_gap_stddev, float& read_length_mean, const gene_annotation_index_t& gene_annotation_index, const exon_annotation_index_t& exon_annotation_index);
 
 strandedness_t detect_strandedness(const chimeric_alignments_t& chimeric_alignments, const gene_annotation_index_t& gene_annotation_index, const exon_annotation_index_t& exon_annotation_index);
 
