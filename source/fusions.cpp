@@ -428,7 +428,7 @@ unsigned int find_fusions(chimeric_alignments_t& chimeric_alignments, fusions_t&
 	}
 
 	if (subsampled_fusions)
-		cerr << "WARNING: Some fusions were subsampled, because they have more than " << subsampling_threshold << " supporting reads" << endl;
+		cerr << "WARNING: some fusions were subsampled, because they have more than " << subsampling_threshold << " supporting reads" << endl;
 
 	unsigned int remaining = 0;
 	for (fusions_t::iterator fusion = fusions.begin(); fusion != fusions.end(); ++fusion) {

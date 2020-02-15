@@ -186,8 +186,12 @@ bool extract_read_through_alignment(chimeric_alignments_t& chimeric_alignments, 
 
 // remove alignments when supplementary flags are missing or when there are too many/few alignment records
 // in addition, reformat single-end reads as if they were paired-end, such that the rest of Arriba does not need to care about single-end vs. paired-end
-void remove_bogus_alignments(chimeric_alignments_t& chimeric_alignments) {
+unsigned int remove_malformed_alignments(chimeric_alignments_t& chimeric_alignments) {
+
+	unsigned int malformed_count = 0;
 	for (chimeric_alignments_t::iterator chimeric_alignment = chimeric_alignments.begin(); chimeric_alignment != chimeric_alignments.end();) {
+
+		bool malformed = false;
 
 		if (chimeric_alignment->second.single_end) {
 			if (chimeric_alignment->second.size() == 2 &&
@@ -237,15 +241,13 @@ void remove_bogus_alignments(chimeric_alignments_t& chimeric_alignments) {
 					}
 				}
 
-				++chimeric_alignment;
-
 			} else {
 				// if we get here, there are either too many alignments with the same name or too few
 				// or something is wrong with the supplementary flags
-				chimeric_alignment = chimeric_alignments.erase(chimeric_alignment);
+				malformed = true;
 			}
 
-		} else { // paired_end
+		} else { // paired-end
 
 			if (chimeric_alignment->second.size() == 3) { // split read
 
@@ -258,28 +260,33 @@ void remove_bogus_alignments(chimeric_alignments_t& chimeric_alignments) {
 
 				// make sure we have exactly on supplementary alignment, or else something is wrong
 				if (!(!chimeric_alignment->second[MATE1].supplementary && !chimeric_alignment->second[MATE2].supplementary && chimeric_alignment->second[SUPPLEMENTARY].supplementary)) {
-					chimeric_alignment = chimeric_alignments.erase(chimeric_alignment);
+					malformed = true;
 				} else {
 					// make sure the split read is in the SPLIT_READ place
 					if (chimeric_alignment->second[SPLIT_READ].first_in_pair != chimeric_alignment->second[SUPPLEMENTARY].first_in_pair)
 						swap(chimeric_alignment->second[MATE1], chimeric_alignment->second[MATE2]);
-					++chimeric_alignment;
 				}
 
 			} else if (chimeric_alignment->second.size() == 2) { // discordant mate
 				// none of the mates should have the supplementary bit set, or else something is wrong
-				if (chimeric_alignment->second[MATE1].supplementary || chimeric_alignment->second[MATE2].supplementary) {
-					chimeric_alignment = chimeric_alignments.erase(chimeric_alignment);
-				} else {
-					++chimeric_alignment;
-				}
+				if (chimeric_alignment->second[MATE1].supplementary || chimeric_alignment->second[MATE2].supplementary)
+					malformed = true;
 			} else {
 				// if we get here, there are either too many alignments with the same name or too few
-				chimeric_alignment = chimeric_alignments.erase(chimeric_alignment);
+				malformed = true;
 			}
 
 		}
+
+		if (malformed) {
+			malformed_count++;
+			chimeric_alignment = chimeric_alignments.erase(chimeric_alignment);
+		} else {
+			++chimeric_alignment;
+		}
 	}
+
+	return malformed_count;
 }
 
 unsigned int read_chimeric_alignments(const string& bam_file_path, const string& assembly_file_path, chimeric_alignments_t& chimeric_alignments, unsigned long int& mapped_reads, coverage_t& coverage, contigs_t& contigs, const contigs_t& interesting_contigs, const gene_annotation_index_t& gene_annotation_index, const bool separate_chimeric_bam_file, const bool is_rna_bam_file) {
@@ -418,11 +425,10 @@ unsigned int read_chimeric_alignments(const string& bam_file_path, const string&
 		cerr << "ERROR: no normal reads found" << endl;
 		exit(1);
 	}
-	// sanity check: remove bogus alignments
-	unsigned int before_removal = chimeric_alignments.size();
-	remove_bogus_alignments(chimeric_alignments);
-	if (before_removal > chimeric_alignments.size())
-		cerr << "WARNING: " << (before_removal - chimeric_alignments.size()) << " alignments were malformed and ignored (your version of STAR might by incompatible)" << endl;
+	// sanity check: remove malformed alignments
+	unsigned int malformed_count = remove_malformed_alignments(chimeric_alignments);
+	if (malformed_count > 0)
+		cerr << "WARNING: " << malformed_count << " SAM records were malformed and ignored" << endl;
 	// sanity check: there should be at least 1 chimeric read, or else Arriba is probably not being used properly
 	if (separate_chimeric_bam_file && !is_rna_bam_file || // this is Chimeric.out.sam
 	    !separate_chimeric_bam_file) { // this is Aligned.out.bam and STAR was run with --chimOutType WithinBAM

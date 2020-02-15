@@ -246,7 +246,7 @@ options_t parse_arguments(int argc, char **argv) {
 	// throw error when first argument is not prefixed with a dash
 	// for some reason getopt does not detect this error and simply skips the argument
 	if (argc > 1 && (string(argv[1]).empty() || argv[1][0] != '-')) {
-		cerr << "ERROR: Cannot interpret the first argument \"" << argv[1] << "\"." << endl;
+		cerr << "ERROR: cannot interpret the first argument: " << argv[1] << endl;
 		exit(1);
 	}
 
@@ -260,7 +260,7 @@ options_t parse_arguments(int argc, char **argv) {
 		// throw error if the same argument is specified more than once
 		duplicate_arguments[c]++;
 		if (!(duplicate_arguments[c] <= 1 || (c == 'I' || c == 'T' || c == 'P') && duplicate_arguments[c] <= 2)) {
-			cerr << "ERROR: Argument -" << ((char) c) << " specified too often" << endl;
+			cerr << "ERROR: argument -" << ((char) c) << " specified too often" << endl;
 			exit(1);
 		}
 
@@ -268,19 +268,19 @@ options_t parse_arguments(int argc, char **argv) {
 			case 'c':
 				options.chimeric_bam_file = optarg;
 				if (access(options.chimeric_bam_file.c_str(), R_OK) != 0) {
-					cerr << "ERROR: File '" << options.chimeric_bam_file << "' not found." << endl;
+					cerr << "ERROR: file not found: " << options.chimeric_bam_file << endl;
 					exit(1);
 				}
 				if (options.chimeric_bam_file.size() >= junction_suffix.size() &&
 				    options.chimeric_bam_file.substr(options.chimeric_bam_file.size() - junction_suffix.size()) == junction_suffix) {
-					cerr << "WARNING: It seems you passed the chimeric junction file ('Chimeric.out.junction') to the parameter -c. However, this parameter takes the chimeric alignments file ('Chimeric.out.sam') as input." << endl;
+					cerr << "WARNING: it seems you passed the chimeric junction file ('Chimeric.out.junction') to the parameter -c, but this parameter takes the chimeric alignments file ('Chimeric.out.sam') as input" << endl;
 					exit(1);
 				}
 				break;
 			case 'x': {
 				options.rna_bam_file = optarg;
 				if (access(options.rna_bam_file.c_str(), R_OK) != 0) {
-					cerr << "ERROR: File '" << options.rna_bam_file << "' not found." << endl;
+					cerr << "ERROR: file not found: " << options.rna_bam_file << endl;
 					exit(1);
 				}
 				break;
@@ -288,14 +288,14 @@ options_t parse_arguments(int argc, char **argv) {
 			case 'd':
 				options.genomic_breakpoints_file = optarg;
 				if (access(options.genomic_breakpoints_file.c_str(), R_OK) != 0) {
-					cerr << "ERROR: File '" << options.genomic_breakpoints_file << "' not found." << endl;
+					cerr << "ERROR: file not found: " << options.genomic_breakpoints_file << endl;
 					exit(1);
 				}
 				break;
 			case 'g':
 				options.gene_annotation_file = optarg;
 				if (access(options.gene_annotation_file.c_str(), R_OK) != 0) {
-					cerr << "ERROR: File '" << options.gene_annotation_file << "' not found." << endl;
+					cerr << "ERROR: file not found: " << options.gene_annotation_file << endl;
 					exit(1);
 				}
 				break;
@@ -304,7 +304,7 @@ options_t parse_arguments(int argc, char **argv) {
 				{
 					gtf_features_t gtf_features;
 					if (!parse_gtf_features(options.gtf_features, gtf_features)) {
-						cerr << "ERROR: Malformed GTF features: " << options.gtf_features << endl;
+						cerr << "ERROR: malformed GTF features: " << options.gtf_features << endl;
 						exit(1);
 					}
 				}
@@ -312,41 +312,41 @@ options_t parse_arguments(int argc, char **argv) {
 			case 'o':
 				options.output_file = optarg;
 				if (!output_directory_exists(options.output_file)) {
-					cerr << "ERROR: Parent directory of output file '" << options.output_file << "' does not exist." << endl;
+					cerr << "ERROR: parent directory of output file '" << options.output_file << "' does not exist" << endl;
 					exit(1);
 				}
 				break;
 			case 'O':
 				options.discarded_output_file = optarg;
 				if (!output_directory_exists(options.discarded_output_file)) {
-					cerr << "ERROR: Parent directory of output file '" << options.discarded_output_file << "' does not exist." << endl;
+					cerr << "ERROR: parent directory of output file '" << options.discarded_output_file << "' does not exist" << endl;
 					exit(1);
 				}
 				break;
 			case 'a':
 				options.assembly_file = optarg;
 				if (access(options.assembly_file.c_str(), R_OK) != 0) {
-					cerr << "ERROR: File '" << options.assembly_file << "' not found." << endl;
+					cerr << "ERROR: File not found: " << options.assembly_file << endl;
 					exit(1);
 				}
 				// when CRAM files are used, the FastA file must be indexed
 				if (options.rna_bam_file.size() >= 5 && options.rna_bam_file.substr(options.rna_bam_file.size()-5) == ".cram")
 					if (access((options.assembly_file + ".fai").c_str(), R_OK) != 0) {
-						cerr << "ERROR: Index for '" << options.assembly_file << "' not found." << endl;
+						cerr << "ERROR: index for '" << options.assembly_file << "' not found" << endl;
 						exit(1);
 					}
 				break;
 			case 'b':
 				options.blacklist_file = optarg;
 				if (access(options.blacklist_file.c_str(), R_OK) != 0) {
-					cerr << "ERROR: File '" << options.blacklist_file << "' not found." << endl;
+					cerr << "ERROR: file not found: " << options.blacklist_file << endl;
 					exit(1);
 				}
 				break;
 			case 'k':
 				options.known_fusions_file = optarg;
 				if (access(options.known_fusions_file.c_str(), R_OK) != 0) {
-					cerr << "ERROR: File '" << options.known_fusions_file << "' not found." << endl;
+					cerr << "ERROR: file not found: " << options.known_fusions_file << endl;
 					exit(1);
 				}
 				break;
@@ -360,7 +360,7 @@ options_t parse_arguments(int argc, char **argv) {
 				} else if (string(optarg) == "reverse") {
 					options.strandedness = STRANDEDNESS_REVERSE;
 				} else {
-					cerr << "ERROR: Invalid type of strandedness: " << optarg << endl;
+					cerr << "ERROR: invalid type of strandedness: " << optarg << endl;
 					exit(1);
 				}
 				break;
@@ -379,7 +379,7 @@ options_t parse_arguments(int argc, char **argv) {
 						string disabled_filter;
 						disabled_filters_ss >> disabled_filter;
 						if (!disabled_filter.empty() && options.filters.find(disabled_filter) == options.filters.end()) {
-							cerr << "ERROR: Invalid argument to option -f: " << disabled_filter << endl;
+							cerr << "ERROR: invalid argument to option -f: " << disabled_filter << endl;
 							exit(1);
 						} else
 							options.filters[disabled_filter] = false;
@@ -388,91 +388,91 @@ options_t parse_arguments(int argc, char **argv) {
 				break;
 			case 'E':
 				if (!validate_float(optarg, options.evalue_cutoff, 0)) {
-					cerr << "ERROR: " << "Argument to -" << ((char) c) << " must be greater than 0." << endl;
+					cerr << "ERROR: " << "argument to -" << ((char) c) << " must be greater than 0" << endl;
 					exit(1);
 				}
 				break;
 			case 'S':
 				if (!validate_int(optarg, options.min_support, 0)) {
-					cerr << "ERROR: " << "Invalid argument to -" << ((char) c) << "." << endl;
+					cerr << "ERROR: " << "invalid argument to -" << ((char) c) << endl;
 					exit(1);
 				}
 				break;
 			case 'm':
 				if (!validate_float(optarg, options.max_mismapper_fraction, 0, 1)) {
-					cerr << "ERROR: " << "Argument to -" << ((char) c) << " must be between 0 and 1." << endl;
+					cerr << "ERROR: " << "argument to -" << ((char) c) << " must be between 0 and 1" << endl;
 					exit(1);
 				}
 				break;
 			case 'L':
 				if (!validate_float(optarg, options.max_homolog_identity, 0, 1)) {
-					cerr << "ERROR: " << "Argument to -" << ((char) c) << " must be between 0 and 1." << endl;
+					cerr << "ERROR: " << "argument to -" << ((char) c) << " must be between 0 and 1" << endl;
 					exit(1);
 				}
 				break;
 			case 'H':
 				if (!validate_int(optarg, options.homopolymer_length, 2)) {
-					cerr << "ERROR: " << "Argument to -" << ((char) c) << " must be greater than 1." << endl;
+					cerr << "ERROR: " << "argument to -" << ((char) c) << " must be greater than 1" << endl;
 					exit(1);
 				}
 				break;
 			case 'D':
 				if (!validate_int(optarg, options.max_genomic_breakpoint_distance, 0)) {
-					cerr << "ERROR: " << "Invalid argument to -" << ((char) c) << "." << endl;
+					cerr << "ERROR: " << "invalid argument to -" << ((char) c) << endl;
 					exit(1);
 				}
 				break;
 			case 'R':
 				if (!validate_int(optarg, options.min_read_through_distance, 0)) {
-					cerr << "ERROR: " << "Invalid argument to -" << ((char) c) << "." << endl;
+					cerr << "ERROR: " << "invalid argument to -" << ((char) c) << endl;
 					exit(1);
 				}
 				break;
 			case 'A':
 				if (!validate_int(optarg, options.min_anchor_length, 0)) {
-					cerr << "ERROR: " << "Invalid argument to -" << ((char) c) << "." << endl;
+					cerr << "ERROR: " << "invalid argument to -" << ((char) c) << endl;
 					exit(1);
 				}
 				break;
 			case 'M':
 				if (!validate_int(optarg, options.min_spliced_events, 0)) {
-					cerr << "ERROR: " << "Invalid argument to -" << ((char) c) << "." << endl;
+					cerr << "ERROR: " << "invalid argument to -" << ((char) c) << endl;
 					exit(1);
 				}
 				break;
 			case 'K':
 				if (!validate_float(optarg, options.max_kmer_content, 0, 1)) {
-					cerr << "ERROR: " << "Argument to -" << ((char) c) << " must be between 0 and 1." << endl;
+					cerr << "ERROR: " << "argument to -" << ((char) c) << " must be between 0 and 1" << endl;
 					exit(1);
 				}
 				break;
 			case 'V':
 				if (!validate_float(optarg, options.mismatch_pvalue_cutoff, 0, 1)) {
-					cerr << "ERROR: " << "Argument to -" << ((char) c) << " must be between 0 and 1." << endl;
+					cerr << "ERROR: " << "argument to -" << ((char) c) << " must be between 0 and 1" << endl;
 					exit(1);
 				}
 				break;
 			case 'F':
 				if (!validate_int(optarg, options.fragment_length, 1)) {
-					cerr << "ERROR: " << "Argument to -" << ((char) c) << " must be an integer greater than 0." << endl;
+					cerr << "ERROR: " << "argument to -" << ((char) c) << " must be an integer greater than 0" << endl;
 					exit(1);
 				}
 				break;
 			case 'U':
 				if (!validate_int(optarg, options.subsampling_threshold, 1, SHRT_MAX)) {
-					cerr << "ERROR: " << "Argument to -" << ((char) c) << " must be an integer between 1 and " << SHRT_MAX << "." << endl;
+					cerr << "ERROR: " << "argument to -" << ((char) c) << " must be an integer between 1 and " << SHRT_MAX << endl;
 					exit(1);
 				}
 				break;
 			case 'Q':
 				if (!validate_float(optarg, options.high_expression_quantile, 0, 1)) {
-					cerr << "ERROR: " << "Argument to -" << ((char) c) << " must be between 0 and 1." << endl;
+					cerr << "ERROR: " << "argument to -" << ((char) c) << " must be between 0 and 1" << endl;
 					exit(1);
 				}
 				break;
 			case 'e':
 				if (!validate_float(optarg, options.exonic_fraction, 0, 1)) {
-					cerr << "ERROR: " << "Argument to -" << ((char) c) << " must be between 0 and 1." << endl;
+					cerr << "ERROR: " << "argument to -" << ((char) c) << " must be between 0 and 1" << endl;
 					exit(1);
 				}
 				break;
@@ -501,18 +501,18 @@ options_t parse_arguments(int argc, char **argv) {
 			default:
 				switch (optopt) {
 					case 'c': case 'x': case 'd': case 'g': case 'G': case 'o': case 'O': case 'a': case 'k': case 'b': case 'i': case 'f': case 'E': case 's': case 'm': case 'H': case 'D': case 'R': case 'A': case 'M': case 'K': case 'V': case 'F': case 'S': case 'U': case 'Q':
-						cerr << "ERROR: " << "Option -" << ((char) optopt) << " requires an argument." << endl;
+						cerr << "ERROR: " << "option -" << ((char) optopt) << " requires an argument" << endl;
 						exit(1);
 						break;
 					default:
-						cerr << "ERROR: " << "Unknown option: -" << ((char) optopt) << endl;
+						cerr << "ERROR: " << "unknown option: -" << ((char) optopt) << endl;
 						exit(1);
 						break;
 				}
 		}
 
 		if (optind < argc && (string(argv[optind]).empty() || argv[optind][0] != '-')) {
-			cerr << "ERROR: Option -" << ((char) c) << " has more than one argument. Arguments with blanks must be wrapped in quotes." << endl;
+			cerr << "ERROR: option -" << ((char) c) << " has more than one argument (arguments with blanks must be wrapped in quotes)" << endl;
 			exit(1);
 		}
 
@@ -520,28 +520,28 @@ options_t parse_arguments(int argc, char **argv) {
 
 	// check for mandatory arguments
 	if (argc == 1) {
-		cerr << "ERROR: No arguments given." << endl;
+		cerr << "ERROR: no arguments given" << endl;
 		print_usage();
 		exit(1);
 	}
 	if (options.rna_bam_file.empty()) {
-		cerr << "ERROR: Missing mandatory option: -x" << endl;
+		cerr << "ERROR: missing mandatory option: -x" << endl;
 		exit(1);
 	}
 	if (options.gene_annotation_file.empty()) {
-		cerr << "ERROR: Missing mandatory option: -g" << endl;
+		cerr << "ERROR: missing mandatory option: -g" << endl;
 		exit(1);
 	}
 	if (options.output_file.empty()) {
-		cerr << "ERROR: Missing mandatory option: -o" << endl;
+		cerr << "ERROR: missing mandatory option: -o" << endl;
 		exit(1);
 	}
 	if (options.assembly_file.empty()) {
-        	cerr << "ERROR: Missing mandatory option: -a" << endl;
+        	cerr << "ERROR: missing mandatory option: -a" << endl;
 		exit(1);
 	}
 	if (options.filters["blacklist"] && options.blacklist_file.empty()) {
-		cerr << "ERROR: Filter 'blacklist' enabled, but missing option: -b" << endl;
+		cerr << "ERROR: filter 'blacklist' enabled, but missing option: -b" << endl;
 		exit(1);
 	}
 
