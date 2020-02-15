@@ -78,6 +78,8 @@ int main(int argc, char **argv) {
 	// parse command-line options
 	options_t options = parse_arguments(argc, argv);
 
+	cout << get_time_string() << " Launching Arriba " << ARRIBA_VERSION << endl << flush;
+
 	// convert options.interesting_contigs from string to contigs_t
 	contigs_t interesting_contigs;
 	if (options.filters.at("uninteresting_contigs") && !options.interesting_contigs.empty()) {
