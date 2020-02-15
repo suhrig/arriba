@@ -43,7 +43,7 @@ cytobandsFile <- parseFileParameter("cytobands", args)
 if (cytobandsFile == "")
 	warning("Missing parameter '--cytobands'. No ideograms and circos plots will be drawn.")
 minConfidenceForCircosPlot <- parseStringParameter("minConfidenceForCircosPlot", args, "medium")
-if (!(minConfidenceForCircosPlot %in% c("low", "medium", "high")))
+if (!(minConfidenceForCircosPlot %in% c("none", "low", "medium", "high")))
 	stop("Invalid argument to --minConfidenceForCircosPlot")
 proteinDomainsFile <- parseFileParameter("proteinDomains", args)
 squishIntrons <- parseBooleanParameter("squishIntrons", args, T)
@@ -335,7 +335,7 @@ drawCircos <- function(fusion, fusions, cytobands, minConfidenceForCircosPlot) {
 	confidenceRank <- c(low=0, medium=1, high=2)
 	for (i in c(setdiff(1:nrow(fusions), fusion), fusion)) { # draw fusion of interest last, such that its arc is on top
 		f <- fusions[i,]
-		if (confidenceRank[f$confidence] >= confidenceRank[minConfidenceForCircosPlot] || i==fusion)
+		if (minConfidenceForCircosPlot != "none" && confidenceRank[f$confidence] >= confidenceRank[minConfidenceForCircosPlot] || i==fusion)
 			circos.link(
 				f$contig1, f$breakpoint1,
 				f$contig2, f$breakpoint2,

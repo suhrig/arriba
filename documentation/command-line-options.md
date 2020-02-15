@@ -141,8 +141,8 @@ draw_fusions.R --annotation=annotation.gtf --fusions=fusions.tsv --output=output
 `--cytobands=FILE`
 : Coordinates of the Giemsa staining bands. This information is used to draw ideograms. If the argument is omitted, then no ideograms are rendered. The file must have the following columns: `contig`, `start`, `end`, `name`, `giemsa`. Recognized values for the Giemsa staining intensity are: `gneg`, `gpos` followed by a percentage, `acen`, `stalk`. Distributions of Arriba provide Giemsa staining annotation for all supported assemblies in the `database` directory.
 
-`--minConfidenceForCircosPlot=low|medium|high`
-: Specifies the minimum confidence that a prediction must have to be included in the circos plot. It usually makes no sense to include low-confidence fusions in circos plots, because they are abundant and unreliable, and would clutter up the circos plot. Default: `medium`
+`--minConfidenceForCircosPlot=none|low|medium|high`
+: The fusion of interest is drawn as a solid line in the circos plot. To give an impression of the overall degree of rearrangement, all other fusions are drawn as semi-transparent lines in the background. This option determines what other fusions should be included in the circos plot. `none` means only the fusion of interest is drawn; all other values specify the minimum confidence a fusion must have to be included. It usually makes no sense to include low-confidence fusions in circos plots, because they are abundant and unreliable, and would clutter up the circos plot. Default: `medium`
 
 `--alignments=FILE`
 : BAM file containing normal alignments from STAR (`Aligned.sortedByCoord.out.bam`). The file must be sorted by coordinates and indexed. If this argument is given, the script generates coverage plots. This argument requires the Bioconductor package `GenomicAlignments`.
