@@ -1,7 +1,7 @@
 #!/bin/bash
 
-if [ $# -ne 7 ]; then
-	echo "Usage: $(basename $0) STAR_genomeDir/ annotation.gtf assembly.fa blacklist.tsv read1.fastq.gz read2.fastq.gz threads" 1>&2
+if [ $# -lt 6 -o $# -gt 7 ]; then
+	echo "Usage: $(basename $0) STAR_genomeDir/ annotation.gtf assembly.fa blacklist.tsv threads read1.fastq.gz [read2.fastq.gz]" 1>&2
 	exit 1
 fi
 
@@ -14,9 +14,9 @@ STAR_INDEX_DIR="$1"
 ANNOTATION_GTF="$2"
 ASSEMBLY_FA="$3"
 BLACKLIST_TSV="$4"
-READ1="$5"
-READ2="$6"
-THREADS="$7"
+THREADS="$5"
+READ1="$6"
+READ2="$7"
 
 # find installation directory of arriba
 BASE_DIR=$(dirname "$0")

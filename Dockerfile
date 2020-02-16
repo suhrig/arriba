@@ -20,7 +20,7 @@ chmod a+x /usr/local/bin/download_references.sh
 # make wrapper script for run_arriba.sh
 RUN echo '#!/bin/bash\n\
 cd /output\n\
-/arriba*/run_arriba.sh /references/STAR_index_* /references/*.gtf /references/*.fa /references/blacklist_*.tsv.gz /read1.fastq.gz /read2.fastq.gz ${1-8}' > /usr/local/bin/arriba.sh && \
+/arriba*/run_arriba.sh /references/STAR_index_* /references/*.gtf /references/*.fa /references/blacklist_*.tsv.gz ${1-8} /read1.fastq.gz $(ls /read2.fastq.gz 2> /dev/null)' > /usr/local/bin/arriba.sh && \
 chmod a+x /usr/local/bin/arriba.sh
 
 # make wrapper script for draw_fusions.R
