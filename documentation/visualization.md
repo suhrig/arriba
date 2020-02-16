@@ -9,6 +9,8 @@ If a gene has multiple transcript variants, the script picks a transcript in the
 
 - transcripts with splice-sites matching the breakpoints
 
+- if alignments are given: the highest expressed transcript as determined by the coverage
+
 - transcripts tagged as `appris_principal`
 
 - transcripts tagged as `appris_candidate`
