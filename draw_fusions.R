@@ -140,11 +140,11 @@ if (proteinDomainsFile != "") {
 	proteinDomains <- proteinDomains[,colnames(proteinDomains) != "attributes"]
 }
 
-# insert dummy annotations for dummy genes
-if (any(grepl(",", fusions$gene1) | grepl(",", fusions$gene2))) {
+# insert dummy annotations for intergenic breakpoints
+if (any(fusions$site1 == "intergenic" | fusions$site2 == "intergenic")) {
 	intergenicBreakpoints <- rbind(
-		setNames(fusions[grepl(",", fusions$gene1),c("gene1", "strand1", "contig1", "breakpoint1")], c("gene", "strand", "contig", "breakpoint")),
-		setNames(fusions[grepl(",", fusions$gene2),c("gene2", "strand2", "contig2", "breakpoint2")], c("gene", "strand", "contig", "breakpoint"))
+		setNames(fusions[fusions$site1 == "intergenic",c("gene1", "strand1", "contig1", "breakpoint1")], c("gene", "strand", "contig", "breakpoint")),
+		setNames(fusions[fusions$site2 == "intergenic",c("gene2", "strand2", "contig2", "breakpoint2")], c("gene", "strand", "contig", "breakpoint"))
 	)
 	exons <- rbind(exons, data.frame(
 		contig=intergenicBreakpoints$contig,
@@ -321,7 +321,7 @@ drawCircos <- function(fusion, fusions, cytobands, minConfidenceForCircosPlot) {
 	)
 	geneLabels$end <- geneLabels$start + 1
 	geneLabels$gene <- c(fusions[fusion,"gene1"], fusions[fusion,"gene2"])
-	geneLabels$gene <- ifelse(grepl(",", geneLabels$gene), paste0(geneLabels$contig, ":", geneLabels$start), geneLabels$gene)
+	geneLabels$gene <- ifelse(c(fusions[fusion,"site1"], fusions[fusion,"site2"]) == "intergenic", paste0(geneLabels$contig, ":", geneLabels$start), geneLabels$gene)
 	# draw gene labels
 	circos.genomicLabels(geneLabels, labels.column=4, side="outside", cex=fontSize)
 	# draw chromosome labels in connector plot
@@ -810,12 +810,12 @@ for (fusion in 1:nrow(fusions)) {
 
 	# in case of intergenic breakpoints, show the vicinity
 	if (showVicinity > 0) {
-		if (grepl(",", fusions[fusion,"gene1"]))
+		if (fusions[fusion,"site1"] == "intergenic")
 			for (gene in unique(exons[exons$contig == fusions[fusion,"contig1"] & exons$exonNumber != "intergenic" &
 			     (between(exons$end, fusions[fusion,"breakpoint1"]-showVicinity, fusions[fusion,"breakpoint1"]+showVicinity) |
 			      between(exons$start, fusions[fusion,"breakpoint1"]-showVicinity, fusions[fusion,"breakpoint1"]+showVicinity)),"geneName"]))
 				exons1 <- rbind(exons1, findExons(exons, fusions[fusion,"contig1"], gene, fusions[fusion,"direction1"], fusions[fusion,"breakpoint1"], coverage1))
-		if (grepl(",", fusions[fusion,"gene2"]))
+		if (fusions[fusion,"site2"] == "intergenic")
 			for (gene in unique(exons[exons$contig == fusions[fusion,"contig2"] & exons$exonNumber != "intergenic" &
 			     (between(exons$end, fusions[fusion,"breakpoint2"]-showVicinity, fusions[fusion,"breakpoint2"]+showVicinity) |
 			      between(exons$start, fusions[fusion,"breakpoint2"]-showVicinity, fusions[fusion,"breakpoint2"]+showVicinity)),"geneName"]))
@@ -947,10 +947,10 @@ for (fusion in 1:nrow(fusions)) {
 
 	# draw gene & transcript names
 	text(max(exons1$right)/2, yGeneNames, fusions[fusion,"gene1"], font=2, cex=fontSize, adj=c(0.5,0))
-	if (!grepl(",", fusions[fusion,"gene1"]))
+	if (fusions[fusion,"site1"] != "intergenic")
 		text(max(exons1$right)/2, yGeneNames-0.01, head(exons1$transcript,1), cex=0.9*fontSize, adj=c(0.5,1))
 	text(gene2Offset+max(exons2$right)/2, yGeneNames, fusions[fusion,"gene2"], font=2, cex=fontSize, adj=c(0.5,0))
-	if (!grepl(",", fusions[fusion,"gene2"]))
+	if (fusions[fusion,"site2"] != "intergenic")
 		text(gene2Offset+max(exons2$right)/2, yGeneNames-0.01, head(exons2$transcript,1), cex=0.9*fontSize, adj=c(0.5,1))
 
 	# if multiple genes in the vicinity are shown, label them
