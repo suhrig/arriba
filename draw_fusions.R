@@ -122,8 +122,9 @@ message("Loading annotation")
 exons <- read.table(exonsFile, header=F, sep="\t", comment.char="#", quote="", stringsAsFactors=F)[,c(1, 3, 4, 5, 7, 9)]
 colnames(exons) <- c("contig", "type", "start", "end", "strand", "attributes")
 exons <- exons[exons$type %in% c("exon", "CDS"),]
-exons$geneName <- gsub(".*gene_name \"?([^;\"]+)\"?;.*", "\\1", exons$attributes)
 exons$geneID <- gsub(".*gene_id \"?([^;\"]+)\"?;.*", "\\1", exons$attributes)
+exons$geneName <- gsub(".*gene_name \"?([^;\"]+)\"?;.*", "\\1", exons$attributes)
+exons$geneName <- ifelse(exons$geneName == exons$attributes, exons$geneID, exons$geneName)
 exons$transcript <- gsub(".*transcript_id \"?([^;\"]+)\"?;.*", "\\1", exons$attributes)
 exons$exonNumber <- ifelse(printExonLabels & grepl("exon_number ", exons$attributes), gsub(".*exon_number \"?([^;\"]+)\"?;.*", "\\1", exons$attributes), "")
 exons$contig <- removeChr(exons$contig)
