@@ -351,8 +351,8 @@ drawProteinDomains <- function(fusion, exons1, exons2, proteinDomains, color1, c
 	geneNamesY <- exonsY - exonHeight/2 - 0.05
 
 	# find coding exons
-	codingExons1 <- exons1[exons1$type == "CDS",]
-	codingExons2 <- exons2[exons2$type == "CDS",]
+	codingExons1 <- exons1[exons1$type == "CDS" & fusion$site1 != "intergenic",]
+	codingExons2 <- exons2[exons2$type == "CDS" & fusion$site2 != "intergenic",]
 
 	# cut off coding regions beyond breakpoint
 	if (fusion$direction1 == "upstream") {
