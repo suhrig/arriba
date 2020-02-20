@@ -1,62 +1,83 @@
 #!/usr/bin/env Rscript
 
-# parse command-line parameters
+# define valid parameters
+parameters <- list(
+	annotation=list("exonsFile", "file", "annotation.gtf", T),
+	fusions=list("fusionsFile", "file", "fusions.tsv", T),
+	output=list("outputFile", "string", "output.pdf", T),
+	alignments=list("alignmentsFile", "file", "Aligned.sortedByCoord.out.bam"),
+	cytobands=list("cytobandsFile", "file", "cytobands.tsv"),
+	minConfidenceForCircosPlot=list("minConfidenceForCircosPlot", "string", "medium"),
+	proteinDomains=list("proteinDomainsFile", "file", "protein_domains.gff3"),
+	squishIntrons=list("squishIntrons", "bool", T),
+	printExonLabels=list("printExonLabels", "bool", T),
+	render3dEffect=list("render3dEffect", "bool", T),
+	pdfWidth=list("pdfWidth", "numeric", 11.692),
+	pdfHeight=list("pdfHeight", "numeric", 8.267),
+	color1=list("color1", "string", "#e5a5a5"),
+	color2=list("color2", "string", "#a7c4e5"),
+	mergeDomainsOverlappingBy=list("mergeDomainsOverlappingBy", "numeric", 0.9),
+	optimizeDomainColors=list("optimizeDomainColors", "bool", F),
+	fontSize=list("fontSize", "numeric", 1),
+	showIntergenicVicinity=list("showVicinity", "numeric", 0)
+)
+
+# print help if necessary
 args <- commandArgs(trailingOnly=T)
-parseBooleanParameter <- function(parameter, args, default) {
-	arg <- sub(paste0("^--", parameter, "="), "", args[which(grepl(paste0("^--", parameter, "="), args))], perl=T)
-	if (length(arg) == 0) {
-		return(default)
-	} else if (arg == "TRUE" || arg == "T") {
-		return(T)
-	} else if (arg == "FALSE" || arg == "F") {
-		return(F)
-	} else {
-		stop(paste0("Invalid argument to --", parameter))
+if (any(grepl("^--help", args)) || length(args) == 0) {
+	usage <- "Usage: draw_fusions.R"
+	for (parameter in names(parameters)) {
+		usage <- paste0(usage, " ")
+		if (length(parameters[[parameter]]) <= 3 || !parameters[[parameter]][[4]])
+			usage <- paste0(usage, "[")
+		usage <- paste0(usage, "--", parameter, "=", parameters[[parameter]][[3]])
+		if (length(parameters[[parameter]]) <= 3 || !parameters[[parameter]][[4]])
+			usage <- paste0(usage, "]")
 	}
-}
-parseStringParameter <- function(parameter, args, default="") {
-	result <- sub(paste0("^--", parameter, "="), "", args[tail(which(grepl(paste0("^--", parameter, "="), args)), 1)], perl=T)
-	return(ifelse(length(result) == 0, default, result))
-}
-parseFileParameter <- function(parameter, args, mandatory=FALSE) {
-	fileName <- sub(paste0("^--", parameter, "="), "", args[tail(which(grepl(paste0("^--", parameter, "="), args)), 1)], perl=T)
-	if (length(fileName) > 0) {
-		if (file.access(fileName) == -1)
-			stop(paste("Cannot read file:", fileName))
-	} else {
-		if (mandatory)
-			stop(paste0("Missing mandatory argument: --", parameter))
-		fileName = ""
-	}
-	return(fileName)
+	message(usage)
+	quit("no", ifelse(length(args) == 0, 1, 0))
 }
 
-if (any(grepl("^--help", args)) || length(args) == 0)
-	stop("Usage: draw_fusions.R --annotation=annotation.gtf --fusions=fusions.tsv --output=output.pdf [--alignments=Aligned.sortedByCoord.out.bam] [--cytobands=cytobands.tsv] [--minConfidenceForCircosPlot=medium] [--proteinDomains=protein_domains.gff3] [--squishIntrons=TRUE] [--printExonLabels=TRUE] [--render3dEffect=TRUE] [--pdfWidth=11.692] [--pdfHeight=8.267] [--color1=#e5a5a5] [--color2=#a7c4e5] [--mergeDomainsOverlappingBy=0.9] [--optimizeDomainColors=FALSE] [--fontSize=1] [--showIntergenicVicinity=0]")
-exonsFile <- parseFileParameter("annotation", args, T)
-fusionsFile <- parseFileParameter("fusions", args, T)
-outputFile <- parseStringParameter("output", args)
-if (outputFile == "")
-	stop("Missing mandatory argument: --output")
-alignmentsFile <- parseFileParameter("alignments", args)
-cytobandsFile <- parseFileParameter("cytobands", args)
+# make sure mandatory arguments are present
+for (parameter in names(parameters))
+	if (length(parameters[[parameter]]) > 3 && parameters[[parameter]][[4]])
+		if (!any(grepl(paste0("^--", parameter, "="), args), perl=T))
+			stop(paste0("Missing mandatory argument: --", parameter))
+
+# set default values
+for (parameter in names(parameters))
+	assign(parameters[[parameter]][[1]], ifelse(parameters[[parameter]][[2]] == "file", "", parameters[[parameter]][[3]]))
+
+# parse command-line parameters
+for (arg in args) {
+	argName <- sub("=.*", "", sub("^--", "", arg, perl=T), perl=T)
+	argValue <- sub("^[^=]*=", "", arg, perl=T)
+	if (!(argName %in% names(parameters)) || !grepl("^--", arg, perl=T))
+		stop(paste("Unknown parameter:", arg))
+	if (parameters[[argName]][[2]] == "bool") {
+		if (argValue %in% c("TRUE", "T")) {
+			assign(parameters[[argName]][[1]], T)
+		} else if (argValue %in% c("FALSE", "F")) {
+			assign(parameters[[argName]][[1]], F)
+		} else {
+			stop(paste0("Invalid argument to --", argName))
+		}
+	} else if (parameters[[argName]][[2]] == "string") {
+		assign(parameters[[argName]][[1]], argValue)
+	} else if (parameters[[argName]][[2]] == "numeric") {
+		assign(parameters[[argName]][[1]], as.numeric(argValue))
+	} else if (parameters[[argName]][[2]] == "file") {
+		if (file.access(argValue) == -1)
+			stop(paste("Cannot read file:", argValue))
+		assign(parameters[[argName]][[1]], argValue)
+	}
+}
+
+# validate values of parameters
 if (cytobandsFile == "")
 	warning("Missing parameter '--cytobands'. No ideograms and circos plots will be drawn.")
-minConfidenceForCircosPlot <- parseStringParameter("minConfidenceForCircosPlot", args, "medium")
 if (!(minConfidenceForCircosPlot %in% c("none", "low", "medium", "high")))
 	stop("Invalid argument to --minConfidenceForCircosPlot")
-proteinDomainsFile <- parseFileParameter("proteinDomains", args)
-squishIntrons <- parseBooleanParameter("squishIntrons", args, T)
-printExonLabels <- parseBooleanParameter("printExonLabels", args, T)
-render3dEffect <- parseBooleanParameter("render3dEffect", args, T)
-pdfWidth <- as.numeric(parseStringParameter("pdfWidth", args, "11.692"))
-pdfHeight <- as.numeric(parseStringParameter("pdfHeight", args, "8.267"))
-color1 <- parseStringParameter("color1", args, "#e5a5a5")
-color2 <- parseStringParameter("color2", args, "#a7c4e5")
-mergeDomainsOverlappingBy <- as.numeric(parseStringParameter("mergeDomainsOverlappingBy", args, 0.9))
-optimizeDomainColors <- parseBooleanParameter("optimizeDomainColors", args, F)
-fontSize <- as.numeric(parseStringParameter("fontSize", args, 1))
-showVicinity <- as.numeric(parseStringParameter("showIntergenicVicinity", args, 0))
 if (showVicinity > 0 && squishIntrons)
 	stop("--squishIntrons must be disabled, when --showIntergenicVicinity is > 0")
 
@@ -127,7 +148,7 @@ parseGtfAttribute <- function(attribute, exons) {
 	parsed <- gsub(paste0(".*", attribute, " \"?([^;\"]+)\"?;.*"), "\\1", exons$attributes)
 	failedToParse <- parsed == exons$attributes
 	if (any(failedToParse)) {
-		warning(paste0("Warning: failed to parse '", attribute, "' attribute of ", sum(failedToParse), " GTF record(s)"))
+		warning(paste0("Failed to parse '", attribute, "' attribute of ", sum(failedToParse), " GTF record(s)."))
 		parsed <- ifelse(failedToParse, "", parsed)
 	}
 	return(parsed)
