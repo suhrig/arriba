@@ -122,12 +122,21 @@ message("Loading annotation")
 exons <- read.table(exonsFile, header=F, sep="\t", comment.char="#", quote="", stringsAsFactors=F)[,c(1, 3, 4, 5, 7, 9)]
 colnames(exons) <- c("contig", "type", "start", "end", "strand", "attributes")
 exons <- exons[exons$type %in% c("exon", "CDS"),]
-exons$geneID <- gsub(".*gene_id \"?([^;\"]+)\"?;.*", "\\1", exons$attributes)
-exons$geneName <- gsub(".*gene_name \"?([^;\"]+)\"?;.*", "\\1", exons$attributes)
-exons$geneName <- ifelse(exons$geneName == exons$attributes, exons$geneID, exons$geneName)
-exons$transcript <- gsub(".*transcript_id \"?([^;\"]+)\"?;.*", "\\1", exons$attributes)
-exons$exonNumber <- ifelse(printExonLabels & grepl("exon_number ", exons$attributes), gsub(".*exon_number \"?([^;\"]+)\"?;.*", "\\1", exons$attributes), "")
 exons$contig <- removeChr(exons$contig)
+parseGtfAttribute <- function(attribute, exons) {
+	parsed <- gsub(paste0(".*", attribute, " \"?([^;\"]+)\"?;.*"), "\\1", exons$attributes)
+	failedToParse <- parsed == exons$attributes
+	if (any(failedToParse)) {
+		warning(paste0("Warning: failed to parse '", attribute, "' attribute of ", sum(failedToParse), " GTF record(s)"))
+		parsed <- ifelse(failedToParse, "", parsed)
+	}
+	return(parsed)
+}
+exons$geneID <- parseGtfAttribute("gene_id", exons)
+exons$geneName <- parseGtfAttribute("gene_name", exons)
+exons$geneName <- ifelse(exons$geneName == "", exons$geneID, exons$geneName)
+exons$transcript <- parseGtfAttribute("transcript_id", exons)
+exons$exonNumber <- ifelse(printExonLabels, parseGtfAttribute("exon_number", exons), "")
 
 # read protein domain annotation
 proteinDomains <- NULL
