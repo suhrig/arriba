@@ -14,17 +14,6 @@
 
 using namespace std;
 
-enum blacklist_item_type_t { BLACKLIST_RANGE, BLACKLIST_POSITION, BLACKLIST_GENE, BLACKLIST_ANY, BLACKLIST_SPLIT_READ_DONOR, BLACKLIST_SPLIT_READ_ACCEPTOR, BLACKLIST_SPLIT_READ_ANY, BLACKLIST_DISCORDANT_MATES, BLACKLIST_READ_THROUGH, BLACKLIST_LOW_SUPPORT, BLACKLIST_FILTER_SPLICED, BLACKLIST_NOT_BOTH_SPLICED };
-struct blacklist_item_t {
-	blacklist_item_type_t type;
-	bool strand_defined;
-	strand_t strand;
-	contig_t contig;
-	position_t start;
-	position_t end;
-	gene_t gene;
-};
-
 // convert string representation of a range into coordinates
 bool parse_range(string range, const contigs_t& contigs, blacklist_item_t& blacklist_item) {
 	istringstream iss;
@@ -129,7 +118,7 @@ float overlapping_fraction(const position_t start1, const position_t end1, const
 }
 
 // check if the breakpoint of a fusion match an entry in the blacklist
-bool matches_blacklist_item(const blacklist_item_t& blacklist_item, const fusion_t& fusion, const char which_breakpoint, const float evalue_cutoff, const int max_mate_gap) {
+bool matches_blacklist_item(const blacklist_item_t& blacklist_item, const fusion_t& fusion, const char which_breakpoint, const int max_mate_gap, const float evalue_cutoff) {
 
 	switch (blacklist_item.type) {
 		case BLACKLIST_ANY: // remove the fusion if one breakpoint is within a region that is completely blacklisted
@@ -216,11 +205,11 @@ bool matches_blacklist_item(const blacklist_item_t& blacklist_item, const fusion
 	return false; // blacklist item does not match
 }
 
-// divide the genome into buckets of ...bps in size
-void get_index_keys_from_range(const contig_t contig, const position_t start, const position_t end, vector< tuple<contig_t,position_t> >& index_keys) {
+// divide the genome into fixed size bins
+void get_genome_bins_from_range(const contig_t contig, const position_t start, const position_t end, genome_bins_t& genome_bins) {
 	const int bucket_size = 100000; // bp
 	for (position_t position = start/bucket_size; position <= (end+bucket_size-1)/bucket_size /*integer ceil*/; ++position)
-		index_keys.push_back(make_tuple(contig, position*bucket_size));
+		genome_bins.push_back(make_tuple(contig, position*bucket_size));
 }
 
 unsigned int filter_blacklisted_ranges(fusions_t& fusions, const string& blacklist_file_path, const contigs_t& contigs, const unordered_map<string,gene_t>& genes, const float evalue_cutoff, const int max_mate_gap) {
@@ -232,15 +221,15 @@ unsigned int filter_blacklisted_ranges(fusions_t& fusions, const string& blackli
 		if (fusion->second.filter != FILTER_none && fusion->second.closest_genomic_breakpoint1 < 0)
 			continue; // fusion has already been filtered and won't be recovered by the 'genomic_support' filter
 
-		// assign fusions within a window of ...bps to the same index key
+		// assign fusions within a window of ...bps to the same bin
 		// for fast lookup of fusions by coordinate
-		vector< tuple<contig_t,position_t> > index_keys;
-		get_index_keys_from_range(fusion->second.contig1, fusion->second.breakpoint1, fusion->second.breakpoint1, index_keys);
-		get_index_keys_from_range(fusion->second.contig2, fusion->second.breakpoint2, fusion->second.breakpoint2, index_keys);
-		get_index_keys_from_range(fusion->second.contig1, fusion->second.gene1->start, fusion->second.gene1->end, index_keys);
-		get_index_keys_from_range(fusion->second.contig2, fusion->second.gene2->start, fusion->second.gene2->end, index_keys);
-		for (auto index_key = index_keys.begin(); index_key != index_keys.end(); ++index_key)
-			fusions_by_coordinate[*index_key].insert(&(fusion->second));
+		genome_bins_t genome_bins;
+		get_genome_bins_from_range(fusion->second.contig1, fusion->second.breakpoint1, fusion->second.breakpoint1, genome_bins);
+		get_genome_bins_from_range(fusion->second.contig2, fusion->second.breakpoint2, fusion->second.breakpoint2, genome_bins);
+		get_genome_bins_from_range(fusion->second.contig1, fusion->second.gene1->start, fusion->second.gene1->end, genome_bins);
+		get_genome_bins_from_range(fusion->second.contig2, fusion->second.gene2->start, fusion->second.gene2->end, genome_bins);
+		for (auto genome_bin = genome_bins.begin(); genome_bin != genome_bins.end(); ++genome_bin)
+			fusions_by_coordinate[*genome_bin].insert(&(fusion->second));
 	}
 
 	// load blacklist from file
@@ -262,19 +251,19 @@ unsigned int filter_blacklisted_ranges(fusions_t& fusions, const string& blackli
 			continue;
 
 		// find all fusions with breakpoints in the vicinity of the blacklist items
-		vector< tuple<contig_t,position_t> > index_keys;
+		genome_bins_t genome_bins;
 		if (item1.type == BLACKLIST_POSITION || item1.type == BLACKLIST_RANGE || item1.type == BLACKLIST_GENE)
-			get_index_keys_from_range(item1.contig, item1.start-max_mate_gap, item1.end+max_mate_gap, index_keys);
+			get_genome_bins_from_range(item1.contig, item1.start-max_mate_gap, item1.end+max_mate_gap, genome_bins);
 		if (item2.type == BLACKLIST_POSITION || item2.type == BLACKLIST_RANGE || item2.type == BLACKLIST_GENE)
-			get_index_keys_from_range(item2.contig, item2.start-max_mate_gap, item2.end+max_mate_gap, index_keys);
-		for (auto index_key = index_keys.begin(); index_key != index_keys.end(); ++index_key) {
-			auto fusions_near_coordinate = fusions_by_coordinate.find(*index_key);
+			get_genome_bins_from_range(item2.contig, item2.start-max_mate_gap, item2.end+max_mate_gap, genome_bins);
+		for (auto genome_bin = genome_bins.begin(); genome_bin != genome_bins.end(); ++genome_bin) {
+			auto fusions_near_coordinate = fusions_by_coordinate.find(*genome_bin);
 			if (fusions_near_coordinate != fusions_by_coordinate.end()) {
 				for (auto fusion = fusions_near_coordinate->second.begin(); fusion != fusions_near_coordinate->second.end();) {
-					if (matches_blacklist_item(item1, **fusion, 1, evalue_cutoff, max_mate_gap) &&
-					    matches_blacklist_item(item2, **fusion, 2, evalue_cutoff, max_mate_gap) ||
-					    matches_blacklist_item(item1, **fusion, 2, evalue_cutoff, max_mate_gap) &&
-					    matches_blacklist_item(item2, **fusion, 1, evalue_cutoff, max_mate_gap)) {
+					if (matches_blacklist_item(item1, **fusion, 1, max_mate_gap, evalue_cutoff) &&
+					    matches_blacklist_item(item2, **fusion, 2, max_mate_gap, evalue_cutoff) ||
+					    matches_blacklist_item(item1, **fusion, 2, max_mate_gap, evalue_cutoff) &&
+					    matches_blacklist_item(item2, **fusion, 1, max_mate_gap, evalue_cutoff)) {
 						(**fusion).filter = FILTER_blacklist;
 						fusions_near_coordinate->second.erase(fusion++); // remove fusion from index, so we don't check it again
 					} else {

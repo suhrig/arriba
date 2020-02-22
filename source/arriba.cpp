@@ -394,7 +394,7 @@ int main(int argc, char **argv) {
 	// this step must come right after the 'relative_support' and 'min_support' filters
 	if (!options.known_fusions_file.empty() && options.filters.at("known_fusions")) {
 		cout << get_time_string() << " Searching for known fusions in '" << options.known_fusions_file << "' " << flush;
-		cout << "(remaining=" << recover_known_fusions(fusions, options.known_fusions_file, gene_names, coverage) << ")" << endl;
+		cout << "(remaining=" << recover_known_fusions(fusions, options.known_fusions_file, contigs, gene_names, coverage, max_mate_gap) << ")" << endl;
 	}
 
 	// this step must come after the 'merge_adjacent' filter,

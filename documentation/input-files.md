@@ -79,7 +79,15 @@ Arriba can be instructed to be particularly sensitive towards events between cer
 
 A comprehensive list of known fusions can be obtained from [CancerGeneCensus](http://cancer.sanger.ac.uk/cosmic/download) in the section titled "Complete Fusion Export". Depending on the gene annotation that is used to run Arriba, some gene names need to be adjusted.
 
-The file has two columns separated by a tab. Each line lists a pair of genes. The order of the genes is irrelevant. Arriba searches for both genes as the 5' end and the 3' end of a fusion. Lines starting with a hash (`#`) are treated as comments. Optionally, the file can be gzip-compressed.
+The file has two columns separated by a tab and may optionally be gzip-compressed. Lines starting with a hash (`#`) are treated as comments. Each line represents a pair of regions to which very sensitive filtering thresholds are applied. A region can be
+
+- a 1-based coordinate in the format `CONTIG:POSITION`, optionally prefixed with the strand (example: `+9:56743754`).
+
+- a range in the format `CONTIG:START-END`, optionally prefixed with a strand (example: `9:1000000-1100000`).
+
+- the name of a gene given in the provided annotation.
+
+It is irrelevant which region is put in the first column and which in the second. For example, if a pair of genes is given, Arriba searches for both genes as the 5' end and the 3' end of a fusion.
 
 Structural variant calls from WGS
 ---------------------------------
