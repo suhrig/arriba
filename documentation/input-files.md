@@ -100,7 +100,9 @@ If whole-genome sequencing (WGS) data is available, the sensitivity and specific
 
 Both of these behaviors can be disabled by disabling the filters `genomic_support` and `no_genomic_support`, respectively. Providing Arriba with a list of structural variant calls then does not influence the calls, but it still has the benefit of filling the columns `closest_genomic_breakpoint1` and `closest_genomic_breakpoint2` with the breakpoints of the structural variant which is closest to a fusion. If the structural variant calls were obtained from whole-exome sequencing (WES) data rather than WGS data, the filter `no_genomic_support` should be disabled, since WES has poor coverage in most regions of the genome, such that many structural variants are missed.
 
-The file must contain four columns separated by tabs. The first two columns contain the breakpoints of the structural variants in the format `CONTIG:POSITION`. The last two columns contain the orientation of the breakpoints. The accepted values are:
+Two file formats are accepted: a simple four-column format and the standard Variant Call Format (VCF). The format is detected automatically.
+
+In case of the simple format, the file must contain four columns separated by tabs. The first two columns contain the breakpoints of the structural variants in the format `CONTIG:POSITION`. The last two columns contain the orientation of the breakpoints. The accepted values are:
 
 - `downstream` or `+`: the fusion partner is fused downstream of the breakpoint, i.e., at a coordinate higher than the breakpoint
 
@@ -114,6 +116,8 @@ Example:
 17:61499820	20:45133874	+	+
 3:190967119	7:77868317	-	-
 ```
+
+In case of the Variant Call Format, the file must comply with the [VCF specification for structural variants](https://samtools.github.io/hts-specs/VCFv4.2.pdf). In particular, Arriba requires that the `SVTYPE` field be present in the `INFO` column and specify one of the four values `BND`, `DEL`, `DUP`, `INV`. In addition, for all `SVTYPE`s other than `BND`, the `END` field must be present and specify the second breakpoint of the structural variant.
 
 Arriba checks if the orientation of the structural variant matches that of a fusion detected in the RNA-Seq data. If, for example, Arriba predicts the 5' end of a gene to be retained in a fusion, then a structural variant is expected to confirm this, or else the variant is not considered to be related.
 
