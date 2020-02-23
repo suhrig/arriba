@@ -38,6 +38,7 @@ bool parse_range(string range, const contigs_t& contigs, blacklist_item_t& black
 	} else {
 		blacklist_item.strand_defined = false;
 	}
+	contig_name = removeChr(contig_name);
 	if (contigs.find(contig_name) == contigs.end()) {
 		cerr << "WARNING: unknown gene or malformed range: " << range << endl;
 		return false;
