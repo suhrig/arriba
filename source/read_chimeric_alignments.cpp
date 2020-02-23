@@ -258,14 +258,20 @@ unsigned int remove_malformed_alignments(chimeric_alignments_t& chimeric_alignme
 					swap(chimeric_alignment->second[MATE2], chimeric_alignment->second[SUPPLEMENTARY]);
 				}
 
-				// make sure we have exactly on supplementary alignment, or else something is wrong
-				if (!(!chimeric_alignment->second[MATE1].supplementary && !chimeric_alignment->second[MATE2].supplementary && chimeric_alignment->second[SUPPLEMENTARY].supplementary)) {
+				// make sure the split read is in the SPLIT_READ place
+				if (chimeric_alignment->second[SPLIT_READ].first_in_pair != chimeric_alignment->second[SUPPLEMENTARY].first_in_pair)
+					swap(chimeric_alignment->second[MATE1], chimeric_alignment->second[MATE2]);
+
+				// make sure we have exactly one supplementary alignment, or else something is wrong
+				if (chimeric_alignment->second[MATE1].supplementary ||
+				    chimeric_alignment->second[SPLIT_READ].supplementary ||
+				    !chimeric_alignment->second[SUPPLEMENTARY].supplementary)
 					malformed = true;
-				} else {
-					// make sure the split read is in the SPLIT_READ place
-					if (chimeric_alignment->second[SPLIT_READ].first_in_pair != chimeric_alignment->second[SUPPLEMENTARY].first_in_pair)
-						swap(chimeric_alignment->second[MATE1], chimeric_alignment->second[MATE2]);
-				}
+
+				// mate1 and mate2 should align in a colinear fashion
+				if (chimeric_alignment->second[MATE1].contig != chimeric_alignment->second[SPLIT_READ].contig ||
+				    chimeric_alignment->second[MATE1].strand == chimeric_alignment->second[SPLIT_READ].strand)
+					malformed = true;
 
 			} else if (chimeric_alignment->second.size() == 2) { // discordant mate
 				// none of the mates should have the supplementary bit set, or else something is wrong
