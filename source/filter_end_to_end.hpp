@@ -6,6 +6,6 @@
 
 using namespace std;
 
-unsigned int filter_end_to_end_fusions(fusions_t& fusions);
+unsigned int filter_end_to_end_fusions(fusions_t& fusions, const exon_annotation_index_t& exon_annotation_index);
 
 #endif /* _FILTER_END_TO_END_H */

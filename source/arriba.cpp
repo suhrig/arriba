@@ -450,7 +450,7 @@ int main(int argc, char **argv) {
 
 	if (options.filters.at("end_to_end")) {
 		cout << get_time_string() << " Filtering end-to-end fusions with low support " << flush;
-		cout << "(remaining=" << filter_end_to_end_fusions(fusions) << ")" << endl;
+		cout << "(remaining=" << filter_end_to_end_fusions(fusions, exon_annotation_index) << ")" << endl;
 	}
 
 	if (options.filters.at("no_coverage")) {
