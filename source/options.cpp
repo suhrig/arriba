@@ -100,6 +100,7 @@ options_t get_default_options() {
 	options.subsampling_threshold = 300;
 	options.high_expression_quantile = 0.998;
 	options.exonic_fraction = 0.2;
+	options.external_duplicate_marking = false;
 
 	return options;
 }
@@ -235,6 +236,9 @@ void print_usage() {
 	                  "identifiers of the reads which support the fusion. The identifiers "
 	                  "are separated by commas. Specify the flag twice to also print the read "
 	                  "identifiers to the file containing discarded fusions (-O). Default: " + string((default_options.print_supporting_reads) ? "on" : "off"))
+	     << wrap_help("-u", "Instead of performing duplicate marking itself, Arriba relies on "
+	                  "duplicate marking by a preceding program using the BAM_FDUP flag. This "
+	                  "makes sense when unique molecular identifiers (UMI) are used. Default: " + string((default_options.external_duplicate_marking) ? "on" : "off"))
 	     << wrap_help("-h", "Print help and exit.")
 	     << "For more information or help, visit: " << HELP_CONTACT << endl
 	     << "The user manual is available at: " << MANUAL_URL << endl;
@@ -255,7 +259,7 @@ options_t parse_arguments(int argc, char **argv) {
 	int c;
 	string junction_suffix(".junction");
 	unordered_map<char,unsigned int> duplicate_arguments;
-	while ((c = getopt(argc, argv, "c:x:d:g:G:o:O:a:b:k:s:i:f:E:S:m:L:H:D:R:A:M:K:V:F:U:Q:e:TPIh")) != -1) {
+	while ((c = getopt(argc, argv, "c:x:d:g:G:o:O:a:b:k:s:i:f:E:S:m:L:H:D:R:A:M:K:V:F:U:Q:e:TPIuh")) != -1) {
 
 		// throw error if the same argument is specified more than once
 		duplicate_arguments[c]++;
@@ -493,6 +497,9 @@ options_t parse_arguments(int argc, char **argv) {
 					options.print_supporting_reads = true;
 				else
 					options.print_supporting_reads_for_discarded_fusions = true;
+				break;
+			case 'u':
+				options.external_duplicate_marking = true;
 				break;
 			case 'h':
 				print_usage();

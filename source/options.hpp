@@ -56,6 +56,7 @@ struct options_t {
 	unsigned int subsampling_threshold;
 	float high_expression_quantile;
 	float exonic_fraction;
+	bool external_duplicate_marking;
 };
 
 options_t parse_arguments(int argc, char **argv);

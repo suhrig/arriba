@@ -42,6 +42,7 @@ void add_chimeric_alignment(chimeric_alignments_t& chimeric_alignments, const st
 	// convert bam1_t structure into our own structure and discard information we don't need
 	mates_t* mates = &chimeric_alignments[read_name];
 	mates->single_end = !(bam_record->core.flag & BAM_FPAIRED);
+	mates->duplicate = mates->duplicate || (bam_record->core.flag & BAM_FDUP);
 	mates->resize(mates->size()+1);
 	alignment_t& alignment = (*mates)[mates->size()-1];
 	alignment.strand = (bam_record->core.flag & BAM_FREVERSE) ? REVERSE : FORWARD;

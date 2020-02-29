@@ -5,6 +5,6 @@
 
 using namespace std;
 
-unsigned int filter_duplicates(chimeric_alignments_t& chimeric_alignments);
+unsigned int filter_duplicates(chimeric_alignments_t& chimeric_alignments, const bool external_duplicate_marking);
 
 #endif /* _FILTER_DUPLICATES_H */

@@ -272,7 +272,7 @@ int main(int argc, char **argv) {
 
 	if (options.filters.at("duplicates")) {
 		cout << get_time_string() << " Filtering duplicates " << flush;
-		cout << "(remaining=" << filter_duplicates(chimeric_alignments) << ")" << endl;
+		cout << "(remaining=" << filter_duplicates(chimeric_alignments, options.external_duplicate_marking) << ")" << endl;
 	}
 
 	if (options.filters.at("uninteresting_contigs") && !interesting_contigs.empty()) {

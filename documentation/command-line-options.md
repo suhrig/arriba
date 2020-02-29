@@ -112,6 +112,9 @@ Even when an unstranded library is processed, Arriba can often infer the strand 
 `-I`
 : When set, the column `read_identifiers` is populated with identifiers of the reads which support the fusion. The identifiers are separated by commas. Specify the flag twice to also print the read identifiers to the file containing discarded fusions (`-O`). Default: off
 
+`-u`
+: Arriba performs marking of duplicates internally based on identical mapping coordinates. When this switch is set, internal marking of duplicates is disabled and Arriba assumes that duplicates have been marked by a preceding program. In this case, Arriba only discards alignments flagged with the BAM_FDUP flag. This makes sense when duplicates cannot be reliably identified solely based on their mapping coordinates, e.g. when unique molecular identifiers (UMIs) are used or when independently generated libraries are merged in a single BAM file and the read group must be interrogated to distinguish duplicates from reads that map to the same coordinates by chance.
+
 `-h`
 : Print help and exit.
 
