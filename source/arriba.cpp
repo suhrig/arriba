@@ -121,12 +121,12 @@ int main(int argc, char **argv) {
 	coverage_t coverage(contigs, assembly);
 	if (!options.chimeric_bam_file.empty()) { // when STAR was run with --chimOutType SeparateSAMold, chimeric alignments must be read from a separate file named Chimeric.out.sam
 		cout << get_time_string() << " Reading chimeric alignments from '" << options.chimeric_bam_file << "' " << flush;
-		cout << "(total=" << read_chimeric_alignments(options.chimeric_bam_file, options.assembly_file, chimeric_alignments, mapped_reads, coverage, contigs, interesting_contigs, gene_annotation_index, true, false) << ")" << endl;
+		cout << "(total=" << read_chimeric_alignments(options.chimeric_bam_file, options.assembly_file, chimeric_alignments, mapped_reads, coverage, contigs, interesting_contigs, gene_annotation_index, true, false, options.external_duplicate_marking) << ")" << endl;
 	}
 
 	// extract chimeric alignments and read-through alignments from Aligned.out.bam
 	cout << get_time_string() << " Reading chimeric alignments from '" << options.rna_bam_file << "' " << flush;
-	cout << "(total=" << read_chimeric_alignments(options.rna_bam_file, options.assembly_file, chimeric_alignments, mapped_reads, coverage, contigs, interesting_contigs, gene_annotation_index, !options.chimeric_bam_file.empty(), true) << ")" << endl;
+	cout << "(total=" << read_chimeric_alignments(options.rna_bam_file, options.assembly_file, chimeric_alignments, mapped_reads, coverage, contigs, interesting_contigs, gene_annotation_index, !options.chimeric_bam_file.empty(), true, options.external_duplicate_marking) << ")" << endl;
 
 	// map contig IDs to names
 	vector<string> contigs_by_id(contigs.size());

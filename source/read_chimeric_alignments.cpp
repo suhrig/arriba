@@ -296,7 +296,7 @@ unsigned int remove_malformed_alignments(chimeric_alignments_t& chimeric_alignme
 	return malformed_count;
 }
 
-unsigned int read_chimeric_alignments(const string& bam_file_path, const string& assembly_file_path, chimeric_alignments_t& chimeric_alignments, unsigned long int& mapped_reads, coverage_t& coverage, contigs_t& contigs, const contigs_t& interesting_contigs, const gene_annotation_index_t& gene_annotation_index, const bool separate_chimeric_bam_file, const bool is_rna_bam_file) {
+unsigned int read_chimeric_alignments(const string& bam_file_path, const string& assembly_file_path, chimeric_alignments_t& chimeric_alignments, unsigned long int& mapped_reads, coverage_t& coverage, contigs_t& contigs, const contigs_t& interesting_contigs, const gene_annotation_index_t& gene_annotation_index, const bool separate_chimeric_bam_file, const bool is_rna_bam_file, const bool external_duplicate_marking) {
 
 	// open BAM file
 	samFile* bam_file = sam_open(bam_file_path.c_str(), "rb");
@@ -414,7 +414,8 @@ unsigned int read_chimeric_alignments(const string& bam_file_path, const string&
 					is_read_through_alignment = extract_read_through_alignment(chimeric_alignments, read_name, bam_record, previously_seen_mate, gene_annotation_index, separate_chimeric_bam_file);
 				}
 
-				coverage.add_fragment(bam_record, previously_seen_mate, is_read_through_alignment);
+				if (!external_duplicate_marking || !(bam_record->core.flag & BAM_FDUP))
+					coverage.add_fragment(bam_record, previously_seen_mate, is_read_through_alignment);
 			}
 
 			if (previously_seen_mate != NULL)
