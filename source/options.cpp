@@ -272,7 +272,7 @@ options_t parse_arguments(int argc, char **argv) {
 			case 'c':
 				options.chimeric_bam_file = optarg;
 				if (access(options.chimeric_bam_file.c_str(), R_OK) != 0) {
-					cerr << "ERROR: file not found: " << options.chimeric_bam_file << endl;
+					cerr << "ERROR: file not found/readable: " << options.chimeric_bam_file << endl;
 					exit(1);
 				}
 				if (options.chimeric_bam_file.size() >= junction_suffix.size() &&
@@ -284,7 +284,7 @@ options_t parse_arguments(int argc, char **argv) {
 			case 'x': {
 				options.rna_bam_file = optarg;
 				if (access(options.rna_bam_file.c_str(), R_OK) != 0) {
-					cerr << "ERROR: file not found: " << options.rna_bam_file << endl;
+					cerr << "ERROR: file not found/readable: " << options.rna_bam_file << endl;
 					exit(1);
 				}
 				break;
@@ -292,14 +292,14 @@ options_t parse_arguments(int argc, char **argv) {
 			case 'd':
 				options.genomic_breakpoints_file = optarg;
 				if (access(options.genomic_breakpoints_file.c_str(), R_OK) != 0) {
-					cerr << "ERROR: file not found: " << options.genomic_breakpoints_file << endl;
+					cerr << "ERROR: file not found/readable: " << options.genomic_breakpoints_file << endl;
 					exit(1);
 				}
 				break;
 			case 'g':
 				options.gene_annotation_file = optarg;
 				if (access(options.gene_annotation_file.c_str(), R_OK) != 0) {
-					cerr << "ERROR: file not found: " << options.gene_annotation_file << endl;
+					cerr << "ERROR: file not found/readable: " << options.gene_annotation_file << endl;
 					exit(1);
 				}
 				break;
@@ -330,27 +330,27 @@ options_t parse_arguments(int argc, char **argv) {
 			case 'a':
 				options.assembly_file = optarg;
 				if (access(options.assembly_file.c_str(), R_OK) != 0) {
-					cerr << "ERROR: File not found: " << options.assembly_file << endl;
+					cerr << "ERROR: file not found/readable: " << options.assembly_file << endl;
 					exit(1);
 				}
 				// when CRAM files are used, the FastA file must be indexed
 				if (options.rna_bam_file.size() >= 5 && options.rna_bam_file.substr(options.rna_bam_file.size()-5) == ".cram")
 					if (access((options.assembly_file + ".fai").c_str(), R_OK) != 0) {
-						cerr << "ERROR: index for '" << options.assembly_file << "' not found" << endl;
+						cerr << "ERROR: index file not found/readable: " << options.assembly_file << ".fai" << endl;
 						exit(1);
 					}
 				break;
 			case 'b':
 				options.blacklist_file = optarg;
 				if (access(options.blacklist_file.c_str(), R_OK) != 0) {
-					cerr << "ERROR: file not found: " << options.blacklist_file << endl;
+					cerr << "ERROR: file not found/readable: " << options.blacklist_file << endl;
 					exit(1);
 				}
 				break;
 			case 'k':
 				options.known_fusions_file = optarg;
 				if (access(options.known_fusions_file.c_str(), R_OK) != 0) {
-					cerr << "ERROR: file not found: " << options.known_fusions_file << endl;
+					cerr << "ERROR: file not found/readable: " << options.known_fusions_file << endl;
 					exit(1);
 				}
 				break;
