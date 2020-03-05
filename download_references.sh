@@ -108,5 +108,5 @@ else
 fi > "$ANNOTATION.gtf"
 
 mkdir STAR_index_${ASSEMBLY}_${ANNOTATION}
-STAR --runMode genomeGenerate --genomeDir STAR_index_${ASSEMBLY}_${ANNOTATION} --genomeFastaFiles "$ASSEMBLY.fa" --sjdbGTFfile "$ANNOTATION.gtf" --runThreadN "$THREADS" --sjdbOverhang 200
+STAR --runMode genomeGenerate --genomeDir STAR_index_${ASSEMBLY}_${ANNOTATION} --genomeFastaFiles "$ASSEMBLY.fa" --sjdbGTFfile "$ANNOTATION.gtf" --runThreadN "$THREADS" --sjdbOverhang 250
 
