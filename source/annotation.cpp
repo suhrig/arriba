@@ -26,11 +26,13 @@ void split_string(const string& unsplit, const char separator, vector<string>& s
 
 bool parse_gtf_features(string gtf_features_string, gtf_features_t& gtf_features) {
 	replace(gtf_features_string.begin(), gtf_features_string.end(), ',', ' ');
-	replace(gtf_features_string.begin(), gtf_features_string.end(), '=', ' ');
 	istringstream iss(gtf_features_string);
 	while (iss) {
+		string feature_value_pair;
+		iss >> feature_value_pair;
+		tsv_stream_t tsv(feature_value_pair, '=');
 		string feature, value;
-		iss >> feature >> value;
+		tsv >> feature >> value;
 		if (feature != "" && value == "")
 			return false;
 		if (feature == "gene_name") {
@@ -187,17 +189,16 @@ void read_annotation_gtf(const string& filename, const string& gtf_features_stri
 	while (gtf_file.getline(line)) {
 		if (!line.empty() && line[0] != '#') { // skip comment lines
 
-			istringstream iss(line);
+			tsv_stream_t tsv(line);
 			annotation_record_t annotation_record;
 			string contig, strand, feature, attributes, trash, gene_name, gene_id;
 
 			// parse line
-			iss >> contig >> trash >> feature >> annotation_record.start >> annotation_record.end >> trash >> strand >> trash;
-			if (contig.empty() || feature.empty() || strand.empty()) {
+			tsv >> contig >> trash >> feature >> annotation_record.start >> annotation_record.end >> trash >> strand >> trash >> attributes;
+			if (tsv.fail() || contig.empty() || feature.empty() || strand.empty()) {
 				cerr << "WARNING: failed to parse line in GTF file: " << line << endl;
 				continue;
 			}
-			getline(iss, attributes);
 
 			// extract gene name and ID from attributes
 			if (!get_gtf_attribute(attributes, gtf_features.gene_name, gene_name) ||

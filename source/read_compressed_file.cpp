@@ -2,6 +2,7 @@
 #include <iostream>
 #include "bgzf.h"
 #include "sam.h"
+#include "common.hpp"
 #include "read_compressed_file.hpp"
 
 using namespace std;
@@ -79,3 +80,27 @@ bool autodecompress_file_t::getline(string& line) {
 	}
 }
 
+tsv_stream_t& tsv_stream_t::operator>>(string& out) {
+	if (position >= data->size()) {
+		failbit = true;
+	} else {
+		size_t start_position = position;
+		position = data->find(delimiter, start_position);
+		out = data->substr(start_position, position - start_position);
+		position++; // skip delimiter
+	}
+	return *this;
+}
+
+tsv_stream_t& tsv_stream_t::operator>>(int& out) {
+	if (position >= data->size()) {
+		failbit = true;
+	} else {
+		size_t start_position = position;
+		position = data->find(delimiter, start_position);
+		if (!str_to_int(data->substr(start_position, position - start_position).c_str(), out))
+			failbit = true;
+		position++; // skip delimiter
+	}
+	return *this;
+}

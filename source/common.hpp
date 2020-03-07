@@ -1,6 +1,9 @@
 #ifndef _COMMON_H
 #define _COMMON_H 1
 
+#include <climits>
+#include <cmath>
+#include <cstdlib>
 #include <list>
 #include <map>
 #include <string>
@@ -250,6 +253,19 @@ namespace std {
 #undef TUPLE_TYPES
 #undef TUPLE_ELEMENT_TYPE
 
+}
+
+inline bool str_to_int(const char* s, int& i) {
+	char* end_of_parsing;
+	long int result = strtol(s, &end_of_parsing, 10);
+	i = result;
+	return (*s != ' ' && end_of_parsing != s && *end_of_parsing == '\0' && result != LONG_MAX && result != LONG_MIN);
+}
+
+inline bool str_to_float(const char* s, float& f) {
+	char* end_of_parsing;
+	f = strtof(s, &end_of_parsing);
+	return (*s != ' ' && end_of_parsing != s && *end_of_parsing == '\0' && f != HUGE_VALF && f != -HUGE_VALF);
 }
 
 #endif /* _COMMON_H */

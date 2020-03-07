@@ -1,5 +1,4 @@
 #include <fstream>
-#include <sstream>
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -23,9 +22,9 @@ unsigned int recover_known_fusions(fusions_t& fusions, const string& known_fusio
 	string line;
 	while (known_fusions_file.getline(line)) {
 		if (!line.empty() && line[0] != '#') {
-			istringstream iss(line);
+			tsv_stream_t tsv(line);
 			string range1, range2;
-			iss >> range1 >> range2;
+			tsv >> range1 >> range2;
 			blacklist_item_t item1, item2;
 			if (!parse_blacklist_item(range1, item1, contigs, genes, false) ||
 			    !parse_blacklist_item(range2, item2, contigs, genes, false))

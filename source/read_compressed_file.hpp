@@ -18,4 +18,17 @@ class autodecompress_file_t {
 		string file_path;
 };
 
+class tsv_stream_t {
+	public:
+		tsv_stream_t(const string& s, const char d='\t'): data(&s), delimiter(d), position(0), failbit(false) {};
+		tsv_stream_t& operator>>(string& out);
+		tsv_stream_t& operator>>(int& out);
+		bool fail() const { return failbit; };
+	private:
+		const string* data;
+		char delimiter;
+		size_t position;
+		bool failbit;
+};
+
 #endif /* _H_READ_COMPRESSED_FILE_H */

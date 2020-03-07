@@ -48,8 +48,7 @@ bool output_directory_exists(const string& output_file) {
 }
 
 bool validate_int(const char* optarg, int& value, const int min_value, const int max_value) {
-	value = atoi(optarg);
-	if (string(optarg) != string("0") && value == 0)
+	if (!str_to_int(optarg, value))
 		return false;
 	return value >= min_value && value <= max_value;
 }
@@ -64,8 +63,7 @@ bool validate_int(const char* optarg, unsigned int& value, const unsigned int mi
 }
 
 bool validate_float(const char* optarg, float& value, const float min_value, const float max_value) {
-	value = atof(optarg);
-	if (string(optarg) != string("0") && value == 0)
+	if (!str_to_float(optarg, value))
 		return false;
 	return value >= min_value && value <= max_value;
 }

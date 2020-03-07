@@ -3,7 +3,6 @@
 #include <iostream>
 #include <set>
 #include <string>
-#include <sstream>
 #include <tuple>
 #include <unordered_map>
 #include <vector>
@@ -16,14 +15,12 @@ using namespace std;
 
 // convert string representation of a range into coordinates
 bool parse_range(string range, const contigs_t& contigs, blacklist_item_t& blacklist_item) {
-	istringstream iss;
 
 	// extract contig from range
-	string contig_name;
-	replace(range.begin(), range.end(), ':', ' ');
-	iss.str(range);
-	iss >> contig_name;
-	if (contig_name.empty()) {
+	tsv_stream_t tsv(range, ':');
+	string contig_name, start_and_end_position;
+	tsv >> contig_name >> start_and_end_position;
+	if (tsv.fail() || contig_name.empty() || start_and_end_position.empty()) {
 		cerr << "WARNING: unknown gene or malformed range: " << range << endl;
 		return false;
 	}
@@ -47,11 +44,9 @@ bool parse_range(string range, const contigs_t& contigs, blacklist_item_t& black
 	}
 
 	// extract start (and end) of range
-	if (range.find("-") != string::npos) { // range has start and end (chr:start-end)
-		replace(range.begin(), range.end(), '-', ' ');
-		iss.str(range);
-		iss >> contig_name; // discard contig
-		if ((iss >> blacklist_item.start).fail() || (iss >> blacklist_item.end).fail()) {
+	tsv_stream_t tsv2(start_and_end_position, '-');
+	if (start_and_end_position.find('-') != string::npos) { // range has start and end (chr:start-end)
+		if ((tsv2 >> blacklist_item.start >> blacklist_item.end).fail()) {
 			cerr << "WARNING: unknown gene or malformed range: " << range << endl;
 			return false;
 		}
@@ -59,7 +54,7 @@ bool parse_range(string range, const contigs_t& contigs, blacklist_item_t& black
 		blacklist_item.end--;
 
 	} else { // range is a single base (chr:position)
-		if ((iss >> blacklist_item.start).fail()) {
+		if ((tsv2 >> blacklist_item.start).fail()) {
 			cerr << "WARNING: unknown gene or malformed range: " << range << endl;
 			return false;
 		}
@@ -243,9 +238,9 @@ unsigned int filter_blacklisted_ranges(fusions_t& fusions, const string& blackli
 			continue;
 
 		// parse line
-		istringstream iss(line);
+		tsv_stream_t tsv(line);
 		string range1, range2;
-		iss >> range1 >> range2;
+		tsv >> range1 >> range2;
 		blacklist_item_t item1, item2;
 		if (!parse_blacklist_item(range1, item1, contigs, genes, false) ||
 		    !parse_blacklist_item(range2, item2, contigs, genes, true))

@@ -2,7 +2,6 @@
 #include <iostream>
 #include <map>
 #include <string>
-#include <sstream>
 #include <unordered_map>
 #include <vector>
 #include "common.hpp"
@@ -14,20 +13,18 @@
 using namespace std;
 
 bool parse_breakpoint(string breakpoint, const contigs_t& contigs, contig_t& contig, position_t& position) {
-	istringstream iss;
+	tsv_stream_t tsv(breakpoint, ':');
 
 	// extract contig from breakpoint
 	string contig_name;
-	replace(breakpoint.begin(), breakpoint.end(), ':', ' ');
-	iss.str(breakpoint);
-	iss >> contig_name;
+	tsv >> contig_name;
 	contig_name = removeChr(contig_name);
 	if (contigs.find(contig_name) == contigs.end())
 		return false;
 	contig = contigs.at(contig_name);
 
 	// extract position from breakpoint
-	if ((iss >> position).fail() || !(iss >> std::ws).eof())
+	if ((tsv >> position).fail())
 		return false;
 	position--; // convert to zero-based coordinate
 
@@ -89,10 +86,10 @@ unsigned int mark_genomic_support(fusions_t& fusions, const string& genomic_brea
 		if (!line.empty() && line[0] != '#') {
 
 			// try to parse line as Arriba's four-column format (contig1:position1\tcontig2:position2\tdirection1\tdirection2)
-			istringstream iss(line);
+			tsv_stream_t tsv(line);
 			string breakpoint1, breakpoint2;
 			string string_direction1, string_direction2;
-			iss >> breakpoint1 >> breakpoint2 >> string_direction1 >> string_direction2;
+			tsv >> breakpoint1 >> breakpoint2 >> string_direction1 >> string_direction2;
 			contig_t contig1, contig2;
 			position_t position1, position2;
 			direction_t direction1, direction2;
@@ -103,10 +100,9 @@ unsigned int mark_genomic_support(fusions_t& fusions, const string& genomic_brea
 			      parse_direction(string_direction2, direction2))) {
 
 				// parsing as Arriba's four-column format failed => try VCF
-				iss.clear();
-				iss.str(line);
+				tsv_stream_t tsv2(line);
 				string vcf_chrom, vcf_pos, vcf_alt, vcf_info, vcf_filter, ignore;
-				iss >> vcf_chrom >> vcf_pos >> ignore >> ignore >> vcf_alt >> ignore >> vcf_filter >> vcf_info;
+				tsv2 >> vcf_chrom >> vcf_pos >> ignore >> ignore >> vcf_alt >> ignore >> vcf_filter >> vcf_info;
 				if (!parse_vcf_info(vcf_info, "SVTYPE", vcf_sv_type))
 					goto failed_to_parse_line;
 				if (vcf_sv_type == "BND") {
