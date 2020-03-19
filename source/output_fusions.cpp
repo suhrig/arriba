@@ -668,9 +668,13 @@ transcript_t get_transcript(const string& transcript_sequence, const vector<posi
 				if ((**exon).gene == gene && transcribed_bases[position] >= (**exon).start && transcribed_bases[position] <= (**exon).end) {
 					score[(**exon).transcript]++;
 					last_transcribed_base = transcribed_bases[position]; // remember for later to compute the number of exonic bases that are NOT transcribed
-					if (position == breakpoint)
+					if (position == breakpoint) {
 						if (transcribed_bases[position] >= (**exon).coding_region_start && transcribed_bases[position] <= (**exon).coding_region_end)
 							is_coding_at_breakpoint[(**exon).transcript] = true;
+						if (transcribed_bases[position] == (**exon).start && *exon != (**exon).transcript->first_exon ||
+						    transcribed_bases[position] == (**exon).end   && *exon != (**exon).transcript->last_exon)
+							score[(**exon).transcript] += 10; // give a bonus when the breakpoint coincides with a splice site
+					}
 				}
 			}
 			position += (from <= to) ? +1 : -1;
