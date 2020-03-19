@@ -180,7 +180,7 @@ exons$geneID <- parseGtfAttribute("gene_id", exons)
 exons$geneName <- parseGtfAttribute("gene_name", exons)
 exons$geneName <- ifelse(exons$geneName == "", exons$geneID, exons$geneName)
 exons$transcript <- parseGtfAttribute("transcript_id", exons)
-exons$exonNumber <- ifelse(printExonLabels, parseGtfAttribute("exon_number", exons), "")
+exons$exonNumber <- ifelse(rep(printExonLabels, nrow(exons)), parseGtfAttribute("exon_number", exons), "")
 
 # read protein domain annotation
 proteinDomains <- NULL
