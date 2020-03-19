@@ -625,6 +625,93 @@ string get_fusion_site(const gene_t gene, const bool spliced, const bool exonic,
 	return site;
 }
 
+transcript_t get_transcript(const string& transcript_sequence, const vector<position_t>& transcribed_bases, const gene_t gene, const strand_t strand, const bool strand_ambiguous, const unsigned char which_end, const exon_annotation_index_t& exon_annotation_index) {
+
+	if (strand_ambiguous || strand != gene->strand)
+		return NULL; // in case of anti-sense transcription, it makes no sense to determine the transcript
+
+	// determine start and end of 5' or 3' moiety of transcript sequence (whichever is requested)
+	size_t from, to, breakpoint;
+	if (which_end == 5) {
+		from = 0;
+		to = transcript_sequence.find('|');
+		if (to == string::npos)
+			return NULL;
+		while (to > 0 && transcribed_bases[to] == -1) // skip control characters in transcript sequence, such as "..."
+			to--;
+		if (transcribed_bases[to] == -1)
+			return NULL; // we get here when the sequence consists of only control characters (should be impossible, but who knows)
+		breakpoint = to;
+	} else { // which_end == 3
+		from = transcript_sequence.find_last_of('|');
+		while (from < transcript_sequence.size() && transcribed_bases[from] == -1) // skip control characters in transcript sequence, such as "..."
+			from++;
+		if (from >= transcript_sequence.size())
+			return NULL; // we get here when the sequence is empty or consists of only control characters (should be impossible, but who knows)
+		breakpoint = from;
+		to = transcript_sequence.size() - 1;
+	}
+	if (transcribed_bases[from] > transcribed_bases[to])
+		swap(from, to); // <from> must point to the base with the lower genomic coordinate
+
+	// for each transcript, calculate score reflecting how well the transcribed bases match annotated exons
+	unordered_map<transcript_t,unsigned int> score;
+	unordered_map<transcript_t,unsigned int> peak_score;
+	unordered_map<transcript_t,bool> is_coding_at_breakpoint;
+	size_t position = from;
+	for (auto exon_set = exon_annotation_index[gene->contig].lower_bound(transcribed_bases[from]); exon_set != exon_annotation_index[gene->contig].end() && position >= min(from, to) && position <= max(from, to); ++exon_set) {
+
+		// increase score by 1 for each base in an exon that is transcribed
+		position_t last_transcribed_base = transcribed_bases[to];
+		while (position >= min(from, to) && position <= max(from, to) && transcribed_bases[position] <= exon_set->first) {
+			for (auto exon = exon_set->second.begin(); exon != exon_set->second.end(); ++exon) {
+				if ((**exon).gene == gene && transcribed_bases[position] >= (**exon).start && transcribed_bases[position] <= (**exon).end) {
+					score[(**exon).transcript]++;
+					last_transcribed_base = transcribed_bases[position]; // remember for later to compute the number of exonic bases that are NOT transcribed
+					if (position == breakpoint)
+						if (transcribed_bases[position] >= (**exon).coding_region_start && transcribed_bases[position] <= (**exon).coding_region_end)
+							is_coding_at_breakpoint[(**exon).transcript] = true;
+				}
+			}
+			position += (from <= to) ? +1 : -1;
+		}
+
+		for (auto exon = exon_set->second.begin(); exon != exon_set->second.end(); ++exon) {
+			if ((**exon).gene == gene) {
+
+				// note down peak score for each transcript
+				peak_score[(**exon).transcript] = max(score[(**exon).transcript], peak_score[(**exon).transcript]);
+
+				// decrease score by 1 for each base in an exon that is not transcribed
+				position_t exon_start = (exon_set != exon_annotation_index[gene->contig].begin()) ? prev(exon_set)->first : (**exon).start-1;
+				unsigned int exon_length = min(exon_set->first, transcribed_bases[to]) - max(last_transcribed_base+1, exon_start) + 1;
+				score[(**exon).transcript] -= min(exon_length, score[(**exon).transcript]); // score must not go below 0
+			}
+		}
+
+	}
+	if (peak_score.empty())
+		return NULL; // transcribed region does not overlap any annotated transcript
+
+	// with which annotated transcript does the transcribed region have the best overlap?
+	// search for the transcript with the best ratio of transcribed length/total length
+	transcript_t best_transcript = peak_score.begin()->first;
+	for (auto transcript = peak_score.begin(); transcript != peak_score.end(); ++transcript) {
+		int transcript_length = transcript->first->last_exon->end - transcript->first->first_exon->start;
+		int best_transcript_length = best_transcript->last_exon->end - best_transcript->first_exon->start;
+		if (transcript->second > peak_score[best_transcript] ||
+		    transcript->second == peak_score[best_transcript] && !is_coding_at_breakpoint[best_transcript] && is_coding_at_breakpoint[transcript->first] ||
+		    transcript->second == peak_score[best_transcript] && is_coding_at_breakpoint[best_transcript] == is_coding_at_breakpoint[transcript->first] && transcript_length > best_transcript_length ||
+		    transcript->second == peak_score[best_transcript] && is_coding_at_breakpoint[best_transcript] == is_coding_at_breakpoint[transcript->first] && transcript_length == best_transcript_length && transcript->first->id < best_transcript->id) { // IDs as tie breaker ensures deterministic behavior
+			best_transcript = transcript->first;
+		}
+	}
+	if (peak_score[best_transcript] == 0)
+		return NULL;
+
+	return best_transcript;
+}
+
 char dna_to_protein(const string& triplet) {
 	string t = triplet;
 	std::transform(t.begin(), t.end(), t.begin(), (int (*)(int))std::toupper);
@@ -654,209 +741,104 @@ char dna_to_protein(const string& triplet) {
 }
 
 // determines reading frame of first base of given transcript based on coding exons overlapping the transcript
-int get_reading_frame(const vector<position_t>& transcribed_bases, const int from, const int to, const gene_t gene, const exon_annotation_index_t& exon_annotation_index, const assembly_t& assembly, exon_t& exon_with_start_codon) {
+int get_reading_frame(const vector<position_t>& transcribed_bases, const int from, const int to, const transcript_t transcript, const gene_t gene, const assembly_t& assembly, exon_t& exon_with_start_codon) {
 
-	exon_with_start_codon = NULL;
-	unordered_map<transcript_t,exon_t> exon_with_start_codon_by_transcript;
-	unordered_map<transcript_t,bool> transcript_is_coding_at_breakpoint;
+	// find exon containing start codon
+	if (transcript == NULL)
+		exon_with_start_codon = NULL;
+	else
+		exon_with_start_codon = (gene->strand == FORWARD) ? transcript->first_exon : transcript->last_exon;
+	while (exon_with_start_codon != NULL && exon_with_start_codon->coding_region_start == -1)
+		exon_with_start_codon = (gene->strand == FORWARD) ? exon_with_start_codon->next_exon : exon_with_start_codon->previous_exon;
+	if (exon_with_start_codon == NULL)
+		return -1; // no coding exon found => is a non-coding transcript
 
-	// find all coding exons of given gene which overlap the transcribed region
-	position_t left_boundary = min(transcribed_bases[from], transcribed_bases[to]);
-	position_t right_boundary = max(transcribed_bases[from], transcribed_bases[to]);
-	exon_set_t transcribed_exons;
-	for (auto exon_set = exon_annotation_index[gene->contig].lower_bound(left_boundary); exon_set != exon_annotation_index[gene->contig].end() && (exon_set->second.empty() || (**exon_set->second.begin()).start <= right_boundary); ++exon_set) {
-		for (exon_set_t::const_iterator exon = exon_set->second.begin(); exon != exon_set->second.end(); ++exon) {
-			if ((**exon).gene == gene &&
-			    (**exon).coding_region_start != -1 &&
-			    ((**exon).start >= left_boundary && (**exon).start <= right_boundary ||
-			     (**exon).end >= left_boundary && (**exon).end <= right_boundary) ||
-			     left_boundary >= (**exon).start && right_boundary <= (**exon).end) {
-
-				// check if the transcript has a start codon, if not we skip it
-				if (gene->strand == FORWARD) { 
-
-					// find first exon of transcript
-					exon_t first_exon = *exon;
-					while (first_exon->previous_exon != NULL)
-						first_exon = first_exon->previous_exon;
-
-					// find exon containing start codon to determine reading frame
-					exon_with_start_codon = first_exon;
-					while (exon_with_start_codon != NULL && exon_with_start_codon->coding_region_start == -1)
-						exon_with_start_codon = exon_with_start_codon->next_exon;
-
-					// check if there is a start codon at the start of first coding exon (if not, something is bogus)
-					if (exon_with_start_codon == NULL || // no coding exon found => is a non-coding transcript
-					    assembly.at(gene->contig).substr(exon_with_start_codon->coding_region_start, 3) != "ATG")
-						continue; // kick out transcripts without start codon
-
-				} else { // gene->strand == REVERSE
-
-					// find first exon of transcript
-					exon_t first_exon = *exon;
-					while (first_exon->next_exon != NULL)
-						first_exon = first_exon->next_exon;
-
-					// find exon containing start codon to determine reading frame
-					exon_with_start_codon = first_exon;
-					while (exon_with_start_codon != NULL && exon_with_start_codon->coding_region_start == -1)
-						exon_with_start_codon = exon_with_start_codon->previous_exon;
-
-					// check if there is a start codon at the start of first coding exon (if not, something is bogus)
-					if (exon_with_start_codon == NULL || // no coding exon found => is a non-coding transcript
-					    assembly.at(gene->contig).substr(exon_with_start_codon->coding_region_end - 2, 3) != dna_to_reverse_complement("ATG"))
-						continue; // kick out transcripts without start codon
-
-				}
-
-				exon_with_start_codon_by_transcript[(**exon).transcript] = exon_with_start_codon;
-				if ((**exon).coding_region_start <= transcribed_bases[from] && (**exon).coding_region_end >= transcribed_bases[from])
-					transcript_is_coding_at_breakpoint[(**exon).transcript] = true;
-				transcribed_exons.insert(*exon);
-
-			}
-		}
-	}
-
-	// for each transcript calculate how many bases are transcribed
-	unordered_map<transcript_t,unsigned int> transcript_length;
-	unordered_map<transcript_t,unsigned int> transcript_overlap;
-	for (auto exon = transcribed_exons.begin(); exon != transcribed_exons.end(); ++exon) {
-		transcript_length[(**exon).transcript] += min((**exon).end, right_boundary) - max((**exon).start, left_boundary);
-		for (int position = from; (from > to && position >= to) || (from <= to && position <= to); position += (from <= to) ? +1 : -1)
-			if (transcribed_bases[position] >= (**exon).start && transcribed_bases[position] <= (**exon).end)
-				transcript_overlap[(**exon).transcript]++;
-	}
-	if (transcript_overlap.empty())
-		return -1; // transcribed region does not overlap any annotated transcript
-
-	// with which annotated transcript does the transcribed region have the best overlap?
-	// search for the transcript with the best ratio of transcribed length/total length
-	transcript_t best_transcript = transcript_overlap.begin()->first;
-	float current_best_similarity = 0;
-	for (auto transcript = transcript_overlap.begin(); transcript != transcript_overlap.end(); ++transcript) {
-		float similarity = min(
-			((float)transcript->second)/(1 + abs(from - to)), // % of transcribed bases inside exons
-			((float)transcript->second)/(1 + transcript_length[transcript->first]) // % of exonic regions being transcribed
-		);
-		// if the similarity scores tie, preferentially pick the longest transcript with a coding region at the breakpoint
-		if (similarity > current_best_similarity ||
-		    similarity == current_best_similarity && !transcript_is_coding_at_breakpoint[best_transcript] && transcript_is_coding_at_breakpoint[transcript->first] ||
-		    similarity == current_best_similarity && transcript_is_coding_at_breakpoint[best_transcript] == transcript_is_coding_at_breakpoint[transcript->first] && transcript->first->end - transcript->first->start > best_transcript->end - best_transcript->start ||
-		    similarity == current_best_similarity && transcript_is_coding_at_breakpoint[best_transcript] == transcript_is_coding_at_breakpoint[transcript->first] && transcript->first->end - transcript->first->start == best_transcript->end - best_transcript->start && transcript->first->id < best_transcript->id) { // IDs as tie breaker ensures deterministic behavior
-			best_transcript = transcript->first;
-			current_best_similarity = similarity;
-		}
-	}
-	exon_with_start_codon = exon_with_start_codon_by_transcript[best_transcript];
-
-	// find all exons of the best matching transcript in the transcribed region
-	exon_set_t exons_of_best_transcript;
-	for (auto exon = transcribed_exons.begin(); exon != transcribed_exons.end(); ++exon)
-		if ((**exon).transcript == best_transcript)
-			exons_of_best_transcript.insert(*exon);
-
-	// find a coding exon that is transcribed to determine reading frame
-	position_t transcribed_coding_base = -1;
-	for (int position = from; (from > to && position >= to) || (from <= to && position <= to); position += (from <= to) ? +1 : -1)
-		for (auto exon = exons_of_best_transcript.begin(); exon != exons_of_best_transcript.end(); ++exon)
-			if ((**exon).coding_region_start <= transcribed_bases[position] && (**exon).coding_region_end >= transcribed_bases[position])
-				transcribed_coding_base = position;
-	if (transcribed_coding_base == -1)
+	// check if there is a start codon at the start of first coding exon, otherwise the annotation is incorrect
+	string first_codon;
+	if (gene->strand == FORWARD)
+		first_codon = assembly.at(gene->contig).substr(exon_with_start_codon->coding_region_start, 3);
+	else // gene->strand == REVERSE
+		first_codon = dna_to_reverse_complement(assembly.at(gene->contig).substr(exon_with_start_codon->coding_region_end - 2, 3));
+	if (first_codon != "ATG")
 		return -1;
 
+	// find a coding exon that is transcribed to determine reading frame
 	int reading_frame = -1;
-
-	// determine reading frame of exon that overlaps transcribed region
-	if (gene->strand == FORWARD) { 
-
-		exon_t next_exon = exon_with_start_codon;
-		while (next_exon != NULL &&
-		       next_exon->coding_region_start != -1 &&
-		       next_exon->start <= transcribed_bases[transcribed_coding_base]) {
-			reading_frame = (reading_frame + (min(transcribed_bases[transcribed_coding_base], next_exon->coding_region_end) - next_exon->coding_region_start) + 1) % 3;
-			next_exon = next_exon->next_exon;
+	position_t transcribed_coding_base = -1;
+	for (exon_t exon = exon_with_start_codon; exon != NULL && transcribed_coding_base == -1; exon = (gene->strand == FORWARD) ? exon->next_exon : exon->previous_exon) {
+		for (int position = from; position <= to && transcribed_coding_base == -1; position++)
+			if (exon->coding_region_start <= transcribed_bases[position] && exon->coding_region_end >= transcribed_bases[position])
+				transcribed_coding_base = position;
+		if (transcribed_coding_base == -1) {
+			reading_frame = (reading_frame + exon->coding_region_end - exon->coding_region_start + 1) % 3;
+		} else {
+			if (gene->strand == FORWARD)
+				reading_frame += transcribed_bases[transcribed_coding_base] - exon->coding_region_start;
+			else
+				reading_frame += exon->coding_region_end - transcribed_bases[transcribed_coding_base];
+			reading_frame = (reading_frame + 1) % 3;
 		}
-
-	} else { // gene->strand == REVERSE
-
-		exon_t previous_exon = exon_with_start_codon;
-		while (previous_exon != NULL &&
-		       previous_exon->coding_region_start != -1 &&
-		       previous_exon->end >= transcribed_bases[transcribed_coding_base]) {
-			reading_frame = (reading_frame + (previous_exon->coding_region_end - max(previous_exon->coding_region_start, transcribed_bases[transcribed_coding_base])) + 1) % 3;
-			previous_exon = previous_exon->previous_exon;
-		}
-
 	}
+	if (transcribed_coding_base == -1) // fusion transcript does not overlap any coding region
+		return -1;
 
-	if (reading_frame == -1) // should not happen
-		return reading_frame;
-
-	// find the coding exon closest to the breakpoint that overlaps a transcribed base
-	for (int position = transcribed_coding_base - 1; (from > to && position >= to) || (from <= to && position >= from); --position)
+	// compute reading frame at start of fusion transcript
+	for (int position = transcribed_coding_base - 1; position >= from; --position)
 		if (transcribed_bases[position] != -1) // skip control characters and insertions
 			reading_frame = (reading_frame == 0) ? 2 : reading_frame-1;
 
 	return reading_frame;
 }
 
-string get_fusion_peptide_sequence(const string& transcript, const vector<position_t>& positions, const fusion_t& fusion, const exon_annotation_index_t& exon_annotation_index, const assembly_t& assembly) {
+string get_fusion_peptide_sequence(const string& transcript_sequence, const vector<position_t>& positions, const gene_t gene_5, const gene_t gene_3, const transcript_t transcript_5, const transcript_t transcript_3, const strand_t predicted_strand_3, const exon_annotation_index_t& exon_annotation_index, const assembly_t& assembly) {
 
-	// make sure it's clear which gene makes the 5' end of the fusion transcript
-	// otherwise the peptide sequence cannot be predicted
-	if (transcript == "." || transcript.empty() ||
-	    fusion.split_read1_list.size() + fusion.split_read2_list.size() == 0 ||
-	    fusion.predicted_strands_ambiguous || fusion.transcript_start_ambiguous ||
-	    fusion.transcript_start == TRANSCRIPT_START_GENE1 && (fusion.predicted_strand1 != fusion.gene1->strand || !fusion.gene1->is_protein_coding) ||
-	    fusion.transcript_start == TRANSCRIPT_START_GENE2 && (fusion.predicted_strand2 != fusion.gene2->strand || !fusion.gene2->is_protein_coding))
+	// abort if there is uncertainty in the transcript sequence around the junction or if the transcript sequence is unknown
+	if (transcript_sequence.empty() || transcript_sequence == "." ||
+	    transcript_sequence.find("...|") != string::npos || transcript_sequence.find("|...") != string::npos)
 		return ".";
 
-	if (assembly.find(fusion.gene1->contig) == assembly.end() || assembly.find(fusion.gene2->contig) == assembly.end())
+	if (assembly.find(gene_5->contig) == assembly.end() || assembly.find(gene_3->contig) == assembly.end())
 		return "."; // we need the assembly to search for the start codon
 
 	// split transcript into 5' and 3' parts and (possibly) non-template bases
 	// moreover, remove sequences beyond "...", i.e., regions with unclear sequence
-	size_t transcript_5_end = transcript.find('|') - 1;
-	size_t transcript_5_start = transcript.rfind("...", transcript_5_end);
-	if (transcript_5_start == string::npos)
-		transcript_5_start = 0;
+	size_t transcription_5_end = transcript_sequence.find('|') - 1;
+	size_t transcription_5_start = transcript_sequence.rfind("...", transcription_5_end);
+	if (transcription_5_start == string::npos)
+		transcription_5_start = 0;
 	else
-		transcript_5_start += 3; // skip "..."
-	size_t non_template_bases_length = transcript.find('|', transcript_5_end + 2);
+		transcription_5_start += 3; // skip "..."
+	size_t non_template_bases_length = transcript_sequence.find('|', transcription_5_end + 2);
 	if (non_template_bases_length == string::npos)
 		non_template_bases_length = 0;
 	else
-		non_template_bases_length -= transcript_5_end + 2;
-	size_t transcript_3_start = transcript_5_end + 2;
+		non_template_bases_length -= transcription_5_end + 2;
+	size_t transcription_3_start = transcription_5_end + 2;
 	if (non_template_bases_length > 0)
-		transcript_3_start += non_template_bases_length + 1;
-	size_t transcript_3_end = transcript.find("...", transcript_3_start);
-	if (transcript_3_end == string::npos)
-		transcript_3_end = transcript.size() - 1;
+		transcription_3_start += non_template_bases_length + 1;
+	size_t transcription_3_end = transcript_sequence.find("...", transcription_3_start);
+	if (transcription_3_end == string::npos)
+		transcription_3_end = transcript_sequence.size() - 1;
 	else
-		transcript_3_end--;
+		transcription_3_end--;
 
 	// determine reading frame of 5' gene
-	gene_t gene_5 = (fusion.transcript_start == TRANSCRIPT_START_GENE1) ? fusion.gene1 : fusion.gene2;
 	exon_t start_exon_5 = NULL;
-	int reading_frame_5 = get_reading_frame(positions, transcript_5_end, transcript_5_start, gene_5, exon_annotation_index, assembly, start_exon_5);
+	int reading_frame_5 = get_reading_frame(positions, transcription_5_start, transcription_5_end, transcript_5, gene_5, assembly, start_exon_5);
 	if (reading_frame_5 == -1)
 		return "."; // 5' gene has no coding exons overlapping the transcribed region
 	else if (reading_frame_5 != 0)
 		reading_frame_5 = 3 - reading_frame_5;
 
 	// determine reading frame of 3' gene
-	gene_t gene_3 = (fusion.transcript_start == TRANSCRIPT_START_GENE1) ? fusion.gene2 : fusion.gene1;
-	strand_t predicted_strand_3 = (fusion.transcript_start == TRANSCRIPT_START_GENE1) ? fusion.predicted_strand2 : fusion.predicted_strand1;
 	exon_t start_exon_3 = NULL;
 	int reading_frame_3 = -1;
 	if (gene_3->strand == predicted_strand_3) // it makes no sense to determine the reading frame in case of anti-sense transcription
-		reading_frame_3 = get_reading_frame(positions, transcript_3_start, transcript_3_end, gene_3, exon_annotation_index, assembly, start_exon_3);
+		reading_frame_3 = get_reading_frame(positions, transcription_3_start, transcription_3_end, transcript_3, gene_3, assembly, start_exon_3);
 
 	// translate DNA to protein
 	string peptide_sequence;
-	peptide_sequence.reserve(transcript.size()/3+2);
+	peptide_sequence.reserve(transcript_sequence.size()/3+2);
 	bool inside_indel = false; // needed to keep track of frame shifts (=> if so, convert to lowercase)
 	bool inside_intron = false; // keep track of whether one or more bases of the current codon are in an intron (=> convert to lowercase)
 	int frame_shift = 0; // keeps track of whether the current reading frame is shifted (=> convert to lowercase)
@@ -865,7 +847,7 @@ string get_fusion_peptide_sequence(const string& transcript, const vector<positi
 	bool found_start_codon = false;
 	string codon;
 	string reference_codon;
-	for (size_t position = transcript_5_start + reading_frame_5; position < transcript_3_end; ++position) {
+	for (size_t position = transcription_5_start + reading_frame_5; position < transcription_3_end; ++position) {
 
 		// don't begin before start codon
 		if (!found_start_codon) {
@@ -877,9 +859,9 @@ string get_fusion_peptide_sequence(const string& transcript, const vector<positi
 				continue;
 		}
 
-		if (transcript[position] == 'A' || transcript[position] == 'T' || transcript[position] == 'C' || transcript[position] == 'G' ||
-		    transcript[position] == 'a' || transcript[position] == 't' || transcript[position] == 'c' || transcript[position] == 'g' ||
-		    transcript[position] == '?') {
+		if (transcript_sequence[position] == 'A' || transcript_sequence[position] == 'T' || transcript_sequence[position] == 'C' || transcript_sequence[position] == 'G' ||
+		    transcript_sequence[position] == 'a' || transcript_sequence[position] == 't' || transcript_sequence[position] == 'c' || transcript_sequence[position] == 'g' ||
+		    transcript_sequence[position] == '?') {
 
 			// count how many bases of the codon come from the 5' gene and how many from the 3' gene
 			// to determine if a codon overlaps the breakpoint
@@ -887,42 +869,42 @@ string get_fusion_peptide_sequence(const string& transcript, const vector<positi
 				codon_5_bases = 0;
 				codon_3_bases = 0;
 			}
-			if (position <= transcript_5_end)
+			if (position <= transcription_5_end)
 				codon_5_bases++;
-			else if (position >= transcript_3_start)
+			else if (position >= transcription_3_start)
 				codon_3_bases++;
 
-			codon += transcript[position];
+			codon += transcript_sequence[position];
 
 			// compare reference base at given position to check for non-silent SNPs/somatic SNVs
 			if (positions[position] != -1) { // is not a control character or an insertion
-				reference_codon += assembly.at((position <= transcript_5_end) ? gene_5->contig : gene_3->contig)[positions[position]];
-				if (position <= transcript_5_end && gene_5->strand == REVERSE || position >= transcript_3_start && gene_3->strand == REVERSE)
+				reference_codon += assembly.at((position <= transcription_5_end) ? gene_5->contig : gene_3->contig)[positions[position]];
+				if (position <= transcription_5_end && gene_5->strand == REVERSE || position >= transcription_3_start && gene_3->strand == REVERSE)
 					reference_codon[reference_codon.size()-1] = dna_to_complement(reference_codon[reference_codon.size()-1]);
 			}
 
 			if (inside_indel)
 				frame_shift = (frame_shift + 1) % 3;
 
-		} else if (transcript[position] == '[') {
+		} else if (transcript_sequence[position] == '[') {
 			inside_indel = true;
-		} else if (transcript[position] == ']') {
+		} else if (transcript_sequence[position] == ']') {
 			inside_indel = false;
-		} else if (transcript[position] == '-') {
+		} else if (transcript_sequence[position] == '-') {
 			frame_shift = (frame_shift == 0) ? 2 : frame_shift - 1;
 		}
 
 		// check if we are in an intron/intergenic region or an exon
 		if (positions[position] != -1) {
 			inside_intron = true;
-			exon_t next_exon = (position <= transcript_5_end) ? start_exon_5 : start_exon_3;
+			exon_t next_exon = (position <= transcription_5_end) ? start_exon_5 : start_exon_3;
 			while (next_exon != NULL) {
 				if (positions[position] >= next_exon->start && positions[position] <= next_exon->end) {
 					if (positions[position] >= next_exon->coding_region_start && positions[position] <= next_exon->coding_region_end)
 						inside_intron = false;
 					break;
 				}
-				if (position <= transcript_5_end && gene_5->strand == FORWARD || position >= transcript_3_start && gene_3->strand == FORWARD)
+				if (position <= transcription_5_end && gene_5->strand == FORWARD || position >= transcription_3_start && gene_3->strand == FORWARD)
 					next_exon = next_exon->next_exon;
 				else
 					next_exon = next_exon->previous_exon;
@@ -936,14 +918,14 @@ string get_fusion_peptide_sequence(const string& transcript, const vector<positi
 			char reference_amino_acid = dna_to_protein(reference_codon);
 
 			// convert aberrant amino acids to lowercase
-			if (position > transcript_5_end && position < transcript_3_start || // non-template base
+			if (position > transcription_5_end && position < transcription_3_start || // non-template base
 			    amino_acid != reference_amino_acid || // non-silent mutation
 			    inside_indel || // indel
 			    inside_intron || // intron
-			    codon_5_bases != 3 && position <= transcript_5_end || // codon overlaps 5' breakpoint
-			    codon_3_bases != 3 && position >= transcript_3_start || // codon overlaps 3' breakpoint
+			    codon_5_bases != 3 && position <= transcription_5_end || // codon overlaps 5' breakpoint
+			    codon_3_bases != 3 && position >= transcription_3_start || // codon overlaps 3' breakpoint
 			    frame_shift != 0 || // out-of-frame base
-			    position >= transcript_3_start && reading_frame_3 == -1) // 3' end is not a coding region
+			    position >= transcription_3_start && reading_frame_3 == -1) // 3' end is not a coding region
 				amino_acid = tolower(amino_acid);
 
 			peptide_sequence += amino_acid;
@@ -957,20 +939,20 @@ string get_fusion_peptide_sequence(const string& transcript, const vector<positi
 
 
 		// mark end of 5' end as pipe
-		if (position == transcript_5_end && codon.size() <= 1 ||
+		if (position == transcription_5_end && codon.size() <= 1 ||
 		    codon_5_bases == 2 && codon.size() == 0)
 			if (peptide_sequence.empty() || peptide_sequence[peptide_sequence.size()-1] != '|')
 				peptide_sequence += '|';
 
 		// mark beginning of 3' end as pipe
 		if (non_template_bases_length > 0)
-			if (position + 2 == transcript_3_start && codon.size() <= 1 ||
+			if (position + 2 == transcription_3_start && codon.size() <= 1 ||
 			    codon_3_bases == 1 && codon.size() == 0)
 				if (peptide_sequence.empty() || peptide_sequence[peptide_sequence.size()-1] != '|')
 					peptide_sequence += '|';
 
 		// check if fusion shifts frame of 3' gene
-		if (position == transcript_3_start && reading_frame_3 != -1)
+		if (position == transcription_3_start && reading_frame_3 != -1)
 			frame_shift = (3 + reading_frame_3 + 1 - codon.size()) % 3;
 	}
 
@@ -1044,24 +1026,24 @@ void write_fusions_to_file(fusions_t& fusions, const string& output_file, const 
 		cerr << "ERROR: failed to open output file: " << output_file << endl;
 		exit(1);
 	}
-	out << "#gene1\tgene2\tstrand1(gene/fusion)\tstrand2(gene/fusion)\tbreakpoint1\tbreakpoint2\tsite1\tsite2\ttype\tdirection1\tdirection2\tsplit_reads1\tsplit_reads2\tdiscordant_mates\tcoverage1\tcoverage2\tconfidence\tclosest_genomic_breakpoint1\tclosest_genomic_breakpoint2\tfilters\tfusion_transcript\treading_frame\tpeptide_sequence\tread_identifiers" << endl;
+	out << "#gene1\tgene2\tstrand1(gene/fusion)\tstrand2(gene/fusion)\tbreakpoint1\tbreakpoint2\tsite1\tsite2\ttype\tdirection1\tdirection2\tsplit_reads1\tsplit_reads2\tdiscordant_mates\tcoverage1\tcoverage2\tconfidence\tclosest_genomic_breakpoint1\tclosest_genomic_breakpoint2\tfilters\tfusion_transcript\treading_frame\ttranscript_id1\ttranscript_id2\tpeptide_sequence\tread_identifiers" << endl;
 	for (auto fusion = sorted_fusions.begin(); fusion != sorted_fusions.end(); ++fusion) {
 
 		// describe site of breakpoint
-		string site1 = get_fusion_site((**fusion).gene1, (**fusion).spliced1, (**fusion).exonic1, (**fusion).contig1, (**fusion).breakpoint1, exon_annotation_index);
-		string site2 = get_fusion_site((**fusion).gene2, (**fusion).spliced2, (**fusion).exonic2, (**fusion).contig2, (**fusion).breakpoint2, exon_annotation_index);
+		string site_5 = get_fusion_site((**fusion).gene1, (**fusion).spliced1, (**fusion).exonic1, (**fusion).contig1, (**fusion).breakpoint1, exon_annotation_index);
+		string site_3 = get_fusion_site((**fusion).gene2, (**fusion).spliced2, (**fusion).exonic2, (**fusion).contig2, (**fusion).breakpoint2, exon_annotation_index);
 		
 		// convert closest genomic breakpoints to strings of the format <chr>:<position>(<distance to transcriptomic breakpoint>)
-		string closest_genomic_breakpoint1, closest_genomic_breakpoint2;
+		string closest_genomic_breakpoint_5, closest_genomic_breakpoint_3;
 		if ((**fusion).closest_genomic_breakpoint1 >= 0) {
-			closest_genomic_breakpoint1 = contigs_by_id[(**fusion).contig1] + ":" + to_string(static_cast<long long int>((**fusion).closest_genomic_breakpoint1+1)) + "(" + to_string(static_cast<long long int>(abs((**fusion).breakpoint1 - (**fusion).closest_genomic_breakpoint1))) + ")";
+			closest_genomic_breakpoint_5 = contigs_by_id[(**fusion).contig1] + ":" + to_string(static_cast<long long int>((**fusion).closest_genomic_breakpoint1+1)) + "(" + to_string(static_cast<long long int>(abs((**fusion).breakpoint1 - (**fusion).closest_genomic_breakpoint1))) + ")";
 		} else {
-			closest_genomic_breakpoint1 = ".";
+			closest_genomic_breakpoint_5 = ".";
 		}
 		if ((**fusion).closest_genomic_breakpoint2 >= 0) {
-			closest_genomic_breakpoint2 = contigs_by_id[(**fusion).contig2] + ":" + to_string(static_cast<long long int>((**fusion).closest_genomic_breakpoint2+1)) + "(" + to_string(static_cast<long long int>(abs((**fusion).breakpoint2 - (**fusion).closest_genomic_breakpoint2))) + ")";
+			closest_genomic_breakpoint_3 = contigs_by_id[(**fusion).contig2] + ":" + to_string(static_cast<long long int>((**fusion).closest_genomic_breakpoint2+1)) + "(" + to_string(static_cast<long long int>(abs((**fusion).breakpoint2 - (**fusion).closest_genomic_breakpoint2))) + ")";
 		} else {
-			closest_genomic_breakpoint2 = ".";
+			closest_genomic_breakpoint_3 = ".";
 		}
 
 		// assign confidence scores
@@ -1079,36 +1061,36 @@ void write_fusions_to_file(fusions_t& fusions, const string& output_file, const 
 		}
 
 		// the 5' gene should always come first => swap columns, if necessary
-		gene_t gene1 = (**fusion).gene1; gene_t gene2 = (**fusion).gene2;
-		contig_t contig1 = (**fusion).contig1; contig_t contig2 = (**fusion).contig2;
-		position_t breakpoint1 = (**fusion).breakpoint1; position_t breakpoint2 = (**fusion).breakpoint2;
-		direction_t direction1 = (**fusion).direction1; direction_t direction2 = (**fusion).direction2;
-		strand_t strand1 = (**fusion).predicted_strand1; strand_t strand2 = (**fusion).predicted_strand2;
-		unsigned int split_reads1 = (**fusion).split_reads1; unsigned int split_reads2 = (**fusion).split_reads2;
+		gene_t gene_5 = (**fusion).gene1; gene_t gene_3 = (**fusion).gene2;
+		contig_t contig_5 = (**fusion).contig1; contig_t contig_3 = (**fusion).contig2;
+		position_t breakpoint_5 = (**fusion).breakpoint1; position_t breakpoint_3 = (**fusion).breakpoint2;
+		direction_t direction_5 = (**fusion).direction1; direction_t direction_3 = (**fusion).direction2;
+		strand_t strand_5 = (**fusion).predicted_strand1; strand_t strand_3 = (**fusion).predicted_strand2;
+		unsigned int split_reads_5 = (**fusion).split_reads1; unsigned int split_reads_3 = (**fusion).split_reads2;
 		if ((**fusion).transcript_start == TRANSCRIPT_START_GENE2) {
-			swap(gene1, gene2);
-			swap(direction1, direction2);
-			swap(contig1, contig2);
-			swap(breakpoint1, breakpoint2);
-			swap(site1, site2);
-			swap(split_reads1, split_reads2);
-			swap(closest_genomic_breakpoint1, closest_genomic_breakpoint2);
-			swap(strand1, strand2);
+			swap(gene_5, gene_3);
+			swap(direction_5, direction_3);
+			swap(contig_5, contig_3);
+			swap(breakpoint_5, breakpoint_3);
+			swap(site_5, site_3);
+			swap(split_reads_5, split_reads_3);
+			swap(closest_genomic_breakpoint_5, closest_genomic_breakpoint_3);
+			swap(strand_5, strand_3);
 		}
 
-		int coverage1 = coverage.get_coverage(contig1, breakpoint1, (direction1 == UPSTREAM) ? DOWNSTREAM : UPSTREAM);
-		int coverage2 = coverage.get_coverage(contig2, breakpoint2, (direction2 == UPSTREAM) ? DOWNSTREAM : UPSTREAM);
+		int coverage_5 = coverage.get_coverage(contig_5, breakpoint_5, (direction_5 == UPSTREAM) ? DOWNSTREAM : UPSTREAM);
+		int coverage_3 = coverage.get_coverage(contig_3, breakpoint_3, (direction_3 == UPSTREAM) ? DOWNSTREAM : UPSTREAM);
 
 		// write line to output file
-		out << gene_to_name(gene1, contig1, breakpoint1, gene_annotation_index) << "\t" << gene_to_name(gene2, contig2, breakpoint2, gene_annotation_index) << "\t"
-		    << get_fusion_strand(strand1, gene1, (**fusion).predicted_strands_ambiguous) << "\t" << get_fusion_strand(strand2, gene2, (**fusion).predicted_strands_ambiguous) << "\t"
-		    << contigs_by_id[contig1] << ":" << (breakpoint1+1) << "\t" << contigs_by_id[contig2] << ":" << (breakpoint2+1) << "\t"
-		    << site1 << "\t" << site2 << "\t"
-		    << get_fusion_type(**fusion) << "\t" << ((direction1 == UPSTREAM) ? "upstream" : "downstream") << "\t" << ((direction2 == UPSTREAM) ? "upstream" : "downstream") << "\t"
-		    << split_reads1 << "\t" << split_reads2 << "\t" << (**fusion).discordant_mates << "\t"
-		    << ((coverage1 >= 0) ? to_string(static_cast<long long int>(coverage1)) : ".") << "\t" << ((coverage2 >= 0) ? to_string(static_cast<long long int>(coverage2)) : ".") << "\t"
+		out << gene_to_name(gene_5, contig_5, breakpoint_5, gene_annotation_index) << "\t" << gene_to_name(gene_3, contig_3, breakpoint_3, gene_annotation_index) << "\t"
+		    << get_fusion_strand(strand_5, gene_5, (**fusion).predicted_strands_ambiguous) << "\t" << get_fusion_strand(strand_3, gene_3, (**fusion).predicted_strands_ambiguous) << "\t"
+		    << contigs_by_id[contig_5] << ":" << (breakpoint_5+1) << "\t" << contigs_by_id[contig_3] << ":" << (breakpoint_3+1) << "\t"
+		    << site_5 << "\t" << site_3 << "\t"
+		    << get_fusion_type(**fusion) << "\t" << ((direction_5 == UPSTREAM) ? "upstream" : "downstream") << "\t" << ((direction_3 == UPSTREAM) ? "upstream" : "downstream") << "\t"
+		    << split_reads_5 << "\t" << split_reads_3 << "\t" << (**fusion).discordant_mates << "\t"
+		    << ((coverage_5 >= 0) ? to_string(static_cast<long long int>(coverage_5)) : ".") << "\t" << ((coverage_3 >= 0) ? to_string(static_cast<long long int>(coverage_3)) : ".") << "\t"
 		    << confidence << "\t"
-		    << closest_genomic_breakpoint1 << "\t" << closest_genomic_breakpoint2;
+		    << closest_genomic_breakpoint_5 << "\t" << closest_genomic_breakpoint_3;
 
 		// count the number of reads discarded by a given filter
 		map<string,unsigned int> filters;
@@ -1138,12 +1120,12 @@ void write_fusions_to_file(fusions_t& fusions, const string& output_file, const 
 
 		// print a fusion-spanning sequence
 		out << "\t";
-		string transcript;
+		string transcript_sequence;
 		vector<position_t> positions;
 		if (print_fusion_sequence || print_peptide_sequence)
-			get_fusion_transcript_sequence(**fusion, assembly, transcript, positions);
+			get_fusion_transcript_sequence(**fusion, assembly, transcript_sequence, positions);
 		if (print_fusion_sequence) {
-			out << transcript;
+			out << transcript_sequence;
 		} else {
 			out << ".";
 		}
@@ -1151,10 +1133,15 @@ void write_fusions_to_file(fusions_t& fusions, const string& output_file, const 
 		// print the translated protein sequence
 		out << "\t";
 		if (print_peptide_sequence) {
-			string fusion_peptide_sequence = get_fusion_peptide_sequence(transcript, positions, **fusion, exon_annotation_index, assembly);
-			out << is_in_frame(fusion_peptide_sequence) << "\t" << fusion_peptide_sequence;
+			transcript_t transcript_5 = get_transcript(transcript_sequence, positions, gene_5, strand_5, (**fusion).predicted_strands_ambiguous, 5, exon_annotation_index);
+			transcript_t transcript_3 = get_transcript(transcript_sequence, positions, gene_3, strand_3, (**fusion).predicted_strands_ambiguous, 3, exon_annotation_index);
+			string fusion_peptide_sequence = get_fusion_peptide_sequence(transcript_sequence, positions, gene_5, gene_3, transcript_5, transcript_3, strand_3, exon_annotation_index, assembly);
+			out << is_in_frame(fusion_peptide_sequence) << "\t"
+			    << ((transcript_5 == NULL) ? "." : transcript_5->name) << "\t"
+			    << ((transcript_3 == NULL) ? "." : transcript_3->name) << "\t"
+			    << fusion_peptide_sequence;
 		} else {
-			out << ".\t.";
+			out << ".\t.\t.\t.";
 		}
 
 		// if requested, print identifiers of supporting reads

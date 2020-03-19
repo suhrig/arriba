@@ -240,8 +240,9 @@ void read_annotation_gtf(const string& filename, const string& gtf_features_stri
 				if (exon_annotation_record.transcript == NULL) { // this is the first time we encounter this transcript ID => make a new transcript_annotation_record_t
 					transcript_annotation_record_t transcript_annotation_record;
 					transcript_annotation_record.id = new_id++;
-					transcript_annotation_record.start = -1; // is set once we have loaded all exons
-					transcript_annotation_record.end = -1; // is set once we have loaded all exons
+					transcript_annotation_record.name = transcript_id;
+					transcript_annotation_record.first_exon = NULL; // is set once we have loaded all exons
+					transcript_annotation_record.last_exon = NULL; // is set once we have loaded all exons
 					transcript_annotation.push_back(transcript_annotation_record);
 					exon_annotation_record.transcript = transcripts[short_transcript_id] = &(*transcript_annotation.rbegin());
 				}
@@ -352,10 +353,10 @@ void read_annotation_gtf(const string& filename, const string& gtf_features_stri
 
 	// compute starts and ends of all transcripts
 	for (exon_annotation_t::iterator exon = exon_annotation.begin(); exon != exon_annotation.end(); ++exon) {
-		if (exon->start < exon->transcript->start || exon->transcript->start == -1)
-			exon->transcript->start = exon->start;
-		if (exon->end > exon->transcript->end || exon->transcript->end == -1)
-			exon->transcript->end = exon->end;
+		if (exon->transcript->first_exon == NULL || exon->start < exon->transcript->first_exon->start)
+			exon->transcript->first_exon = &(*exon);
+		if (exon->transcript->last_exon == NULL || exon->end > exon->transcript->last_exon->end)
+			exon->transcript->last_exon = &(*exon);
 	}
 
 }

@@ -113,10 +113,14 @@ typedef annotation_t<gene_annotation_record_t> gene_annotation_t;
 typedef contig_annotation_index_t<gene_t> gene_contig_annotation_index_t;
 typedef annotation_index_t<gene_t> gene_annotation_index_t;
 
+struct exon_annotation_record_t;
+typedef exon_annotation_record_t* exon_t;
 struct transcript_annotation_record_t {
 	unsigned int id;
-	position_t start;
-	position_t end;
+	string name;
+	gene_t gene;
+	exon_t first_exon;
+	exon_t last_exon;
 };
 typedef annotation_t<transcript_annotation_record_t> transcript_annotation_t;
 typedef transcript_annotation_record_t* transcript_t;
@@ -127,7 +131,6 @@ struct exon_annotation_record_t: public annotation_record_t {
 	exon_annotation_record_t* previous_exon, * next_exon;
 	position_t coding_region_start, coding_region_end;
 };
-typedef exon_annotation_record_t* exon_t;
 typedef annotation_set_t<exon_t> exon_set_t;
 typedef annotation_t<exon_annotation_record_t> exon_annotation_t;
 typedef contig_annotation_index_t<exon_t> exon_contig_annotation_index_t;
