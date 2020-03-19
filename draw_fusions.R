@@ -102,22 +102,6 @@ getDarkColor <- function(color) {
 darkColor1 <- getDarkColor(color1)
 darkColor2 <- getDarkColor(color2)
 
-# read fusions
-fusions <- read.table(fusionsFile, stringsAsFactors=F, sep="\t", header=T, comment.char="", quote="")
-colnames(fusions)[colnames(fusions) %in% c("X.gene1", "strand1.gene.fusion.", "strand2.gene.fusion.")] <- c("gene1", "strand1", "strand2")
-fusions$contig1 <- sub(":.*", "", fusions$breakpoint1)
-fusions$breakpoint1 <- as.numeric(sub(".*:", "", fusions$breakpoint1, perl=T))
-fusions$contig2 <- sub(":.*", "", fusions$breakpoint2)
-fusions$breakpoint2 <- as.numeric(sub(".*:", "", fusions$breakpoint2, perl=T))
-
-pdf(outputFile, onefile=T, width=pdfWidth, height=pdfHeight, title=fusionsFile)
-if (nrow(fusions) == 0) {
-	plot(0, 0, type="l", xaxt="n", yaxt="n", xlab="", ylab="")
-	text(0, 0, "Error: empty input file\n")
-	dev.off()
-	quit("no")
-}
-
 # convenience functions to add/remove "chr" prefix
 addChr <- function(contig) {
 	ifelse(contig == "MT", "chrM", paste0("chr", contig))
@@ -129,6 +113,45 @@ removeChr <- function(contig) {
 # convenience function to check if a value is between two others
 between <- function(value, start, end) {
 	value >= start & value <= end
+}
+
+# read fusions
+fusions <- read.table(fusionsFile, stringsAsFactors=F, sep="\t", header=T, comment.char="", quote="")
+if (colnames(fusions)[1] == "X.gene1") { # Arriba output
+	colnames(fusions)[colnames(fusions) %in% c("X.gene1", "strand1.gene.fusion.", "strand2.gene.fusion.")] <- c("gene1", "strand1", "strand2")
+	fusions$contig1 <- sub(":.*", "", fusions$breakpoint1, perl=T)
+	fusions$contig2 <- sub(":.*", "", fusions$breakpoint2, perl=T)
+	fusions$breakpoint1 <- as.numeric(sub(".*:", "", fusions$breakpoint1, perl=T))
+	fusions$breakpoint2 <- as.numeric(sub(".*:", "", fusions$breakpoint2, perl=T))
+	fusions$split_reads <- fusions$split_reads1 + fusions$split_reads2
+} else if (colnames(fusions)[1] == "X.FusionName") { # STAR-Fusion
+	fusions$gene1 <- sub("\\^.*", "", fusions$LeftGene, perl=T)
+	fusions$gene2 <- sub("\\^.*", "", fusions$RightGene, perl=T)
+	fusions$strand1 <- removeChr(sub(".*:(.*)", "\\1/\\1", fusions$LeftBreakpoint, perl=T))
+	fusions$strand2 <- removeChr(sub(".*:(.*)", "\\1/\\1", fusions$RightBreakpoint, perl=T))
+	fusions$contig1 <- removeChr(sub(":.*", "", fusions$LeftBreakpoint, perl=T))
+	fusions$contig2 <- removeChr(sub(":.*", "", fusions$RightBreakpoint, perl=T))
+	fusions$breakpoint1 <- as.numeric(sub(".*:(.*):.*", "\\1", fusions$LeftBreakpoint, perl=T))
+	fusions$breakpoint2 <- as.numeric(sub(".*:(.*):.*", "\\1", fusions$RightBreakpoint, perl=T))
+	fusions$direction1 <- ifelse(grepl(":+", fusions$LeftBreakpoint, fixed=T), "downstream", "upstream")
+	fusions$direction2 <- ifelse(grepl(":+", fusions$RightBreakpoint, fixed=T), "upstream", "downstream")
+	fusions$fusion_transcript <- ifelse(rep(!("FUSION_CDS" %in% colnames(fusions)), nrow(fusions)), ".", toupper(sub("([a-z]*)", "\\1|", fusions$FUSION_CDS)))
+	fusions$reading_frame <- ifelse(rep(!("PROT_FUSION_TYPE" %in% colnames(fusions)), nrow(fusions)), ".", ifelse(fusions$PROT_FUSION_TYPE == "INFRAME", "in-frame", ifelse(fusions$PROT_FUSION_TYPE == "FRAMESHIFT", "out-of-frame", ".")))
+	fusions$split_reads <- fusions$JunctionReadCount
+	fusions$discordant_mates <- fusions$SpanningFragCount
+	fusions$site1 <- rep("exon", nrow(fusions))
+	fusions$site2 <- rep("exon", nrow(fusions))
+	fusions$confidence <- rep("high", nrow(fusions))
+} else {
+	stop("Unrecognized fusion file format")
+}
+
+pdf(outputFile, onefile=T, width=pdfWidth, height=pdfHeight, title=fusionsFile)
+if (nrow(fusions) == 0) {
+	plot(0, 0, type="l", xaxt="n", yaxt="n", xlab="", ylab="")
+	text(0, 0, "Error: empty input file\n")
+	dev.off()
+	quit("no")
 }
 
 # read cytoband annotation
@@ -1171,10 +1194,8 @@ for (fusion in 1:nrow(fusions)) {
 
 	# print statistics about supporting alignments
 	plot(0, 0, type="l", xlim=c(0, 1), ylim=c(0, 1), bty="n", xaxt="n", yaxt="n")
-	text(0, 0.575, "SUPPORTING READ COUNT", font=2, adj=c(0,0.5), cex=fontSize)
-	text(0, 0.525, paste("Split reads in", fusions[fusion,"gene1"], "=", fusions[fusion,"split_reads1"]), adj=c(0,0.5), cex=fontSize)
-	text(0, 0.475, paste("Split reads in", fusions[fusion,"gene2"], "=", fusions[fusion,"split_reads2"]), adj=c(0,0.5), cex=fontSize)
-	text(0, 0.425, paste("Discordant mates =", fusions[fusion,"discordant_mates"]), adj=c(0,0.5), cex=fontSize)
+	text(0, 0.575, "SUPPORTING READ COUNT", font=2, adj=c(0,0), cex=fontSize)
+	text(0, 0.525, paste0("Split reads = ", fusions[fusion,"split_reads"], "\n", "Discordant mates = ", fusions[fusion,"discordant_mates"]), adj=c(0,1), cex=fontSize)
 
 }
 

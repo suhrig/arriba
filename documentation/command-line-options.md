@@ -133,7 +133,7 @@ draw_fusions.R --annotation=annotation.gtf --fusions=fusions.tsv --output=output
 **Options**
 
 `--fusions=FILE`
-: Ouput file `fusions.tsv` containing the gene fusion predictions which passed all filters of Arriba.
+: File containing fusion predictions from Arriba (`fusions.tsv`) or STAR-Fusion (`star-fusion.fusion_predictions.tsv` or `star-fusion.fusion_predictions.abridged.coding_effect.tsv`).
 
 `--annotation=FILE`
 : Gene annotation in GTF format.
