@@ -41,6 +41,9 @@ The file `fusions.tsv` (as specified by the parameter `-o`) contains fusions whi
 `fusion_transcript`
 : If the parameter `-T` is set, Arriba puts the transcript sequence in this column. The sequence is assembled from the supporting reads of the most highly expressed transcript. The column contains a `.`, when the sequence could not be predicted. This is the case, when the strands or the 5' end of the transcript could not be predicted reliably. The breakpoint is represented via a pipe symbol (`|`). When non-template bases are inserted between the fused genes, these bases are represented as lowercase letters between two pipes. Reference mismatches (SNPs or SNVs) are indicated as lowercase letters, insertions as bases between brackets (`[` and `]`), deleted bases as one or more dashes (`-`), introns as three underscores (`___`), and missing information due to insufficient coverage as an ellipsis (`...`). Ambiguous positions, such as positions with diverse reference mismatches, are represented as `?`.
 
+`gene_id1` and `gene_id2`
+: These two columns state the identifiers of the fused genes as given in the `gene_id` attribute in the GTF file.
+
 `reading_frame`
 : This column states whether the gene at the 3' end of the fusion is fused in-frame or out-of-frame. The prediction of the reading frame builds on the prediction of the peptide sequence. A dot (`.`) indicates that the parameter `-P` was omitted (and no attempt was made to predict the reading frame) or that the peptide sequence cannot be predicted.
 

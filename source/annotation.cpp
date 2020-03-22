@@ -207,8 +207,11 @@ void read_annotation_gtf(const string& filename, const string& gtf_features_stri
 
 			// if Gencode, remove version number from gene ID
 			string::size_type trim_position = string::npos;
+			string short_gene_id;
 			if (gene_id.substr(0, 3) == "ENS" && (trim_position = gene_id.find_last_of('.', string::npos)) != string::npos)
-				gene_id = gene_id.substr(0, trim_position);
+				short_gene_id = gene_id.substr(0, trim_position);
+			else
+				short_gene_id = gene_id;
 
 			// convert string representation of contig to numeric ID
 			contig = removeChr(contig);
@@ -248,18 +251,19 @@ void read_annotation_gtf(const string& filename, const string& gtf_features_stri
 				}
 
 				// make a gene annotation record, if this is the first exon of a gene
-				gene_t gene = gene_by_id[make_tuple(gene_id, annotation_record.contig, annotation_record.strand)];
+				gene_t gene = gene_by_id[make_tuple(short_gene_id, annotation_record.contig, annotation_record.strand)];
 				if (gene == NULL) {
 					gene_annotation_record_t gene_annotation_record;
 					gene_annotation_record.copy(annotation_record);
-					gene_annotation_record.name = gene_name;
 					gene_annotation_record.id = new_id++;
+					gene_annotation_record.gene_id = gene_id;
+					gene_annotation_record.name = gene_name;
 					gene_annotation_record.exonic_length = 0; // is calculated later in arriba.cpp
 					gene_annotation_record.is_dummy = false;
 					gene_annotation_record.is_protein_coding = false;
 					gene_annotation.push_back(gene_annotation_record);
 					gene = &(*gene_annotation.rbegin());
-					gene_by_id[make_tuple(gene_id, annotation_record.contig, annotation_record.strand)] = gene;
+					gene_by_id[make_tuple(short_gene_id, annotation_record.contig, annotation_record.strand)] = gene;
 				} else { // gene has already been seen previously
 					// expand the boundaries of the gene, so that all exons fit inside
 					if (gene->start > exon_annotation_record.start)

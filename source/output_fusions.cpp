@@ -1030,7 +1030,7 @@ void write_fusions_to_file(fusions_t& fusions, const string& output_file, const 
 		cerr << "ERROR: failed to open output file: " << output_file << endl;
 		exit(1);
 	}
-	out << "#gene1\tgene2\tstrand1(gene/fusion)\tstrand2(gene/fusion)\tbreakpoint1\tbreakpoint2\tsite1\tsite2\ttype\tdirection1\tdirection2\tsplit_reads1\tsplit_reads2\tdiscordant_mates\tcoverage1\tcoverage2\tconfidence\tclosest_genomic_breakpoint1\tclosest_genomic_breakpoint2\tfilters\tfusion_transcript\treading_frame\ttranscript_id1\ttranscript_id2\tpeptide_sequence\tread_identifiers" << endl;
+	out << "#gene1\tgene2\tstrand1(gene/fusion)\tstrand2(gene/fusion)\tbreakpoint1\tbreakpoint2\tsite1\tsite2\ttype\tdirection1\tdirection2\tsplit_reads1\tsplit_reads2\tdiscordant_mates\tcoverage1\tcoverage2\tconfidence\tclosest_genomic_breakpoint1\tclosest_genomic_breakpoint2\tfilters\tfusion_transcript\tgene_id1\tgene_id2\treading_frame\ttranscript_id1\ttranscript_id2\tpeptide_sequence\tread_identifiers" << endl;
 	for (auto fusion = sorted_fusions.begin(); fusion != sorted_fusions.end(); ++fusion) {
 
 		// describe site of breakpoint
@@ -1133,6 +1133,9 @@ void write_fusions_to_file(fusions_t& fusions, const string& output_file, const 
 		} else {
 			out << ".";
 		}
+
+		// print gene IDs
+		out << "\t" << ((gene_5->is_dummy) ? "." : gene_5->gene_id) << "\t" << ((gene_3->is_dummy) ? "." : gene_3->gene_id);
 
 		// print the translated protein sequence
 		out << "\t";

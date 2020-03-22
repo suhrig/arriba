@@ -101,7 +101,8 @@ template <class T> class contig_annotation_index_t: public map< position_t, anno
 template <class T> class annotation_index_t: public vector< contig_annotation_index_t<T> > {};
 
 struct gene_annotation_record_t: public annotation_record_t {
-	unsigned int id;
+	unsigned int id; // ID used internally
+	string gene_id; // ID specified in the GTF file
 	string name;
 	int exonic_length; // sum of the length of all exons in a gene
 	bool is_dummy;
