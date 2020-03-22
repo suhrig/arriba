@@ -23,7 +23,7 @@ struct blacklist_item_t {
 bool parse_blacklist_item(const string& text, blacklist_item_t& blacklist_item, const contigs_t& contigs, const unordered_map<string,gene_t>& genes, const bool allow_keyword);
 
 // check if the breakpoint of a fusion match an entry in the blacklist
-bool matches_blacklist_item(const blacklist_item_t& blacklist_item, const fusion_t& fusion, const char which_breakpoint, const int max_mate_gap, const float evalue_cutoff = 0);
+bool matches_blacklist_item(const blacklist_item_t& blacklist_item, const fusion_t& fusion, const unsigned char which_breakpoint, const int max_mate_gap, const float evalue_cutoff = 0);
 
 // divide the genome into fixed size bins
 typedef vector< tuple<contig_t,position_t> > genome_bins_t;

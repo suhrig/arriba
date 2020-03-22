@@ -59,11 +59,24 @@ unsigned int recover_known_fusions(fusions_t& fusions, const string& known_fusio
 			auto known_fusions = known_fusions_by_coordinate.find(*genome_bin);
 			if (known_fusions != known_fusions_by_coordinate.end()) {
 				for (auto known_fusion = known_fusions->second.begin(); known_fusion != known_fusions->second.end(); ++known_fusion) {
-					if (matches_blacklist_item(known_fusion->first,  fusion->second, 1, max_mate_gap) &&
-					    matches_blacklist_item(known_fusion->second, fusion->second, 2, max_mate_gap) ||
-					    matches_blacklist_item(known_fusion->first,  fusion->second, 2, max_mate_gap) &&
-					    matches_blacklist_item(known_fusion->second, fusion->second, 1, max_mate_gap)) {
 
+					// 5' gene of predicted fusion must match gene in 1st column of known fusions list
+					// 3' gene of predicted fusion must match gene in 2nd column of known fusions list
+					const unsigned char gene_5 = (fusion->second.transcript_start == TRANSCRIPT_START_GENE1) ? 1 : 2;
+					const unsigned char gene_3 = (fusion->second.transcript_start != TRANSCRIPT_START_GENE1) ? 1 : 2;
+					bool match_found = matches_blacklist_item(known_fusion->first,  fusion->second, gene_5, max_mate_gap) &&
+					                   matches_blacklist_item(known_fusion->second, fusion->second, gene_3, max_mate_gap);
+
+					// if the transcript start of the predicted fusion could not be determined reliably,
+					// we also consider it a match when the 5' and 3' genes are swapped,
+					// unless the breakpoints are close to each other
+					if (!match_found &&
+					    fusion->second.transcript_start_ambiguous &&
+					    !(fusion->second.contig1 == fusion->second.contig2 && abs(fusion->second.breakpoint2 - fusion->second.breakpoint1) < 1000000))
+						match_found = matches_blacklist_item(known_fusion->first,  fusion->second, gene_3, max_mate_gap) &&
+						              matches_blacklist_item(known_fusion->second, fusion->second, gene_5, max_mate_gap);
+
+					if (match_found) {
 						if (known_fusion->first.type == BLACKLIST_POSITION && known_fusion->second.type == BLACKLIST_POSITION || // when the whitelist specifies two exact breakpoints, the event is always rescued
 						    fusion->second.supporting_reads() >= 2 || // otherwise, we require at least two reads, or else there will be too many false positives
 						    fusion->second.both_breakpoints_spliced() && // unless the breakpoints are at splice-sites

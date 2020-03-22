@@ -114,7 +114,7 @@ float overlapping_fraction(const position_t start1, const position_t end1, const
 }
 
 // check if the breakpoint of a fusion match an entry in the blacklist
-bool matches_blacklist_item(const blacklist_item_t& blacklist_item, const fusion_t& fusion, const char which_breakpoint, const int max_mate_gap, const float evalue_cutoff) {
+bool matches_blacklist_item(const blacklist_item_t& blacklist_item, const fusion_t& fusion, const unsigned char which_breakpoint, const int max_mate_gap, const float evalue_cutoff) {
 
 	switch (blacklist_item.type) {
 		case BLACKLIST_ANY: // remove the fusion if one breakpoint is within a region that is completely blacklisted

@@ -87,7 +87,7 @@ The file has two columns separated by a tab and may optionally be gzip-compresse
 
 - the name of a gene given in the provided annotation.
 
-It is irrelevant which region is put in the first column and which in the second. For example, if a pair of genes is given, Arriba searches for both genes as the 5' end and the 3' end of a fusion.
+The order of the given regions is important. The region given in the first column is assumed to denote the 5' end of the fusion and the region in the second column to be the 3' end. If Arriba cannot determine with confidence which gene constitutes the 5' and which the 3' end of a fusion prediction, then the order is ignored and the prediction is rescued in both cases.
 
 Structural variant calls from WGS
 ---------------------------------
