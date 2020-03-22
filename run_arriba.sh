@@ -1,7 +1,7 @@
 #!/bin/bash
 
-if [ $# -lt 6 -o $# -gt 7 ]; then
-	echo "Usage: $(basename $0) STAR_genomeDir/ annotation.gtf assembly.fa blacklist.tsv threads read1.fastq.gz [read2.fastq.gz]" 1>&2
+if [ $# -lt 7 -o $# -gt 8 ]; then
+	echo "Usage: $(basename $0) STAR_genomeDir/ annotation.gtf assembly.fa blacklist.tsv known_fusions.tsv threads read1.fastq.gz [read2.fastq.gz]" 1>&2
 	exit 1
 fi
 
@@ -14,9 +14,10 @@ STAR_INDEX_DIR="$1"
 ANNOTATION_GTF="$2"
 ASSEMBLY_FA="$3"
 BLACKLIST_TSV="$4"
-THREADS="$5"
-READ1="$6"
-READ2="$7"
+KNOWN_FUSIONS_TSV="$5"
+THREADS="$6"
+READ1="$7"
+READ2="$8"
 
 # find installation directory of arriba
 BASE_DIR=$(dirname "$0")
@@ -36,10 +37,9 @@ tee Aligned.out.bam |
 "$BASE_DIR/arriba" \
 	-x /dev/stdin \
 	-o fusions.tsv -O fusions.discarded.tsv \
-	-a "$ASSEMBLY_FA" -g "$ANNOTATION_GTF" -b "$BLACKLIST_TSV" \
+	-a "$ASSEMBLY_FA" -g "$ANNOTATION_GTF" -b "$BLACKLIST_TSV" -k "$KNOWN_FUSIONS_TSV" \
 	-T -P \
-#	-d structural_variants_from_WGS.tsv \
-#	-k known_fusions_from_CancerGeneCensus.tsv # see section "Complete Fusion Export" at http://cancer.sanger.ac.uk/cosmic/download
+#	-d structural_variants_from_WGS.tsv
 
 # sorting and indexing is only required for visualization
 if [[ $(samtools --version-only 2> /dev/null) =~ ^1\. ]]; then

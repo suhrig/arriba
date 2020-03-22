@@ -77,8 +77,6 @@ Known fusions
 
 Arriba can be instructed to be particularly sensitive towards events between certain gene pairs by supplying a list of gene pairs (parameter `-k`). A number of filters are not applied to these gene pairs. This is useful to improve the detection rate of expected or highly relevant events, such as recurrent fusions. Occassionally, this leads to false positive calls. But if high sensitivity is more important than specificity, this might be acceptable. Events which would be discarded by a filter and were recovered due to being listed in the known fusions list are usually assigned a low confidence.
 
-A comprehensive list of known fusions can be obtained from [CancerGeneCensus](http://cancer.sanger.ac.uk/cosmic/download) in the section titled "Complete Fusion Export". Depending on the gene annotation that is used to run Arriba, some gene names need to be adjusted.
-
 The file has two columns separated by a tab and may optionally be gzip-compressed. Lines starting with a hash (`#`) are treated as comments. Each line represents a pair of regions to which very sensitive filtering thresholds are applied. A region can be
 
 - a 1-based coordinate in the format `CONTIG:POSITION`, optionally prefixed with the strand (example: `+9:56743754`).
