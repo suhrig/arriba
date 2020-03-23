@@ -963,29 +963,34 @@ string get_fusion_peptide_sequence(const string& transcript_sequence, const vect
 	return peptide_sequence;
 }
 
-string is_in_frame(string& fusion_peptide_sequence) {
+string is_in_frame(const string& fusion_peptide_sequence) {
+
 	if (fusion_peptide_sequence == ".")
 		return ".";
+
 	// declare fusion as out-of-frame, if there is a stop codon before the junction
 	// unless there are in-frame codons between this stop codon and the junction
-	int fusion_junction = fusion_peptide_sequence.rfind('|');
-	int stop_codon_before_junction = fusion_peptide_sequence.rfind('*', fusion_junction);
-	bool in_frame_codons_before_junction = !(stop_codon_before_junction < fusion_junction);
-	for (int amino_acid = stop_codon_before_junction; amino_acid < fusion_junction; ++amino_acid)
+	size_t fusion_junction = fusion_peptide_sequence.rfind('|');
+	size_t stop_codon_before_junction = fusion_peptide_sequence.rfind('*', fusion_junction);
+	bool in_frame_codons_before_junction = false;
+	for (size_t amino_acid = (stop_codon_before_junction < fusion_junction) ? stop_codon_before_junction+1 : 0; amino_acid < fusion_junction; ++amino_acid)
 		if (fusion_peptide_sequence[amino_acid] >= 'A' && fusion_peptide_sequence[amino_acid] <= 'Z') {
 			in_frame_codons_before_junction = true;
 			break;
 		}
 	if (!in_frame_codons_before_junction)
-		return "out-of-frame";
+		if (stop_codon_before_junction < fusion_junction)
+			return "stop-codon";
+		else
+			return "out-of-frame";
+
 	// a fusion is in-frame, if there is at least one amino acid in the 3' end of the fusion
 	// that matches an amino acid of the 3' gene
 	// such amino acids can easily be identified, because they are uppercase in the fusion sequence
-	for (int amino_acid = fusion_peptide_sequence.size() - 1; amino_acid >= 0; --amino_acid)
+	for (size_t amino_acid = fusion_peptide_sequence.size() - 1; amino_acid > fusion_junction; --amino_acid)
 		if (fusion_peptide_sequence[amino_acid] >= 'A' && fusion_peptide_sequence[amino_acid] <= 'Z')
 			return "in-frame";
-		else if (fusion_peptide_sequence[amino_acid] == '|')
-			return "out-of-frame";
+
 	return "out-of-frame";
 }
 

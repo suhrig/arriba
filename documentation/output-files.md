@@ -45,7 +45,7 @@ The file `fusions.tsv` (as specified by the parameter `-o`) contains fusions whi
 : These two columns state the identifiers of the fused genes as given in the `gene_id` attribute in the GTF file.
 
 `reading_frame`
-: This column states whether the gene at the 3' end of the fusion is fused in-frame or out-of-frame. The prediction of the reading frame builds on the prediction of the peptide sequence. A dot (`.`) indicates that the parameter `-P` was omitted (and no attempt was made to predict the reading frame) or that the peptide sequence cannot be predicted.
+: This column states whether the gene at the 3' end of the fusion is fused `in-frame` or `out-of-frame`. The value `stop-codon` indicates that there is a stop codon prior to the fusion junction, such that the 3' end is not translated, even if the reading frame is preserved across the junction. The prediction of the reading frame builds on the prediction of the peptide sequence. A dot (`.`) indicates that the parameter `-P` was omitted (and no attempt was made to predict the reading frame) or that the peptide sequence cannot be predicted.
 
 `transcript_id1` and `transcript_id2`
 : For both fused genes, Arriba determines the best matching isoform that is transcribed as part of the fusion. The isoform is selected by how well its annotated exons match the splice pattern of the supporting reads of a fusion.
