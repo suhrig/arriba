@@ -115,7 +115,7 @@ Example:
 3:190967119	7:77868317	-	-
 ```
 
-In case of the Variant Call Format, the file must comply with the [VCF specification for structural variants](https://samtools.github.io/hts-specs/VCFv4.2.pdf). In particular, Arriba requires that the `SVTYPE` field be present in the `INFO` column and specify one of the four values `BND`, `DEL`, `DUP`, `INV`. In addition, for all `SVTYPE`s other than `BND`, the `END` field must be present and specify the second breakpoint of the structural variant.
+In case of the Variant Call Format, the file must comply with the [VCF specification for structural variants](https://samtools.github.io/hts-specs/VCFv4.2.pdf). In particular, Arriba requires that the `SVTYPE` field be present in the `INFO` column and specify one of the four values `BND`, `DEL`, `DUP`, `INV`. In addition, for all `SVTYPE`s other than `BND`, the `END` field must be present and specify the second breakpoint of the structural variant. Structural variants with single breakends are silently ignored.
 
 Arriba checks if the orientation of the structural variant matches that of a fusion detected in the RNA-Seq data. If, for example, Arriba predicts the 5' end of a gene to be retained in a fusion, then a structural variant is expected to confirm this, or else the variant is not considered to be related.
 

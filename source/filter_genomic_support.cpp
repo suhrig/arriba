@@ -112,7 +112,10 @@ unsigned int mark_genomic_support(fusions_t& fusions, const string& genomic_brea
 					size_t bracket_pos1 = min(opening_bracket, closing_bracket);
 					size_t bracket_pos2 = vcf_alt.find(bracket, bracket_pos1 + 1);
 					if (bracket_pos1 == string::npos || bracket_pos2 == string::npos)
-						goto failed_to_parse_line;
+						if (!vcf_alt.empty() && (vcf_alt[0] == '.' || vcf_alt[vcf_alt.size()-1] == '.')) // is it a single breakend?
+							continue; // silently ignore single breakend
+						else
+							goto failed_to_parse_line;
 					direction1 = (bracket_pos1 == 0) ? UPSTREAM : DOWNSTREAM;
 					direction2 = (bracket == '[') ? UPSTREAM : DOWNSTREAM;
 					breakpoint2 = vcf_alt.substr(bracket_pos1 + 1, bracket_pos2 - bracket_pos1 - 1);
