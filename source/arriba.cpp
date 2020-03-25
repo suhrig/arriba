@@ -281,13 +281,18 @@ int main(int argc, char **argv) {
 	}
 
 	cout << get_time_string() << " Estimating fragment length " << flush;
-	float mate_gap_mean, mate_gap_stddev, read_length_mean;
 	int max_mate_gap;
-	if (estimate_fragment_length(chimeric_alignments, mate_gap_mean, mate_gap_stddev, read_length_mean, gene_annotation_index, exon_annotation_index)) {
-		cout << "(mate gap mean=" << mate_gap_mean << ", mate gap stddev=" << mate_gap_stddev << ", read length mean=" << read_length_mean << ")" << endl;
-		max_mate_gap = max(0, (int) (mate_gap_mean + 3*mate_gap_stddev));
-	} else
-		max_mate_gap = options.fragment_length;
+	float read_length_mean;
+	{
+		float mate_gap_mean, mate_gap_stddev; // these variables are declared in a subsection, because they may be undefined and should not be used elsewhere
+		if (estimate_fragment_length(chimeric_alignments, mate_gap_mean, mate_gap_stddev, read_length_mean, gene_annotation_index, exon_annotation_index)) {
+			cout << "(mate gap mean=" << mate_gap_mean << ", mate gap stddev=" << mate_gap_stddev << ", read length mean=" << read_length_mean << ")" << endl;
+			max_mate_gap = max(0, (int) (mate_gap_mean + 3*mate_gap_stddev));
+		} else {
+			max_mate_gap = options.fragment_length;
+			read_length_mean = options.fragment_length;
+		}
+	}
 	
 	if (options.filters.at("read_through")) {
 		cout << get_time_string() << " Filtering read-through fragments with a distance <=" << options.min_read_through_distance << "bp " << flush;
