@@ -34,8 +34,8 @@ $(STATIC_LIBS)/liblzma.a:
 	$(WGET) 'https://tukaani.org/xz/xz-5.2.4.tar.gz' | tar -xzf - -C $(STATIC_LIBS) && \
 	cd $(STATIC_LIBS)/xz-*/ && ./configure && $(MAKE) && cp -r src/liblzma/.libs/liblzma.a src/liblzma/api/lzma src/liblzma/api/lzma.h ..
 $(STATIC_LIBS)/libhts.a: $(STATIC_LIBS)/libdeflate.a $(STATIC_LIBS)/libz.a $(STATIC_LIBS)/libbz2.a $(STATIC_LIBS)/liblzma.a
-	$(WGET) 'https://github.com/samtools/htslib/archive/1.9.tar.gz' | tar -xzf - -C $(STATIC_LIBS) && \
-	cd $(STATIC_LIBS)/htslib-*/ && $(MAKE) CPPFLAGS="$(CPPFLAGS) -I.. -DHAVE_LIBDEFLATE" libhts.a && cp -r libhts.a htslib ..
+	$(WGET) 'https://github.com/samtools/htslib/archive/1.10.2.tar.gz' | tar -xzf - -C $(STATIC_LIBS) && \
+	cd $(STATIC_LIBS)/htslib-*/ && $(MAKE) config.h && sed -i -e 's/CURL/DEFLATE/' config.h && $(MAKE) NONCONFIGURE_OBJS="" CPPFLAGS="$(CPPFLAGS) -I.." libhts.a && cp -r libhts.a htslib ..
 
 # cleanup routine
 clean:
