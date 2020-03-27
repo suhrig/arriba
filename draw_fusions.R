@@ -19,7 +19,8 @@ parameters <- list(
 	mergeDomainsOverlappingBy=list("mergeDomainsOverlappingBy", "numeric", 0.9),
 	optimizeDomainColors=list("optimizeDomainColors", "bool", F),
 	fontSize=list("fontSize", "numeric", 1),
-	showIntergenicVicinity=list("showVicinity", "numeric", 0)
+	showIntergenicVicinity=list("showVicinity", "numeric", 0),
+	transcriptSelection=list("transcriptSelection", "string", "coverage")
 )
 
 # print help if necessary
@@ -80,6 +81,8 @@ if (!(minConfidenceForCircosPlot %in% c("none", "low", "medium", "high")))
 	stop("Invalid argument to --minConfidenceForCircosPlot")
 if (showVicinity > 0 && squishIntrons)
 	stop("--squishIntrons must be disabled, when --showIntergenicVicinity is > 0")
+if (!(transcriptSelection %in% c("coverage", "provided")))
+	stop("Invalid argument to --transcriptSelection")
 
 # check if required packages are installed
 if (!suppressPackageStartupMessages(require(GenomicRanges)))
@@ -135,6 +138,8 @@ if (colnames(fusions)[1] == "X.gene1") { # Arriba output
 	fusions$breakpoint2 <- as.numeric(sub(".*:(.*):.*", "\\1", fusions$RightBreakpoint, perl=T))
 	fusions$direction1 <- ifelse(grepl(":+", fusions$LeftBreakpoint, fixed=T), "downstream", "upstream")
 	fusions$direction2 <- ifelse(grepl(":+", fusions$RightBreakpoint, fixed=T), "upstream", "downstream")
+	fusions$transcript_id1 <- ifelse(rep(!("CDS_LEFT_ID" %in% colnames(fusions)), nrow(fusions)), ".", fusions$CDS_LEFT_ID)
+	fusions$transcript_id2 <- ifelse(rep(!("CDS_RIGHT_ID" %in% colnames(fusions)), nrow(fusions)), ".", fusions$CDS_RIGHT_ID)
 	fusions$fusion_transcript <- ifelse(rep(!("FUSION_CDS" %in% colnames(fusions)), nrow(fusions)), ".", toupper(sub("([a-z]*)", "\\1|", fusions$FUSION_CDS)))
 	fusions$reading_frame <- ifelse(rep(!("PROT_FUSION_TYPE" %in% colnames(fusions)), nrow(fusions)), ".", ifelse(fusions$PROT_FUSION_TYPE == "INFRAME", "in-frame", ifelse(fusions$PROT_FUSION_TYPE == "FRAMESHIFT", "out-of-frame", ".")))
 	fusions$split_reads <- fusions$JunctionReadCount
@@ -725,7 +730,16 @@ drawProteinDomains <- function(fusion, exons1, exons2, proteinDomains, color1, c
 
 }
 
-findExons <- function(exons, contig, gene, direction, breakpoint, coverage) {
+findExons <- function(exons, contig, gene, direction, breakpoint, coverage, transcriptId, transcriptSelection) {
+	# use the provided transcript if desired
+	if (transcriptSelection == "provided" && transcriptId != "." && transcriptId != "") {
+		candidateExons <- exons[exons$transcript == transcriptId,]
+		if (nrow(candidateExons) == 0) {
+			warning(paste0("Unknown transcript given in fusions file (", transcriptId, "), selecting a different one"))
+		} else {
+			return(candidateExons)
+		}
+	}
 	# look for exon with breakpoint as splice site
 	transcripts <- exons[exons$geneName == gene & exons$contig == contig & exons$type == "exon" & (direction == "downstream" & abs(exons$end - breakpoint) <= 2 | direction == "upstream" & abs(exons$start - breakpoint) <= 2),"transcript"]
 	candidateExons <- exons[exons$transcript %in% transcripts,]
@@ -847,14 +861,14 @@ for (fusion in 1:nrow(fusions)) {
 	}
 
 	# find all exons belonging to the fused genes
-	exons1 <- findExons(exons, fusions[fusion,"contig1"], fusions[fusion,"gene1"], fusions[fusion,"direction1"], fusions[fusion,"breakpoint1"], coverage1)
+	exons1 <- findExons(exons, fusions[fusion,"contig1"], fusions[fusion,"gene1"], fusions[fusion,"direction1"], fusions[fusion,"breakpoint1"], coverage1, fusions[fusion,"transcript_id1"], transcriptSelection)
 	if (nrow(exons1) == 0) {
 		par(mfrow=c(1,1))
 		plot(0, 0, type="l", xaxt="n", yaxt="n", xlab="", ylab="")
 		text(0, 0, paste0("Error: exon coordinates of ", fusions[fusion,"gene1"], " not found in\n", exonsFile))
 		next
 	}
-	exons2 <- findExons(exons, fusions[fusion,"contig2"], fusions[fusion,"gene2"], fusions[fusion,"direction2"], fusions[fusion,"breakpoint2"], coverage2)
+	exons2 <- findExons(exons, fusions[fusion,"contig2"], fusions[fusion,"gene2"], fusions[fusion,"direction2"], fusions[fusion,"breakpoint2"], coverage2, fusions[fusion,"transcript_id2"], transcriptSelection)
 	if (nrow(exons2) == 0) {
 		par(mfrow=c(1,1))
 		plot(0, 0, type="l", xaxt="n", yaxt="n", xlab="", ylab="")
