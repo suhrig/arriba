@@ -22,7 +22,7 @@ The download file contains a script `run_arriba.sh`, which demonstrates the usag
 Run the demo script with 8 threads:
 
 ```bash
-./run_arriba.sh STAR_index_hs37d5_GENCODE19/ GENCODE19.gtf hs37d5.fa database/blacklist_hg19_hs37d5_GRCh37_2018-11-04.tsv.gz database/known_fusions_Mitelman_hg19_hs37d5_GRCh37_v2.0.0.tsv.gz 8 test/read1.fastq.gz test/read2.fastq.gz
+./run_arriba.sh STAR_index_hs37d5_GENCODE19/ GENCODE19.gtf hs37d5.fa database/blacklist_hg19_hs37d5_GRCh37_2018-11-04.tsv.gz database/known_fusions_hg19_hs37d5_GRCh37_v2.0.0.tsv.gz 8 test/read1.fastq.gz test/read2.fastq.gz
 ```
 
 Installation using Docker
