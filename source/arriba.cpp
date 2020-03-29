@@ -36,7 +36,7 @@
 #include "recover_known_fusions.hpp"
 #include "recover_both_spliced.hpp"
 #include "filter_blacklisted_ranges.hpp"
-#include "filter_pcr_fusions.hpp"
+#include "filter_in_vitro.hpp"
 #include "merge_adjacent_fusions.hpp"
 #include "select_best.hpp"
 #include "filter_end_to_end.hpp"
@@ -405,10 +405,10 @@ int main(int argc, char **argv) {
 	// this step must come after the 'merge_adjacent' filter,
 	// or else adjacent breakpoints will be counted several times
 	// it must come before the 'spliced' and 'many_spliced' filters,
-	// which are prone to recovering PCR/RT-mediated fusions
-	if (options.filters.at("pcr_fusions")) {
-		cout << get_time_string() << " Filtering PCR/RT fusions between genes with an expression above the " << (options.high_expression_quantile*100) << "% quantile " << flush;
-		cout << "(remaining=" << filter_pcr_fusions(fusions, chimeric_alignments, options.high_expression_quantile, gene_annotation_index) << ")" << endl;
+	// which are prone to recovering reverse transcriptase-mediated fusions
+	if (options.filters.at("in_vitro")) {
+		cout << get_time_string() << " Filtering in vitro-generated fusions between genes with an expression above the " << (options.high_expression_quantile*100) << "% quantile " << flush;
+		cout << "(remaining=" << filter_in_vitro(fusions, chimeric_alignments, options.high_expression_quantile, gene_annotation_index) << ")" << endl;
 	}
 
 	// this step must come closely after the 'relative_support' and 'min_support' filters

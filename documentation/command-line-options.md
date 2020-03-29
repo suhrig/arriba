@@ -62,7 +62,7 @@ Even when an unstranded library is processed, Arriba can often infer the strand 
 : Comma-/space-separated list of interesting contigs. Fusions between genes on other contigs are ignored. Contigs can be specified with or without the prefix `chr`. Default: `1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 X Y`
 
 `-f FILTERS`
-: Comma-/space-separated list of filters to disable. By default all filters are enabled. Valid values are: `uninteresting_contigs`, `non_coding_neighbors`, `merge_adjacent`, `pcr_fusions`, `spliced`, `select_best`, `hairpin`, `small_insert_size`, `genomic_support`, `read_through`, `mismatches`, `homopolymer`, `long_gap`, `many_spliced`, `isoforms`, `intronic`, `end_to_end`, `known_fusions`, `inconsistently_clipped`, `duplicates`, `blacklist`, `homologs`, `intragenic_exonic`, `relative_support`, `min_support`, `same_gene`, `mismappers`, `no_coverage`, `short_anchor`, `no_genomic_support`, `low_entropy`
+: Comma-/space-separated list of filters to disable. By default all filters are enabled. Valid values are: `uninteresting_contigs`, `non_coding_neighbors`, `merge_adjacent`, `in_vitro`, `spliced`, `select_best`, `hairpin`, `small_insert_size`, `genomic_support`, `read_through`, `mismatches`, `homopolymer`, `long_gap`, `many_spliced`, `isoforms`, `intronic`, `end_to_end`, `known_fusions`, `inconsistently_clipped`, `duplicates`, `blacklist`, `homologs`, `intragenic_exonic`, `relative_support`, `min_support`, `same_gene`, `mismappers`, `no_coverage`, `short_anchor`, `no_genomic_support`, `low_entropy`
 
 `-E MAX_E-VALUE`
 : Arriba estimates the number of fusions with a given number of supporting reads which one would expect to see by random chance. If the expected number of fusions (e-value) is higher than this threshold, the fusion is discarded by the filter `relative_support`. Note: Increasing this threshold can dramatically increase the number of false positives and may increase the runtime of resource-intensive steps. Fractional values are possible. Default: `0.3`
@@ -101,7 +101,7 @@ Even when an unstranded library is processed, Arriba can often infer the strand 
 : Subsample fusions with more than the given number of supporting reads. This improves performance without compromising sensitivity, as long as the threshold is high. Counting of supporting reads beyond the threshold is inaccurate, obviously. Default: `300`
 
 `-Q QUANTILE`
-: Highly expressed genes are prone to produce artifacts during library preparation. Genes with an expression above the given quantile are eligible for filtering by the filter `pcr_fusions`. Default: `0.998`
+: Highly expressed genes are prone to produce artifacts during library preparation. Genes with an expression above the given quantile are eligible for filtering by the filter `in_vitro`. Default: `0.998`
 
 `-T`
 : When set, the column `fusion_transcript` is populated with the sequence of the fused genes as assembled from the supporting reads. Specify the flag twice to also print the fusion transcripts to the file containing discarded fusions (`-O`). Refer to section [fusions.tsv](output-files.md#fusionstsv) for a description of the format of the column. Default: off

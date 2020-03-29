@@ -17,7 +17,7 @@ unsigned int recover_both_spliced(fusions_t& fusions, const unsigned int max_fus
 	for (fusions_t::iterator fusion = fusions.begin(); fusion != fusions.end(); ++fusion)
 		if (fusion->second.filter == FILTER_none ||
 		    (fusion->second.both_breakpoints_spliced() && fusion->second.filter != FILTER_merge_adjacent) ||
-		    (fusion->second.both_breakpoints_spliced() && fusion->second.filter == FILTER_pcr_fusions) || // when there is risk of PCR-mediated fusions, only consider spliced events
+		    (fusion->second.both_breakpoints_spliced() && fusion->second.filter == FILTER_in_vitro) || // when there is risk of in vitro fusions, only consider spliced events
 		    fusion->second.filter == FILTER_intronic ||
 		    fusion->second.filter == FILTER_relative_support ||
 		    fusion->second.filter == FILTER_min_support) {
@@ -44,7 +44,7 @@ unsigned int recover_both_spliced(fusions_t& fusions, const unsigned int max_fus
 			if (fusion->second.filter != FILTER_none &&
 			    fusion->second.filter != FILTER_relative_support &&
 			    fusion->second.filter != FILTER_min_support &&
-			    fusion->second.filter != FILTER_pcr_fusions && fusion->second.discordant_mates <= fusion->second.split_reads1 + fusion->second.split_reads2)
+			    fusion->second.filter != FILTER_in_vitro && fusion->second.discordant_mates <= fusion->second.split_reads1 + fusion->second.split_reads2)
 				continue; // we won't recover fusions which were not discarded due to low support
 
 			if (!fusion->second.both_breakpoints_spliced())
@@ -57,10 +57,10 @@ unsigned int recover_both_spliced(fusions_t& fusions, const unsigned int max_fus
 			auto fusions_of_given_gene_pair = fusions_by_gene_pair.find(make_tuple(fusion->second.gene1, fusion->second.gene2, (direction_t) fusion->second.direction1, (direction_t) fusion->second.direction2));
 			if (fusions_of_given_gene_pair != fusions_by_gene_pair.end())
 				for (auto another_fusion = fusions_of_given_gene_pair->second.begin(); another_fusion != fusions_of_given_gene_pair->second.end(); ++another_fusion)
-					if (fusion->second.filter == FILTER_pcr_fusions) {
+					if (fusion->second.filter == FILTER_in_vitro) {
 						if ((**another_fusion).both_breakpoints_spliced() && (**another_fusion).discordant_mates <= (**another_fusion).split_reads1 + (**another_fusion).split_reads2)
-							sum_of_supporting_reads++; // if there is risk of PCR-mediated fusions, ignore the number of supporting reads and count the event as 1 read
-					} else { // the event is probably not PCR-mediated => actually count the number of supporting reads
+							sum_of_supporting_reads++; // if there is risk of in vitro fusions, ignore the number of supporting reads and count the event as 1 read
+					} else { // the event is probably not in vitro generated => actually count the number of supporting reads
 						sum_of_supporting_reads += max((unsigned int) 1, (**another_fusion).supporting_reads());
 					}
 
@@ -74,10 +74,10 @@ unsigned int recover_both_spliced(fusions_t& fusions, const unsigned int max_fus
 						if ((**another_fusion).both_breakpoints_spliced() ||
 						    (((fusion->second.direction1 == DOWNSTREAM) != /*xor*/ (fusion->second.breakpoint1 > (**another_fusion).breakpoint1)) &&
 						     ((fusion->second.direction2 == DOWNSTREAM) != /*xor*/ (fusion->second.breakpoint2 > (**another_fusion).breakpoint2))))
-							if (fusion->second.filter == FILTER_pcr_fusions) {
+							if (fusion->second.filter == FILTER_in_vitro) {
 								if ((**another_fusion).both_breakpoints_spliced() && (**another_fusion).discordant_mates <= (**another_fusion).split_reads1 + (**another_fusion).split_reads2)
-									sum_of_supporting_reads++; // if there is risk of PCR-mediated fusions, ignore the number of supporting reads and count the event as 1 read
-							} else { // the event is probably not PCR-mediated => actually count the number of supporting reads
+									sum_of_supporting_reads++; // if there is risk of in vitro fusions, ignore the number of supporting reads and count the event as 1 read
+							} else { // the event is probably not in vitro generated => actually count the number of supporting reads
 								sum_of_supporting_reads += max((unsigned int) 1, (**another_fusion).supporting_reads());
 							}
 

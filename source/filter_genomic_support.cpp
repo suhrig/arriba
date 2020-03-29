@@ -418,7 +418,7 @@ unsigned int recover_genomic_support(fusions_t& fusions) {
 		     fusion->second.filter == FILTER_intronic ||
 		     fusion->second.filter == FILTER_mismappers ||
 		     fusion->second.filter == FILTER_no_coverage ||
-		     fusion->second.filter == FILTER_pcr_fusions ||
+		     fusion->second.filter == FILTER_in_vitro ||
 		     fusion->second.filter == FILTER_relative_support)) {
 			fusion->second.filter = FILTER_none;
 			remaining++;

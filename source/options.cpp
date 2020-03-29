@@ -214,7 +214,7 @@ void print_usage() {
 	                  "Default: " + to_string(static_cast<long long unsigned int>(default_options.subsampling_threshold)))
 	     << wrap_help("-Q QUANTILE", "Highly expressed genes are prone to produce artifacts "
 	                  "during library preparation. Genes with an expression above the given quantile "
-	                  "are eligible for filtering by the 'pcr_fusions' filter. "
+	                  "are eligible for filtering by the 'in_vitro' filter. "
 	                  "Default: " + to_string(static_cast<long double>(default_options.high_expression_quantile)))
 	     << wrap_help("-e EXONIC_FRACTION", "The breakpoints of false-positive predictions of "
 	                  "intragenic events are often both in exons. True predictions are more likely "
