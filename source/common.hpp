@@ -167,10 +167,9 @@ const unsigned int SUPPLEMENTARY = 2;
 class mates_t: public vector<alignment_t> {
 	public:
 		bool single_end;
-		bool multimapper;
 		bool duplicate;
 		filter_t filter; // ID of the filter which discarded the reads
-		mates_t(): single_end(false), multimapper(false), duplicate(false), filter(FILTER_none) {};
+		mates_t(): single_end(false), duplicate(false), filter(FILTER_none) {};
 };
 typedef map<string,mates_t> chimeric_alignments_t; // this must be an ordered map, because finding multi-mapping reads requires reads to be grouped by name
 // convenience function to undo appending of the HI tag separated by a comma to distinguish multi-mapping reads

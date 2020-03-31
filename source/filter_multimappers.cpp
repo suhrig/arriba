@@ -1,7 +1,5 @@
-#include <algorithm>
 #include <climits>
-#include <map>
-#include <vector>
+#include <unordered_map>
 #include "common.hpp"
 #include "annotation.hpp"
 #include "assembly.hpp"
@@ -80,35 +78,86 @@ int calculate_alignment_score(const mates_t& mates, const exon_annotation_index_
 	return score;
 }
 
+// deterministically find the fusion with more supporting reads in a pair of fusions
+bool fusion_has_more_support(const fusion_t* fusion, const fusion_t* current_best) {
+	if (fusion == NULL) {
+		return false;
+	} else if (current_best == NULL) {
+		return true;
+	} else if (current_best->supporting_reads() != fusion->supporting_reads()) {
+		return current_best->supporting_reads() < fusion->supporting_reads();
+	} else if (fusion->contig1 != current_best->contig1) { // all following rules are tie-breakers fr deterministic behavior
+		return fusion->contig1 < current_best->contig1;
+	} else if (fusion->contig2 != current_best->contig2) {
+		return fusion->contig2 < current_best->contig2;
+	} else if (fusion->breakpoint1 != current_best->breakpoint1) {
+		return fusion->breakpoint1 < current_best->breakpoint1;
+	} else if (fusion->breakpoint2 != current_best->breakpoint2) {
+		return fusion->breakpoint2 < current_best->breakpoint2;
+	} else if (fusion->direction1 != current_best->direction1) {
+		return fusion->direction1 < current_best->direction1;
+	} else if (fusion->direction2 != current_best->direction2) {
+		return fusion->direction2 < current_best->direction2;
+	} else if (fusion->gene1->id != current_best->gene1->id) {
+		return fusion->gene1->id < current_best->gene1->id;
+	} else {
+		return fusion->gene2->id < current_best->gene2->id;
+	}
+}
+
 // this function performs two tasks on multi-mapping reads:
-// - it selects the alignment with the highest alignment score
 // - when a read is assigned to multiple fusion candidates, is picks the candidate with the most supporting reads 
+// - it selects the alignment with the highest alignment score
 unsigned int filter_multimappers(chimeric_alignments_t& chimeric_alignments, fusions_t& fusions, const exon_annotation_index_t& exon_annotation_index, const assembly_t& assembly) {
 
-	// the alignments are sorted by read number, so related alignments cluster together
+	// for each multi-mapper, find the fusion with the most supporting reads
+	unordered_map<mates_t*,fusion_t*> most_supported_fusion;
+	for (fusions_t::iterator fusion = fusions.begin(); fusion != fusions.end(); ++fusion) {
+		// cycle through split reads 1
+		for (auto chimeric_alignment = fusion->second.split_read1_list.begin(); chimeric_alignment != fusion->second.split_read1_list.end(); ++chimeric_alignment) {
+			fusion_t*& current_best = most_supported_fusion[&(**chimeric_alignment).second];
+			if (fusion_has_more_support(&fusion->second, current_best))
+				current_best = &fusion->second;
+		}
+		// cycle through split reads 2
+		for (auto chimeric_alignment = fusion->second.split_read2_list.begin(); chimeric_alignment != fusion->second.split_read2_list.end(); ++chimeric_alignment) {
+			fusion_t*& current_best = most_supported_fusion[&(**chimeric_alignment).second];
+			if (fusion_has_more_support(&fusion->second, current_best))
+				current_best = &fusion->second;
+		}
+		// cycle through discordant mates
+		for (auto chimeric_alignment = fusion->second.discordant_mate_list.begin(); chimeric_alignment != fusion->second.discordant_mate_list.end(); ++chimeric_alignment) {
+			fusion_t*& current_best = most_supported_fusion[&(**chimeric_alignment).second];
+			if (fusion_has_more_support(&fusion->second, current_best))
+				current_best = &fusion->second;
+		}
+	}
+
+	// for each group of multi-mapping alignments, pick the one with the highest alignment score
 	chimeric_alignments_t::iterator start_of_cluster = chimeric_alignments.begin();
 	string read_name = (!chimeric_alignments.empty()) ? strip_hi_tag_from_read_name(start_of_cluster->first) : "";
 	string next_read_name = read_name;
 	string cluster_name = read_name;
-	vector<int> alignment_scores;
+	mates_t* best_alignment = NULL;
 	int best_alignment_score = INT_MIN;
 	for (chimeric_alignments_t::iterator chimeric_alignment = chimeric_alignments.begin(); ; ++chimeric_alignment) {
 
+		// the alignments are sorted by read number, so related alignments cluster together
 		// check if we are still in the same cluster of multi-mapping reads
 		read_name = next_read_name;
 		if (cluster_name != read_name) {
-			// this is the next cluster => go back over last cluster and discard all alignments with low score
-			chimeric_alignments_t::iterator chimeric_alignment2 = start_of_cluster;
-			for (auto alignment_score2 = alignment_scores.begin(); alignment_score2 != alignment_scores.end(); ++alignment_score2, ++chimeric_alignment2)
-				if (*alignment_score2 < best_alignment_score)
-					if (chimeric_alignment->second.filter == FILTER_none)
-						chimeric_alignment2->second.filter = FILTER_multimappers;
+			// this is the next cluster => go back over last cluster and discard all but the best multi-mapper
+			if (best_alignment != NULL)
+				for (chimeric_alignments_t::iterator chimeric_alignment2 = start_of_cluster; chimeric_alignment2 != chimeric_alignment; ++chimeric_alignment2)
+					if (&chimeric_alignment2->second != best_alignment)
+						if (chimeric_alignment2->second.filter == FILTER_none)
+							chimeric_alignment2->second.filter = FILTER_multimappers;
 
 			// initialize variables for new cluster
 			cluster_name = read_name;
 			start_of_cluster = chimeric_alignment;
+			best_alignment = NULL;
 			best_alignment_score = INT_MIN;
-			alignment_scores.clear();
 		}
 
 		// abort once all alignments have been processed
@@ -121,41 +170,15 @@ unsigned int filter_multimappers(chimeric_alignments_t& chimeric_alignments, fus
 		if (start_of_cluster == chimeric_alignment && next_read_name != read_name)
 			continue;
 
-		// mark read as multi-mapping, we will need this information later
-		chimeric_alignment->second.multimapper = true;
-
 		// calculate alignment score and remember the best one
 		int alignment_score = calculate_alignment_score(chimeric_alignment->second, exon_annotation_index, assembly);
-		alignment_scores.push_back(alignment_score);
-		if (best_alignment_score < alignment_score)
+		if (best_alignment_score < alignment_score) {
+			best_alignment = &chimeric_alignment->second;
 			best_alignment_score = alignment_score;
-	}
-
-	// sometimes a multi-mapping read is assigned multiple times to the same fusion
-	// this inflates the number of supporting reads
-	// => scan for duplicates and discard all but one
-	for (fusions_t::iterator fusion = fusions.begin(); fusion != fusions.end(); ++fusion) {
-		// scan split_read1_list
-		for (auto chimeric_alignment = fusion->second.split_read1_list.begin(); chimeric_alignment != fusion->second.split_read1_list.end(); ++chimeric_alignment)
-			if ((**chimeric_alignment).second.multimapper && (**chimeric_alignment).second.filter == FILTER_none)
-				for (auto chimeric_alignment2 = next(chimeric_alignment); chimeric_alignment2 != fusion->second.split_read1_list.end(); ++chimeric_alignment2)
-					if ((**chimeric_alignment2).second.multimapper && (**chimeric_alignment2).second.filter == FILTER_none)
-						if (strip_hi_tag_from_read_name((**chimeric_alignment).first) == strip_hi_tag_from_read_name((**chimeric_alignment2).first))
-							(**chimeric_alignment2).second.filter = FILTER_multimappers;
-		// scan split_read2_list
-		for (auto chimeric_alignment = fusion->second.split_read2_list.begin(); chimeric_alignment != fusion->second.split_read2_list.end(); ++chimeric_alignment)
-			if ((**chimeric_alignment).second.multimapper && (**chimeric_alignment).second.filter == FILTER_none)
-				for (auto chimeric_alignment2 = next(chimeric_alignment); chimeric_alignment2 != fusion->second.split_read2_list.end(); ++chimeric_alignment2)
-					if ((**chimeric_alignment2).second.multimapper && (**chimeric_alignment2).second.filter == FILTER_none)
-						if (strip_hi_tag_from_read_name((**chimeric_alignment).first) == strip_hi_tag_from_read_name((**chimeric_alignment2).first))
-							(**chimeric_alignment2).second.filter = FILTER_multimappers;
-		// scan discordant_mate_list
-		for (auto chimeric_alignment = fusion->second.discordant_mate_list.begin(); chimeric_alignment != fusion->second.discordant_mate_list.end(); ++chimeric_alignment)
-			if ((**chimeric_alignment).second.multimapper && (**chimeric_alignment).second.filter == FILTER_none)
-				for (auto chimeric_alignment2 = next(chimeric_alignment); chimeric_alignment2 != fusion->second.discordant_mate_list.end(); ++chimeric_alignment2)
-					if ((**chimeric_alignment2).second.multimapper && (**chimeric_alignment2).second.filter == FILTER_none)
-						if (strip_hi_tag_from_read_name((**chimeric_alignment).first) == strip_hi_tag_from_read_name((**chimeric_alignment2).first))
-							(**chimeric_alignment2).second.filter = FILTER_multimappers;
+		} else if (best_alignment_score == alignment_score) { // when scores tie, pick the alignment that is associated with the fusion with more supporting reads
+			if (fusion_has_more_support(most_supported_fusion[&chimeric_alignment->second], most_supported_fusion[best_alignment]))
+				best_alignment = &chimeric_alignment->second;
+		}
 	}
 
 	// reduce the number of supporting reads if a read was discarded as a multi-mapper
@@ -183,38 +206,6 @@ unsigned int filter_multimappers(chimeric_alignments_t& chimeric_alignments, fus
 		if (fusion->second.supporting_reads() == 0) // it was >0 before discarding multimapping reads
 			fusion->second.filter = FILTER_multimappers; // now supporting_reads()==0 => the 'multimappers' filter discarded all supporting reads
 
-	}
-
-	// for each multi-mapping read, find all the fusion candidates that it is associated with
-	map< string,vector<fusion_t*> > multimappers;
-	for (fusions_t::iterator fusion = fusions.begin(); fusion != fusions.end(); ++fusion) {
-		// scan split_read1_list
-		for (auto chimeric_alignment = fusion->second.split_read1_list.begin(); chimeric_alignment != fusion->second.split_read1_list.end(); ++chimeric_alignment)
-			if ((**chimeric_alignment).second.multimapper)
-				multimappers[strip_hi_tag_from_read_name((**chimeric_alignment).first)].push_back(&(fusion->second));
-		// scan split_read2_list
-		for (auto chimeric_alignment = fusion->second.split_read2_list.begin(); chimeric_alignment != fusion->second.split_read2_list.end(); ++chimeric_alignment)
-			if ((**chimeric_alignment).second.multimapper)
-				multimappers[strip_hi_tag_from_read_name((**chimeric_alignment).first)].push_back(&(fusion->second));
-		// scan discordant_mate_list
-		for (auto chimeric_alignment = fusion->second.discordant_mate_list.begin(); chimeric_alignment != fusion->second.discordant_mate_list.end(); ++chimeric_alignment)
-			if ((**chimeric_alignment).second.multimapper)
-				multimappers[strip_hi_tag_from_read_name((**chimeric_alignment).first)].push_back(&(fusion->second));
-	}
-
-	// if a multi-mapping read is associated with multiple fusions, pick the one with the highest number of supporting reads
-	for (auto multimapper = multimappers.begin(); multimapper != multimappers.end(); ++multimapper) {
-
-		// find fusion with most supporting reads
-		unsigned int most_supporting_reads = 0;
-		for (auto fusion = multimapper->second.begin(); fusion != multimapper->second.end(); ++fusion)
-			if (most_supporting_reads < (**fusion).supporting_reads())
-				most_supporting_reads = (**fusion).supporting_reads();
-
-		// discard all fusions with less then the one with the most supporting reads
-		for (auto fusion = multimapper->second.begin(); fusion != multimapper->second.end(); ++fusion)
-			if ((**fusion).supporting_reads() < most_supporting_reads)
-				(**fusion).filter = FILTER_mismappers;
 	}
 
 	// count remaining fusions
