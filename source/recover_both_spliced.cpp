@@ -44,8 +44,11 @@ unsigned int recover_both_spliced(fusions_t& fusions, const unsigned int max_fus
 			if (fusion->second.filter != FILTER_none &&
 			    fusion->second.filter != FILTER_relative_support &&
 			    fusion->second.filter != FILTER_min_support &&
-			    fusion->second.filter != FILTER_in_vitro && fusion->second.discordant_mates <= fusion->second.split_reads1 + fusion->second.split_reads2)
+			    fusion->second.filter != FILTER_in_vitro)
 				continue; // we won't recover fusions which were not discarded due to low support
+
+			if (fusion->second.filter == FILTER_in_vitro && fusion->second.discordant_mates > fusion->second.split_reads1 + fusion->second.split_reads2)
+				continue; // otherwise the risk of recovering in vitro-generated fusions is too high
 
 			if (!fusion->second.both_breakpoints_spliced())
 				continue; // only recover fusions with two spliced breakpoints
