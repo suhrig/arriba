@@ -151,7 +151,7 @@ coverage_t::coverage_t(const contigs_t& contigs, const assembly_t& assembly) {
 }
 
 // add alignment to coverage
-void coverage_t::add_fragment(bam1_t* mate1, bam1_t* mate2, const bool is_read_through_alignment) {
+void coverage_t::add_fragment(bam1_t* mate1, bam1_t* mate2, bool is_chimeric) {
 
 	// fake paired-end data, if single-end data given, to avoid NULL pointer exceptions
 	if (mate2 == NULL)
@@ -161,7 +161,6 @@ void coverage_t::add_fragment(bam1_t* mate1, bam1_t* mate2, const bool is_read_t
 	    (unsigned int) mate2->core.tid >= fragment_starts.size() || fragment_starts[mate2->core.tid].empty())
 		return; // ignore reads on uninteresting contigs
 
-	bool is_chimeric = is_read_through_alignment;
 	if (mate1->core.flag & BAM_FPAIRED) { // paired-end data
 		if (!(mate1->core.flag & BAM_FPROPER_PAIR) || // discordant mates
 	            !(mate1->core.flag & BAM_FREVERSE) && bam_cigar_type(bam_cigar_op(bam_get_cigar(mate1)[0])) == BAM_CSOFT_CLIP || // clipped at start => likely split-read

@@ -21,7 +21,7 @@ class coverage_t {
 		vector< vector<unsigned short int> > coverage; // for each window, store the coverage
 	public:
 		coverage_t(const contigs_t& contigs, const assembly_t& assembly);
-		void add_fragment(bam1_t* mate1, bam1_t* mate2, const bool is_read_through_alignment);
+		void add_fragment(bam1_t* mate1, bam1_t* mate2, bool is_chimeric);
 		bool fragment_starts_here(const contig_t contig, const position_t start, const position_t end) const;
 		bool fragment_ends_here(const contig_t contig, const position_t start, const position_t end) const;
 		int get_coverage(const contig_t contig, const position_t position, const direction_t direction) const;
