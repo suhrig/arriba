@@ -1188,7 +1188,7 @@ for (fusion in 1:nrow(fusions)) {
 	scaleLabel <- paste(realScaleOptimalFit/max(1,1000^realScaleThousands), scaleUnits[realScaleThousands+1])
 	text(mapScaleOptimalFit/2, yScale+0.005, scaleLabel, adj=c(0.5,0), cex=fontSize*0.9)
 	if (squishIntrons)
-		text(mapScaleOptimalFit, yScale, expression(italic("  introns not to scale")), adj=c(0,0.5), cex=fontSize*0.9)
+		text(mapScaleOptimalFit, yScale, "  introns not to scale", adj=c(0,0.5), cex=fontSize*0.9, font=3)
 
 	# draw circos plot
 	if (is.null(cytobands) || !("circlize" %in% names(sessionInfo()$otherPkgs)) || !("GenomicRanges" %in% names(sessionInfo()$otherPkgs))) {
