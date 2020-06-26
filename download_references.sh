@@ -101,7 +101,7 @@ if [[ $ANNOTATION =~ RefSeq ]]; then
 else
 	cat
 fi |
-if ! grep -q -P '^>chr' "$ASSEMBLY.fa"; then
+if ! grep -q '^>chr' "$ASSEMBLY.fa"; then
 	sed -e 's/^chrM\t/MT\t/' -e 's/^chr//'
 else
 	sed -e 's/^MT\t/chrM\t/' -e 's/^\([1-9XY]\|[12][0-9]\)\t/\1\t/'
