@@ -37,14 +37,13 @@ bool find_spanning_intron(const bam1_t* bam_record, const position_t gene1_end, 
 	return false;
 }
 
-void add_chimeric_alignment(chimeric_alignments_t& chimeric_alignments, const string& read_name, const bam1_t* bam_record, unsigned int cigar_op = 0, const position_t read_pos = 0, const bool clip_start = false, const bool clip_end = false, const bool is_supplementary = false) {
+void add_chimeric_alignment(mates_t& mates, const bam1_t* bam_record, unsigned int cigar_op = 0, const position_t read_pos = 0, const bool clip_start = false, const bool clip_end = false, const bool is_supplementary = false) {
 
 	// convert bam1_t structure into our own structure and discard information we don't need
-	mates_t* mates = &chimeric_alignments[read_name];
-	mates->single_end = !(bam_record->core.flag & BAM_FPAIRED);
-	mates->duplicate = mates->duplicate || (bam_record->core.flag & BAM_FDUP);
-	mates->resize(mates->size()+1);
-	alignment_t& alignment = (*mates)[mates->size()-1];
+	mates.single_end = !(bam_record->core.flag & BAM_FPAIRED);
+	mates.duplicate = mates.duplicate || (bam_record->core.flag & BAM_FDUP);
+	mates.resize(mates.size()+1);
+	alignment_t& alignment = mates[mates.size()-1];
 	alignment.strand = (bam_record->core.flag & BAM_FREVERSE) ? REVERSE : FORWARD;
 	alignment.first_in_pair = bam_record->core.flag & BAM_FREAD1;
 	alignment.contig = bam_record->core.tid;
@@ -132,17 +131,19 @@ bool extract_read_through_alignment(chimeric_alignments_t& chimeric_alignments, 
 		if (forward_mate_has_intron &&
 		    (!reverse_mate_has_intron || forward_read_pos < reverse_mate->core.l_qseq - reverse_read_pos)) { // if both mates are clipped, use the one with the longer segment as anchor
 
-			// only add the read-through alignment, if it is not also a chimeric alignment
-			if (!separate_chimeric_bam_file || chimeric_alignments.find(read_name) == chimeric_alignments.end()) {
+			// store read-through alignments, unless they are already stored as chimeric alignments
+			pair<chimeric_alignments_t::iterator,bool> mates = chimeric_alignments.insert(pair<string,mates_t>(read_name, mates_t()));
+			if (mates.second) { // insertion succeeded => the alignments have not been stored previously
+
 				// make split read and supplementary from forward mate
-				add_chimeric_alignment(chimeric_alignments, read_name, forward_mate, forward_cigar_op, forward_read_pos, true/*clip start*/, false, false/*split-read*/);
-				add_chimeric_alignment(chimeric_alignments, read_name, forward_mate, forward_cigar_op, forward_read_pos, false, true/*clip end*/, true/*supplementary*/);
+				add_chimeric_alignment(mates.first->second, forward_mate, forward_cigar_op, forward_read_pos, true/*clip start*/, false, false/*split-read*/);
+				add_chimeric_alignment(mates.first->second, forward_mate, forward_cigar_op, forward_read_pos, false, true/*clip end*/, true/*supplementary*/);
 
 				if (reverse_mate != NULL) { // paired-end
 					if (reverse_mate_has_intron) // reverse mate overlaps with breakpoint => clip it
-						add_chimeric_alignment(chimeric_alignments, read_name, reverse_mate, reverse_cigar_op, reverse_read_pos, true, false, false);
+						add_chimeric_alignment(mates.first->second, reverse_mate, reverse_cigar_op, reverse_read_pos, true, false, false);
 					else // reverse mate overlaps with forward mate, but not with breakpoint => add it as is
-						add_chimeric_alignment(chimeric_alignments, read_name, reverse_mate);
+						add_chimeric_alignment(mates.first->second, reverse_mate);
 				}
 
 				return true;
@@ -150,17 +151,19 @@ bool extract_read_through_alignment(chimeric_alignments_t& chimeric_alignments, 
 
 		} else if (reverse_mate_has_intron) {
 
-			// only add the read-through alignment, if it is not also a chimeric alignment
-			if (!separate_chimeric_bam_file || chimeric_alignments.find(read_name) == chimeric_alignments.end()) {
+			// add read-through alignments, unless they are already stored as chimeric alignments
+			pair<chimeric_alignments_t::iterator,bool> mates = chimeric_alignments.insert(pair<string,mates_t>(read_name, mates_t()));
+			if (mates.second) { // insertion succeeded => the alignments have not been stored previously
+
 				// make split read and supplementary from reverse mate
-				add_chimeric_alignment(chimeric_alignments, read_name, reverse_mate, reverse_cigar_op, reverse_read_pos, true/*clip start*/, false, true/*supplementary*/);
-				add_chimeric_alignment(chimeric_alignments, read_name, reverse_mate, reverse_cigar_op, reverse_read_pos, false, true/*clip end*/, false/*split-read*/);
+				add_chimeric_alignment(mates.first->second, reverse_mate, reverse_cigar_op, reverse_read_pos, true/*clip start*/, false, true/*supplementary*/);
+				add_chimeric_alignment(mates.first->second, reverse_mate, reverse_cigar_op, reverse_read_pos, false, true/*clip end*/, false/*split-read*/);
 
 				if (forward_mate != NULL) { // paired-end
 					if (forward_mate_has_intron) // forward mate overlaps with breakpoints => clip it at the end
-						add_chimeric_alignment(chimeric_alignments, read_name, forward_mate, forward_cigar_op, forward_read_pos, false, true, false);
+						add_chimeric_alignment(mates.first->second, forward_mate, forward_cigar_op, forward_read_pos, false, true, false);
 					else // forward mate overlaps with reverse mate, but not with breakpoint => add it as is
-						add_chimeric_alignment(chimeric_alignments, read_name, forward_mate);
+						add_chimeric_alignment(mates.first->second, forward_mate);
 				}
 
 				return true;
@@ -171,13 +174,13 @@ bool extract_read_through_alignment(chimeric_alignments_t& chimeric_alignments, 
 		           reverse_mate->core.pos   >= reverse_gene_start &&
 		           bam_endpos(forward_mate) <= forward_gene_end) {
 
-			// only add the read-through alignment, if it is not also a chimeric alignment
-			if (!separate_chimeric_bam_file || chimeric_alignments.find(read_name) == chimeric_alignments.end()) {
-				// add discordant mates to chimeric alignments file
-				add_chimeric_alignment(chimeric_alignments, read_name, forward_mate);
-				add_chimeric_alignment(chimeric_alignments, read_name, reverse_mate);
-				return true;
+			// add read-through alignments, unless they are already stored as chimeric alignments
+			pair<chimeric_alignments_t::iterator,bool> mates = chimeric_alignments.insert(pair<string,mates_t>(read_name, mates_t()));
+			if (mates.second) { // insertion succeeded => the alignments have not been stored previously
+				add_chimeric_alignment(mates.first->second, forward_mate);
+				add_chimeric_alignment(mates.first->second, reverse_mate);
 			}
+			return true;
 
 		} // else possibility (3)
 	}
@@ -349,14 +352,14 @@ unsigned int read_chimeric_alignments(const string& bam_file_path, const string&
 		bam_record->core.tid = tid_to_contig[bam_record->core.tid];
 
 		if (separate_chimeric_bam_file && !is_rna_bam_file && (bam_record->core.flag & BAM_FSECONDARY)) { // extract supplementary reads from Chimeric.out.sam
-			add_chimeric_alignment(chimeric_alignments, read_name, bam_record, 0, 0, false, false, true/*supplementary*/);
+			add_chimeric_alignment(chimeric_alignments[read_name], bam_record, 0, 0, false, false, true/*supplementary*/);
 			no_chimeric_reads = false;
 			continue; // supplementary alignments are added directly; all other reads need to be buffered until we have found the mate (see below)
 		}
 
 		if (is_rna_bam_file && (bam_record->core.flag & BAM_FSUPPLEMENTARY)) { // extract supplementary reads from Aligned.out.bam
 			if (!separate_chimeric_bam_file) { // don't load supplementary reads twice (from Chimeric.out.sam and from Aligned.out.bam)
-				add_chimeric_alignment(chimeric_alignments, read_name, bam_record, 0, 0, false, false, true/*supplementary*/);
+				add_chimeric_alignment(chimeric_alignments[read_name], bam_record, 0, 0, false, false, true/*supplementary*/);
 				no_chimeric_reads = false;
 			}
 			continue;
@@ -393,9 +396,10 @@ unsigned int read_chimeric_alignments(const string& bam_file_path, const string&
 
 			if (separate_chimeric_bam_file && !is_rna_bam_file) { // this is Chimeric.out.sam => load everything
 
-				add_chimeric_alignment(chimeric_alignments, read_name, bam_record);
+				mates_t& mates = chimeric_alignments[read_name];
+				add_chimeric_alignment(mates, bam_record);
 				if (previously_seen_mate != NULL)
-					add_chimeric_alignment(chimeric_alignments, read_name, previously_seen_mate);
+					add_chimeric_alignment(mates, previously_seen_mate);
 				no_chimeric_reads = false;
 
 			} else { // this is Aligned.out.bam => load only discordant mates and split reads, and only when there is no Chimeric.out.sam
@@ -405,12 +409,13 @@ unsigned int read_chimeric_alignments(const string& bam_file_path, const string&
 				if ((bam_record->core.flag & BAM_FPAIRED) && !(bam_record->core.flag & BAM_FPROPER_PAIR) || // discordant mates
 				    bam_aux_get(bam_record, "SA") != NULL || previously_seen_mate != NULL && bam_aux_get(previously_seen_mate, "SA") != NULL) { // split-read
 					if (!separate_chimeric_bam_file) {
-						add_chimeric_alignment(chimeric_alignments, read_name, bam_record);
+						mates_t& mates = chimeric_alignments[read_name];
+						add_chimeric_alignment(mates, bam_record);
 						if (previously_seen_mate != NULL)
-							add_chimeric_alignment(chimeric_alignments, read_name, previously_seen_mate);
+							add_chimeric_alignment(mates, previously_seen_mate);
 						no_chimeric_reads = false;
 					}
-				} else { // only add read-through alignment, if it is not already a chimeric alignment
+				} else {
 					is_read_through_alignment = extract_read_through_alignment(chimeric_alignments, read_name, bam_record, previously_seen_mate, gene_annotation_index, separate_chimeric_bam_file);
 				}
 
