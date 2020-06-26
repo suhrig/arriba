@@ -1013,28 +1013,6 @@ for (fusion in 1:nrow(fusions)) {
 		drawIdeogram("right", gene2Offset, gene2Offset+max(exons2$right), yIdeograms, cytobands, fusions[fusion,"contig2"], fusions[fusion,"breakpoint2"])
 	}
 
-	# draw gene & transcript names
-	text(max(exons1$right)/2, yGeneNames, fusions[fusion,"gene1"], font=2, cex=fontSize, adj=c(0.5,0))
-	if (fusions[fusion,"site1"] != "intergenic")
-		text(max(exons1$right)/2, yGeneNames-0.01, head(exons1$transcript,1), cex=0.9*fontSize, adj=c(0.5,1))
-	text(gene2Offset+max(exons2$right)/2, yGeneNames, fusions[fusion,"gene2"], font=2, cex=fontSize, adj=c(0.5,0))
-	if (fusions[fusion,"site2"] != "intergenic")
-		text(gene2Offset+max(exons2$right)/2, yGeneNames-0.01, head(exons2$transcript,1), cex=0.9*fontSize, adj=c(0.5,1))
-
-	# if multiple genes in the vicinity are shown, label them
-	if (fusions[fusion,"site1"] == "intergenic")
-		for (gene in unique(exons1$geneName)) {
-			exonsOfGene <- exons1[exons1$geneName == gene & exons1$type != "dummy",]
-			if (any(exonsOfGene$type == "exon"))
-				text(mean(c(min(exonsOfGene$left), max(exonsOfGene$right))), yExons-0.04, gene, cex=0.9*fontSize, adj=c(0.5,1))
-		}
-	if (fusions[fusion,"site2"] == "intergenic")
-		for (gene in unique(exons2$geneName)) {
-			exonsOfGene <- exons2[exons2$geneName == gene & exons2$type != "dummy",]
-			if (any(exonsOfGene$type == "exon"))
-				text(gene2Offset+mean(c(min(exonsOfGene$left), max(exonsOfGene$right))), yExons-0.04, gene, cex=0.9*fontSize, adj=c(0.5,1))
-		}
-
 	# label breakpoints
 	text(breakpoint1+0.01, yBreakpointLabels-0.03, paste0("breakpoint\n", fusions[fusion,"contig1"], ":", fusions[fusion,"breakpoint1"]), adj=c(1,0), cex=fontSize)
 	text(gene2Offset+breakpoint2-0.01, yBreakpointLabels-0.03, paste0("breakpoint\n", fusions[fusion,"contig2"], ":", fusions[fusion,"breakpoint2"]), adj=c(0,0), cex=fontSize)
@@ -1168,6 +1146,28 @@ for (fusion in 1:nrow(fusions)) {
 		text(fusionOffset2, yTranscript, non_template_bases1, adj=c(1,0.5), cex=fontSize)
 		text(fusionOffset2, yTranscript, non_template_bases2, adj=c(0,0.5), cex=fontSize)
 	}
+
+	# draw gene & transcript names
+	text(max(exons1$right)/2, yGeneNames, fusions[fusion,"gene1"], font=2, cex=fontSize, adj=c(0.5,0))
+	if (fusions[fusion,"site1"] != "intergenic")
+		text(max(exons1$right)/2, yGeneNames-0.01, head(exons1$transcript,1), cex=0.9*fontSize, adj=c(0.5,1))
+	text(gene2Offset+max(exons2$right)/2, yGeneNames, fusions[fusion,"gene2"], font=2, cex=fontSize, adj=c(0.5,0))
+	if (fusions[fusion,"site2"] != "intergenic")
+		text(gene2Offset+max(exons2$right)/2, yGeneNames-0.01, head(exons2$transcript,1), cex=0.9*fontSize, adj=c(0.5,1))
+
+	# if multiple genes in the vicinity are shown, label them
+	if (fusions[fusion,"site1"] == "intergenic")
+		for (gene in unique(exons1$geneName)) {
+			exonsOfGene <- exons1[exons1$geneName == gene & exons1$type != "dummy",]
+			if (any(exonsOfGene$type == "exon"))
+				text(mean(c(min(exonsOfGene$left), max(exonsOfGene$right))), yExons-0.04, gene, cex=0.9*fontSize, adj=c(0.5,1))
+		}
+	if (fusions[fusion,"site2"] == "intergenic")
+		for (gene in unique(exons2$geneName)) {
+			exonsOfGene <- exons2[exons2$geneName == gene & exons2$type != "dummy",]
+			if (any(exonsOfGene$type == "exon"))
+				text(gene2Offset+mean(c(min(exonsOfGene$left), max(exonsOfGene$right))), yExons-0.04, gene, cex=0.9*fontSize, adj=c(0.5,1))
+		}
 
 	# draw scale
 	realScale <- max(exons1$end - exons1$start, exons2$end - exons2$start)
