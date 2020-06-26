@@ -11,5 +11,7 @@ unsigned int read_chimeric_alignments(const string& bam_file_path, const string&
 
 void assign_strands_from_strandedness(chimeric_alignments_t& chimeric_alignments, const strandedness_t strandedness);
 
+unsigned int mark_multimappers(chimeric_alignments_t& chimeric_alignments);
+
 #endif /* _READ_CHIMERIC_ALIGNMENTS_H */
 

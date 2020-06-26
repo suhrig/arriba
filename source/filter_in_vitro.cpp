@@ -44,34 +44,10 @@ struct sort_genes_by_reads_t {
 	}
 };
 
-unsigned int filter_in_vitro(fusions_t& fusions, const chimeric_alignments_t& chimeric_alignments, const float high_expression_quantile, const gene_annotation_index_t& gene_annotation_index) {
-
-	// older version of STAR occasionally clipped discordant mates for no good reason,
-	// which appeared as though the mate overlaps a breakpoint
-	// => onnly consider discordant mates with this many clipped bases (or more) to overlap the breakpoint
-	const unsigned int min_clipped_length = 3;
-	// genes fused during reverse transcription (RT)
-	// often have multiple breakpoints within exons (rather than at splice-sites)
-	// => we consider the following to be many exonic breakpoints
-	const unsigned int max_exonic_breakpoints_by_gene_pair = 8;
-
-	// count the number of breakpoints within exons for each gene pair
-	unordered_map< tuple<gene_t/*gene1*/,gene_t/*gene2*/>, unsigned int > exonic_breakpoints_by_gene_pair;
-	for (fusions_t::iterator fusion = fusions.begin(); fusion != fusions.end(); ++fusion) {
-		if (fusion->second.gene1 != fusion->second.gene2 && // it is perfectly normal to have many breakpoints within the same gene (hairpin fusions)
-		    !fusion->second.spliced1 && !fusion->second.spliced2 && // breakpoints at splice sites are almost exclusively a result of splicing and thus, no RT-mediated fusions
-		    fusion->second.exonic1 && fusion->second.exonic2 && // RT fusions only contain spliced transcripts, so we ignore intronic/intergenic breakpoints
-		    fusion->second.split_read1_list.size() + fusion->second.split_read2_list.size() > 0 && // require a split read for exact location of the breakpoint
-		    fusion->second.filter != FILTER_merge_adjacent && // slightly varying alignments may lead to adjacent breakpoints, we should not count them as separate breakpoints
-		    fusion->second.filter != FILTER_uninteresting_contigs) { // skip uninteresting contigs to save some runtime/memory
-			exonic_breakpoints_by_gene_pair[make_tuple(fusion->second.gene1, fusion->second.gene2)]++;
-			exonic_breakpoints_by_gene_pair[make_tuple(fusion->second.gene2, fusion->second.gene1)]++;
-		}
-	}
+void find_top_expressed_genes(const chimeric_alignments_t& chimeric_alignments, const float high_expression_quantile, unordered_map<gene_t,unsigned int>& read_count_by_gene, unsigned int& high_expression_threshold) {
 
 	// RT fusions are mostly observed between highly expressed genes
 	// we use the number of chimeric reads as a proxy to measure expression
-	unordered_map<gene_t,unsigned int> read_count_by_gene;
 	for (chimeric_alignments_t::const_iterator chimeric_alignment = chimeric_alignments.begin(); chimeric_alignment != chimeric_alignments.end(); ++chimeric_alignment) {
 		for (gene_set_t::const_iterator gene = chimeric_alignment->second[MATE1].genes.begin(); gene != chimeric_alignment->second[MATE1].genes.end(); ++gene)
 			read_count_by_gene[*gene]++;
@@ -81,7 +57,7 @@ unsigned int filter_in_vitro(fusions_t& fusions, const chimeric_alignments_t& ch
 	}
 
 	// (partially) sort genes by reads using nth_element() to calculate quantiles
-	unsigned int high_expression_threshold = 0;
+	high_expression_threshold = 0;
 	if (read_count_by_gene.size() > 0) {
 
 		// put genes in vector for sorting
@@ -103,6 +79,37 @@ unsigned int filter_in_vitro(fusions_t& fusions, const chimeric_alignments_t& ch
 		// extract quantile
 		high_expression_threshold = read_count_by_gene[genes_sorted_by_reads[quantile]];
 	}
+}
+
+unsigned int filter_in_vitro(fusions_t& fusions, const chimeric_alignments_t& chimeric_alignments, const float high_expression_quantile, const gene_annotation_index_t& gene_annotation_index) {
+
+	// older version of STAR occasionally clipped discordant mates for no good reason,
+	// which appeared as though the mate overlaps a breakpoint
+	// => only consider discordant mates with this many clipped bases (or more) to overlap the breakpoint
+	const unsigned int min_clipped_length = 3;
+	// genes fused during reverse transcription (RT)
+	// often have multiple breakpoints within exons (rather than at splice-sites)
+	// => we consider the following to be many exonic breakpoints
+	const unsigned int max_exonic_breakpoints_by_gene_pair = 8;
+
+	// count the number of breakpoints within exons for each gene pair
+	unordered_map< tuple<gene_t/*gene1*/,gene_t/*gene2*/>, unsigned int > exonic_breakpoints_by_gene_pair;
+	for (fusions_t::iterator fusion = fusions.begin(); fusion != fusions.end(); ++fusion) {
+		if (fusion->second.gene1 != fusion->second.gene2 && // it is perfectly normal to have many breakpoints within the same gene (hairpin fusions)
+		    !fusion->second.spliced1 && !fusion->second.spliced2 && // breakpoints at splice sites are almost exclusively a result of splicing and thus, no RT-mediated fusions
+		    fusion->second.exonic1 && fusion->second.exonic2 && // RT fusions only contain spliced transcripts, so we ignore intronic/intergenic breakpoints
+		    fusion->second.split_read1_list.size() + fusion->second.split_read2_list.size() > 0 && // require a split read for exact location of the breakpoint
+		    fusion->second.filter != FILTER_merge_adjacent && // slightly varying alignments may lead to adjacent breakpoints, we should not count them as separate breakpoints
+		    fusion->second.filter != FILTER_uninteresting_contigs) { // skip uninteresting contigs to save some runtime/memory
+			exonic_breakpoints_by_gene_pair[make_tuple(fusion->second.gene1, fusion->second.gene2)]++;
+			exonic_breakpoints_by_gene_pair[make_tuple(fusion->second.gene2, fusion->second.gene1)]++;
+		}
+	}
+
+	// RT fusions are mostly observed between highly expressed genes
+	unordered_map<gene_t,unsigned int> read_count_by_gene;
+	unsigned int high_expression_threshold;
+	find_top_expressed_genes(chimeric_alignments, high_expression_quantile, read_count_by_gene, high_expression_threshold);
 
 	// remove fusions with a lot of characteristics of RT-mediated fusions
 	for (fusions_t::iterator fusion = fusions.begin(); fusion != fusions.end(); ++fusion) {

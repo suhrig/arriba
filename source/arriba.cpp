@@ -128,6 +128,10 @@ int main(int argc, char **argv) {
 	cout << get_time_string() << " Reading chimeric alignments from '" << options.rna_bam_file << "' " << flush;
 	cout << "(total=" << read_chimeric_alignments(options.rna_bam_file, options.assembly_file, chimeric_alignments, mapped_reads, coverage, contigs, interesting_contigs, gene_annotation_index, !options.chimeric_bam_file.empty(), true, options.external_duplicate_marking) << ")" << endl;
 
+	// mark multi-mapping alignments
+	cout << get_time_string() << " Marking multi-mapping alignments " << flush;
+	cout << "(marked=" << mark_multimappers(chimeric_alignments) << ")" << endl;
+
 	// map contig IDs to names
 	vector<string> contigs_by_id(contigs.size());
 	for (contigs_t::iterator i = contigs.begin(); i != contigs.end(); ++i)
@@ -414,7 +418,7 @@ int main(int argc, char **argv) {
 	// this step must come closely after the 'relative_support' and 'min_support' filters
 	if (options.filters.at("spliced")) {
 		cout << get_time_string() << " Searching for fusions with spliced split reads " << flush;
-		cout << "(remaining=" << recover_both_spliced(fusions, 200) << ")" << endl;
+		cout << "(remaining=" << recover_both_spliced(fusions, chimeric_alignments, exon_annotation_index, coverage, 200, 0.998, 1000, 1000) << ")" << endl;
 	}
 
 	// this step must come after the 'merge_adjacent' filter,

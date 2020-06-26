@@ -469,3 +469,15 @@ void assign_strands_from_strandedness(chimeric_alignments_t& chimeric_alignments
 	}
 }
 
+unsigned int mark_multimappers(chimeric_alignments_t& chimeric_alignments) {
+	unsigned int count = 0;
+	if (!chimeric_alignments.empty())
+		for (chimeric_alignments_t::iterator chimeric_alignment = chimeric_alignments.begin(); next(chimeric_alignment) != chimeric_alignments.end(); ++chimeric_alignment)
+			if (strip_hi_tag_from_read_name(chimeric_alignment->first) == strip_hi_tag_from_read_name(next(chimeric_alignment)->first)) {
+				chimeric_alignment->second.multimapper = true;
+				next(chimeric_alignment)->second.multimapper = true;
+				count++;
+			}
+	return count;
+}
+
