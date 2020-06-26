@@ -2,6 +2,7 @@
 #include <iostream>
 #include <string>
 #include "cram.h"
+#include "htrie_map.h"
 #include "sam.h"
 #include "annotation.hpp"
 #include "common.hpp"
@@ -10,7 +11,7 @@
 
 using namespace std;
 
-typedef map<string,bam1_t*> collated_bam_records_t;
+typedef tsl::htrie_map<char,bam1_t*> collated_bam_records_t;
 typedef vector<contig_t> tid_to_contig_t;
 
 bool find_spanning_intron(const bam1_t* bam_record, const position_t gene1_end, const position_t gene2_start, unsigned int& cigar_op, position_t& read_pos) {
@@ -384,9 +385,9 @@ unsigned int read_chimeric_alignments(const string& bam_file_path, const string&
 			// try to insert the mate into the collated BAM records
 			// if there was already a record with the same read name, insertion will fail (->second set to false) and
 			// previously_seen_mate->first will point to the mate which was already in the collated BAM records
-			pair<collated_bam_records_t::iterator,bool> find_previously_seen_mate = collated_bam_records.insert(pair<string,bam1_t*>(read_name, bam_record));
+			pair<collated_bam_records_t::iterator,bool> find_previously_seen_mate = collated_bam_records.insert(read_name.c_str(), bam_record);
 			if (!find_previously_seen_mate.second) { // this is the second mate we have seen
-				previously_seen_mate = find_previously_seen_mate.first->second;
+				previously_seen_mate = *find_previously_seen_mate.first;
 				collated_bam_records.erase(find_previously_seen_mate.first);
 			}
 
