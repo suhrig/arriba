@@ -62,12 +62,16 @@ void pileup_chimeric_alignments(vector<chimeric_alignments_t::iterator>& chimeri
 						pileup[reference_offset]["-"]++; // indicate deletion by dash
 					subtract_from_next_element = 0;
 					break;
+				case BAM_CHARD_CLIP:
+					if (mate == SUPPLEMENTARY)
+						read_offset += read.cigar.op_length(cigar_element);
+					break;
 				case BAM_CSOFT_CLIP:
 					if ((**chimeric_alignment).second.size() == 3 && mate == SPLIT_READ &&
 					    (cigar_element == 0 && read.strand == FORWARD || cigar_element == read.cigar.size()-1 && read.strand == REVERSE)) {
 						if (cigar_element == 0 && read.strand == FORWARD)
 							reference_offset -= read.cigar.op_length(cigar_element);
-						// fall through to next branch (we want the clipped segment to be part of the pileup to look for non-template bases
+						// fall through to next branch (we want the clipped segment to be part of the pileup to look for non-template bases)
 					} else {
 						read_offset += read.cigar.op_length(cigar_element) - subtract_from_next_element;
 						break;
