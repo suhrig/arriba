@@ -74,27 +74,14 @@ int main(int argc, char **argv) {
 	// measure elapsed time
 	time_t start_time;
 	time(&start_time);
+	cout << get_time_string() << " Launching Arriba " << ARRIBA_VERSION << endl << flush;
 
 	// parse command-line options
 	options_t options = parse_arguments(argc, argv);
 
-	cout << get_time_string() << " Launching Arriba " << ARRIBA_VERSION << endl << flush;
-
-	// convert options.interesting_contigs from string to contigs_t
-	contigs_t interesting_contigs;
-	if (options.filters.at("uninteresting_contigs") && !options.interesting_contigs.empty()) {
-		istringstream iss(options.interesting_contigs);
-		while (iss) {
-			string contig;
-			iss >> contig;
-			if (!contig.empty())
-				interesting_contigs.insert(pair<string,contig_t>(removeChr(contig),interesting_contigs.size()));
-		}
-	}
-	contigs_t contigs = interesting_contigs;
-
 	// load GTF file
 	cout << get_time_string() << " Loading annotation from '" << options.gene_annotation_file << "' " << endl << flush;
+	contigs_t contigs;
 	gene_annotation_t gene_annotation;
 	transcript_annotation_t transcript_annotation;
 	exon_annotation_t exon_annotation;
@@ -110,7 +97,7 @@ int main(int argc, char **argv) {
 	// load sequences of contigs from assembly
 	cout << get_time_string() << " Loading assembly from '" << options.assembly_file << "' " << endl;
 	assembly_t assembly;
-	load_assembly(assembly, options.assembly_file, contigs, interesting_contigs);
+	load_assembly(assembly, options.assembly_file, contigs, options.interesting_contigs);
 
 	// prevent htslib from downloading the assembly via the Internet, if CRAM is used
 	setenv("REF_PATH", ".", 0);
@@ -121,12 +108,12 @@ int main(int argc, char **argv) {
 	coverage_t coverage(contigs, assembly);
 	if (!options.chimeric_bam_file.empty()) { // when STAR was run with --chimOutType SeparateSAMold, chimeric alignments must be read from a separate file named Chimeric.out.sam
 		cout << get_time_string() << " Reading chimeric alignments from '" << options.chimeric_bam_file << "' " << flush;
-		cout << "(total=" << read_chimeric_alignments(options.chimeric_bam_file, options.assembly_file, chimeric_alignments, mapped_reads, coverage, contigs, interesting_contigs, gene_annotation_index, true, false, options.external_duplicate_marking) << ")" << endl;
+		cout << "(total=" << read_chimeric_alignments(options.chimeric_bam_file, assembly, options.assembly_file, chimeric_alignments, mapped_reads, coverage, contigs, options.interesting_contigs, gene_annotation_index, true, false, options.external_duplicate_marking) << ")" << endl;
 	}
 
 	// extract chimeric alignments and read-through alignments from Aligned.out.bam
 	cout << get_time_string() << " Reading chimeric alignments from '" << options.rna_bam_file << "' " << flush;
-	cout << "(total=" << read_chimeric_alignments(options.rna_bam_file, options.assembly_file, chimeric_alignments, mapped_reads, coverage, contigs, interesting_contigs, gene_annotation_index, !options.chimeric_bam_file.empty(), true, options.external_duplicate_marking) << ")" << endl;
+	cout << "(total=" << read_chimeric_alignments(options.rna_bam_file, assembly, options.assembly_file, chimeric_alignments, mapped_reads, coverage, contigs, options.interesting_contigs, gene_annotation_index, !options.chimeric_bam_file.empty(), true, options.external_duplicate_marking) << ")" << endl;
 
 	// mark multi-mapping alignments
 	cout << get_time_string() << " Marking multi-mapping alignments " << flush;
@@ -279,9 +266,9 @@ int main(int argc, char **argv) {
 		cout << "(remaining=" << filter_duplicates(chimeric_alignments, options.external_duplicate_marking) << ")" << endl;
 	}
 
-	if (options.filters.at("uninteresting_contigs") && !interesting_contigs.empty()) {
+	if (options.filters.at("uninteresting_contigs")) {
 		cout << get_time_string() << " Filtering mates which do not map to interesting contigs (" << options.interesting_contigs << ") " << flush;
-		cout << "(remaining=" << filter_uninteresting_contigs(chimeric_alignments, contigs, interesting_contigs) << ")" << endl;
+		cout << "(remaining=" << filter_uninteresting_contigs(chimeric_alignments, contigs, options.interesting_contigs) << ")" << endl;
 	}
 
 	cout << get_time_string() << " Estimating fragment length " << flush;
@@ -335,7 +322,7 @@ int main(int argc, char **argv) {
 
 	if (options.filters.at("mismatches")) {
 		cout << get_time_string() << " Filtering reads with a mismatch p-value <=" << options.mismatch_pvalue_cutoff << " " << flush;
-		cout << "(remaining=" << filter_mismatches(chimeric_alignments, assembly, interesting_contigs, 0.01, options.mismatch_pvalue_cutoff) << ")" << endl;
+		cout << "(remaining=" << filter_mismatches(chimeric_alignments, assembly, contigs, options.interesting_contigs, 0.01, options.mismatch_pvalue_cutoff) << ")" << endl;
 	}
 
 	if (options.filters.at("low_entropy")) {

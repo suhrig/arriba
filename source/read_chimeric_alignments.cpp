@@ -292,7 +292,7 @@ unsigned int remove_malformed_alignments(chimeric_alignments_t& chimeric_alignme
 	return malformed_count;
 }
 
-unsigned int read_chimeric_alignments(const string& bam_file_path, const string& assembly_file_path, chimeric_alignments_t& chimeric_alignments, unsigned long int& mapped_reads, coverage_t& coverage, contigs_t& contigs, const contigs_t& interesting_contigs, const gene_annotation_index_t& gene_annotation_index, const bool separate_chimeric_bam_file, const bool is_rna_bam_file, const bool external_duplicate_marking) {
+unsigned int read_chimeric_alignments(const string& bam_file_path, const assembly_t& assembly, const string& assembly_file_path, chimeric_alignments_t& chimeric_alignments, unsigned long int& mapped_reads, coverage_t& coverage, contigs_t& contigs, const string& interesting_contigs, const gene_annotation_index_t& gene_annotation_index, const bool separate_chimeric_bam_file, const bool is_rna_bam_file, const bool external_duplicate_marking) {
 
 	// open BAM file
 	samFile* bam_file = sam_open(bam_file_path.c_str(), "rb");
@@ -311,7 +311,15 @@ unsigned int read_chimeric_alignments(const string& bam_file_path, const string&
 		if (is_rna_bam_file) {
 			if (tid_to_contig[target] >= (int) interesting_tids.size())
 				interesting_tids.resize(tid_to_contig[target]+1);
-			interesting_tids[tid_to_contig[target]] = (interesting_contigs.find(contig_name) != interesting_contigs.end()) || interesting_contigs.empty();
+			interesting_tids[tid_to_contig[target]] = is_interesting_contig(contig_name, interesting_contigs);
+		}
+	}
+
+	// make sure we have the sequence of all interesting contigs, otherwise later steps will crash
+	for (contigs_t::iterator contig = contigs.begin(); contig != contigs.end(); ++contig) {
+		if (assembly.find(contig->second) == assembly.end() && is_interesting_contig(contig->first, interesting_contigs)) {
+			cerr << "ERROR: could not find sequence of contig '" << contig->first << "'" << endl;
+			exit(1);
 		}
 	}
 

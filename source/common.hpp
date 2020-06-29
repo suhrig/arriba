@@ -1,13 +1,15 @@
 #ifndef _COMMON_H
 #define _COMMON_H 1
 
+#include <algorithm>
 #include <climits>
 #include <cmath>
 #include <cstdlib>
 #include <list>
 #include <map>
-#include <string>
 #include <set>
+#include <string>
+#include <sstream>
 #include <tuple>
 #include <type_traits>
 #include <unordered_map>
@@ -60,9 +62,37 @@ const filter_t FILTER_low_entropy = FILTERS.define("low_entropy");
 const filter_t FILTER_homologs = FILTERS.define("homologs");
 // when more than 64 filters are added, the size of the filter member of the fusion_t class needs to be enlarged
 
+typedef int position_t;
 typedef short int contig_t;
 typedef unordered_map<string,contig_t> contigs_t;
-typedef int position_t;
+// function to check if contig matches pattern, e.g., NC_*, AC_*, 1, 2, 3, 4, X, Y, M, ...
+inline bool is_interesting_contig(const string& contig, const string& interesting_contigs) {
+	istringstream iss(interesting_contigs);
+	while (iss) {
+		string pattern;
+		iss >> pattern;
+		if (!pattern.empty()) {
+			bool is_prefix = pattern[pattern.size()-1] == '*';
+			bool is_suffix = pattern[0] == '*';
+			replace(pattern.begin(), pattern.end(), '*', ' ');
+			istringstream iss2(pattern);
+			size_t pos = 0;
+			while (iss2) {
+				string segment;
+				iss2 >> segment;
+				if (pos == 0 && !is_suffix && contig.substr(0,segment.size()) != segment)
+					break;
+				if (segment.empty() && (pos == contig.size() || is_prefix))
+					return true;
+				pos = contig.find(segment, pos);
+				if (pos == string::npos)
+					break;
+				pos += segment.size();
+			}
+		}
+	}
+	return false;
+};
 
 typedef unordered_map<contig_t,string> assembly_t;
 

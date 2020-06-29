@@ -165,7 +165,8 @@ void print_usage() {
 	                  "data helps resolve ambiguities. Default: " + string((default_options.strandedness == STRANDEDNESS_NO) ? "no" : ((default_options.strandedness == STRANDEDNESS_YES) ? "yes" : ((default_options.strandedness == STRANDEDNESS_REVERSE) ? "reverse" : "auto"))))
 	     << wrap_help("-i CONTIGS", "Comma-/space-separated list of interesting contigs. Fusions "
 	                  "between genes on other contigs are ignored. Contigs can be specified with "
-	                  "or without the prefix \"chr\".\nDefault: " + default_options.interesting_contigs)
+	                  "or without the prefix \"chr\". Asterisks (*) are treated as wild-cards.\n"
+	                  "Default: " + default_options.interesting_contigs)
 	     << wrap_help("-f FILTERS", "Comma-/space-separated list of filters to disable. By default "
 	                  "all filters are enabled. Valid values: " + valid_filters)
 	     << wrap_help("-E MAX_E-VALUE", "Arriba estimates the number of fusions with a given "

@@ -23,7 +23,7 @@ string dna_to_reverse_complement(const string& dna) {
 	return reverse_complement;
 }
 
-void load_assembly(assembly_t& assembly, const string& fasta_file_path, contigs_t& contigs, const contigs_t& interesting_contigs) {
+void load_assembly(assembly_t& assembly, const string& fasta_file_path, contigs_t& contigs, const string& interesting_contigs) {
 
 	// read FastA file line by line
 	autodecompress_file_t fasta_file(fasta_file_path);
@@ -40,7 +40,7 @@ void load_assembly(assembly_t& assembly, const string& fasta_file_path, contigs_
 				contig_name = removeChr(contig_name);
 				pair<contigs_t::iterator,bool> new_contig = contigs.insert(pair<string,contig_t>(contig_name, contigs.size()));
 				current_contig = new_contig.first->second;
-				if (!interesting_contigs.empty() && interesting_contigs.find(contig_name) == interesting_contigs.end())
+				if (!is_interesting_contig(contig_name, interesting_contigs))
 					current_contig = -1; // skip uninteresting contigs
 
 			// get sequence
@@ -50,12 +50,5 @@ void load_assembly(assembly_t& assembly, const string& fasta_file_path, contigs_
 			}
 		}
 	}
-
-	// check if we found the sequence for all interesting contigs
-	for (contigs_t::const_iterator contig = interesting_contigs.begin(); contig != interesting_contigs.end(); ++contig)
-		if (assembly.find(contig->second) == assembly.end()) {
-			cerr << "ERROR: could not find sequence of contig '" << contig->first << "'" << endl;
-			exit(1);
-		}
 }
 
