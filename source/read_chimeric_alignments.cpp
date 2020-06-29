@@ -308,8 +308,11 @@ unsigned int read_chimeric_alignments(const string& bam_file_path, const string&
 		string contig_name = removeChr(bam_header->target_name[target]);
 		contigs.insert(pair<string,contig_t>(contig_name, contigs.size())); // this fails (i.e., nothing is inserted), if the contig already exists
 		tid_to_contig[target] = contigs[contig_name];
-		if (is_rna_bam_file) // only count reads of Aligned.out.bam, not of Chimeric.out.sam
-			interesting_tids[target] = (interesting_contigs.find(contig_name) != interesting_contigs.end()) || interesting_contigs.empty();
+		if (is_rna_bam_file) {
+			if (tid_to_contig[target] >= (int) interesting_tids.size())
+				interesting_tids.resize(tid_to_contig[target]+1);
+			interesting_tids[tid_to_contig[target]] = (interesting_contigs.find(contig_name) != interesting_contigs.end()) || interesting_contigs.empty();
+		}
 	}
 
 	// read BAM records
@@ -335,7 +338,7 @@ unsigned int read_chimeric_alignments(const string& bam_file_path, const string&
 				hit_index = bam_aux2i(hi_tag);
 			} else if (bam_record->core.flag & BAM_FSECONDARY) {
 				missing_hi_tag++;
-				continue;
+				continue; // ignore secondary alignments when HI tag is missing, because multi-mapping alignments could not be segregated
 			}
 		}
 		read_name = (char*) bam_get_qname(bam_record);
