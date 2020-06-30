@@ -17,6 +17,7 @@
 #include "read_chimeric_alignments.hpp"
 #include "filter_duplicates.hpp"
 #include "filter_uninteresting_contigs.hpp"
+#include "filter_viral_contigs.hpp"
 #include "filter_inconsistently_clipped.hpp"
 #include "filter_homopolymer.hpp"
 #include "filter_proximal_read_through.hpp"
@@ -269,6 +270,11 @@ int main(int argc, char **argv) {
 	if (options.filters.at("uninteresting_contigs")) {
 		cout << get_time_string() << " Filtering mates which do not map to interesting contigs (" << options.interesting_contigs << ") " << flush;
 		cout << "(remaining=" << filter_uninteresting_contigs(chimeric_alignments, contigs, options.interesting_contigs) << ")" << endl;
+	}
+
+	if (options.filters.at("viral_contigs")) {
+		cout << get_time_string() << " Filtering mates which only map to viral contigs (" << options.viral_contigs << ") " << flush;
+		cout << "(remaining=" << filter_viral_contigs(chimeric_alignments, contigs, options.viral_contigs) << ")" << endl;
 	}
 
 	cout << get_time_string() << " Estimating fragment length " << flush;

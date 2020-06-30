@@ -11,6 +11,9 @@ Read-level filters
 `uninteresting_contigs`
 : Apart from chromosomes, genome assemblies typically contain a few unassembled contigs (`GL...`) or decoy sequences (`hs37d5`). Events between the chromosomes and these contigs are not of interest, because they are merely an effect of the incomplete state of the assembly. This filter removes all events that concern contigs other than the chromosomes 1-22, X, and Y (as defined by parameter `-i`).
 
+`viral_contigs`
+: This filter removes all events that do not involve the host chromosomes 1-22, X, and Y, but only viral contigs (as defined by parameter `-v`).
+
 `read_through`
 : This filter removes a fragment, when the following conditions are met:
 
