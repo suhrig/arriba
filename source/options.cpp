@@ -71,7 +71,8 @@ bool validate_float(const char* optarg, float& value, const float min_value, con
 options_t get_default_options() {
 	options_t options;
 
-	options.interesting_contigs = "1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 X Y";
+	options.interesting_contigs = "1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 X Y AC_* NC_*";
+	options.viral_contigs = "AC_* NC_*";
 	for (size_t i = 0; i < FILTERS.size(); ++i)
 		if (i != FILTER_none)
 			options.filters[FILTERS[i]] = true;
@@ -167,6 +168,8 @@ void print_usage() {
 	                  "between genes on other contigs are ignored. Contigs can be specified with "
 	                  "or without the prefix \"chr\". Asterisks (*) are treated as wild-cards.\n"
 	                  "Default: " + default_options.interesting_contigs)
+	     << wrap_help("-v CONTIGS", "Comma-/space-separated list of viral contigs. Asterisks (*) "
+	                  "are treated as wild-cards.\nDefault: " + default_options.viral_contigs)
 	     << wrap_help("-f FILTERS", "Comma-/space-separated list of filters to disable. By default "
 	                  "all filters are enabled. Valid values: " + valid_filters)
 	     << wrap_help("-E MAX_E-VALUE", "Arriba estimates the number of fusions with a given "
@@ -258,7 +261,7 @@ options_t parse_arguments(int argc, char **argv) {
 	int c;
 	string junction_suffix(".junction");
 	unordered_map<char,unsigned int> duplicate_arguments;
-	while ((c = getopt(argc, argv, "c:x:d:g:G:o:O:a:b:k:s:i:f:E:S:m:L:H:D:R:A:M:K:V:F:U:Q:e:TPIuh")) != -1) {
+	while ((c = getopt(argc, argv, "c:x:d:g:G:o:O:a:b:k:s:i:v:f:E:S:m:L:H:D:R:A:M:K:V:F:U:Q:e:TPIuh")) != -1) {
 
 		// throw error if the same argument is specified more than once
 		duplicate_arguments[c]++;
@@ -370,6 +373,10 @@ options_t parse_arguments(int argc, char **argv) {
 			case 'i':
 				options.interesting_contigs = optarg;
 				replace(options.interesting_contigs.begin(), options.interesting_contigs.end(), ',', ' ');
+				break;
+			case 'v':
+				options.viral_contigs = optarg;
+				replace(options.viral_contigs.begin(), options.viral_contigs.end(), ',', ' ');
 				break;
 			case 'f':
 				{

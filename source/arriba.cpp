@@ -384,7 +384,7 @@ int main(int argc, char **argv) {
 	// this step must come before all filters that are potentially undone by the 'genomic_support' filter
 	if (options.filters.at("intronic")) {
 		cout << get_time_string() << " Filtering fusions with both breakpoints in intronic/intergenic regions " << flush;
-		cout << "(remaining=" << filter_both_intronic(fusions) << ")" << endl;
+		cout << "(remaining=" << filter_both_intronic(fusions, contigs, options.viral_contigs) << ")" << endl;
 	}
 
 	// this step must come right after the 'relative_support' and 'min_support' filters

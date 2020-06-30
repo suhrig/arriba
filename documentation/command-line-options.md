@@ -59,7 +59,10 @@ arriba [-c Chimeric.out.sam] -x Aligned.out.sam \
 Even when an unstranded library is processed, Arriba can often infer the strand from splice-patterns. But in unclear situations, stranded data helps resolve ambiguities. Default: `auto` 
 
 `-i CONTIGS`
-: Comma-/space-separated list of interesting contigs. Fusions between genes on other contigs are ignored. Contigs can be specified with or without the prefix `chr`. Default: `1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 X Y`
+: Comma-/space-separated list of interesting contigs. Fusions between genes on other contigs are ignored. Contigs can be specified with or without the prefix `chr`. Asterisks (`*`) are treated as wild-cards. Default: `1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 X Y AC_* NC_*`
+
+`-v CONTIGS`
+: Comma-/space-separated list of viral contigs for reporting of viral integration sites. Asterisks (`*`) are treated as wild-cards. Default: `AC_* NC_*`
 
 `-f FILTERS`
 : Comma-/space-separated list of filters to disable. By default all filters are enabled. Valid values are: `uninteresting_contigs`, `non_coding_neighbors`, `merge_adjacent`, `in_vitro`, `spliced`, `select_best`, `hairpin`, `small_insert_size`, `genomic_support`, `read_through`, `mismatches`, `homopolymer`, `long_gap`, `many_spliced`, `isoforms`, `intronic`, `end_to_end`, `known_fusions`, `inconsistently_clipped`, `duplicates`, `blacklist`, `homologs`, `intragenic_exonic`, `relative_support`, `min_support`, `same_gene`, `mismappers`, `no_coverage`, `short_anchor`, `no_genomic_support`, `low_entropy`
