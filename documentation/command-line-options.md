@@ -106,6 +106,9 @@ Even when an unstranded library is processed, Arriba can often infer the strand 
 `-Q QUANTILE`
 : Highly expressed genes are prone to produce artifacts during library preparation. Genes with an expression above the given quantile are eligible for filtering by the filter `in_vitro`. Default: `0.998`
 
+`-t TOP_N`
+: If a tumor is truly infected with a virus, a substantial number of reads should map to the respective viral contig. Only report viral integration sites of the top N most highly expressed viral contigs. Default: `5`
+
 `-T`
 : When set, the column `fusion_transcript` is populated with the sequence of the fused genes as assembled from the supporting reads. Specify the flag twice to also print the fusion transcripts to the file containing discarded fusions (`-O`). Refer to section [fusions.tsv](output-files.md#fusionstsv) for a description of the format of the column. Default: off
 

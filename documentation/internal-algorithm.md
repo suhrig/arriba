@@ -14,6 +14,9 @@ Read-level filters
 `viral_contigs`
 : This filter removes all events that do not involve the host chromosomes 1-22, X, and Y, but only viral contigs (as defined by parameter `-v`).
 
+`top_expressed_viral_contigs`
+: If a tumor is truly infected with a virus, a substantial number of reads should map to the respective viral contig. This filter removes viral integration candidates, unless the reads map to the top N most highly expressed viral contigs (where N is defined by parameter `-t`).
+
 `read_through`
 : This filter removes a fragment, when the following conditions are met:
 

@@ -73,6 +73,7 @@ options_t get_default_options() {
 
 	options.interesting_contigs = "1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 X Y AC_* NC_*";
 	options.viral_contigs = "AC_* NC_*";
+	options.top_viral_contigs = 5;
 	for (size_t i = 0; i < FILTERS.size(); ++i)
 		if (i != FILTER_none)
 			options.filters[FILTERS[i]] = true;
@@ -226,6 +227,8 @@ void print_usage() {
 	                  "If the fraction of exonic sequence between two breakpoints is smaller than "
 	                  "the given fraction, the 'intragenic_exonic' filter discards the event. "
 	                  "Default: " + to_string(static_cast<long double>(default_options.exonic_fraction)))
+	     << wrap_help("-t TOP_N", "Only report viral integration sites of the top N most highly "
+	                  "expressed viral contigs. Default: " + to_string(static_cast<long long unsigned int>(default_options.top_viral_contigs)))
 	     << wrap_help("-T", "When set, the column 'fusion_transcript' is populated with "
 	                  "the sequence of the fused genes as assembled from the supporting reads. "
 	                  "Specify the flag twice to also print the fusion transcripts to the file "
@@ -261,7 +264,7 @@ options_t parse_arguments(int argc, char **argv) {
 	int c;
 	string junction_suffix(".junction");
 	unordered_map<char,unsigned int> duplicate_arguments;
-	while ((c = getopt(argc, argv, "c:x:d:g:G:o:O:a:b:k:s:i:v:f:E:S:m:L:H:D:R:A:M:K:V:F:U:Q:e:TPIuh")) != -1) {
+	while ((c = getopt(argc, argv, "c:x:d:g:G:o:O:a:b:k:s:i:v:f:E:S:m:L:H:D:R:A:M:K:V:F:U:Q:e:t:TPIuh")) != -1) {
 
 		// throw error if the same argument is specified more than once
 		duplicate_arguments[c]++;
@@ -483,6 +486,12 @@ options_t parse_arguments(int argc, char **argv) {
 			case 'e':
 				if (!validate_float(optarg, options.exonic_fraction, 0, 1)) {
 					cerr << "ERROR: " << "argument to -" << ((char) c) << " must be between 0 and 1" << endl;
+					exit(1);
+				}
+				break;
+			case 't':
+				if (!validate_int(optarg, options.top_viral_contigs, 1)) {
+					cerr << "ERROR: " << "invalid argument to -" << ((char) c) << endl;
 					exit(1);
 				}
 				break;

@@ -34,6 +34,7 @@ struct options_t {
 	string blacklist_file;
 	string interesting_contigs;
 	string viral_contigs;
+	unsigned int top_viral_contigs;
 	unsigned int homopolymer_length;
 	unsigned int min_read_through_distance;
 	unordered_map<string,bool> filters;

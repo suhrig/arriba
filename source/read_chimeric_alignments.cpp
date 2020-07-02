@@ -292,7 +292,7 @@ unsigned int remove_malformed_alignments(chimeric_alignments_t& chimeric_alignme
 	return malformed_count;
 }
 
-unsigned int read_chimeric_alignments(const string& bam_file_path, const assembly_t& assembly, const string& assembly_file_path, chimeric_alignments_t& chimeric_alignments, unsigned long int& mapped_reads, coverage_t& coverage, contigs_t& contigs, const string& interesting_contigs, const gene_annotation_index_t& gene_annotation_index, const bool separate_chimeric_bam_file, const bool is_rna_bam_file, const bool external_duplicate_marking) {
+unsigned int read_chimeric_alignments(const string& bam_file_path, const assembly_t& assembly, const string& assembly_file_path, chimeric_alignments_t& chimeric_alignments, unsigned long int& mapped_reads, vector<unsigned long int>& mapped_viral_reads_by_contig, coverage_t& coverage, contigs_t& contigs, const string& interesting_contigs, const string& viral_contigs, const gene_annotation_index_t& gene_annotation_index, const bool separate_chimeric_bam_file, const bool is_rna_bam_file, const bool external_duplicate_marking) {
 
 	// open BAM file
 	samFile* bam_file = sam_open(bam_file_path.c_str(), "rb");
@@ -322,6 +322,12 @@ unsigned int read_chimeric_alignments(const string& bam_file_path, const assembl
 			exit(1);
 		}
 	}
+
+	// convert viral_contigs to vector of booleans for faster lookup
+	vector<bool> viral_contigs_bool(contigs.size());
+	for (contigs_t::iterator contig = contigs.begin(); contig != contigs.end(); ++contig)
+		viral_contigs_bool[contig->second] = is_interesting_contig(contig->first, viral_contigs);
+	mapped_viral_reads_by_contig.resize(contigs.size());
 
 	// read BAM records
 	bam1_t* bam_record = bam_init1();
@@ -436,6 +442,21 @@ unsigned int read_chimeric_alignments(const string& bam_file_path, const assembl
 					}
 				} else { // could be a read-through alignment
 					is_read_through_alignment = extract_read_through_alignment(chimeric_alignments, read_name, bam_record, previously_seen_mate, gene_annotation_index, separate_chimeric_bam_file);
+
+					// count mapped reads on viral contigs to detect viral infection
+					if (viral_contigs_bool[bam_record->core.tid]) {
+						// only count perfectly matching alignments to ignore alignment artifacts
+						for (bam1_t* mate = bam_record; mate != NULL; mate = (mate == previously_seen_mate) ? NULL : previously_seen_mate) {
+							bool pristine_alignment = true;
+							for (unsigned int i = 0; i < mate->core.n_cigar && pristine_alignment; i++) {
+								uint32_t cigar_op = bam_get_cigar(mate)[i];
+								if ((cigar_op & 15) != BAM_CREF_SKIP && (cigar_op & 15) != BAM_CMATCH)
+									pristine_alignment = false;
+							}
+							if (pristine_alignment)
+								mapped_viral_reads_by_contig[mate->core.tid]++;
+						}
+					}
 				}
 
 				if (!external_duplicate_marking || !(bam_record->core.flag & BAM_FDUP))

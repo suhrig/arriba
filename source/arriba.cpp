@@ -18,6 +18,7 @@
 #include "filter_duplicates.hpp"
 #include "filter_uninteresting_contigs.hpp"
 #include "filter_viral_contigs.hpp"
+#include "filter_top_expressed_viral_contigs.hpp"
 #include "filter_inconsistently_clipped.hpp"
 #include "filter_homopolymer.hpp"
 #include "filter_proximal_read_through.hpp"
@@ -106,24 +107,25 @@ int main(int argc, char **argv) {
 	// load chimeric alignments
 	chimeric_alignments_t chimeric_alignments;
 	unsigned long int mapped_reads = 0;
+	vector<unsigned long int> mapped_viral_reads_by_contig;
 	coverage_t coverage(contigs, assembly);
 	if (!options.chimeric_bam_file.empty()) { // when STAR was run with --chimOutType SeparateSAMold, chimeric alignments must be read from a separate file named Chimeric.out.sam
 		cout << get_time_string() << " Reading chimeric alignments from '" << options.chimeric_bam_file << "' " << flush;
-		cout << "(total=" << read_chimeric_alignments(options.chimeric_bam_file, assembly, options.assembly_file, chimeric_alignments, mapped_reads, coverage, contigs, options.interesting_contigs, gene_annotation_index, true, false, options.external_duplicate_marking) << ")" << endl;
+		cout << "(total=" << read_chimeric_alignments(options.chimeric_bam_file, assembly, options.assembly_file, chimeric_alignments, mapped_reads, mapped_viral_reads_by_contig, coverage, contigs, options.interesting_contigs, options.viral_contigs, gene_annotation_index, true, false, options.external_duplicate_marking) << ")" << endl;
 	}
 
 	// extract chimeric alignments and read-through alignments from Aligned.out.bam
 	cout << get_time_string() << " Reading chimeric alignments from '" << options.rna_bam_file << "' " << flush;
-	cout << "(total=" << read_chimeric_alignments(options.rna_bam_file, assembly, options.assembly_file, chimeric_alignments, mapped_reads, coverage, contigs, options.interesting_contigs, gene_annotation_index, !options.chimeric_bam_file.empty(), true, options.external_duplicate_marking) << ")" << endl;
-
-	// mark multi-mapping alignments
-	cout << get_time_string() << " Marking multi-mapping alignments " << flush;
-	cout << "(marked=" << mark_multimappers(chimeric_alignments) << ")" << endl;
+	cout << "(total=" << read_chimeric_alignments(options.rna_bam_file, assembly, options.assembly_file, chimeric_alignments, mapped_reads, mapped_viral_reads_by_contig, coverage, contigs, options.interesting_contigs, options.viral_contigs, gene_annotation_index, !options.chimeric_bam_file.empty(), true, options.external_duplicate_marking) << ")" << endl;
 
 	// map contig IDs to names
 	vector<string> contigs_by_id(contigs.size());
 	for (contigs_t::iterator i = contigs.begin(); i != contigs.end(); ++i)
 		contigs_by_id[i->second] = i->first;
+
+	// mark multi-mapping alignments
+	cout << get_time_string() << " Marking multi-mapping alignments " << flush;
+	cout << "(marked=" << mark_multimappers(chimeric_alignments) << ")" << endl;
 
 	// the BAM files may have added some contigs which were not in the GTF file
 	// => add empty indices for the new contigs so that lookups of these contigs won't cause array-out-of-bounds exceptions
@@ -275,6 +277,11 @@ int main(int argc, char **argv) {
 	if (options.filters.at("viral_contigs")) {
 		cout << get_time_string() << " Filtering mates which only map to viral contigs (" << options.viral_contigs << ") " << flush;
 		cout << "(remaining=" << filter_viral_contigs(chimeric_alignments, contigs, options.viral_contigs) << ")" << endl;
+	}
+
+	if (options.filters.at("top_expressed_viral_contigs")) {
+		cout << get_time_string() << " Filtering viral contigs with expression lower than the top " << options.top_viral_contigs << " " << flush;
+		cout << "(remaining=" << filter_top_expressed_viral_contigs(chimeric_alignments, options.top_viral_contigs, contigs, options.viral_contigs, mapped_viral_reads_by_contig, assembly) << ")" << endl;
 	}
 
 	cout << get_time_string() << " Estimating fragment length " << flush;

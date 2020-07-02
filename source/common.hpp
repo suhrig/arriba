@@ -57,6 +57,7 @@ const filter_t FILTER_many_spliced = FILTERS.define("many_spliced");
 const filter_t FILTER_no_genomic_support = FILTERS.define("no_genomic_support");
 const filter_t FILTER_uninteresting_contigs = FILTERS.define("uninteresting_contigs");
 const filter_t FILTER_viral_contigs = FILTERS.define("viral_contigs");
+const filter_t FILTER_top_expressed_viral_contigs = FILTERS.define("top_expressed_viral_contigs");
 const filter_t FILTER_genomic_support = FILTERS.define("genomic_support");
 const filter_t FILTER_isoforms = FILTERS.define("isoforms");
 const filter_t FILTER_low_entropy = FILTERS.define("low_entropy");
