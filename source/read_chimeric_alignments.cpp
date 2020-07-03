@@ -450,8 +450,8 @@ unsigned int read_chimeric_alignments(const string& bam_file_path, const assembl
 						for (bam1_t* mate = bam_record; mate != NULL; mate = (mate == previously_seen_mate) ? NULL : previously_seen_mate) {
 							bool pristine_alignment = true;
 							for (unsigned int i = 0; i < mate->core.n_cigar && pristine_alignment; i++) {
-								uint32_t cigar_op = bam_get_cigar(mate)[i];
-								if ((cigar_op & 15) != BAM_CREF_SKIP && (cigar_op & 15) != BAM_CMATCH)
+								uint32_t cigar_op = (bam_get_cigar(mate)[i]) & 15;
+								if (cigar_op != BAM_CREF_SKIP && cigar_op != BAM_CMATCH && cigar_op != BAM_CDIFF)
 									pristine_alignment = false;
 							}
 							if (pristine_alignment)
