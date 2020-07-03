@@ -81,7 +81,7 @@ if (!(minConfidenceForCircosPlot %in% c("none", "low", "medium", "high")))
 	stop("Invalid argument to --minConfidenceForCircosPlot")
 if (showVicinity > 0 && squishIntrons)
 	stop("--squishIntrons must be disabled, when --showIntergenicVicinity is > 0")
-if (!(transcriptSelection %in% c("coverage", "provided")))
+if (!(transcriptSelection %in% c("coverage", "provided", "canonical")))
 	stop("Invalid argument to --transcriptSelection")
 
 # check if required packages are installed
@@ -740,47 +740,53 @@ findExons <- function(exons, contig, gene, direction, breakpoint, coverage, tran
 			return(candidateExons)
 		}
 	}
-	# look for exon with breakpoint as splice site
-	transcripts <- exons[exons$geneName == gene & exons$contig == contig & exons$type == "exon" & (direction == "downstream" & abs(exons$end - breakpoint) <= 2 | direction == "upstream" & abs(exons$start - breakpoint) <= 2),"transcript"]
-	candidateExons <- exons[exons$transcript %in% transcripts,]
-	# if none was found, use all exons of the gene closest to the breakpoint
-	if (nrow(candidateExons) == 0) {
+
+	if (transcriptSelection == "canonical") {
 		candidateExons <- exons[exons$geneName == gene & exons$contig == contig,]
-		if (length(unique(candidateExons$geneID)) > 0) { # more than one gene found with the given name => use the closest one
-			distanceToBreakpoint <- aggregate(1:nrow(candidateExons), by=list(candidateExons$geneID), function(x) { min(abs(candidateExons[x,"start"]-breakpoint), abs(candidateExons[x,"end"]-breakpoint)) })
-			closestGene <- head(distanceToBreakpoint[distanceToBreakpoint[,2] == min(distanceToBreakpoint[,2]),1], 1)
-			candidateExons <- candidateExons[candidateExons$geneID == closestGene,]
-		}
-	}
-	# if we have coverage information, use the transcript with the highest coverage if there are multiple hits
-	if (!is.null(coverage)) {
-		highestCoverage <- -1
-		transcriptWithHighestCoverage <- NULL
-		lengthOfTranscriptWithHighestCoverage <- 0
-		for (transcript in unique(candidateExons$transcript)) {
-			exonsOfTranscript <- candidateExons[candidateExons$transcript==transcript,]
-			lengthOfTranscript <- sum(exonsOfTranscript$end - exonsOfTranscript$start + 1)
-			coverageSum <- sum(as.numeric(coverage[IRanges(exonsOfTranscript$start, exonsOfTranscript$end)]))
-			# we prefer shorter transcripts over longer ones, because otherwise there is a bias towards transcripts with long UTRs
-			# => a longer transcript must have substantially higher coverage to replace a shorter one
-			substantialDifference <- (1 - min(lengthOfTranscript, lengthOfTranscriptWithHighestCoverage) / max(lengthOfTranscript, lengthOfTranscriptWithHighestCoverage)) / 10
-			if (lengthOfTranscript > lengthOfTranscriptWithHighestCoverage && coverageSum * (1-substantialDifference) > highestCoverage ||
-			    lengthOfTranscript < lengthOfTranscriptWithHighestCoverage && coverageSum > highestCoverage * (1-substantialDifference)) {
-				highestCoverage <- coverageSum
-				transcriptWithHighestCoverage <- transcript
-				lengthOfTranscriptWithHighestCoverage <- lengthOfTranscript
+	} else {
+		# look for exon with breakpoint as splice site
+		transcripts <- exons[exons$geneName == gene & exons$contig == contig & exons$type == "exon" & (direction == "downstream" & abs(exons$end - breakpoint) <= 2 | direction == "upstream" & abs(exons$start - breakpoint) <= 2),"transcript"]
+		candidateExons <- exons[exons$transcript %in% transcripts,]
+		# if none was found, use all exons of the gene closest to the breakpoint
+		if (nrow(candidateExons) == 0) {
+			candidateExons <- exons[exons$geneName == gene & exons$contig == contig,]
+			if (length(unique(candidateExons$geneID)) > 0) { # more than one gene found with the given name => use the closest one
+				distanceToBreakpoint <- aggregate(1:nrow(candidateExons), by=list(candidateExons$geneID), function(x) { min(abs(candidateExons[x,"start"]-breakpoint), abs(candidateExons[x,"end"]-breakpoint)) })
+				closestGene <- head(distanceToBreakpoint[distanceToBreakpoint[,2] == min(distanceToBreakpoint[,2]),1], 1)
+				candidateExons <- candidateExons[candidateExons$geneID == closestGene,]
 			}
 		}
-		candidateExons <- candidateExons[candidateExons$transcript==transcriptWithHighestCoverage,]
+		# if we have coverage information, use the transcript with the highest coverage if there are multiple hits
+		if (!is.null(coverage)) {
+			highestCoverage <- -1
+			transcriptWithHighestCoverage <- NULL
+			lengthOfTranscriptWithHighestCoverage <- 0
+			for (transcript in unique(candidateExons$transcript)) {
+				exonsOfTranscript <- candidateExons[candidateExons$transcript==transcript,]
+				lengthOfTranscript <- sum(exonsOfTranscript$end - exonsOfTranscript$start + 1)
+				coverageSum <- sum(as.numeric(coverage[IRanges(exonsOfTranscript$start, exonsOfTranscript$end)]))
+				# we prefer shorter transcripts over longer ones, because otherwise there is a bias towards transcripts with long UTRs
+				# => a longer transcript must have substantially higher coverage to replace a shorter one
+				substantialDifference <- (1 - min(lengthOfTranscript, lengthOfTranscriptWithHighestCoverage) / max(lengthOfTranscript, lengthOfTranscriptWithHighestCoverage)) / 10
+				if (lengthOfTranscript > lengthOfTranscriptWithHighestCoverage && coverageSum * (1-substantialDifference) > highestCoverage ||
+				    lengthOfTranscript < lengthOfTranscriptWithHighestCoverage && coverageSum > highestCoverage * (1-substantialDifference)) {
+					highestCoverage <- coverageSum
+					transcriptWithHighestCoverage <- transcript
+					lengthOfTranscriptWithHighestCoverage <- lengthOfTranscript
+				}
+			}
+			candidateExons <- candidateExons[candidateExons$transcript==transcriptWithHighestCoverage,]
+		}
+		# if the gene has multiple transcripts, search for transcripts which encompass the breakpoint
+		if (length(unique(candidateExons$transcript)) > 1) {
+			transcriptStart <- aggregate(candidateExons$start, by=list(candidateExons$transcript), min)
+			rownames(transcriptStart) <- transcriptStart[,1]
+			transcriptEnd <- aggregate(candidateExons$end, by=list(candidateExons$transcript), max)
+			rownames(transcriptEnd) <- transcriptEnd[,1]
+			candidateExons <- candidateExons[between(breakpoint, transcriptStart[candidateExons$transcript,2], transcriptEnd[candidateExons$transcript,2]),]
+		}
 	}
-	# if the gene has multiple transcripts, search for transcripts which encompass the breakpoint
-	if (length(unique(candidateExons$transcript)) > 1) {
-		transcriptStart <- aggregate(candidateExons$start, by=list(candidateExons$transcript), min)
-		rownames(transcriptStart) <- transcriptStart[,1]
-		transcriptEnd <- aggregate(candidateExons$end, by=list(candidateExons$transcript), max)
-		rownames(transcriptEnd) <- transcriptEnd[,1]
-		candidateExons <- candidateExons[between(breakpoint, transcriptStart[candidateExons$transcript,2], transcriptEnd[candidateExons$transcript,2]),]
-	}
+
 	# find the consensus transcript, if there are multiple hits
 	if (length(unique(candidateExons$transcript)) > 1) {
 		consensusTranscript <-
@@ -1013,6 +1019,28 @@ for (fusion in 1:nrow(fusions)) {
 		drawIdeogram("right", gene2Offset, gene2Offset+max(exons2$right), yIdeograms, cytobands, fusions[fusion,"contig2"], fusions[fusion,"breakpoint2"])
 	}
 
+	# draw gene & transcript names
+	text(max(exons1$right)/2, yGeneNames, fusions[fusion,"gene1"], font=2, cex=fontSize, adj=c(0.5,0))
+	if (fusions[fusion,"site1"] != "intergenic")
+		text(max(exons1$right)/2, yGeneNames-0.01, head(exons1$transcript,1), cex=0.9*fontSize, adj=c(0.5,1))
+	text(gene2Offset+max(exons2$right)/2, yGeneNames, fusions[fusion,"gene2"], font=2, cex=fontSize, adj=c(0.5,0))
+	if (fusions[fusion,"site2"] != "intergenic")
+		text(gene2Offset+max(exons2$right)/2, yGeneNames-0.01, head(exons2$transcript,1), cex=0.9*fontSize, adj=c(0.5,1))
+
+	# if multiple genes in the vicinity are shown, label them
+	if (fusions[fusion,"site1"] == "intergenic")
+		for (gene in unique(exons1$geneName)) {
+			exonsOfGene <- exons1[exons1$geneName == gene & exons1$type != "dummy",]
+			if (any(exonsOfGene$type == "exon"))
+				text(mean(c(min(exonsOfGene$left), max(exonsOfGene$right))), yExons-0.04, gene, cex=0.9*fontSize, adj=c(0.5,1))
+		}
+	if (fusions[fusion,"site2"] == "intergenic")
+		for (gene in unique(exons2$geneName)) {
+			exonsOfGene <- exons2[exons2$geneName == gene & exons2$type != "dummy",]
+			if (any(exonsOfGene$type == "exon"))
+				text(gene2Offset+mean(c(min(exonsOfGene$left), max(exonsOfGene$right))), yExons-0.04, gene, cex=0.9*fontSize, adj=c(0.5,1))
+		}
+
 	# label breakpoints
 	text(breakpoint1+0.01, yBreakpointLabels-0.03, paste0("breakpoint\n", fusions[fusion,"contig1"], ":", fusions[fusion,"breakpoint1"]), adj=c(1,0), cex=fontSize)
 	text(gene2Offset+breakpoint2-0.01, yBreakpointLabels-0.03, paste0("breakpoint\n", fusions[fusion,"contig2"], ":", fusions[fusion,"breakpoint2"]), adj=c(0,0), cex=fontSize)
@@ -1146,28 +1174,6 @@ for (fusion in 1:nrow(fusions)) {
 		text(fusionOffset2, yTranscript, non_template_bases1, adj=c(1,0.5), cex=fontSize)
 		text(fusionOffset2, yTranscript, non_template_bases2, adj=c(0,0.5), cex=fontSize)
 	}
-
-	# draw gene & transcript names
-	text(max(exons1$right)/2, yGeneNames, fusions[fusion,"gene1"], font=2, cex=fontSize, adj=c(0.5,0))
-	if (fusions[fusion,"site1"] != "intergenic")
-		text(max(exons1$right)/2, yGeneNames-0.01, head(exons1$transcript,1), cex=0.9*fontSize, adj=c(0.5,1))
-	text(gene2Offset+max(exons2$right)/2, yGeneNames, fusions[fusion,"gene2"], font=2, cex=fontSize, adj=c(0.5,0))
-	if (fusions[fusion,"site2"] != "intergenic")
-		text(gene2Offset+max(exons2$right)/2, yGeneNames-0.01, head(exons2$transcript,1), cex=0.9*fontSize, adj=c(0.5,1))
-
-	# if multiple genes in the vicinity are shown, label them
-	if (fusions[fusion,"site1"] == "intergenic")
-		for (gene in unique(exons1$geneName)) {
-			exonsOfGene <- exons1[exons1$geneName == gene & exons1$type != "dummy",]
-			if (any(exonsOfGene$type == "exon"))
-				text(mean(c(min(exonsOfGene$left), max(exonsOfGene$right))), yExons-0.04, gene, cex=0.9*fontSize, adj=c(0.5,1))
-		}
-	if (fusions[fusion,"site2"] == "intergenic")
-		for (gene in unique(exons2$geneName)) {
-			exonsOfGene <- exons2[exons2$geneName == gene & exons2$type != "dummy",]
-			if (any(exonsOfGene$type == "exon"))
-				text(gene2Offset+mean(c(min(exonsOfGene$left), max(exonsOfGene$right))), yExons-0.04, gene, cex=0.9*fontSize, adj=c(0.5,1))
-		}
 
 	# draw scale
 	realScale <- max(exons1$end - exons1$start, exons2$end - exons2$start)
