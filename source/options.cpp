@@ -405,103 +405,103 @@ options_t parse_arguments(int argc, char **argv) {
 				break;
 			case 'E':
 				if (!validate_float(optarg, options.evalue_cutoff, 0)) {
-					cerr << "ERROR: " << "argument to -" << ((char) c) << " must be greater than 0" << endl;
+					cerr << "ERROR: argument to -" << ((char) c) << " must be greater than 0" << endl;
 					exit(1);
 				}
 				break;
 			case 'S':
 				if (!validate_int(optarg, options.min_support, 0)) {
-					cerr << "ERROR: " << "invalid argument to -" << ((char) c) << endl;
+					cerr << "ERROR: invalid argument to -" << ((char) c) << endl;
 					exit(1);
 				}
 				break;
 			case 'm':
 				if (!validate_float(optarg, options.max_mismapper_fraction, 0, 1)) {
-					cerr << "ERROR: " << "argument to -" << ((char) c) << " must be between 0 and 1" << endl;
+					cerr << "ERROR: argument to -" << ((char) c) << " must be between 0 and 1" << endl;
 					exit(1);
 				}
 				break;
 			case 'L':
 				if (!validate_float(optarg, options.max_homolog_identity, 0, 1)) {
-					cerr << "ERROR: " << "argument to -" << ((char) c) << " must be between 0 and 1" << endl;
+					cerr << "ERROR: argument to -" << ((char) c) << " must be between 0 and 1" << endl;
 					exit(1);
 				}
 				break;
 			case 'H':
 				if (!validate_int(optarg, options.homopolymer_length, 2)) {
-					cerr << "ERROR: " << "argument to -" << ((char) c) << " must be greater than 1" << endl;
+					cerr << "ERROR: argument to -" << ((char) c) << " must be greater than 1" << endl;
 					exit(1);
 				}
 				break;
 			case 'D':
 				if (!validate_int(optarg, options.max_genomic_breakpoint_distance, 0)) {
-					cerr << "ERROR: " << "invalid argument to -" << ((char) c) << endl;
+					cerr << "ERROR: invalid argument to -" << ((char) c) << endl;
 					exit(1);
 				}
 				break;
 			case 'R':
 				if (!validate_int(optarg, options.min_read_through_distance, 0)) {
-					cerr << "ERROR: " << "invalid argument to -" << ((char) c) << endl;
+					cerr << "ERROR: invalid argument to -" << ((char) c) << endl;
 					exit(1);
 				}
 				break;
 			case 'A':
 				if (!validate_int(optarg, options.min_anchor_length, 0)) {
-					cerr << "ERROR: " << "invalid argument to -" << ((char) c) << endl;
+					cerr << "ERROR: invalid argument to -" << ((char) c) << endl;
 					exit(1);
 				}
 				break;
 			case 'M':
 				if (!validate_int(optarg, options.min_spliced_events, 0)) {
-					cerr << "ERROR: " << "invalid argument to -" << ((char) c) << endl;
+					cerr << "ERROR: invalid argument to -" << ((char) c) << endl;
 					exit(1);
 				}
 				break;
 			case 'K':
 				if (!validate_float(optarg, options.max_kmer_content, 0, 1)) {
-					cerr << "ERROR: " << "argument to -" << ((char) c) << " must be between 0 and 1" << endl;
+					cerr << "ERROR: argument to -" << ((char) c) << " must be between 0 and 1" << endl;
 					exit(1);
 				}
 				break;
 			case 'V':
 				if (!validate_float(optarg, options.mismatch_pvalue_cutoff, 0, 1)) {
-					cerr << "ERROR: " << "argument to -" << ((char) c) << " must be between 0 and 1" << endl;
+					cerr << "ERROR: argument to -" << ((char) c) << " must be between 0 and 1" << endl;
 					exit(1);
 				}
 				break;
 			case 'F':
 				if (!validate_int(optarg, options.fragment_length, 1)) {
-					cerr << "ERROR: " << "argument to -" << ((char) c) << " must be an integer greater than 0" << endl;
+					cerr << "ERROR: argument to -" << ((char) c) << " must be an integer greater than 0" << endl;
 					exit(1);
 				}
 				break;
 			case 'U':
 				if (!validate_int(optarg, options.subsampling_threshold, 1, SHRT_MAX)) {
-					cerr << "ERROR: " << "argument to -" << ((char) c) << " must be an integer between 1 and " << SHRT_MAX << endl;
+					cerr << "ERROR: argument to -" << ((char) c) << " must be an integer between 1 and " << SHRT_MAX << endl;
 					exit(1);
 				}
 				break;
 			case 'Q':
 				if (!validate_float(optarg, options.high_expression_quantile, 0, 1)) {
-					cerr << "ERROR: " << "argument to -" << ((char) c) << " must be between 0 and 1" << endl;
+					cerr << "ERROR: argument to -" << ((char) c) << " must be between 0 and 1" << endl;
 					exit(1);
 				}
 				break;
 			case 'e':
 				if (!validate_float(optarg, options.exonic_fraction, 0, 1)) {
-					cerr << "ERROR: " << "argument to -" << ((char) c) << " must be between 0 and 1" << endl;
+					cerr << "ERROR: argument to -" << ((char) c) << " must be between 0 and 1" << endl;
 					exit(1);
 				}
 				break;
 			case 't':
 				if (!validate_int(optarg, options.top_viral_contigs, 1)) {
-					cerr << "ERROR: " << "invalid argument to -" << ((char) c) << endl;
+					cerr << "ERROR: invalid argument to -" << ((char) c) << endl;
 					exit(1);
 				}
 				break;
 			case 'C':
 				if (!validate_float(optarg, options.viral_contig_min_covered_fraction, 0, 1)) {
-					cerr << "ERROR: " << "argument to -" << ((char) c) << " must be between 0 and 1" << endl;
+					cerr << "ERROR: argument to -" << ((char) c) << " must be between 0 and 1" << endl;
 					exit(1);
 				}
 				break;
@@ -533,11 +533,11 @@ options_t parse_arguments(int argc, char **argv) {
 			default:
 				switch (optopt) {
 					case 'c': case 'x': case 'd': case 'g': case 'G': case 'o': case 'O': case 'a': case 'k': case 'b': case 'i': case 'f': case 'E': case 's': case 'm': case 'H': case 'D': case 'R': case 'A': case 'M': case 'K': case 'V': case 'F': case 'S': case 'U': case 'Q':
-						cerr << "ERROR: " << "option -" << ((char) optopt) << " requires an argument" << endl;
+						cerr << "ERROR: option -" << ((char) optopt) << " requires an argument" << endl;
 						exit(1);
 						break;
 					default:
-						cerr << "ERROR: " << "unknown option: -" << ((char) optopt) << endl;
+						cerr << "ERROR: unknown option: -" << ((char) optopt) << endl;
 						exit(1);
 						break;
 				}
