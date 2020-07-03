@@ -109,7 +109,7 @@ int main(int argc, char **argv) {
 	chimeric_alignments_t chimeric_alignments;
 	unsigned long int mapped_reads = 0;
 	vector<unsigned long int> mapped_viral_reads_by_contig;
-	coverage_t coverage(contigs, assembly);
+	coverage_t coverage;
 	if (!options.chimeric_bam_file.empty()) { // when STAR was run with --chimOutType SeparateSAMold, chimeric alignments must be read from a separate file named Chimeric.out.sam
 		cout << get_time_string() << " Reading chimeric alignments from '" << options.chimeric_bam_file << "' " << flush;
 		cout << "(total=" << read_chimeric_alignments(options.chimeric_bam_file, assembly, options.assembly_file, chimeric_alignments, mapped_reads, mapped_viral_reads_by_contig, coverage, contigs, options.interesting_contigs, options.viral_contigs, gene_annotation_index, true, false, options.external_duplicate_marking) << ")" << endl;

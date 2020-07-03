@@ -19,7 +19,7 @@ class coverage_t {
 		vector< vector<bool> > fragment_starts; // for each window, store if a fragment starts here
 		vector< vector<bool> > fragment_ends; // for each window, store if a fragment ends here
 		vector< vector<unsigned short int> > coverage; // for each window, store the coverage
-		coverage_t(const contigs_t& contigs, const assembly_t& assembly);
+		void resize(const contigs_t& contigs, const assembly_t& assembly);
 		void add_fragment(bam1_t* mate1, bam1_t* mate2, bool is_chimeric);
 		bool fragment_starts_here(const contig_t contig, const position_t start, const position_t end) const;
 		bool fragment_ends_here(const contig_t contig, const position_t start, const position_t end) const;

@@ -314,6 +314,7 @@ unsigned int read_chimeric_alignments(const string& bam_file_path, const assembl
 			interesting_tids[tid_to_contig[target]] = is_interesting_contig(contig_name, interesting_contigs);
 		}
 	}
+	coverage.resize(contigs, assembly);
 
 	// make sure we have the sequence of all interesting contigs, otherwise later steps will crash
 	for (contigs_t::iterator contig = contigs.begin(); contig != contigs.end(); ++contig) {

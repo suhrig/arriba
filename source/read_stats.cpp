@@ -136,7 +136,7 @@ strandedness_t detect_strandedness(const chimeric_alignments_t& chimeric_alignme
 }
 
 // initialize data structure to compute coverage for windows of size <COVERAGE_RESOLUTION>
-coverage_t::coverage_t(const contigs_t& contigs, const assembly_t& assembly) {
+void coverage_t::resize(const contigs_t& contigs, const assembly_t& assembly) {
 	fragment_starts.resize(contigs.size());
 	fragment_ends.resize(contigs.size());
 	coverage.resize(contigs.size());
