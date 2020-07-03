@@ -17,6 +17,9 @@ Read-level filters
 `top_expressed_viral_contigs`
 : If a tumor is truly infected with a virus, a substantial number of reads should map to the respective viral contig. This filter removes viral integration candidates, unless the reads map to the top N most highly expressed viral contigs (where N is defined by parameter `-t`).
 
+`low_coverage_viral_contigs`
+: Some viral contigs attract alignment artifacts. Often, these misaligned reads map to a focal region on the viral contig. In contrast, the real presence of a virus in a tumor manifests as fairly homogeneous expression of most of the viral contig. This filter ignores viral contigs with high focal coverage and otherwise low coverage. The coverage is considered to be insufficient if it is less than 5% of the mean coverage of the whole viral contig. If the sufficient coverage fraction is less than 15% (see parameter `-C`), all fusion candidates pertaining to the viral contig are discarded.
+
 `read_through`
 : This filter removes a fragment, when the following conditions are met:
 

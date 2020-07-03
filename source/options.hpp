@@ -35,6 +35,7 @@ struct options_t {
 	string interesting_contigs;
 	string viral_contigs;
 	unsigned int top_viral_contigs;
+	float viral_contig_min_covered_fraction;
 	unsigned int homopolymer_length;
 	unsigned int min_read_through_distance;
 	unordered_map<string,bool> filters;

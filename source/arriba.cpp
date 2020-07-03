@@ -19,6 +19,7 @@
 #include "filter_uninteresting_contigs.hpp"
 #include "filter_viral_contigs.hpp"
 #include "filter_top_expressed_viral_contigs.hpp"
+#include "filter_low_coverage_viral_contigs.hpp"
 #include "filter_inconsistently_clipped.hpp"
 #include "filter_homopolymer.hpp"
 #include "filter_proximal_read_through.hpp"
@@ -282,6 +283,11 @@ int main(int argc, char **argv) {
 	if (options.filters.at("top_expressed_viral_contigs")) {
 		cout << get_time_string() << " Filtering viral contigs with expression lower than the top " << options.top_viral_contigs << " " << flush;
 		cout << "(remaining=" << filter_top_expressed_viral_contigs(chimeric_alignments, options.top_viral_contigs, contigs, options.viral_contigs, mapped_viral_reads_by_contig, assembly) << ")" << endl;
+	}
+
+	if (options.filters.at("low_coverage_viral_contigs")) {
+		cout << get_time_string() << " Filtering viral contigs with less than " << options.top_viral_contigs << "% coverage " << flush;
+		cout << "(remaining=" << filter_low_coverage_viral_contigs(chimeric_alignments, coverage, contigs, options.viral_contigs, options.viral_contig_min_covered_fraction) << ")" << endl;
 	}
 
 	cout << get_time_string() << " Estimating fragment length " << flush;

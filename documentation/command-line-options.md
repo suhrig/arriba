@@ -109,6 +109,9 @@ Even when an unstranded library is processed, Arriba can often infer the strand 
 `-t TOP_N`
 : If a tumor is truly infected with a virus, a substantial number of reads should map to the respective viral contig. Only report viral integration sites of the top N most highly expressed viral contigs. Default: `5`
 
+`-C COVERAGE_FRACTION`
+: Ignore virus-associated events if the virus is not fully expressed, i.e., less than the given fraction of the viral contig is transcribed. Default: `0.15`
+
 `-T`
 : When set, the column `fusion_transcript` is populated with the sequence of the fused genes as assembled from the supporting reads. Specify the flag twice to also print the fusion transcripts to the file containing discarded fusions (`-O`). Refer to section [fusions.tsv](output-files.md#fusionstsv) for a description of the format of the column. Default: off
 
