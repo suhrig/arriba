@@ -6,7 +6,7 @@ Read-level filters
 ------------------
 
 `duplicates`
-: Arriba removes PCR duplicates based on identical end coordinates of fragments. It is not necessary to mark duplicates via an external tool, since Arriba identifies duplicates itself. The library attribute (`LB`) of the read group tag (`RG`) in the BAM header is not yet respected by Arriba.
+: Arriba supports two modes of duplicate marking: internal and external. Internal duplicate marking is the default. Arriba then detects PCR duplicates automatically based on identical end coordinates of fragments. The library attribute (`LB`) of the read group tag (`RG`) in the BAM header is not respected by Arriba's internal duplicate marking. External duplicate marking can be enabled using the parameter `-u`. It requires that alignments be marked as duplicates via the `BAM_FDUP` flag. External duplicate marking is advisable when the `LB` attribute should be respected or when a library with unique molecular identifiers (UMIs) is used (and other scenarios where duplicates cannot be identified merely based on mapping coordinates).
 
 `uninteresting_contigs`
 : Apart from chromosomes, genome assemblies typically contain a few unassembled contigs (`GL...`) or decoy sequences (`hs37d5`). Events between the chromosomes and these contigs are not of interest, because they are merely an effect of the incomplete state of the assembly. This filter removes all events that concern contigs other than the chromosomes 1-22, X, and Y (as defined by parameter `-i`).
@@ -57,6 +57,9 @@ The rationale for this filter is the same as for the filter `same_gene`: These a
 
 Event-level filters
 -------------------
+
+`multimappers`
+: Multi-mapping reads are reduced to a single alignment. For this purpose, only the alignment with the best alignment score is retained. When there are multiple alignments with the same alignment score, the filter searches all fusion candidates associated with the multi-mapping read and determines the fusion candidate that has the most supporting reads. All alignments not associated with the most supported fusion candidate are discarded.
 
 `merge_adjacent`
 : When multiple alternative alignments with equal quality are possible, STAR does not always choose the same one. This leads to multiple breakpoints in close proximity, all of which arise from one and the same event. This filter merges all breakpoints in a window of 5 bp to the breakpoint with the highest number of supporting reads.
