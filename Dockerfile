@@ -13,14 +13,14 @@ RUN wget -q -O - "https://github.com/suhrig/arriba/releases/download/v1.2.0/arri
 # make wrapper script for download_references.sh
 RUN echo '#!/bin/bash\n\
 cd /references\n\
-/arriba*/download_references.sh $1 $2 && \\\n\
+/arriba*/download_references.sh $1 && \\\n\
 cp /arriba*/database/*${1%+*}* /references' > /usr/local/bin/download_references.sh && \
 chmod a+x /usr/local/bin/download_references.sh
 
 # make wrapper script for run_arriba.sh
 RUN echo '#!/bin/bash\n\
 cd /output\n\
-/arriba*/run_arriba.sh /references/STAR_index_* /references/*.gtf /references/*.fa /references/blacklist_*.tsv.gz /references/known_fusions_*.tsv.gz ${1-8} /read1.fastq.gz $(ls /read2.fastq.gz 2> /dev/null)' > /usr/local/bin/arriba.sh && \
+/arriba*/run_arriba.sh /references/STAR_index_* /references/*.gtf /references/*.fa /references/blacklist_*.tsv.gz /references/known_fusions_*.tsv.gz ${THREADS-8} /read1.fastq.gz $(ls /read2.fastq.gz 2> /dev/null)' > /usr/local/bin/arriba.sh && \
 chmod a+x /usr/local/bin/arriba.sh
 
 # make wrapper script for draw_fusions.R

@@ -32,15 +32,16 @@ COMBINATIONS["GRCh38+GENCODE28"]="GRCh38+GENCODE28"
 COMBINATIONS["GRCh38+RefSeq"]="GRCh38+RefSeq_hg38"
 COMBINATIONS["GRCh38+ENSEMBL93"]="GRCh38+ENSEMBL93"
 
-if [ $# -gt 2 ] || [ -z "$1" ] || [ -z "${COMBINATIONS[$1]}" ] || ! [[ $2 =~ ^(|[1-9][0-9]*)$ ]]; then
-	echo "Usage: $(basename $0) ASSEMBLY+ANNOTATION [THREADS]" 1>&2
+if [ $# -ne 1 ] || [ -z "$1" ] || [ -z "${COMBINATIONS[$1]}" ]; then
+	echo "Usage: $(basename $0) ASSEMBLY+ANNOTATION" 1>&2
 	echo "Available assemblies and annotations: ${!COMBINATIONS[@]}" 1>&2
 	exit 1
 fi
 
 ASSEMBLY="${COMBINATIONS[$1]%+*}"
 ANNOTATION="${COMBINATIONS[$1]#*+}"
-THREADS="${2-8}"
+THREADS="${THREADS-8}"
+SJDBOVERHANG="${SJDBOVERHANG-250}"
 
 set -o pipefail
 set -e -u
@@ -108,5 +109,5 @@ else
 fi > "$ANNOTATION.gtf"
 
 mkdir STAR_index_${ASSEMBLY}_${ANNOTATION}
-STAR --runMode genomeGenerate --genomeDir STAR_index_${ASSEMBLY}_${ANNOTATION} --genomeFastaFiles "$ASSEMBLY.fa" --sjdbGTFfile "$ANNOTATION.gtf" --runThreadN "$THREADS" --sjdbOverhang 250
+STAR --runMode genomeGenerate --genomeDir STAR_index_${ASSEMBLY}_${ANNOTATION} --genomeFastaFiles "$ASSEMBLY.fa" --sjdbGTFfile "$ANNOTATION.gtf" --runThreadN "$THREADS" --sjdbOverhang "$SJDBOVERHANG"
 
