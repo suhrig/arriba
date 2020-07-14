@@ -67,7 +67,7 @@ float calculate_binomial_distribution(const unsigned int k, const unsigned int n
 	return calculate_binomial_coefficient(k, n) * pow(p, k) * pow(1-p, n-k);
 }
 
-bool test_mismatch_probability(const alignment_t& alignment, const string& sequence, const assembly_t& assembly, const float mismatch_probability, long unsigned int genome_size, const float pvalue_cutoff) {
+bool test_mismatch_probability(const alignment_t& alignment, const string& sequence, const assembly_t& assembly, const float mismatch_probability, long unsigned int genome_size, const float pvalue_cutoff, const bool is_multimapper) {
 
 	// Alignment artifacts with many mismatches arise from two sources:
 	// 1. read incorrectly aligned to homologous sequence
@@ -75,9 +75,13 @@ bool test_mismatch_probability(const alignment_t& alignment, const string& seque
 	// The latter is more probable for short sequences, but becomes irrelevant for longer sequences.
 	// The former is mostly relevant for medium-sized sequences.
 
-	// estimate probability of observing the given number of mismatches by chance using a binomial model
+	// count mismatches
 	unsigned int mismatches, alignment_length;
 	count_mismatches(alignment, sequence, assembly, mismatches, alignment_length);
+	if (is_multimapper) // give +2 penalty for multi-mapping reads
+		mismatches += 2;
+
+	// estimate probability of observing the given number of mismatches by chance using a binomial model
 	if (calculate_binomial_distribution(mismatches, alignment_length, mismatch_probability) < pvalue_cutoff) {
 		return true;
 	} else if (mismatches > 0) {
@@ -111,14 +115,14 @@ unsigned int filter_mismatches(chimeric_alignments_t& chimeric_alignments, const
 		// discard chimeric alignments which have too many mismatches
 		if (chimeric_alignment->second.size() == 2) { // discordant mates
 			
-			if (test_mismatch_probability(chimeric_alignment->second[MATE1], chimeric_alignment->second[MATE1].sequence, assembly, mismatch_probability, genome_size, pvalue_cutoff) ||
-			    test_mismatch_probability(chimeric_alignment->second[MATE2], chimeric_alignment->second[MATE2].sequence, assembly, mismatch_probability, genome_size, pvalue_cutoff)) {
+			if (test_mismatch_probability(chimeric_alignment->second[MATE1], chimeric_alignment->second[MATE1].sequence, assembly, mismatch_probability, genome_size, pvalue_cutoff, chimeric_alignment->second.multimapper) ||
+			    test_mismatch_probability(chimeric_alignment->second[MATE2], chimeric_alignment->second[MATE2].sequence, assembly, mismatch_probability, genome_size, pvalue_cutoff, chimeric_alignment->second.multimapper)) {
 				chimeric_alignment->second.filter = FILTER_mismatches;
 				continue;
 			}
 		} else { // split read
-			if (test_mismatch_probability(chimeric_alignment->second[MATE1], chimeric_alignment->second[MATE1].sequence, assembly, mismatch_probability, genome_size, pvalue_cutoff) ||
-			    test_mismatch_probability(chimeric_alignment->second[SUPPLEMENTARY], (chimeric_alignment->second[SUPPLEMENTARY].strand == chimeric_alignment->second[SPLIT_READ].strand) ? chimeric_alignment->second[SPLIT_READ].sequence : dna_to_reverse_complement(chimeric_alignment->second[SPLIT_READ].sequence), assembly, mismatch_probability, genome_size, pvalue_cutoff)) {
+			if (test_mismatch_probability(chimeric_alignment->second[MATE1], chimeric_alignment->second[MATE1].sequence, assembly, mismatch_probability, genome_size, pvalue_cutoff, chimeric_alignment->second.multimapper) ||
+			    test_mismatch_probability(chimeric_alignment->second[SUPPLEMENTARY], (chimeric_alignment->second[SUPPLEMENTARY].strand == chimeric_alignment->second[SPLIT_READ].strand) ? chimeric_alignment->second[SPLIT_READ].sequence : dna_to_reverse_complement(chimeric_alignment->second[SPLIT_READ].sequence), assembly, mismatch_probability, genome_size, pvalue_cutoff, chimeric_alignment->second.multimapper)) {
 				chimeric_alignment->second.filter = FILTER_mismatches;
 				continue;
 			}
