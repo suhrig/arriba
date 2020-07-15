@@ -17,7 +17,7 @@ BLACKLIST_TSV="$4"
 KNOWN_FUSIONS_TSV="$5"
 THREADS="$6"
 READ1="$7"
-READ2="$8"
+READ2="${8-}"
 
 # find installation directory of arriba
 BASE_DIR=$(dirname "$0")
