@@ -1,3 +1,4 @@
+#include <climits>
 #include <iostream>
 #include <sstream>
 #include <string>
@@ -28,7 +29,7 @@ void load_assembly(assembly_t& assembly, const string& fasta_file_path, contigs_
 	// read FastA file line by line
 	autodecompress_file_t fasta_file(fasta_file_path);
 	string line;
-	contig_t current_contig = -1;
+	contig_t current_contig = USHRT_MAX;
 	while (fasta_file.getline(line)) {
 		if (!line.empty()) {
 
@@ -41,10 +42,10 @@ void load_assembly(assembly_t& assembly, const string& fasta_file_path, contigs_
 				pair<contigs_t::iterator,bool> new_contig = contigs.insert(pair<string,contig_t>(contig_name, contigs.size()));
 				current_contig = new_contig.first->second;
 				if (!is_interesting_contig(contig_name, interesting_contigs))
-					current_contig = -1; // skip uninteresting contigs
+					current_contig = USHRT_MAX; // skip uninteresting contigs
 
 			// get sequence
-			} else if (current_contig != -1) { // skip line if contig is undefined or not interesting
+			} else if (current_contig != USHRT_MAX) { // skip line if contig is undefined or not interesting
 				std::transform(line.begin(), line.end(), line.begin(), (int (*)(int))std::toupper); // convert sequence to uppercase
 				assembly[current_contig] += line;
 			}

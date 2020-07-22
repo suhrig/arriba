@@ -66,7 +66,7 @@ const filter_t FILTER_homologs = FILTERS.define("homologs");
 // when more than 64 filters are added, the size of the filter member of the fusion_t class needs to be enlarged
 
 typedef int position_t;
-typedef short int contig_t;
+typedef short unsigned int contig_t;
 typedef unordered_map<string,contig_t> contigs_t;
 // function to check if contig matches pattern, e.g., NC_*, AC_*, 1, 2, 3, 4, X, Y, M, ...
 inline bool is_interesting_contig(const string& contig, const string& interesting_contigs) {
