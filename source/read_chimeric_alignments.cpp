@@ -1,4 +1,5 @@
 #include <algorithm>
+#include <climits>
 #include <iostream>
 #include <string>
 #include "cram.h"
@@ -307,6 +308,10 @@ unsigned int read_chimeric_alignments(const string& bam_file_path, const assembl
 	for (int target = 0; target < bam_header->n_targets; ++target) {
 		string contig_name = removeChr(bam_header->target_name[target]);
 		contigs.insert(pair<string,contig_t>(contig_name, contigs.size())); // this fails (i.e., nothing is inserted), if the contig already exists
+		if (contigs.size() == USHRT_MAX - 1) {
+			cerr << "ERROR: too many contigs" << endl;
+			exit(1);
+		}
 		tid_to_contig[target] = contigs[contig_name];
 		if (is_rna_bam_file) {
 			if (tid_to_contig[target] >= (int) interesting_tids.size())

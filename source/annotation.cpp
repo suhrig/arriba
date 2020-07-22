@@ -1,5 +1,6 @@
 #include <algorithm>
 #include <cmath>
+#include <climits>
 #include <iostream>
 #include <iterator>
 #include <map>
@@ -216,6 +217,10 @@ void read_annotation_gtf(const string& filename, const string& gtf_features_stri
 			// convert string representation of contig to numeric ID
 			contig = removeChr(contig);
 			pair<contigs_t::iterator,bool> find_contig_by_name = contigs.insert(pair<string,contig_t>(contig, contigs.size())); // this adds a new contig only if it does not yet exist
+			if (contigs.size() == USHRT_MAX - 1) {
+				cerr << "ERROR: too many contigs" << endl;
+				exit(1);
+			}
 
 			// make annotation record
 			annotation_record.contig = find_contig_by_name.first->second;
