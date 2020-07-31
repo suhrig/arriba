@@ -152,7 +152,6 @@ typedef exon_annotation_record_t* exon_t;
 struct transcript_annotation_record_t {
 	unsigned int id;
 	string name;
-	gene_t gene;
 	exon_t first_exon;
 	exon_t last_exon;
 };

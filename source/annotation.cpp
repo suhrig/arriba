@@ -168,21 +168,27 @@ bool sort_exons_by_coordinate(const exon_annotation_record_t* exon1, const exon_
 }
 
 struct coding_region_t {
+	strand_t strand;
+	contig_t contig;
 	position_t start, end;
 	string transcript_id;
 };
 
-void read_annotation_gtf(const string& filename, const string& gtf_features_string, contigs_t& contigs, gene_annotation_t& gene_annotation, transcript_annotation_t& transcript_annotation, exon_annotation_t& exon_annotation, unordered_map<string,gene_t>& gene_names) {
+void read_annotation_gtf(const string& filename, const string& gtf_features_string, contigs_t& contigs, const assembly_t& assembly, gene_annotation_t& gene_annotation, transcript_annotation_t& transcript_annotation, exon_annotation_t& exon_annotation, unordered_map<string,gene_t>& gene_names) {
 
 	gtf_features_t gtf_features;
 	parse_gtf_features(gtf_features_string, gtf_features);
 
-	unordered_map<string,transcript_t> transcripts; // translates transcript IDs to numeric IDs
+	unordered_map<tuple<string,contig_t,strand_t>,transcript_t> transcripts; // translates transcript IDs to numeric IDs
 	unordered_map<tuple<string,contig_t,strand_t>,gene_t> gene_by_id; // maps gene IDs to genes (used to map exons to genes)
-	unordered_map<string,vector<exon_annotation_record_t*> > exons_by_transcript_id; // maps transcript IDs to exons (used to map coding regions to exons)
+	unordered_map<tuple<string,contig_t,strand_t>,vector<exon_annotation_record_t*> > exons_by_transcript_id; // maps transcript IDs to exons (used to map coding regions to exons)
 	vector<coding_region_t> coding_regions; // keeps track of coding regions (used to map coding regions to exons)
 
-	gene_set_t bogus_genes; // genes with bogus annotation are ignored
+	// genes and transcripts with malformed annotation are ignored,
+	// e.g., when the same ID appears multiple times or the gene is unreasonably large
+	const int max_gene_size = 3000000;
+	gene_set_t malformed_genes;
+	vector< tuple<string,contig_t,strand_t> > malformed_transcripts;
 
 	autodecompress_file_t gtf_file(filename);
 	string line;
@@ -244,19 +250,20 @@ void read_annotation_gtf(const string& filename, const string& gtf_features_stri
 				string short_transcript_id = transcript_id;
 				if (short_transcript_id.substr(0, 3) == "ENS" && (trim_position = short_transcript_id.find_last_of('.', string::npos)) != string::npos)
 					short_transcript_id = short_transcript_id.substr(0, trim_position);
-				exon_annotation_record.transcript = transcripts[short_transcript_id];
-				if (exon_annotation_record.transcript == NULL) { // this is the first time we encounter this transcript ID => make a new transcript_annotation_record_t
+				transcript_t& transcript = transcripts[make_tuple(short_transcript_id, annotation_record.contig, annotation_record.strand)];
+				if (transcript == NULL) { // this is the first time we encounter this transcript ID => make a new transcript_annotation_record_t
 					transcript_annotation_record_t transcript_annotation_record;
 					transcript_annotation_record.id = new_id++;
 					transcript_annotation_record.name = transcript_id;
 					transcript_annotation_record.first_exon = NULL; // is set once we have loaded all exons
 					transcript_annotation_record.last_exon = NULL; // is set once we have loaded all exons
 					transcript_annotation.push_back(transcript_annotation_record);
-					exon_annotation_record.transcript = transcripts[short_transcript_id] = &(*transcript_annotation.rbegin());
+					transcript = &(*transcript_annotation.rbegin());
 				}
+				exon_annotation_record.transcript = transcript;
 
 				// make a gene annotation record, if this is the first exon of a gene
-				gene_t gene = gene_by_id[make_tuple(short_gene_id, annotation_record.contig, annotation_record.strand)];
+				gene_t& gene = gene_by_id[make_tuple(short_gene_id, annotation_record.contig, annotation_record.strand)];
 				if (gene == NULL) {
 					gene_annotation_record_t gene_annotation_record;
 					gene_annotation_record.copy(annotation_record);
@@ -268,7 +275,6 @@ void read_annotation_gtf(const string& filename, const string& gtf_features_stri
 					gene_annotation_record.is_protein_coding = false;
 					gene_annotation.push_back(gene_annotation_record);
 					gene = &(*gene_annotation.rbegin());
-					gene_by_id[make_tuple(short_gene_id, annotation_record.contig, annotation_record.strand)] = gene;
 				} else { // gene has already been seen previously
 					// expand the boundaries of the gene, so that all exons fit inside
 					if (gene->start > exon_annotation_record.start)
@@ -276,22 +282,28 @@ void read_annotation_gtf(const string& filename, const string& gtf_features_stri
 					if (gene->end < exon_annotation_record.end)
 						gene->end = exon_annotation_record.end;
 					// check if annotation is sensible
-					if (gene->contig != annotation_record.contig || gene->end - gene->start > 3000000) {
+					if (gene->contig != annotation_record.contig || gene->end - gene->start > max_gene_size) {
 						cout << "WARNING: gene ID '" << gene_id << "' appears to be non-unique and will be ignored" << endl;
-						bogus_genes.insert(gene);
+						malformed_genes.insert(gene);
 					}
 				}
-				exon_annotation_record.gene = gene;
+				if (assembly.find(gene->contig) != assembly.end() && (unsigned int) gene->end >= assembly.at(gene->contig).size()) {
+					cout << "WARNING: gene with ID '" << gene_id << "' extends beyond end of contig and will be ignored" << endl;
+					malformed_genes.insert(gene);
+				}
 
+				exon_annotation_record.gene = gene;
 				exon_annotation.push_back(exon_annotation_record);
 
 				// keep track of all exons of a transcript, so we can map coding regions to exons later
-				exons_by_transcript_id[transcript_id].push_back(&(*exon_annotation.rbegin()));
+				exons_by_transcript_id[make_tuple(transcript_id, annotation_record.contig, annotation_record.strand)].push_back(&(*exon_annotation.rbegin()));
 
 			} else if (find(gtf_features.feature_cds.begin(), gtf_features.feature_cds.end(), feature) != gtf_features.feature_cds.end()) {
 
 				// remember which regions of an exon are coding
 				coding_region_t coding_region;
+				coding_region.strand = annotation_record.strand;
+				coding_region.contig = annotation_record.contig;
 				coding_region.start = annotation_record.start;
 				coding_region.end = annotation_record.end;
 				if (!get_gtf_attribute(attributes, gtf_features.transcript_id, coding_region.transcript_id))
@@ -310,7 +322,7 @@ void read_annotation_gtf(const string& filename, const string& gtf_features_stri
 	for (auto coding_region = coding_regions.begin(); coding_region != coding_regions.end(); ++coding_region) {
 
 		// find exons of the same transcript as the coding region
-		auto transcript = exons_by_transcript_id.find(coding_region->transcript_id);
+		auto transcript = exons_by_transcript_id.find(make_tuple(coding_region->transcript_id, coding_region->contig, coding_region->strand));
 		if (transcript == exons_by_transcript_id.end()) {
 			cerr << "WARNING: CDS record has unknown transcript ID: " << coding_region->transcript_id << endl;
 			continue;
@@ -336,30 +348,6 @@ void read_annotation_gtf(const string& filename, const string& gtf_features_stri
 		}
 	}
 
-	// remove bogus genes
-	for (gene_set_t::iterator bogus_gene = bogus_genes.begin(); bogus_gene != bogus_genes.end(); ++bogus_gene)
-		remove_gene(*bogus_gene, gene_annotation, exon_annotation);
-
-	// fix some errors in the Gencode annotation
-	// remove fusion transcript FIP1L1:PDGFRA
-	if (transcripts.find("ENST00000507166") != transcripts.end())
-		remove_transcript(transcripts.at("ENST00000507166"), gene_annotation, exon_annotation);
-	// remove fusion transcript GOPC:ROS1
-	if (transcripts.find("ENST00000467125") != transcripts.end())
-		remove_transcript(transcripts.at("ENST00000467125"), gene_annotation, exon_annotation);
-	// remove fusion transcripts MTAP:CDKN2B-AS1
-	if (transcripts.find("ENST00000404796") != transcripts.end())
-		remove_transcript(transcripts.at("ENST00000404796"), gene_annotation, exon_annotation);
-	if (transcripts.find("ENST00000577563") != transcripts.end())
-		remove_transcript(transcripts.at("ENST00000577563"), gene_annotation, exon_annotation);
-	if (transcripts.find("ENST00000580900") != transcripts.end())
-		remove_transcript(transcripts.at("ENST00000580900"), gene_annotation, exon_annotation);
-
-	// make a map of gene_name -> gene
-	//TODO this can cause collisions, because gene names are not unique
-	for (gene_annotation_t::iterator gene = gene_annotation.begin(); gene != gene_annotation.end(); ++gene)
-		gene_names[gene->name] = &(*gene);
-
 	// compute starts and ends of all transcripts
 	for (exon_annotation_t::iterator exon = exon_annotation.begin(); exon != exon_annotation.end(); ++exon) {
 		if (exon->transcript->first_exon == NULL || exon->start < exon->transcript->first_exon->start)
@@ -367,6 +355,33 @@ void read_annotation_gtf(const string& filename, const string& gtf_features_stri
 		if (exon->transcript->last_exon == NULL || exon->end > exon->transcript->last_exon->end)
 			exon->transcript->last_exon = &(*exon);
 	}
+
+	// fix some errors in the Gencode annotation
+	malformed_transcripts.push_back(make_tuple("ENST00000507166", contigs["4"], FORWARD)); // FIP1L1:PDGFRA
+	malformed_transcripts.push_back(make_tuple("ENST00000467125", contigs["6"], REVERSE)); // GOPC:ROS1
+	malformed_transcripts.push_back(make_tuple("ENST00000404796", contigs["9"], FORWARD)); // MTAP:CDKN2B-AS1
+	malformed_transcripts.push_back(make_tuple("ENST00000577563", contigs["9"], FORWARD)); // MTAP:CDKN2B-AS1
+	malformed_transcripts.push_back(make_tuple("ENST00000580900", contigs["9"], FORWARD)); // MTAP:CDKN2B-AS1
+
+	// remove transcripts that are non-unique or unreasonably large
+	for (auto transcript = transcripts.begin(); transcript != transcripts.end(); ++transcript) {
+		if (transcript->second->last_exon->end - transcript->second->first_exon->start > max_gene_size) {
+			malformed_transcripts.push_back(transcript->first);
+			cout << "WARNING: transcript ID '" << get<0>(transcript->first) << "' appears to be non-unique and will be ignored" << endl;
+		}
+	}
+	for (auto malformed_transcript = malformed_transcripts.begin(); malformed_transcript != malformed_transcripts.end(); ++malformed_transcript)
+		if (transcripts.find(*malformed_transcript) != transcripts.end())
+			remove_transcript(transcripts.at(*malformed_transcript), gene_annotation, exon_annotation);
+
+	// remove malformed genes
+	for (gene_set_t::iterator malformed_gene = malformed_genes.begin(); malformed_gene != malformed_genes.end(); ++malformed_gene)
+		remove_gene(*malformed_gene, gene_annotation, exon_annotation);
+
+	// make a map of gene_name -> gene
+	//TODO this can cause collisions, because gene names are not unique
+	for (gene_annotation_t::iterator gene = gene_annotation.begin(); gene != gene_annotation.end(); ++gene)
+		gene_names[gene->name] = &(*gene);
 
 }
 

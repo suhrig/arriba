@@ -82,25 +82,26 @@ int main(int argc, char **argv) {
 	// parse command-line options
 	options_t options = parse_arguments(argc, argv);
 
-	// load GTF file
-	cout << get_time_string() << " Loading annotation from '" << options.gene_annotation_file << "' " << endl << flush;
+	// load sequences of contigs from assembly
 	contigs_t contigs;
+	cout << get_time_string() << " Loading assembly from '" << options.assembly_file << "' " << endl;
+	assembly_t assembly;
+	load_assembly(assembly, options.assembly_file, contigs, options.interesting_contigs);
+
+	// load GTF file
+	// must be loaded after assembly to check if genes exceed the boundaries of contigs
+	cout << get_time_string() << " Loading annotation from '" << options.gene_annotation_file << "' " << endl << flush;
 	gene_annotation_t gene_annotation;
 	transcript_annotation_t transcript_annotation;
 	exon_annotation_t exon_annotation;
 	unordered_map<string,gene_t> gene_names;
-	read_annotation_gtf(options.gene_annotation_file, options.gtf_features, contigs, gene_annotation, transcript_annotation, exon_annotation, gene_names);
+	read_annotation_gtf(options.gene_annotation_file, options.gtf_features, contigs, assembly, gene_annotation, transcript_annotation, exon_annotation, gene_names);
 
 	// sort genes and exons by coordinate (make index)
 	exon_annotation_index_t exon_annotation_index;
 	make_annotation_index(exon_annotation, exon_annotation_index);
 	gene_annotation_index_t gene_annotation_index;
 	make_annotation_index(gene_annotation, gene_annotation_index);
-
-	// load sequences of contigs from assembly
-	cout << get_time_string() << " Loading assembly from '" << options.assembly_file << "' " << endl;
-	assembly_t assembly;
-	load_assembly(assembly, options.assembly_file, contigs, options.interesting_contigs);
 
 	// prevent htslib from downloading the assembly via the Internet, if CRAM is used
 	setenv("REF_PATH", ".", 0);
