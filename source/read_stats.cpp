@@ -87,7 +87,7 @@ bool estimate_fragment_length(const chimeric_alignments_t& chimeric_alignments, 
 strandedness_t detect_strandedness(const chimeric_alignments_t& chimeric_alignments, const gene_annotation_index_t& gene_annotation_index, const exon_annotation_index_t& exon_annotation_index) {
 
 	const unsigned int sample_size = 100; // examine at least this many reads to determine strandedness
-	const float threshold = 0.75; // fraction of reads which must support strandedness to be convinced
+	const float threshold = 0.95; // fraction of reads which must support strandedness to be convinced
 
 	unsigned int count = 0;
 	unsigned int matching_strand = 0;
