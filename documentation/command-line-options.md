@@ -115,14 +115,8 @@ Even when an unstranded library is processed, Arriba can often infer the strand 
 `-C COVERAGE_FRACTION`
 : Ignore virus-associated events if the virus is not fully expressed, i.e., less than the given fraction of the viral contig is transcribed. Default: `0.15`
 
-`-T`
-: When set, the column `fusion_transcript` is populated with the sequence of the fused genes as assembled from the supporting reads. Specify the flag twice to also print the fusion transcripts to the file containing discarded fusions (`-O`). Refer to section [fusions.tsv](output-files.md#fusionstsv) for a description of the format of the column. Default: off
-
-`-P`
-: When set, the column `peptide_sequence` is populated with the sequence of the peptide around the fusion junction as translated from the fusion transcript. Specify the flag twice to also print the peptide sequence to the file containing discarded fusions (`-O`). Refer to section [fusions.tsv](output-files.md#fusionstsv) for a description of the format of the column. Default: off
-
-`-I`
-: When set, the column `read_identifiers` is populated with identifiers of the reads which support the fusion. The identifiers are separated by commas. Specify the flag twice to also print the read identifiers to the file containing discarded fusions (`-O`). Default: off
+`-X`
+: To reduce the runtime and file size, by default, the columns `fusion_transcript`, `peptide_sequence`, and `read_identifiers` are left empty in the file containing discarded fusion candidates (see parameter `-O`). When this flag is set, this extra information is reported in the discarded fusions file.
 
 `-u`
 : Arriba performs marking of duplicates internally based on identical mapping coordinates. When this switch is set, internal marking of duplicates is disabled and Arriba assumes that duplicates have been marked by a preceding program. In this case, Arriba only discards alignments flagged with the BAM_FDUP flag. This makes sense when duplicates cannot be reliably identified solely based on their mapping coordinates, e.g. when unique molecular identifiers (UMIs) are used or when independently generated libraries are merged in a single BAM file and the read group must be interrogated to distinguish duplicates from reads that map to the same coordinates by chance. In addition, when this switch is set, duplicate reads are not considered for the calculation of the coverage at fusion breakpoints (columns `coverage1` and `coverage2` in the output file).

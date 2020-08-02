@@ -86,12 +86,7 @@ options_t get_default_options() {
 	options.homopolymer_length = 6;
 	options.max_genomic_breakpoint_distance = 100000;
 	options.min_read_through_distance = 10000;
-	options.print_supporting_reads = false;
-	options.print_supporting_reads_for_discarded_fusions = false;
-	options.print_fusion_sequence = false;
-	options.print_fusion_sequence_for_discarded_fusions = false;
-	options.print_peptide_sequence = false;
-	options.print_peptide_sequence_for_discarded_fusions = false;
+	options.print_extra_info_for_discarded_fusions = false;
 	options.max_kmer_content = 0.6;
 	options.fragment_length = 200;
 	options.strandedness = STRANDEDNESS_AUTO;
@@ -233,21 +228,14 @@ void print_usage() {
 	     << wrap_help("-C COVERED_FRACTION", "Ignore virally associated events if the virus is not "
 	                  "fully expressed, i.e., less than the given fraction of the viral contig is "
 	                  "transcribed. Default: " + to_string(static_cast<long double>(default_options.viral_contig_min_covered_fraction)))
-	     << wrap_help("-T", "When set, the column 'fusion_transcript' is populated with "
-	                  "the sequence of the fused genes as assembled from the supporting reads. "
-	                  "Specify the flag twice to also print the fusion transcripts to the file "
-	                  "containing discarded fusions (-O). Default: " + string((default_options.print_fusion_sequence) ? "on" : "off"))
-	     << wrap_help("-P", "When set, the column 'peptide_sequence' is populated with "
-	                  "the sequence of the fused proteins as assembled from the supporting reads. "
-	                  "Specify the flag twice to also print the peptide sequence to the file "
-	                  "containing discarded fusions (-O). Default: " + string((default_options.print_peptide_sequence) ? "on" : "off"))
-	     << wrap_help("-I", "When set, the column 'read_identifiers' is populated with "
-	                  "identifiers of the reads which support the fusion. The identifiers "
-	                  "are separated by commas. Specify the flag twice to also print the read "
-	                  "identifiers to the file containing discarded fusions (-O). Default: " + string((default_options.print_supporting_reads) ? "on" : "off"))
 	     << wrap_help("-u", "Instead of performing duplicate marking itself, Arriba relies on "
 	                  "duplicate marking by a preceding program using the BAM_FDUP flag. This "
 	                  "makes sense when unique molecular identifiers (UMI) are used. Default: " + string((default_options.external_duplicate_marking) ? "on" : "off"))
+	     << wrap_help("-X", "To reduce the runtime and file size, by default, the columns "
+	                  "'fusion_transcript', 'peptide_sequence', and 'read_identifiers' are left "
+	                  "empty in the file containing discarded fusion candidates (see parameter -O). "
+	                  "When this flag is set, this extra information is reported in the discarded "
+	                  "fusions file.")
 	     << wrap_help("-h", "Print help and exit.")
 	     << "For more information or help, visit: " << HELP_CONTACT << endl
 	     << "The user manual is available at: " << MANUAL_URL << endl;
@@ -268,11 +256,11 @@ options_t parse_arguments(int argc, char **argv) {
 	int c;
 	string junction_suffix(".junction");
 	unordered_map<char,unsigned int> duplicate_arguments;
-	while ((c = getopt(argc, argv, "c:x:d:g:G:o:O:a:b:k:s:i:v:f:E:S:m:L:H:D:R:A:M:K:V:F:U:Q:e:t:C:TPIuh")) != -1) {
+	while ((c = getopt(argc, argv, "c:x:d:g:G:o:O:a:b:k:s:i:v:f:E:S:m:L:H:D:R:A:M:K:V:F:U:Q:e:t:C:Xuh")) != -1) {
 
 		// throw error if the same argument is specified more than once
 		duplicate_arguments[c]++;
-		if (!(duplicate_arguments[c] <= 1 || (c == 'I' || c == 'T' || c == 'P') && duplicate_arguments[c] <= 2)) {
+		if (duplicate_arguments[c] > 1) {
 			cerr << "ERROR: argument -" << ((char) c) << " specified too often" << endl;
 			exit(1);
 		}
@@ -505,23 +493,8 @@ options_t parse_arguments(int argc, char **argv) {
 					exit(1);
 				}
 				break;
-			case 'T':
-				if (!options.print_fusion_sequence)
-					options.print_fusion_sequence = true;
-				else
-					options.print_fusion_sequence_for_discarded_fusions = true;
-				break;
-			case 'P':
-				if (!options.print_peptide_sequence)
-					options.print_peptide_sequence = true;
-				else
-					options.print_peptide_sequence_for_discarded_fusions = true;
-				break;
-			case 'I':
-				if (!options.print_supporting_reads)
-					options.print_supporting_reads = true;
-				else
-					options.print_supporting_reads_for_discarded_fusions = true;
+			case 'X':
+				options.print_extra_info_for_discarded_fusions = true;
 				break;
 			case 'u':
 				options.external_duplicate_marking = true;

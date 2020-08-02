@@ -519,11 +519,11 @@ int main(int argc, char **argv) {
 	assign_confidence(fusions, coverage);
 
 	cout << get_time_string() << " Writing fusions to file '" << options.output_file << "' " << endl;
-	write_fusions_to_file(fusions, options.output_file, coverage, assembly, gene_annotation_index, exon_annotation_index, contigs_by_id, options.print_supporting_reads, options.print_fusion_sequence, options.print_peptide_sequence, false);
+	write_fusions_to_file(fusions, options.output_file, coverage, assembly, gene_annotation_index, exon_annotation_index, contigs_by_id, true, false);
 
 	if (options.discarded_output_file != "") {
 		cout << get_time_string() << " Writing discarded fusions to file '" << options.discarded_output_file << "' " << endl;
-		write_fusions_to_file(fusions, options.discarded_output_file, coverage, assembly, gene_annotation_index, exon_annotation_index, contigs_by_id, options.print_supporting_reads_for_discarded_fusions, options.print_fusion_sequence_for_discarded_fusions, options.print_peptide_sequence_for_discarded_fusions, true);
+		write_fusions_to_file(fusions, options.discarded_output_file, coverage, assembly, gene_annotation_index, exon_annotation_index, contigs_by_id, options.print_extra_info_for_discarded_fusions, true);
 	}
 
 	// print resource usage stats end exit

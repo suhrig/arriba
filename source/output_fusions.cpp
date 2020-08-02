@@ -998,7 +998,7 @@ string is_in_frame(const string& fusion_peptide_sequence) {
 	return "out-of-frame";
 }
 
-void write_fusions_to_file(fusions_t& fusions, const string& output_file, const coverage_t& coverage, const assembly_t& assembly, gene_annotation_index_t& gene_annotation_index, exon_annotation_index_t& exon_annotation_index, vector<string> contigs_by_id, const bool print_supporting_reads, const bool print_fusion_sequence, const bool print_peptide_sequence, const bool write_discarded_fusions) {
+void write_fusions_to_file(fusions_t& fusions, const string& output_file, const coverage_t& coverage, const assembly_t& assembly, gene_annotation_index_t& gene_annotation_index, exon_annotation_index_t& exon_annotation_index, vector<string> contigs_by_id, const bool print_extra_info, const bool write_discarded_fusions) {
 //TODO add "chr", if necessary
 
 	// make a vector of pointers to all fusions
@@ -1135,9 +1135,8 @@ void write_fusions_to_file(fusions_t& fusions, const string& output_file, const 
 		out << "\t";
 		string transcript_sequence;
 		vector<position_t> positions;
-		if (print_fusion_sequence || print_peptide_sequence)
+		if (print_extra_info) {
 			get_fusion_transcript_sequence(**fusion, assembly, transcript_sequence, positions);
-		if (print_fusion_sequence) {
 			out << transcript_sequence;
 		} else {
 			out << ".";
@@ -1148,7 +1147,7 @@ void write_fusions_to_file(fusions_t& fusions, const string& output_file, const 
 
 		// print the translated protein sequence
 		out << "\t";
-		if (print_peptide_sequence) {
+		if (print_extra_info) {
 			transcript_t transcript_5 = get_transcript(transcript_sequence, positions, gene_5, strand_5, (**fusion).predicted_strands_ambiguous, 5, exon_annotation_index);
 			transcript_t transcript_3 = get_transcript(transcript_sequence, positions, gene_3, strand_3, (**fusion).predicted_strands_ambiguous, 3, exon_annotation_index);
 			string fusion_peptide_sequence = get_fusion_peptide_sequence(transcript_sequence, positions, gene_5, gene_3, transcript_5, transcript_3, strand_3, exon_annotation_index, assembly);
@@ -1162,7 +1161,7 @@ void write_fusions_to_file(fusions_t& fusions, const string& output_file, const 
 
 		// if requested, print identifiers of supporting reads
 		out << "\t";
-		if (print_supporting_reads && !all_supporting_reads.empty()) {
+		if (print_extra_info && !all_supporting_reads.empty()) {
 			for (auto read = all_supporting_reads.begin(); read != all_supporting_reads.end(); ++read) {
 				if (read != all_supporting_reads.begin())
 					out << ",";
