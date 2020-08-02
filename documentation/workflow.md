@@ -35,7 +35,6 @@ arriba \
 	-x /dev/stdin \
 	-o fusions.tsv -O fusions.discarded.tsv \
 	-a /path/to/assembly.fa -g /path/to/annotation.gtf -b /path/to/blacklist.tsv.gz \
-	-T -P
 ```
 
 For a comprehensive list of the parameters, please refer to section [Command-line options](command-line-options.md).
