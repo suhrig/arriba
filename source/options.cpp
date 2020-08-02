@@ -223,7 +223,7 @@ void print_usage() {
 	                  "If the fraction of exonic sequence between two breakpoints is smaller than "
 	                  "the given fraction, the 'intragenic_exonic' filter discards the event. "
 	                  "Default: " + to_string(static_cast<long double>(default_options.exonic_fraction)))
-	     << wrap_help("-t TOP_N", "Only report viral integration sites of the top N most highly "
+	     << wrap_help("-T TOP_N", "Only report viral integration sites of the top N most highly "
 	                  "expressed viral contigs. Default: " + to_string(static_cast<long long unsigned int>(default_options.top_viral_contigs)))
 	     << wrap_help("-C COVERED_FRACTION", "Ignore virally associated events if the virus is not "
 	                  "fully expressed, i.e., less than the given fraction of the viral contig is "
@@ -256,7 +256,7 @@ options_t parse_arguments(int argc, char **argv) {
 	int c;
 	string junction_suffix(".junction");
 	unordered_map<char,unsigned int> duplicate_arguments;
-	while ((c = getopt(argc, argv, "c:x:d:g:G:o:O:a:b:k:s:i:v:f:E:S:m:L:H:D:R:A:M:K:V:F:U:Q:e:t:C:Xuh")) != -1) {
+	while ((c = getopt(argc, argv, "c:x:d:g:G:o:O:a:b:k:s:i:v:f:E:S:m:L:H:D:R:A:M:K:V:F:U:Q:e:T:C:Xuh")) != -1) {
 
 		// throw error if the same argument is specified more than once
 		duplicate_arguments[c]++;
@@ -481,7 +481,7 @@ options_t parse_arguments(int argc, char **argv) {
 					exit(1);
 				}
 				break;
-			case 't':
+			case 'T':
 				if (!validate_int(optarg, options.top_viral_contigs, 1)) {
 					cerr << "ERROR: invalid argument to -" << ((char) c) << endl;
 					exit(1);
