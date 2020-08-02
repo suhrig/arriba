@@ -547,8 +547,6 @@ string get_fusion_site(const gene_t gene, const bool spliced, const bool exonic,
 	string site;
 	if (gene->is_dummy) {
 		site = "intergenic";
-	} else if (spliced) {
-		site = "splice-site";
 	} else if (exonic) {
 		// re-annotate exonic breakpoints
 		if (breakpoint < gene->start) {
@@ -623,6 +621,8 @@ string get_fusion_site(const gene_t gene, const bool spliced, const bool exonic,
 				site = "exon";
 			}
 		}
+		if (spliced && site != "intron")
+			site += "/splice-site";
 	} else {
 		site = "intron";
 	}
