@@ -146,6 +146,9 @@ void print_usage() {
 	                  "separated by tabs.")
 	     << wrap_help("-o FILE", "Output file with fusions that have passed all filters.")
 	     << wrap_help("-O FILE", "Output file with fusions that were discarded due to filtering.")
+	     << wrap_help("-t FILE", "Tab-separated file containing fusions to annotate with tags "
+	                  "in the 'tags' column. The first two columns specify the genes; the third "
+	                  "column specifies the tag.")
 	     << wrap_help("-d FILE", "Tab-separated file with coordinates of structural variants "
 	                  "found using whole-genome sequencing data. These coordinates serve to "
 	                  "increase sensitivity towards weakly expressed fusions and to eliminate "
@@ -256,7 +259,7 @@ options_t parse_arguments(int argc, char **argv) {
 	int c;
 	string junction_suffix(".junction");
 	unordered_map<char,unsigned int> duplicate_arguments;
-	while ((c = getopt(argc, argv, "c:x:d:g:G:o:O:a:b:k:s:i:v:f:E:S:m:L:H:D:R:A:M:K:V:F:U:Q:e:T:C:Xuh")) != -1) {
+	while ((c = getopt(argc, argv, "c:x:d:g:G:o:O:t:a:b:k:s:i:v:f:E:S:m:L:H:D:R:A:M:K:V:F:U:Q:e:T:C:Xuh")) != -1) {
 
 		// throw error if the same argument is specified more than once
 		duplicate_arguments[c]++;
@@ -321,6 +324,13 @@ options_t parse_arguments(int argc, char **argv) {
 				options.discarded_output_file = optarg;
 				if (!output_directory_exists(options.discarded_output_file)) {
 					cerr << "ERROR: parent directory of output file '" << options.discarded_output_file << "' does not exist" << endl;
+					exit(1);
+				}
+				break;
+			case 't':
+				options.tags_file = optarg;
+				if (access(options.tags_file.c_str(), R_OK) != 0) {
+					cerr << "ERROR: file not found/readable: " << options.tags_file << endl;
 					exit(1);
 				}
 				break;

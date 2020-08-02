@@ -4,10 +4,11 @@
 #include <vector>
 #include <string>
 #include "annotation.hpp"
+#include "annotate_tags.hpp"
 #include "read_stats.hpp"
 
 using namespace std;
 
-void write_fusions_to_file(fusions_t& fusions, const string& output_file, const coverage_t& coverage, const assembly_t& assembly, gene_annotation_index_t& gene_annotation_index, exon_annotation_index_t& exon_annotation_index, vector<string> contigs_by_id, const bool print_extra_info, const bool write_discarded_fusions);
+void write_fusions_to_file(fusions_t& fusions, const string& output_file, const coverage_t& coverage, const assembly_t& assembly, gene_annotation_index_t& gene_annotation_index, exon_annotation_index_t& exon_annotation_index, vector<string> contigs_by_id, const tags_t& tags, const int max_mate_gap, const bool print_extra_info, const bool write_discarded_fusions);
 
 #endif /* _OUTPUT_FUSIONS_H */

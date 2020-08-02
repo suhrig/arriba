@@ -39,6 +39,9 @@ arriba [-c Chimeric.out.sam] -x Aligned.out.sam \
 `-O FILE`
 : Output file with fusions that were discarded due to filtering. The format is the same as for parameter `-o`.
 
+`-t FILE`
+: Tab-separated file containing fusions to annotate with tags in the `tags` column. The first two columns specify the genes; the third column specifies the tag. See section [Tags file](input-files.md#tags) for a detailed description of the format.
+ 
 `-d FILE`
 : Tab-separated file with coordinates of structural variants found using whole-genome sequencing data. These coordinates serve to increase sensitivity towards weakly expressed fusions and to eliminate fusions with low confidence. Refer to section [Structural variant calls from WGS](input-files.md#structural-variant-calls-from-wgs) for a description of the expected file format. The file may be gzip-compressed.
 

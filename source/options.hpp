@@ -55,6 +55,7 @@ struct options_t {
 	float high_expression_quantile;
 	float exonic_fraction;
 	bool external_duplicate_marking;
+	string tags_file;
 };
 
 options_t parse_arguments(int argc, char **argv);

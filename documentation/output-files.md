@@ -35,6 +35,9 @@ The file `fusions.tsv` (as specified by the parameter `-o`) contains fusions whi
 `closest_genomic_breakpoint1` and `closest_genomic_breakpoint2`
 : When a matched whole-genome sequencing sample is available, one can feed structural variant calls obtained therefrom into Arriba (see parameter `-d`). Arriba then considers this information during fusion calling, which improves the overall accuracy. These two columns contain the coordinates of the genomic breakpoints which are closest to the transcriptomic breakpoints given in the columns `breakpoint1` and `breakpoint2`.
 
+`tags`
+: When a user-defined list of tags is provided via the parameter `-t`, this column is populated with the provided tag whenever a fusion matches the coordinates specified for the respective tag. When multiple tags match, they are separated by a comma.
+
 `filters`
 : This column lists the filters which removed one or more of the supporting reads. The section [Internal algorithm](internal-algorithm.md) describes all filters in detail. The number of filtered reads is given in parantheses after the name of the filter. The total number of supporting reads can be obtained by summing up the reads given in the columns `split_reads1`, `split_reads2`, `discordant_mates`, and `filters`. If a filter discarded the event as a whole (all reads), the number of filtered reads is missing.
 

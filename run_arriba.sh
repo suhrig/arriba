@@ -37,7 +37,7 @@ tee Aligned.out.bam |
 "$BASE_DIR/arriba" \
 	-x /dev/stdin \
 	-o fusions.tsv -O fusions.discarded.tsv \
-	-a "$ASSEMBLY_FA" -g "$ANNOTATION_GTF" -b "$BLACKLIST_TSV" -k "$KNOWN_FUSIONS_TSV" \
+	-a "$ASSEMBLY_FA" -g "$ANNOTATION_GTF" -b "$BLACKLIST_TSV" -k "$KNOWN_FUSIONS_TSV" -t "$KNOWN_FUSIONS_TSV" \
 	-T -P \
 #	-d structural_variants_from_WGS.tsv
 

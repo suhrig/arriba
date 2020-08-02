@@ -87,6 +87,21 @@ The file has two columns separated by a tab and may optionally be gzip-compresse
 
 The order of the given regions is important. The region given in the first column is assumed to denote the 5' end of the fusion and the region in the second column to be the 3' end. If Arriba cannot determine with confidence which gene constitutes the 5' and which the 3' end of a fusion prediction, then the order is ignored and the prediction is rescued in both cases.
 
+Tags
+----
+
+Arriba can be supplied with a list of user-defined tags using the parameter `-t`. Whenever a fusion prediction matches the selection criteria for a tag, the column `tags` is populated with the respective tag. This feature is useful to annotate known oncogenic fusions, for example.
+
+The file has three columns separated by a tab and may optionally be gzip-compressed. Lines starting with a hash (`#`) are treated as comments. Each line represents a pair of regions to be annotated. A region can be
+
+- a 1-based coordinate in the format `CONTIG:POSITION`, optionally prefixed with the strand (example: `+9:56743754`).
+
+- a range in the format `CONTIG:START-END`, optionally prefixed with a strand (example: `9:1000000-1100000`).
+
+- the name of a gene given in the provided annotation.
+
+The order of the given regions is important. The region given in the first column is assumed to denote the 5' end of the fusion and the region in the second column to be the 3' end.
+
 Structural variant calls from WGS
 ---------------------------------
 
