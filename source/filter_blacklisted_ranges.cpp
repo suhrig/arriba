@@ -104,10 +104,12 @@ bool parse_blacklist_item(const string& text, blacklist_item_t& blacklist_item, 
 float overlapping_fraction(const position_t start1, const position_t end1, const position_t start2, const position_t end2) {
 	if (start1 >= start2 && end1 <= end2) {
 		return 1;
+	} else if (start1 < start2 && end1 > end2) {
+		return 1.0 * (end2 - start2) / (end1 - start1 + 1);
 	} else if (start1 >= start2 && start1 <= end2) {
-		return 1.0 * (start1 - start2) / (end1 - start1 + 1);
+		return 1.0 * (end2 - start1) / (end1 - start1 + 1);
 	} else if (end1 >= start2 && end1 <= end2) {
-		return 1.0 * (end2 - end1) / (end1 - start1 + 1);
+		return 1.0 * (end1 - start2) / (end1 - start1 + 1);
 	} else {
 		return 0;
 	}
