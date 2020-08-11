@@ -41,7 +41,7 @@ void annotate_alignments(mates_t& mates, const exon_annotation_index_t& exon_ann
 
 void get_boundaries_of_biggest_gene(gene_set_t& genes, position_t& start, position_t& end);
 
-int get_spliced_distance(const contig_t contig, const position_t position1, const position_t position2, const direction_t direction1, const direction_t direction2, const gene_t gene, const exon_annotation_index_t& exon_annotation_index);
+int get_spliced_distance(const contig_t contig, const position_t position1, const position_t position2, const gene_t gene, const exon_annotation_index_t& exon_annotation_index);
 
 // get the complementary strand
 inline strand_t complement_strand(const strand_t strand) {

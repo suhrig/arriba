@@ -141,7 +141,7 @@ void estimate_expected_fusions(fusions_t& fusions, const unsigned long int mappe
 			// but the likehood of a false positive decreases near-polynomially with the number of supporting reads
 			if (fusion->second.supporting_reads() >= 1) {
 				fusion->second.evalue *= pow(fusion->second.supporting_reads()-0.42, -2.11) * pow(10, -1.11);
-				int spliced_distance = get_spliced_distance(fusion->second.contig1, fusion->second.breakpoint1, fusion->second.breakpoint2, fusion->second.direction1, fusion->second.direction2, fusion->second.gene1, exon_annotation_index);
+				int spliced_distance = get_spliced_distance(fusion->second.contig1, fusion->second.breakpoint1, fusion->second.breakpoint2, fusion->second.gene1, exon_annotation_index);
 				if (spliced_distance < 1000) {
 					fusion->second.evalue *= pow(max(400, spliced_distance)/1000.0, -2);
 					if (spliced_distance < 400)

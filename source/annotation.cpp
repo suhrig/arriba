@@ -576,60 +576,52 @@ void get_boundaries_of_biggest_gene(gene_set_t& genes, position_t& start, positi
 }
 
 // get the distance between two positions after splicing (i.e., ignoring introns)
-int get_spliced_distance(const contig_t contig, position_t position1, position_t position2, direction_t direction1, direction_t direction2, const gene_t gene, const exon_annotation_index_t& exon_annotation_index) {
+int get_spliced_distance(const contig_t contig, position_t position1, position_t position2, const gene_t gene, const exon_annotation_index_t& exon_annotation_index) {
 
 	// make sure position1 contains the smaller coordinate
-	if (position1 > position2) {
+	if (position1 > position2)
 		swap(position1, position2);
-		swap(direction1, direction2);
-	}
 
 	// take the plain distance, if no exons are annotated for the given contig
-	if ((unsigned int) contig >= exon_annotation_index.size() || exon_annotation_index[contig].empty())
+	if (contig >= exon_annotation_index.size() || exon_annotation_index[contig].empty())
 		return position2 - position1;
 
-	// find exon/intron of position1 & 2
-	exon_contig_annotation_index_t::const_iterator p1 = exon_annotation_index[contig].lower_bound(position1);
-	exon_contig_annotation_index_t::const_iterator p2 = exon_annotation_index[contig].lower_bound(position2);
-
-	// take the plain distance, if no exons are annotated for the given region or if the positions are in the same exon
-	if (p1 == exon_annotation_index[contig].end() || p1 == p2)
-		return position2 - position1;
-
+	// compute the shortest splice distance from position1 to position2 taking all transcripts into account
+	exon_contig_annotation_index_t::const_iterator exons = exon_annotation_index[contig].lower_bound(position1);
 	int distance = 0;
-
-	// check if position1 is at a splice-site
-	// if not, add the distance from the position to the next exon boundary
-	bool position1_is_spliced = direction1 == DOWNSTREAM && is_breakpoint_spliced(gene, direction1, position1, exon_annotation_index);
-	if (!position1_is_spliced)
-		distance += p1->first - position1;
-
-	// move p1 towards p2 and sum up the lengths of all exons in-between for each transcript
-	unordered_map<transcript_t,int> distance_by_transcript;
-	unordered_map<transcript_t,position_t> boundary_by_transcript;
-	position_t boundary = p1->first;
-	for (; p1 != p2; p1++) {
-		for (auto exon = p1->second.begin(); exon != p1->second.end(); exon++) {
-			auto transcript = distance_by_transcript.insert(make_pair((**exon).transcript, distance)); // if this is the first exon of a transcript, initialize with distance incl. all exons
-			transcript.first->second += p1->first - boundary;
-			boundary_by_transcript[(**exon).transcript] = p1->first;
-		}
-		distance += p1->first - boundary; // measure distance between positions considering all exons of all transcripts
-		boundary = p1->first;
+	if (exons != exon_annotation_index[contig].end() && exons->first < position2) {
+		distance += exons->first - position1; // add distance from position1 to next exon boundary
+		position1 = exons->first;
 	}
-
-	// add the remaining distance from position2 to the next exon boundary
-	bool position2_is_spliced = direction2 == UPSTREAM && is_breakpoint_spliced(gene, direction2, position2, exon_annotation_index);
-	for (auto transcript = distance_by_transcript.begin(); transcript != distance_by_transcript.end(); ++transcript)
-		if (!position2_is_spliced)
-			transcript->second += position2 - boundary_by_transcript[transcript->first];
-	if (!position2_is_spliced)
-		distance += position2 - boundary;
-
-	// find transcript with shortest spliced distance between positions
-	for (auto transcript = distance_by_transcript.begin(); transcript != distance_by_transcript.end(); ++transcript)
-		if (transcript->second < distance)
-			distance = transcript->second;
+	for (; exons != exon_annotation_index[contig].end() && exons->first < position2; ++exons) {
+		if (exons->first >= position1) {
+			// find the transcript that skips the furthest from the current position to position2 (but not beyond position2)
+			position_t furthest_skipping_exon_start = -1;
+			position_t furthest_skipping_exon_end = -1;
+			position_t furthest_skipping_exon_skip = -1;
+			for (auto exon = exons->second.begin(); exon != exons->second.end(); ++exon) {
+				if ((**exon).gene == gene) {
+					if ((**exon).next_exon != NULL && (**exon).next_exon->start <= position2) {
+						position_t exon_start = max(position1, (**exon).start);
+						position_t exon_end = min(position2, (**exon).end);
+						position_t exon_skip = (**exon).next_exon->start - exon_start + 1;
+						if (furthest_skipping_exon_start == -1 ||
+						    1.0 * (exon_end - exon_start) / exon_skip <
+						    1.0 * (furthest_skipping_exon_end - furthest_skipping_exon_start) / furthest_skipping_exon_skip) {
+							furthest_skipping_exon_start = exon_start;
+							furthest_skipping_exon_end = exon_end;
+							furthest_skipping_exon_skip = exon_skip;
+						}
+					}
+				}
+			}
+			if (furthest_skipping_exon_start != -1) {
+				distance += furthest_skipping_exon_end - furthest_skipping_exon_start + 1;
+				position1 = furthest_skipping_exon_start + furthest_skipping_exon_skip - 1;
+			}
+		}
+	}
+	distance += position2 - position1; // add remaining distance between current position and position2
 
 	return distance;
 }
