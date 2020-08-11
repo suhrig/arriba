@@ -22,7 +22,7 @@ unsigned int filter_intragenic_both_exonic(fusions_t& fusions, const exon_annota
 			// this is the most frequent type of false positive
 			int spliced_distance = get_spliced_distance(fusion->second.contig1, fusion->second.breakpoint1, fusion->second.breakpoint2, fusion->second.gene1, exon_annotation_index);
 			int distance = fusion->second.breakpoint2 - fusion->second.breakpoint1;
-			if (spliced_distance == distance || spliced_distance / distance < exonic_fraction) {
+			if (spliced_distance == distance || 1.0 * spliced_distance / distance < exonic_fraction) {
 				fusion->second.filter = FILTER_intragenic_exonic;
 				continue;
 			}

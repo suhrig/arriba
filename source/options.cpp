@@ -95,7 +95,7 @@ options_t get_default_options() {
 	options.mismatch_pvalue_cutoff = 0.01;
 	options.subsampling_threshold = 300;
 	options.high_expression_quantile = 0.998;
-	options.exonic_fraction = 0.2;
+	options.exonic_fraction = 0.33;
 	options.external_duplicate_marking = false;
 
 	return options;
