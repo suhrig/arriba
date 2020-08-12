@@ -35,6 +35,7 @@
 #include "filter_both_intronic.hpp"
 #include "filter_non_coding_neighbors.hpp"
 #include "filter_intragenic_both_exonic.hpp"
+#include "recover_internal_tandem_duplication.hpp"
 #include "filter_min_support.hpp"
 #include "recover_known_fusions.hpp"
 #include "recover_both_spliced.hpp"
@@ -400,6 +401,12 @@ int main(int argc, char **argv) {
 	if (options.filters.at("relative_support")) {
 		cout << get_time_string() << " Filtering fusions with an e-value >=" << options.evalue_cutoff << " " << flush;
 		cout << "(remaining=" << filter_relative_support(fusions, options.evalue_cutoff) << ")" << endl;
+	}
+
+	// this step must come after the 'intragenic_exonic' and 'relative_support' filters
+	if (options.filters.at("internal_tandem_duplication")) {
+		cout << get_time_string() << " Searching for internal tandem duplications " << flush;
+		cout << "(remaining=" << recover_internal_tandem_duplication(fusions, chimeric_alignments, coverage, exon_annotation_index) << ")" << endl;
 	}
 
 	// this step must come before all filters that are potentially undone by the 'genomic_support' filter

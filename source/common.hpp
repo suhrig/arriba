@@ -43,6 +43,7 @@ const filter_t FILTER_relative_support = FILTERS.define("relative_support");
 const filter_t FILTER_intronic = FILTERS.define("intronic");
 const filter_t FILTER_non_coding_neighbors = FILTERS.define("non_coding_neighbors");
 const filter_t FILTER_intragenic_exonic = FILTERS.define("intragenic_exonic");
+const filter_t FILTER_internal_tandem_duplication = FILTERS.define("internal_tandem_duplication");
 const filter_t FILTER_min_support = FILTERS.define("min_support");
 const filter_t FILTER_known_fusions = FILTERS.define("known_fusions");
 const filter_t FILTER_spliced = FILTERS.define("spliced");
