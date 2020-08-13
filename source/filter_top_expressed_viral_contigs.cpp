@@ -60,7 +60,7 @@ unsigned int filter_top_expressed_viral_contigs(chimeric_alignments_t& chimeric_
 		for (mates_t::iterator mate = chimeric_alignment->second.begin(); mate != chimeric_alignment->second.end(); ++mate) {
 			if (viral_contigs_bool[mate->contig]) {
 				if (expression_by_contig[mate->contig] < min_expression_threshold || expression_by_contig[mate->contig] == 0) {
-					chimeric_alignment->second.filter = FILTER_uninteresting_contigs;
+					chimeric_alignment->second.filter = FILTER_top_expressed_viral_contigs;
 					goto next_read;
 				}
 			}

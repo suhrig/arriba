@@ -1,4 +1,5 @@
 #include <string>
+#include <vector>
 #include "common.hpp"
 #include "filter_viral_contigs.hpp"
 
@@ -25,7 +26,7 @@ unsigned int filter_viral_contigs(chimeric_alignments_t& chimeric_alignments, co
 			}
 		}
 
-		chimeric_alignment->second.filter = FILTER_uninteresting_contigs;
+		chimeric_alignment->second.filter = FILTER_viral_contigs;
 
 		next_read: continue;
 	}
