@@ -85,6 +85,8 @@ int main(int argc, char **argv) {
 	options_t options = parse_arguments(argc, argv);
 
 	// load sequences of contigs from assembly
+	if (!options.filters.at("uninteresting_contigs"))
+		options.interesting_contigs = "*"; // load all contigs when the filter is disabled
 	contigs_t contigs;
 	cout << get_time_string() << " Loading assembly from '" << options.assembly_file << "' " << endl;
 	assembly_t assembly;
