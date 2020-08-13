@@ -26,7 +26,7 @@ unsigned int filter_top_expressed_viral_contigs(chimeric_alignments_t& chimeric_
 	expression_by_contig.reserve(mapped_viral_reads_by_contig.size());
 	for (size_t contig = 0; contig < mapped_viral_reads_by_contig.size(); ++contig)
 		if (assembly.find(contig) != assembly.end())
-			expression_by_contig.push_back(((float) mapped_viral_reads_by_contig.at(contig))/assembly.at(contig).size());
+			expression_by_contig.push_back(1.0 * mapped_viral_reads_by_contig.at(contig)/assembly.at(contig).size());
 		else
 			expression_by_contig.push_back(0);
 
@@ -61,7 +61,6 @@ unsigned int filter_top_expressed_viral_contigs(chimeric_alignments_t& chimeric_
 			if (viral_contigs_bool[mate->contig]) {
 				if (expression_by_contig[mate->contig] < min_expression_threshold || expression_by_contig[mate->contig] == 0) {
 					chimeric_alignment->second.filter = FILTER_uninteresting_contigs;
-					break;
 					goto next_read;
 				}
 			}
