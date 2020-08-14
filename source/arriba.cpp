@@ -128,6 +128,14 @@ int main(int argc, char **argv) {
 	vector<string> contigs_by_id(contigs.size());
 	for (contigs_t::iterator i = contigs.begin(); i != contigs.end(); ++i)
 		contigs_by_id[i->second] = i->first;
+	// convert viral contigs to vector of booleans for faster lookup
+	vector<bool> viral_contigs(contigs.size());
+	for (contigs_t::iterator contig = contigs.begin(); contig != contigs.end(); ++contig)
+		viral_contigs[contig->second] = is_interesting_contig(contig->first, options.viral_contigs);
+	// convert interesting contigs to vector of booleans for faster lookup
+	vector<bool> interesting_contigs(contigs.size());
+	for (contigs_t::iterator contig = contigs.begin(); contig != contigs.end(); ++contig)
+		interesting_contigs[contig->second] = is_interesting_contig(contig->first, options.interesting_contigs);
 
 	// mark multi-mapping alignments
 	cout << get_time_string() << " Marking multi-mapping alignments " << flush;
@@ -277,22 +285,22 @@ int main(int argc, char **argv) {
 
 	if (options.filters.at("uninteresting_contigs")) {
 		cout << get_time_string() << " Filtering mates which do not map to interesting contigs (" << options.interesting_contigs << ") " << flush;
-		cout << "(remaining=" << filter_uninteresting_contigs(chimeric_alignments, contigs, options.interesting_contigs) << ")" << endl;
+		cout << "(remaining=" << filter_uninteresting_contigs(chimeric_alignments, interesting_contigs) << ")" << endl;
 	}
 
 	if (options.filters.at("viral_contigs")) {
 		cout << get_time_string() << " Filtering mates which only map to viral contigs (" << options.viral_contigs << ") " << flush;
-		cout << "(remaining=" << filter_viral_contigs(chimeric_alignments, contigs, options.viral_contigs) << ")" << endl;
+		cout << "(remaining=" << filter_viral_contigs(chimeric_alignments, viral_contigs) << ")" << endl;
 	}
 
 	if (options.filters.at("top_expressed_viral_contigs")) {
 		cout << get_time_string() << " Filtering viral contigs with expression lower than the top " << options.top_viral_contigs << " " << flush;
-		cout << "(remaining=" << filter_top_expressed_viral_contigs(chimeric_alignments, options.top_viral_contigs, contigs, options.viral_contigs, options.interesting_contigs, mapped_viral_reads_by_contig, assembly) << ")" << endl;
+		cout << "(remaining=" << filter_top_expressed_viral_contigs(chimeric_alignments, options.top_viral_contigs, viral_contigs, interesting_contigs, mapped_viral_reads_by_contig, assembly) << ")" << endl;
 	}
 
 	if (options.filters.at("low_coverage_viral_contigs")) {
 		cout << get_time_string() << " Filtering viral contigs with less than " << options.top_viral_contigs << "% coverage " << flush;
-		cout << "(remaining=" << filter_low_coverage_viral_contigs(chimeric_alignments, coverage, contigs, options.viral_contigs, options.viral_contig_min_covered_fraction) << ")" << endl;
+		cout << "(remaining=" << filter_low_coverage_viral_contigs(chimeric_alignments, coverage, viral_contigs, options.viral_contig_min_covered_fraction) << ")" << endl;
 	}
 
 	cout << get_time_string() << " Estimating fragment length " << flush;
@@ -346,7 +354,7 @@ int main(int argc, char **argv) {
 
 	if (options.filters.at("mismatches")) {
 		cout << get_time_string() << " Filtering reads with a mismatch p-value <=" << options.mismatch_pvalue_cutoff << " " << flush;
-		cout << "(remaining=" << filter_mismatches(chimeric_alignments, assembly, contigs, options.interesting_contigs, 0.01, options.mismatch_pvalue_cutoff) << ")" << endl;
+		cout << "(remaining=" << filter_mismatches(chimeric_alignments, assembly, interesting_contigs, 0.01, options.mismatch_pvalue_cutoff) << ")" << endl;
 	}
 
 	if (options.filters.at("low_entropy")) {
@@ -414,7 +422,7 @@ int main(int argc, char **argv) {
 	// this step must come before all filters that are potentially undone by the 'genomic_support' filter
 	if (options.filters.at("intronic")) {
 		cout << get_time_string() << " Filtering fusions with both breakpoints in intronic/intergenic regions " << flush;
-		cout << "(remaining=" << filter_both_intronic(fusions, contigs, options.viral_contigs) << ")" << endl;
+		cout << "(remaining=" << filter_both_intronic(fusions, viral_contigs) << ")" << endl;
 	}
 
 	// this step must come right after the 'relative_support' and 'min_support' filters
@@ -476,7 +484,7 @@ int main(int argc, char **argv) {
 
 	if (options.filters.at("end_to_end")) {
 		cout << get_time_string() << " Filtering end-to-end fusions with low support " << flush;
-		cout << "(remaining=" << filter_end_to_end_fusions(fusions, exon_annotation_index, contigs, options.viral_contigs) << ")" << endl;
+		cout << "(remaining=" << filter_end_to_end_fusions(fusions, exon_annotation_index, viral_contigs) << ")" << endl;
 	}
 
 	if (options.filters.at("no_coverage")) {

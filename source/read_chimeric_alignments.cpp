@@ -329,7 +329,7 @@ unsigned int read_chimeric_alignments(const string& bam_file_path, const assembl
 		}
 	}
 
-	// convert viral_contigs to vector of booleans for faster lookup
+	// convert viral contigs to vector of booleans for faster lookup
 	vector<bool> viral_contigs_bool(contigs.size());
 	for (contigs_t::iterator contig = contigs.begin(); contig != contigs.end(); ++contig)
 		viral_contigs_bool[contig->second] = is_interesting_contig(contig->first, viral_contigs);

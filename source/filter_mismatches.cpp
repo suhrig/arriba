@@ -1,5 +1,6 @@
 #include <cmath>
 #include <string>
+#include <vector>
 #include "sam.h"
 #include "annotation.hpp"
 #include "assembly.hpp"
@@ -97,14 +98,14 @@ bool test_mismatch_probability(const alignment_t& alignment, const string& seque
 		return false;
 }
 
-unsigned int filter_mismatches(chimeric_alignments_t& chimeric_alignments, const assembly_t& assembly, const contigs_t& contigs, const string& interesting_contigs, const float mismatch_probability, const float pvalue_cutoff) {
+unsigned int filter_mismatches(chimeric_alignments_t& chimeric_alignments, const assembly_t& assembly, const vector<bool>& interesting_contigs, const float mismatch_probability, const float pvalue_cutoff) {
 
 	// calculate size of genome
 	// we'll need this to calculate the probability of finding a match in the genome given a random sequence of bases
 	long unsigned int genome_size = 0;
-	for (contigs_t::const_iterator contig = contigs.begin(); contig != contigs.end(); ++contig)
-		if (is_interesting_contig(contig->first, interesting_contigs))
-			genome_size += assembly.at(contig->second).size();
+	for (contig_t contig = 0; contig < interesting_contigs.size(); ++contig)
+		if (interesting_contigs[contig])
+			genome_size += assembly.at(contig).size();
 
 	unsigned int remaining = 0;
 	for (chimeric_alignments_t::iterator chimeric_alignment = chimeric_alignments.begin(); chimeric_alignment != chimeric_alignments.end(); ++chimeric_alignment) {

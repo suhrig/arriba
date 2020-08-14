@@ -1,5 +1,4 @@
 #include <algorithm>
-#include <string>
 #include <vector>
 #include "common.hpp"
 #include "filter_top_expressed_viral_contigs.hpp"
@@ -19,7 +18,7 @@ struct sort_contigs_by_expression_t {
 	}
 };
 
-unsigned int filter_top_expressed_viral_contigs(chimeric_alignments_t& chimeric_alignments, unsigned int top_count, const contigs_t& contigs, const string& viral_contigs, const string& interesting_contigs, const vector<unsigned long int>& mapped_viral_reads_by_contig, const assembly_t& assembly) {
+unsigned int filter_top_expressed_viral_contigs(chimeric_alignments_t& chimeric_alignments, unsigned int top_count, const vector<bool>& viral_contigs, const vector<bool>& interesting_contigs, const vector<unsigned long int>& mapped_viral_reads_by_contig, const assembly_t& assembly) {
 
 	// calculate expression of viral contigs, i.e., normalize mapped reads to contig length
 	vector<float> expression_by_contig;
@@ -45,16 +44,6 @@ unsigned int filter_top_expressed_viral_contigs(chimeric_alignments_t& chimeric_
 	sort(contigs_sorted_by_expression.begin(), contigs_sorted_by_expression.end(), sort_contigs_by_expression);
 	float min_expression_threshold = expression_by_contig[contigs_sorted_by_expression[top_count]];
 
-	// convert viral_contigs to vector of booleans for faster lookup
-	vector<bool> viral_contigs_bool(contigs.size());
-	for (contigs_t::const_iterator contig = contigs.begin(); contig != contigs.end(); ++contig)
-		viral_contigs_bool[contig->second] = is_interesting_contig(contig->first, viral_contigs);
-
-	// convert interesting_contigs to vector of booleans for faster lookup
-	vector<bool> interesting_contigs_bool(contigs.size());
-	for (contigs_t::const_iterator contig = contigs.begin(); contig != contigs.end(); ++contig)
-		interesting_contigs_bool[contig->second] = is_interesting_contig(contig->first, interesting_contigs);
-
 	// viral integration into the host genome is mostly random and many integration sites are intergenic
 	// therefore, the ratio of intergenic to genic integration sites should be high for infiltrating viruses (in contrast to alignment artifacts)
 	// => if there are viruses with a high intergenic-to-genic ratio, we do not apply this filter to them
@@ -64,19 +53,19 @@ unsigned int filter_top_expressed_viral_contigs(chimeric_alignments_t& chimeric_
 		top_count_for_viruses_with_high_fraction_of_intergenic_integration_sites = mapped_viral_reads_by_contig.size();
 	top_count_for_viruses_with_high_fraction_of_intergenic_integration_sites = mapped_viral_reads_by_contig.size() - top_count_for_viruses_with_high_fraction_of_intergenic_integration_sites;
 	float min_expression_threshold_for_viruses_with_high_fraction_of_intergenic_integration_sites = expression_by_contig[contigs_sorted_by_expression[top_count_for_viruses_with_high_fraction_of_intergenic_integration_sites]];
-	vector<gene_set_t> integration_sites_by_virus(contigs.size());
+	vector<gene_set_t> integration_sites_by_virus(viral_contigs.size());
 	for (chimeric_alignments_t::iterator chimeric_alignment = chimeric_alignments.begin(); chimeric_alignment != chimeric_alignments.end(); ++chimeric_alignment) {
 		alignment_t* viral_mapped_read = NULL;
 		alignment_t* host_mapped_read = NULL;
-		if (viral_contigs_bool[chimeric_alignment->second[MATE1].contig]) {
+		if (viral_contigs[chimeric_alignment->second[MATE1].contig]) {
 			viral_mapped_read = &chimeric_alignment->second[MATE1];
-		} else if (interesting_contigs_bool[chimeric_alignment->second[MATE1].contig]) {
+		} else if (interesting_contigs[chimeric_alignment->second[MATE1].contig]) {
 			host_mapped_read = &chimeric_alignment->second[MATE1];
 		}
 		unsigned int mate2 = (chimeric_alignment->second.size() == 3) ? SUPPLEMENTARY : MATE2;
-		if (viral_contigs_bool[chimeric_alignment->second[mate2].contig]) {
+		if (viral_contigs[chimeric_alignment->second[mate2].contig]) {
 			viral_mapped_read = &chimeric_alignment->second[mate2];
-		} else if (interesting_contigs_bool[chimeric_alignment->second[mate2].contig]) {
+		} else if (interesting_contigs[chimeric_alignment->second[mate2].contig]) {
 			host_mapped_read = &chimeric_alignment->second[mate2];
 		}
 		if (viral_mapped_read != NULL && host_mapped_read != NULL)
@@ -105,7 +94,7 @@ unsigned int filter_top_expressed_viral_contigs(chimeric_alignments_t& chimeric_
 
 		// at least one mate must map to host genome
 		for (mates_t::iterator mate = chimeric_alignment->second.begin(); mate != chimeric_alignment->second.end(); ++mate) {
-			if (viral_contigs_bool[mate->contig]) {
+			if (viral_contigs[mate->contig]) {
 				if (expression_by_contig[mate->contig] <= min_expression_threshold) {
 					if (fraction_of_intergenic_integration_sites_by_virus[mate->contig] < min_fraction_of_intergenic_integration_sites || expression_by_contig[mate->contig] <= min_expression_threshold_for_viruses_with_high_fraction_of_intergenic_integration_sites) {
 						chimeric_alignment->second.filter = FILTER_top_expressed_viral_contigs;
