@@ -287,7 +287,7 @@ int main(int argc, char **argv) {
 
 	if (options.filters.at("top_expressed_viral_contigs")) {
 		cout << get_time_string() << " Filtering viral contigs with expression lower than the top " << options.top_viral_contigs << " " << flush;
-		cout << "(remaining=" << filter_top_expressed_viral_contigs(chimeric_alignments, options.top_viral_contigs, contigs, options.viral_contigs, mapped_viral_reads_by_contig, assembly) << ")" << endl;
+		cout << "(remaining=" << filter_top_expressed_viral_contigs(chimeric_alignments, options.top_viral_contigs, contigs, options.viral_contigs, options.interesting_contigs, mapped_viral_reads_by_contig, assembly) << ")" << endl;
 	}
 
 	if (options.filters.at("low_coverage_viral_contigs")) {
