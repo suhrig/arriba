@@ -21,13 +21,21 @@ float calculate_intronic_fraction(const gene_t gene, const exon_annotation_index
 	return ((float) intronic_bases) / (gene->end - gene->start + 1);
 }
 
-unsigned int filter_end_to_end_fusions(fusions_t& fusions, const exon_annotation_index_t& exon_annotation_index) {
+unsigned int filter_end_to_end_fusions(fusions_t& fusions, const exon_annotation_index_t& exon_annotation_index, const contigs_t& contigs, const string& viral_contigs) {
+
+	// convert viral_contigs to vector of booleans for faster lookup
+	vector<bool> viral_contigs_bool(contigs.size());
+	for (contigs_t::const_iterator contig = contigs.begin(); contig != contigs.end(); ++contig)
+		viral_contigs_bool[contig->second] = is_interesting_contig(contig->first, viral_contigs);
 
 	unsigned int remaining = 0;
 	for (fusions_t::iterator fusion = fusions.begin(); fusion != fusions.end(); ++fusion) {
 
 		if (fusion->second.filter != FILTER_none)
 			continue; // fusion has already been filtered
+
+		if (viral_contigs_bool[fusion->second.contig1] || viral_contigs_bool[fusion->second.contig2])
+			continue; // viral contigs lack gene annotation, thus checking the orientation of fused genes makes no sense
 
 		if (!fusion->second.is_read_through() &&
 		    fusion->second.gene1 != fusion->second.gene2 &&
