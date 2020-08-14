@@ -31,7 +31,7 @@ arriba [-c Chimeric.out.sam] -x Aligned.out.sam \
 : File containing blacklisted ranges. Refer to section [Blacklist](input-files.md#blacklist) for a description of the expected file format. The file may be gzip-compressed.
 
 `-k FILE`
-: File containing known/recurrent fusions. Some cancer entities are often characterized by fusions between the same pair of genes. In order to boost sensitivity, a list of known fusions can be supplied using this parameter. Refer to section (Known fusions)[input-files.md#known-fusions] for a description of the expected file format. The file may be gzip-compressed.
+: File containing known/recurrent fusions. Some cancer entities are often characterized by fusions between the same pair of genes. In order to boost sensitivity, a list of known fusions can be supplied using this parameter. Refer to section [Known fusions](input-files.md#known-fusions) for a description of the expected file format. The file may be gzip-compressed.
 
 `-o FILE`
 : Output file with fusions that have passed all filters. Refer to section [fusions.tsv](output-files.md#fusionstsv) for a description of the columns.
