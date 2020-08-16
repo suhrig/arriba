@@ -303,6 +303,11 @@ drawIdeogram <- function(adjust, left, right, y, cytobands, contig, breakpoint) 
 	rightArcX <- bands[band,"right"] - (1+cos(seq(1.5*pi,pi/2,len=arcSteps))) * (bands[band,"right"]-bands[band,"left"])
 	rightArcY <- y + sin(seq(pi/2,1.5*pi,len=arcSteps)) * ideogramHeight/2
 	polygon(rightArcX, rightArcY, col=bands[band,"color"])
+	# if there is no centromere, make an artificial one with length zero
+	if (is.null(centromereStart) || is.null(centromereEnd)) {
+		centromereStart <- bands[1,"right"]
+		centromereEnd <- bands[1,"right"]
+	}
 	# draw gradients for 3D effect
 	drawVerticalGradient(leftArcX, rep(centromereStart, arcSteps), leftArcY, rgb(0,0,0,0.8), 1:round(arcSteps*0.4)) # black from top on p-arm
 	drawVerticalGradient(leftArcX, rep(centromereStart, arcSteps), leftArcY, rgb(1,1,1,0.7), round(arcSteps*0.4):round(arcSteps*0.1)) # white to top on p-arm
