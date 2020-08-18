@@ -12,6 +12,8 @@ void load_tags(const string& tags_file_path, const contigs_t& contigs, const uno
 	string line;
 	while (tags_file.getline(line)) {
 		if (!line.empty() && line[0] != '#') {
+
+			// parse line
 			tsv_stream_t tsv(line);
 			string range1, range2, tag;
 			tsv >> range1 >> range2 >> tag;
@@ -19,6 +21,13 @@ void load_tags(const string& tags_file_path, const contigs_t& contigs, const uno
 			if (!parse_blacklist_item(range1, item1, contigs, genes, false) ||
 			    !parse_blacklist_item(range2, item2, contigs, genes, false))
 				continue;
+
+			// replace special characters with underscores
+			for (string::size_type pos = 0; pos < tag.size(); ++pos)
+				if (tag[pos] < '!' || tag[pos] > '~' || tag[pos] == ',')
+					tag[pos] = '_';
+
+			// index tags by coordinate
 			genome_bins_t genome_bins;
 			get_genome_bins_from_range(item1.contig, item1.start, item1.end, genome_bins);
 			get_genome_bins_from_range(item2.contig, item2.start, item2.end, genome_bins);

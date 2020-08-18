@@ -92,7 +92,7 @@ Tags
 
 Arriba can be supplied with a list of user-defined tags using the parameter `-t`. Whenever a fusion prediction matches the selection criteria for a tag, the column `tags` is populated with the respective tag. This feature is useful to annotate known oncogenic fusions, for example.
 
-The file has three columns separated by a tab and may optionally be gzip-compressed. Lines starting with a hash (`#`) are treated as comments. Each line represents a pair of regions to be annotated. A region can be
+The file has three columns separated by a tab and may optionally be gzip-compressed. Lines starting with a hash (`#`) are treated as comments. Each line represents a pair of regions to be annotated. The first two columns specify the regions to be annotated; the third column the tag that is used for annotation. Some special characters in the tag are replaced with underscores (`_`) in Arriba's output file. A region can be
 
 - a 1-based coordinate in the format `CONTIG:POSITION`, optionally prefixed with the strand (example: `+9:56743754`).
 
@@ -111,7 +111,7 @@ Protein domain annotation can be passed to Arriba via the parameter `-p`. The co
 Name=PROTEIN_DOMAIN_NAME;gene_id=GENE_ID;gene_name=GENE_NAME
 ```
 
-The attribute `Name` is reported in the column `retained_protein_domains` of Arriba's output file. The columns `gene_id` and `gene_name` are used to match the protein domains to the genes given in the [gene annotation](#Annotation).
+The attribute `Name` is reported in the column `retained_protein_domains` of Arriba's output file. Some special characters in the name are replaced with underscores (`_`). The columns `gene_id` and `gene_name` are used to match the protein domains to the genes given in the [gene annotation](#Annotation).
 
 Structural variant calls from WGS
 ---------------------------------
