@@ -56,6 +56,7 @@ struct options_t {
 	float exonic_fraction;
 	bool external_duplicate_marking;
 	string tags_file;
+	string protein_domains_file;
 };
 
 options_t parse_arguments(int argc, char **argv);

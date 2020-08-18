@@ -12,6 +12,7 @@
 #include "common.hpp"
 #include "annotation.hpp"
 #include "annotate_tags.hpp"
+#include "annotate_protein_domains.hpp"
 #include "assembly.hpp"
 #include "output_fusions.hpp"
 #include "read_stats.hpp"
@@ -999,7 +1000,7 @@ string is_in_frame(const string& fusion_peptide_sequence) {
 	return "out-of-frame";
 }
 
-void write_fusions_to_file(fusions_t& fusions, const string& output_file, const coverage_t& coverage, const assembly_t& assembly, gene_annotation_index_t& gene_annotation_index, exon_annotation_index_t& exon_annotation_index, vector<string> contigs_by_id, const tags_t& tags, const int max_mate_gap, const bool print_extra_info, const bool write_discarded_fusions) {
+void write_fusions_to_file(fusions_t& fusions, const string& output_file, const coverage_t& coverage, const assembly_t& assembly, gene_annotation_index_t& gene_annotation_index, exon_annotation_index_t& exon_annotation_index, vector<string> contigs_by_id, const tags_t& tags, const protein_domain_annotation_index_t& protein_domain_annotation_index, const int max_mate_gap, const bool print_extra_info, const bool write_discarded_fusions) {
 //TODO add "chr", if necessary
 
 	// make a vector of pointers to all fusions
@@ -1040,7 +1041,7 @@ void write_fusions_to_file(fusions_t& fusions, const string& output_file, const 
 		cerr << "ERROR: failed to open output file: " << output_file << endl;
 		exit(1);
 	}
-	out << "#gene1\tgene2\tstrand1(gene/fusion)\tstrand2(gene/fusion)\tbreakpoint1\tbreakpoint2\tsite1\tsite2\ttype\tdirection1\tdirection2\tsplit_reads1\tsplit_reads2\tdiscordant_mates\tcoverage1\tcoverage2\tconfidence\tclosest_genomic_breakpoint1\tclosest_genomic_breakpoint2\ttags\tfilters\tfusion_transcript\tgene_id1\tgene_id2\treading_frame\ttranscript_id1\ttranscript_id2\tpeptide_sequence\tread_identifiers" << endl;
+	out << "#gene1\tgene2\tstrand1(gene/fusion)\tstrand2(gene/fusion)\tbreakpoint1\tbreakpoint2\tsite1\tsite2\ttype\tdirection1\tdirection2\tsplit_reads1\tsplit_reads2\tdiscordant_mates\tcoverage1\tcoverage2\tconfidence\tclosest_genomic_breakpoint1\tclosest_genomic_breakpoint2\ttags\tretained_protein_domains\tfilters\tfusion_transcript\tgene_id1\tgene_id2\treading_frame\ttranscript_id1\ttranscript_id2\tpeptide_sequence\tread_identifiers" << endl;
 	for (auto fusion = sorted_fusions.begin(); fusion != sorted_fusions.end(); ++fusion) {
 
 		// describe site of breakpoint
@@ -1111,6 +1112,19 @@ void write_fusions_to_file(fusions_t& fusions, const string& output_file, const 
 			out << annotate_tags(**fusion, tags, max_mate_gap);
 		else
 			out << ".";
+
+		out << "\t";
+		if (!protein_domain_annotation_index.empty()) {
+			string protein_domains_5 = annotate_retained_protein_domains(contig_5, breakpoint_5, strand_5, (**fusion).predicted_strands_ambiguous, gene_5, direction_5, protein_domain_annotation_index);
+			string protein_domains_3 = annotate_retained_protein_domains(contig_3, breakpoint_3, strand_3, (**fusion).predicted_strands_ambiguous, gene_3, direction_3, protein_domain_annotation_index);
+			if (!protein_domains_5.empty() || ! protein_domains_3.empty()) {
+				out << protein_domains_5 << "|" << protein_domains_3;
+			} else {
+				out << ".";
+			}
+		} else {
+			out << ".";
+		}
 
 		// count the number of reads discarded by a given filter
 		map<string,unsigned int> filters;

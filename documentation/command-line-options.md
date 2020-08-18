@@ -41,6 +41,9 @@ arriba [-c Chimeric.out.sam] -x Aligned.out.sam \
 
 `-t FILE`
 : Tab-separated file containing fusions to annotate with tags in the `tags` column. The first two columns specify the genes; the third column specifies the tag. See section [Tags file](input-files.md#tags) for a detailed description of the format.
+
+`-p FILE`
+: File in GFF3 format containing coordinates of the protein domains of genes. The detailed format is described in the section [Protein domains](input-files.md#protein-domains). The protein domains retained in a fusion are listed in the column `retained_protein_domains` of Arriba's output file. The file may be gzip-compressed.
  
 `-d FILE`
 : Tab-separated file with coordinates of structural variants found using whole-genome sequencing data. These coordinates serve to increase sensitivity towards weakly expressed fusions and to eliminate fusions with low confidence. Refer to section [Structural variant calls from WGS](input-files.md#structural-variant-calls-from-wgs) for a description of the expected file format. The file may be gzip-compressed.

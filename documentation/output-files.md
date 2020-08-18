@@ -38,6 +38,9 @@ The file `fusions.tsv` (as specified by the parameter `-o`) contains fusions whi
 `tags`
 : When a user-defined list of tags is provided via the parameter `-t`, this column is populated with the provided tag whenever a fusion matches the coordinates specified for the respective tag. When multiple tags match, they are separated by a comma.
 
+`retained_protein_domains`
+: If Arriba is provided with protein domain annotation using the parameter `-p`, then this column is populated with protein domains retained in the fusion. Multiple protein domains are separated by a comma. Redundant protein domains are only listed once. The protein domains of the 5' and 3' genes are separated by a pipe symbol (`|`).
+
 `filters`
 : This column lists the filters which removed one or more of the supporting reads. The section [Internal algorithm](internal-algorithm.md) describes all filters in detail. The number of filtered reads is given in parantheses after the name of the filter. The total number of supporting reads can be obtained by summing up the reads given in the columns `split_reads1`, `split_reads2`, `discordant_mates`, and `filters`. If a filter discarded the event as a whole (all reads), the number of filtered reads is missing.
 

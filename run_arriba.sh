@@ -1,7 +1,7 @@
 #!/bin/bash
 
 if [ $# -lt 7 -o $# -gt 8 ]; then
-	echo "Usage: $(basename $0) STAR_genomeDir/ annotation.gtf assembly.fa blacklist.tsv known_fusions.tsv threads read1.fastq.gz [read2.fastq.gz]" 1>&2
+	echo "Usage: $(basename $0) STAR_genomeDir/ annotation.gtf assembly.fa blacklist.tsv known_fusions.tsv protein_domains.gff3 threads read1.fastq.gz [read2.fastq.gz]" 1>&2
 	exit 1
 fi
 
@@ -15,9 +15,10 @@ ANNOTATION_GTF="$2"
 ASSEMBLY_FA="$3"
 BLACKLIST_TSV="$4"
 KNOWN_FUSIONS_TSV="$5"
-THREADS="$6"
-READ1="$7"
-READ2="${8-}"
+PROTEIN_DOMAINS_GFF3="$6"
+THREADS="$7"
+READ1="$8"
+READ2="${9-}"
 
 # find installation directory of arriba
 BASE_DIR=$(dirname "$0")
@@ -37,7 +38,7 @@ tee Aligned.out.bam |
 "$BASE_DIR/arriba" \
 	-x /dev/stdin \
 	-o fusions.tsv -O fusions.discarded.tsv \
-	-a "$ASSEMBLY_FA" -g "$ANNOTATION_GTF" -b "$BLACKLIST_TSV" -k "$KNOWN_FUSIONS_TSV" -t "$KNOWN_FUSIONS_TSV" \
+	-a "$ASSEMBLY_FA" -g "$ANNOTATION_GTF" -b "$BLACKLIST_TSV" -k "$KNOWN_FUSIONS_TSV" -t "$KNOWN_FUSIONS_TSV" -p "$PROTEIN_DOMAINS_GFF3" \
 #	-d structural_variants_from_WGS.tsv
 
 # sorting and indexing is only required for visualization

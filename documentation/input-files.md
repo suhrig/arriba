@@ -102,6 +102,17 @@ The file has three columns separated by a tab and may optionally be gzip-compres
 
 The order of the given regions is important. The region given in the first column is assumed to denote the 5' end of the fusion and the region in the second column to be the 3' end.
 
+Protein domains
+---------------
+
+Protein domain annotation can be passed to Arriba via the parameter `-p`. The column `retained_protein_domains` of Arriba's output file is then populated accordingly. The file must be in GFF3 format and may optionally be gzip-compressed. The ninth column must at least contain the following attributes:
+
+```
+Name=PROTEIN_DOMAIN_NAME;gene_id=GENE_ID;gene_name=GENE_NAME
+```
+
+The attribute `Name` is reported in the column `retained_protein_domains` of Arriba's output file. The columns `gene_id` and `gene_name` are used to match the protein domains to the genes given in the [gene annotation](#Annotation).
+
 Structural variant calls from WGS
 ---------------------------------
 

@@ -120,6 +120,7 @@ void print_usage() {
 	     << endl
 	     << "Usage: arriba [-c Chimeric.out.sam] -x Aligned.out.bam \\" << endl
 	     << "              -g annotation.gtf -a assembly.fa [-b blacklists.tsv] [-k known_fusions.tsv] \\" << endl
+	     << "              [-t tags.tsv] [-p protein_domains.gff3] [-d structural_variants_from_WGS.tsv] \\" << endl
 	     << "              -o fusions.tsv [-O fusions.discarded.tsv] \\" << endl
 	     << "              [OPTIONS]" << endl
 	     << endl
@@ -148,7 +149,10 @@ void print_usage() {
 	     << wrap_help("-O FILE", "Output file with fusions that were discarded due to filtering.")
 	     << wrap_help("-t FILE", "Tab-separated file containing fusions to annotate with tags "
 	                  "in the 'tags' column. The first two columns specify the genes; the third "
-	                  "column specifies the tag.")
+	                  "column specifies the tag. The file may be gzip-compressed.")
+	     << wrap_help("-p FILE", "File in GFF3 format containing coordinates of the protein domains "
+	                  "of genes. The protein domains retained in a fusion are listed in the "
+	                  "column 'retained_protein_domains'. The file may be gzip-compressed.")
 	     << wrap_help("-d FILE", "Tab-separated file with coordinates of structural variants "
 	                  "found using whole-genome sequencing data. These coordinates serve to "
 	                  "increase sensitivity towards weakly expressed fusions and to eliminate "
@@ -259,7 +263,7 @@ options_t parse_arguments(int argc, char **argv) {
 	int c;
 	string junction_suffix(".junction");
 	unordered_map<char,unsigned int> duplicate_arguments;
-	while ((c = getopt(argc, argv, "c:x:d:g:G:o:O:t:a:b:k:s:i:v:f:E:S:m:L:H:D:R:A:M:K:V:F:U:Q:e:T:C:Xuh")) != -1) {
+	while ((c = getopt(argc, argv, "c:x:d:g:G:o:O:t:p:a:b:k:s:i:v:f:E:S:m:L:H:D:R:A:M:K:V:F:U:Q:e:T:C:Xuh")) != -1) {
 
 		// throw error if the same argument is specified more than once
 		duplicate_arguments[c]++;
@@ -334,6 +338,14 @@ options_t parse_arguments(int argc, char **argv) {
 					exit(1);
 				}
 				break;
+			case 'p':
+				options.protein_domains_file = optarg;
+				if (access(options.protein_domains_file.c_str(), R_OK) != 0) {
+					cerr << "ERROR: file not found/readable: " << options.protein_domains_file << endl;
+					exit(1);
+				}
+				break;
+
 			case 'a':
 				options.assembly_file = optarg;
 				if (access(options.assembly_file.c_str(), R_OK) != 0) {

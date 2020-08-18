@@ -52,6 +52,7 @@
 #include "recover_many_spliced.hpp"
 #include "recover_isoforms.hpp"
 #include "annotate_tags.hpp"
+#include "annotate_protein_domains.hpp"
 #include "output_fusions.hpp"
 
 using namespace std;
@@ -542,12 +543,19 @@ int main(int argc, char **argv) {
 		load_tags(options.tags_file, contigs, gene_names, tags);
 	}
 
+	protein_domain_annotation_t protein_domain_annotation;
+	protein_domain_annotation_index_t protein_domain_annotation_index;
+	if (!options.protein_domains_file.empty()) {
+		cout << get_time_string() << " Loading protein domains from '" << options.protein_domains_file << "'" << endl;
+		load_protein_domains(options.protein_domains_file, contigs, gene_annotation, gene_names, protein_domain_annotation, protein_domain_annotation_index);
+	}
+
 	cout << get_time_string() << " Writing fusions to file '" << options.output_file << "' " << endl;
-	write_fusions_to_file(fusions, options.output_file, coverage, assembly, gene_annotation_index, exon_annotation_index, contigs_by_id, tags, max_mate_gap, true, false);
+	write_fusions_to_file(fusions, options.output_file, coverage, assembly, gene_annotation_index, exon_annotation_index, contigs_by_id, tags, protein_domain_annotation_index, max_mate_gap, true, false);
 
 	if (options.discarded_output_file != "") {
 		cout << get_time_string() << " Writing discarded fusions to file '" << options.discarded_output_file << "' " << endl;
-		write_fusions_to_file(fusions, options.discarded_output_file, coverage, assembly, gene_annotation_index, exon_annotation_index, contigs_by_id, tags, max_mate_gap, options.print_extra_info_for_discarded_fusions, true);
+		write_fusions_to_file(fusions, options.discarded_output_file, coverage, assembly, gene_annotation_index, exon_annotation_index, contigs_by_id, tags, protein_domain_annotation_index, max_mate_gap, options.print_extra_info_for_discarded_fusions, true);
 	}
 
 	// print resource usage stats end exit
