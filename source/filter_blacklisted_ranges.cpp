@@ -213,7 +213,7 @@ void get_genome_bins_from_range(const contig_t contig, const position_t start, c
 unsigned int filter_blacklisted_ranges(fusions_t& fusions, const string& blacklist_file_path, const contigs_t& contigs, const unordered_map<string,gene_t>& genes, const float evalue_cutoff, const int max_mate_gap) {
 
 	// index fusions by coordinate
-	unordered_map< tuple<contig_t,position_t>, set<fusion_t*> > fusions_by_coordinate;
+	unordered_map< genome_bin_t, set<fusion_t*> > fusions_by_coordinate;
 	for (fusions_t::iterator fusion = fusions.begin(); fusion != fusions.end(); ++fusion) {
 
 		if (fusion->second.filter != FILTER_none && fusion->second.closest_genomic_breakpoint1 < 0)

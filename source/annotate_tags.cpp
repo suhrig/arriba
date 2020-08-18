@@ -28,7 +28,7 @@ void load_tags(const string& tags_file_path, const contigs_t& contigs, const uno
 	}
 }
 
-string annotate_tags(fusion_t& fusion, const tags_t& tags, const int max_mate_gap) {
+string annotate_tags(const fusion_t& fusion, const tags_t& tags, const int max_mate_gap) {
 
 	// determine bins around fusion breakpoints; the tags candidates are located in these bins
 	genome_bins_t genome_bins;

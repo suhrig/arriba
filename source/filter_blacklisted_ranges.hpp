@@ -26,7 +26,8 @@ bool parse_blacklist_item(const string& text, blacklist_item_t& blacklist_item, 
 bool matches_blacklist_item(const blacklist_item_t& blacklist_item, const fusion_t& fusion, const unsigned char which_breakpoint, const int max_mate_gap, const float evalue_cutoff = 0);
 
 // divide the genome into fixed size bins
-typedef vector< tuple<contig_t,position_t> > genome_bins_t;
+typedef tuple<contig_t,position_t> genome_bin_t;
+typedef vector<genome_bin_t> genome_bins_t;
 void get_genome_bins_from_range(const contig_t contig, const position_t start, const position_t end, genome_bins_t& genome_bins);
 
 unsigned int filter_blacklisted_ranges(fusions_t& fusions, const string& blacklist_file_path, const contigs_t& contigs, const unordered_map<string,gene_t>& genes, const float evalue_cutoff, const int max_mate_gap);

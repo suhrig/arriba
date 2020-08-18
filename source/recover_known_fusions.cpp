@@ -15,7 +15,7 @@ unsigned int recover_known_fusions(fusions_t& fusions, const string& known_fusio
 
 	// the known fusions file has the same format as the blacklist file => we can use the same code
 	// known fusions are indexed by coordinate using a hash map for efficient lookup
-	unordered_map< tuple<contig_t,position_t>, vector< pair<blacklist_item_t,blacklist_item_t> > > known_fusions_by_coordinate;
+	unordered_map< genome_bin_t, vector< pair<blacklist_item_t,blacklist_item_t> > > known_fusions_by_coordinate;
 
 	// load known fusions from file
 	autodecompress_file_t known_fusions_file(known_fusions_file_path);

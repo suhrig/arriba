@@ -10,10 +10,10 @@
 
 using namespace std;
 
-typedef unordered_map< tuple<contig_t,position_t>, vector< tuple<blacklist_item_t,blacklist_item_t,string> > > tags_t;
+typedef unordered_map< genome_bin_t, vector< tuple<blacklist_item_t,blacklist_item_t,string> > > tags_t;
 
 void load_tags(const string& tags_file_path, const contigs_t& contigs, const unordered_map<string,gene_t>& genes, tags_t& tags);
 
-string annotate_tags(fusion_t& fusion, const tags_t& tags, const int max_mate_gap);
+string annotate_tags(const fusion_t& fusion, const tags_t& tags, const int max_mate_gap);
 
 #endif /* _ANNOTATE_TAGS_H */
