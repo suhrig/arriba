@@ -763,26 +763,13 @@ void write_fusions_to_file(fusions_t& fusions, const string& output_file, const 
 		cerr << "ERROR: failed to open output file: " << output_file << endl;
 		exit(1);
 	}
-	out << "#gene1\tgene2\tstrand1(gene/fusion)\tstrand2(gene/fusion)\tbreakpoint1\tbreakpoint2\tsite1\tsite2\ttype\tdirection1\tdirection2\tsplit_reads1\tsplit_reads2\tdiscordant_mates\tcoverage1\tcoverage2\tconfidence\tclosest_genomic_breakpoint1\tclosest_genomic_breakpoint2\ttags\tretained_protein_domains\tfilters\tfusion_transcript\tgene_id1\tgene_id2\treading_frame\ttranscript_id1\ttranscript_id2\tpeptide_sequence\tread_identifiers" << endl;
+	out << "#gene1\tgene2\tstrand1(gene/fusion)\tstrand2(gene/fusion)\tbreakpoint1\tbreakpoint2\tsite1\tsite2\ttype\tsplit_reads1\tsplit_reads2\tdiscordant_mates\tcoverage1\tcoverage2\tconfidence\treading_frame\ttags\tretained_protein_domains\tclosest_genomic_breakpoint1\tclosest_genomic_breakpoint2\tgene_id1\tgene_id2\ttranscript_id1\ttranscript_id2\tdirection1\tdirection2\tfilters\tfusion_transcript\tpeptide_sequence\tread_identifiers" << endl;
 	for (auto fusion = sorted_fusions.begin(); fusion != sorted_fusions.end(); ++fusion) {
 
 		// describe site of breakpoint
 		string site_5 = get_fusion_site((**fusion).gene1, (**fusion).spliced1, (**fusion).exonic1, (**fusion).contig1, (**fusion).breakpoint1, exon_annotation_index);
 		string site_3 = get_fusion_site((**fusion).gene2, (**fusion).spliced2, (**fusion).exonic2, (**fusion).contig2, (**fusion).breakpoint2, exon_annotation_index);
 		
-		// convert closest genomic breakpoints to strings of the format <chr>:<position>(<distance to transcriptomic breakpoint>)
-		string closest_genomic_breakpoint_5, closest_genomic_breakpoint_3;
-		if ((**fusion).closest_genomic_breakpoint1 >= 0) {
-			closest_genomic_breakpoint_5 = contigs_by_id[(**fusion).contig1] + ":" + to_string(static_cast<long long int>((**fusion).closest_genomic_breakpoint1+1)) + "(" + to_string(static_cast<long long int>(abs((**fusion).breakpoint1 - (**fusion).closest_genomic_breakpoint1))) + ")";
-		} else {
-			closest_genomic_breakpoint_5 = ".";
-		}
-		if ((**fusion).closest_genomic_breakpoint2 >= 0) {
-			closest_genomic_breakpoint_3 = contigs_by_id[(**fusion).contig2] + ":" + to_string(static_cast<long long int>((**fusion).closest_genomic_breakpoint2+1)) + "(" + to_string(static_cast<long long int>(abs((**fusion).breakpoint2 - (**fusion).closest_genomic_breakpoint2))) + ")";
-		} else {
-			closest_genomic_breakpoint_3 = ".";
-		}
-
 		// assign confidence scores
 		string confidence;
 		switch ((**fusion).confidence) {
@@ -802,8 +789,9 @@ void write_fusions_to_file(fusions_t& fusions, const string& output_file, const 
 		contig_t contig_5 = (**fusion).contig1; contig_t contig_3 = (**fusion).contig2;
 		position_t breakpoint_5 = (**fusion).breakpoint1; position_t breakpoint_3 = (**fusion).breakpoint2;
 		direction_t direction_5 = (**fusion).direction1; direction_t direction_3 = (**fusion).direction2;
-		strand_t strand_5 = (**fusion).predicted_strand1; strand_t strand_3 = (**fusion).predicted_strand2;
 		unsigned int split_reads_5 = (**fusion).split_reads1; unsigned int split_reads_3 = (**fusion).split_reads2;
+		strand_t strand_5 = (**fusion).predicted_strand1; strand_t strand_3 = (**fusion).predicted_strand2;
+		position_t closest_genomic_breakpoint_5 = (**fusion).closest_genomic_breakpoint1; position_t closest_genomic_breakpoint_3 = (**fusion).closest_genomic_breakpoint2;
 		if ((**fusion).transcript_start == TRANSCRIPT_START_GENE2) {
 			swap(gene_5, gene_3);
 			swap(direction_5, direction_3);
@@ -811,23 +799,37 @@ void write_fusions_to_file(fusions_t& fusions, const string& output_file, const 
 			swap(breakpoint_5, breakpoint_3);
 			swap(site_5, site_3);
 			swap(split_reads_5, split_reads_3);
-			swap(closest_genomic_breakpoint_5, closest_genomic_breakpoint_3);
 			swap(strand_5, strand_3);
+			swap(closest_genomic_breakpoint_5, closest_genomic_breakpoint_3);
 		}
 
 		int coverage_5 = coverage.get_coverage(contig_5, breakpoint_5, (direction_5 == UPSTREAM) ? DOWNSTREAM : UPSTREAM);
 		int coverage_3 = coverage.get_coverage(contig_3, breakpoint_3, (direction_3 == UPSTREAM) ? DOWNSTREAM : UPSTREAM);
+
+		// compute columns that are only printed in the main output file but omitted in the discarded output file
+		string transcript_sequence = ".";
+		transcript_t transcript_5 = NULL;
+		transcript_t transcript_3 = NULL;
+		string fusion_peptide_sequence = ".";
+		string reading_frame = ".";
+		if (print_extra_info) {
+			vector<position_t> positions;
+			get_fusion_transcript_sequence(**fusion, assembly, transcript_sequence, positions);
+			transcript_5 = get_transcript(transcript_sequence, positions, gene_5, strand_5, (**fusion).predicted_strands_ambiguous, 5, exon_annotation_index);
+			transcript_3 = get_transcript(transcript_sequence, positions, gene_3, strand_3, (**fusion).predicted_strands_ambiguous, 3, exon_annotation_index);
+			fusion_peptide_sequence = get_fusion_peptide_sequence(transcript_sequence, positions, gene_5, gene_3, transcript_5, transcript_3, strand_3, exon_annotation_index, assembly);
+			reading_frame = is_in_frame(fusion_peptide_sequence);
+		}
 
 		// write line to output file
 		out << gene_to_name(gene_5, contig_5, breakpoint_5, gene_annotation_index) << "\t" << gene_to_name(gene_3, contig_3, breakpoint_3, gene_annotation_index) << "\t"
 		    << get_fusion_strand(strand_5, gene_5, (**fusion).predicted_strands_ambiguous) << "\t" << get_fusion_strand(strand_3, gene_3, (**fusion).predicted_strands_ambiguous) << "\t"
 		    << contigs_by_id[contig_5] << ":" << (breakpoint_5+1) << "\t" << contigs_by_id[contig_3] << ":" << (breakpoint_3+1) << "\t"
 		    << site_5 << "\t" << site_3 << "\t"
-		    << get_fusion_type(**fusion) << "\t" << ((direction_5 == UPSTREAM) ? "upstream" : "downstream") << "\t" << ((direction_3 == UPSTREAM) ? "upstream" : "downstream") << "\t"
-		    << split_reads_5 << "\t" << split_reads_3 << "\t" << (**fusion).discordant_mates << "\t"
+		    << get_fusion_type(**fusion) << "\t" << split_reads_5 << "\t" << split_reads_3 << "\t" << (**fusion).discordant_mates << "\t"
 		    << ((coverage_5 >= 0) ? to_string(static_cast<long long int>(coverage_5)) : ".") << "\t" << ((coverage_3 >= 0) ? to_string(static_cast<long long int>(coverage_3)) : ".") << "\t"
 		    << confidence << "\t"
-		    << closest_genomic_breakpoint_5 << "\t" << closest_genomic_breakpoint_3;
+		    << reading_frame;
 
 		out << "\t";
 		if (!tags.empty())
@@ -848,6 +850,18 @@ void write_fusions_to_file(fusions_t& fusions, const string& output_file, const 
 			out << ".";
 		}
 
+		// convert closest genomic breakpoints to strings of the format <chr>:<position>(<distance to transcriptomic breakpoint>)
+		out << "\t";
+		if (closest_genomic_breakpoint_5 >= 0)
+			out << contigs_by_id[contig_5] + ":" + to_string(static_cast<long long int>(closest_genomic_breakpoint_5+1)) + "(" + to_string(static_cast<long long int>(abs(breakpoint_5 - closest_genomic_breakpoint_5))) + ")";
+		else
+			out << ".";
+		out << "\t";
+		if (closest_genomic_breakpoint_3 >= 0)
+			out << contigs_by_id[contig_3] + ":" + to_string(static_cast<long long int>(closest_genomic_breakpoint_3+1)) + "(" + to_string(static_cast<long long int>(abs(breakpoint_3 - closest_genomic_breakpoint_3))) + ")";
+		else
+			out << ".";
+
 		// count the number of reads discarded by a given filter
 		map<string,unsigned int> filters;
 		if ((**fusion).filter != FILTER_none)
@@ -859,6 +873,14 @@ void write_fusions_to_file(fusions_t& fusions, const string& output_file, const 
 		for (auto chimeric_alignment = all_supporting_reads.begin(); chimeric_alignment != all_supporting_reads.end(); ++chimeric_alignment)
 			if ((**chimeric_alignment).second.filter != FILTER_none)
 				filters[FILTERS[(**chimeric_alignment).second.filter]]++;
+
+		// print gene IDs and transcript IDs
+		out << "\t" << ((gene_5->is_dummy) ? "." : gene_5->gene_id)
+		    << "\t" << ((gene_3->is_dummy) ? "." : gene_3->gene_id);
+		out << "\t" << ((transcript_5 == NULL) ? "." : transcript_5->name)
+		    << "\t" << ((transcript_3 == NULL) ? "." : transcript_3->name);
+
+		out << "\t" << ((direction_5 == UPSTREAM) ? "upstream" : "downstream") << "\t" << ((direction_3 == UPSTREAM) ? "upstream" : "downstream");
 
 		// output filters
 		out << "\t";
@@ -874,35 +896,10 @@ void write_fusions_to_file(fusions_t& fusions, const string& output_file, const 
 			}
 		}
 
-		// print a fusion-spanning sequence
-		out << "\t";
-		string transcript_sequence;
-		vector<position_t> positions;
-		if (print_extra_info) {
-			get_fusion_transcript_sequence(**fusion, assembly, transcript_sequence, positions);
-			out << transcript_sequence;
-		} else {
-			out << ".";
-		}
+		// print transcript and peptide sequences
+		out << "\t" << transcript_sequence << "\t" << fusion_peptide_sequence;
 
-		// print gene IDs
-		out << "\t" << ((gene_5->is_dummy) ? "." : gene_5->gene_id) << "\t" << ((gene_3->is_dummy) ? "." : gene_3->gene_id);
-
-		// print the translated protein sequence
-		out << "\t";
-		if (print_extra_info) {
-			transcript_t transcript_5 = get_transcript(transcript_sequence, positions, gene_5, strand_5, (**fusion).predicted_strands_ambiguous, 5, exon_annotation_index);
-			transcript_t transcript_3 = get_transcript(transcript_sequence, positions, gene_3, strand_3, (**fusion).predicted_strands_ambiguous, 3, exon_annotation_index);
-			string fusion_peptide_sequence = get_fusion_peptide_sequence(transcript_sequence, positions, gene_5, gene_3, transcript_5, transcript_3, strand_3, exon_annotation_index, assembly);
-			out << is_in_frame(fusion_peptide_sequence) << "\t"
-			    << ((transcript_5 == NULL) ? "." : transcript_5->name) << "\t"
-			    << ((transcript_3 == NULL) ? "." : transcript_3->name) << "\t"
-			    << fusion_peptide_sequence;
-		} else {
-			out << ".\t.\t.\t.";
-		}
-
-		// if requested, print identifiers of supporting reads
+		// print identifiers of supporting reads
 		out << "\t";
 		if (print_extra_info && !all_supporting_reads.empty()) {
 			for (auto read = all_supporting_reads.begin(); read != all_supporting_reads.end(); ++read) {
