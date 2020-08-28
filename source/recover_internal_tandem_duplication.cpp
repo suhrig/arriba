@@ -21,7 +21,9 @@ unsigned int recover_internal_tandem_duplication(fusions_t& fusions, const chime
 
 		// only recover candidates that were discarded for a select number of reasons
 		if (fusion->second.filter != FILTER_relative_support &&
-		    fusion->second.filter != FILTER_intragenic_exonic)
+		    fusion->second.filter != FILTER_intragenic_exonic &&
+		    fusion->second.filter != FILTER_hairpin &&
+		    fusion->second.filter != FILTER_inconsistently_clipped)
 			continue;
 
 		// is it an internal tandem duplication?
@@ -47,22 +49,22 @@ unsigned int recover_internal_tandem_duplication(fusions_t& fusions, const chime
 			int coverage2 = coverage.get_coverage(fusion->second.contig2, fusion->second.breakpoint2, (fusion->second.direction2 == UPSTREAM) ? DOWNSTREAM : UPSTREAM);
 			unsigned int split_reads = 0;
 			for (auto split_read = fusion->second.split_read1_list.begin(); split_read != fusion->second.split_read1_list.end(); ++split_read)
-				if ((**split_read).second.filter == FILTER_none || (**split_read).second.filter == FILTER_hairpin)
+				if ((**split_read).second.filter == FILTER_none || (**split_read).second.filter == FILTER_hairpin || (**split_read).second.filter == FILTER_inconsistently_clipped)
 					split_reads++;
 			for (auto split_read = fusion->second.split_read2_list.begin(); split_read != fusion->second.split_read2_list.end(); ++split_read)
-				if ((**split_read).second.filter == FILTER_none || (**split_read).second.filter == FILTER_hairpin)
+				if ((**split_read).second.filter == FILTER_none || (**split_read).second.filter == FILTER_hairpin || (**split_read).second.filter == FILTER_inconsistently_clipped)
 					split_reads++;
 
 			if (split_reads > min_supporting_reads && 1.0 * split_reads/max(coverage1,coverage2)/(1-duplication_rate) > min_fraction_of_coverage) {
 				// clear filters of fusion candidate and of supporting reads
 				fusion->second.filter = FILTER_none;
 				for (auto split_read = fusion->second.split_read1_list.begin(); split_read != fusion->second.split_read1_list.end(); ++split_read)
-					if ((**split_read).second.filter == FILTER_hairpin) {
+					if ((**split_read).second.filter == FILTER_hairpin || (**split_read).second.filter == FILTER_inconsistently_clipped) {
 						(**split_read).second.filter = FILTER_none;
 						fusion->second.split_reads1++;
 					}
 				for (auto split_read = fusion->second.split_read2_list.begin(); split_read != fusion->second.split_read2_list.end(); ++split_read)
-					if ((**split_read).second.filter == FILTER_hairpin) {
+					if ((**split_read).second.filter == FILTER_hairpin || (**split_read).second.filter == FILTER_inconsistently_clipped) {
 						(**split_read).second.filter = FILTER_none;
 						fusion->second.split_reads2++;
 					}
