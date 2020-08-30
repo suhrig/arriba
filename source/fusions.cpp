@@ -250,14 +250,17 @@ unsigned int find_fusions(chimeric_alignments_t& chimeric_alignments, fusions_t&
 				for (gene_set_t::iterator gene2 = genes2.begin(); gene2 != genes2.end(); ++gene2) {
 
 					// copy properties of supporting read to fusion
-					fusion_t& fusion = fusions[make_tuple((**gene1).id, (**gene2).id, contig1, contig2, breakpoint1, breakpoint2, direction1, direction2)];
-					fusion.gene1 = *gene1; fusion.gene2 = *gene2;
-					fusion.direction1 = direction1; fusion.direction2 = direction2;
-					fusion.contig1 = contig1; fusion.contig2 = contig2;
-					fusion.breakpoint1 = breakpoint1; fusion.breakpoint2 = breakpoint2;
+					pair<fusions_t::iterator,bool> is_new_fusion = fusions.insert(make_pair(make_tuple((**gene1).id, (**gene2).id, contig1, contig2, breakpoint1, breakpoint2, direction1, direction2), fusion_t()));
+					fusion_t& fusion = is_new_fusion.first->second;
+					if (is_new_fusion.second) {
+						fusion.gene1 = *gene1; fusion.gene2 = *gene2;
+						fusion.direction1 = direction1; fusion.direction2 = direction2;
+						fusion.contig1 = contig1; fusion.contig2 = contig2;
+						fusion.breakpoint1 = breakpoint1; fusion.breakpoint2 = breakpoint2;
+					}
 					fusion.exonic1 = exonic1 || fusion.exonic1; fusion.exonic2 = exonic2 || fusion.exonic2;
 
-					if (fusion.supporting_reads() == 0)
+					if (is_new_fusion.second || chimeric_alignment->second.filter == FILTER_none || fusion.filter == FILTER_duplicates)
 						fusion.filter = chimeric_alignment->second.filter;
 
 					if (fusion.split_reads1 >= subsampling_threshold && !swapped ||
@@ -329,19 +332,18 @@ unsigned int find_fusions(chimeric_alignments_t& chimeric_alignments, fusions_t&
 				for (gene_set_t::iterator gene2 = genes2.begin(); gene2 != genes2.end(); ++gene2) {
 
 					// copy properties of supporting read to fusion
-					bool is_new_fusion = fusions.find(make_tuple((**gene1).id, (**gene2).id, contig1, contig2, breakpoint1, breakpoint2, direction1, direction2)) == fusions.end();
-					fusion_t& fusion = fusions[make_tuple((**gene1).id, (**gene2).id, contig1, contig2, breakpoint1, breakpoint2, direction1, direction2)];
-					fusion.gene1 = *gene1; fusion.gene2 = *gene2;
-					fusion.direction1 = direction1; fusion.direction2 = direction2;
-					fusion.contig1 = contig1; fusion.contig2 = contig2;
-					fusion.breakpoint1 = breakpoint1; fusion.breakpoint2 = breakpoint2;
+					pair<fusions_t::iterator,bool> is_new_fusion = fusions.insert(make_pair(make_tuple((**gene1).id, (**gene2).id, contig1, contig2, breakpoint1, breakpoint2, direction1, direction2), fusion_t()));
+					fusion_t& fusion = is_new_fusion.first->second;
+					if (is_new_fusion.second) {
+						fusion.gene1 = *gene1; fusion.gene2 = *gene2;
+						fusion.direction1 = direction1; fusion.direction2 = direction2;
+						fusion.contig1 = contig1; fusion.contig2 = contig2;
+						fusion.breakpoint1 = breakpoint1; fusion.breakpoint2 = breakpoint2;
+					}
 					fusion.exonic1 = exonic1 || fusion.exonic1; fusion.exonic2 = exonic2 || fusion.exonic2;
 
-					if (chimeric_alignment->second.filter == FILTER_none) {
-						fusion.filter = FILTER_none;
-					} else if (is_new_fusion || fusion.filter != FILTER_none) {
+					if (is_new_fusion.second || chimeric_alignment->second.filter == FILTER_none || fusion.filter == FILTER_duplicates)
 						fusion.filter = chimeric_alignment->second.filter;
-					}
 
 					// expand the size of the anchor
 					if (fusion.direction1 == DOWNSTREAM && (anchor_start1 < fusion.anchor_start1 || fusion.anchor_start1 == 0)) {
