@@ -26,7 +26,7 @@ bool find_spanning_intron(const bam1_t* bam_record, const position_t gene1_end, 
 		uint32_t current_op = bam_get_cigar(bam_record)[i];
 		unsigned int op_length = (bam_cigar_type(bam_cigar_op(current_op)) & 2) ? bam_cigar_oplen(current_op) : 0;
 		after_cigar_op = before_cigar_op + op_length;
-		if ((current_op & 15) == BAM_CREF_SKIP && // this is an intron
+		if (bam_cigar_op(current_op) == BAM_CREF_SKIP && // this is an intron
 		    (before_cigar_op <= gene1_end   && after_cigar_op >  gene1_end || // the intron spans over the end of gene1
 		     before_cigar_op <  gene2_start && after_cigar_op >= gene2_start)) { // the intron spans over the start of gene2
 			cigar_op = i;
@@ -68,7 +68,7 @@ void add_chimeric_alignment(mates_t& mates, const bam1_t* bam_record, const bool
 		alignment.start = bam_record->core.pos + bam_cigar2rlen(cigar_op, bam_get_cigar(bam_record));
 		alignment.end = bam_endpos(bam_record) - 1;
 		alignment.cigar.resize(bam_record->core.n_cigar - cigar_op + 1);
-		alignment.cigar[0] = (bam_cigar2qlen(cigar_op, bam_get_cigar(bam_record)) << 4) + BAM_CSOFT_CLIP; // soft-clip start of read
+		alignment.cigar[0] = bam_cigar_gen(bam_cigar2qlen(cigar_op, bam_get_cigar(bam_record)), BAM_CSOFT_CLIP); // soft-clip start of read
 		for (unsigned int i = cigar_op; i < bam_record->core.n_cigar; ++i) // copy cigar operations from <cigar_op> onwards
 			alignment.cigar[i-cigar_op+1] = bam_get_cigar(bam_record)[i];
 	} else if (clip == CLIP_END) {
@@ -77,7 +77,7 @@ void add_chimeric_alignment(mates_t& mates, const bam1_t* bam_record, const bool
 		alignment.cigar.resize(cigar_op + 2);
 		for (unsigned int i = 0; i <= cigar_op; ++i) // copy cigar operations up until <cigar_op>
 			alignment.cigar[i] = bam_get_cigar(bam_record)[i];
-		alignment.cigar[cigar_op+1] = ((bam_record->core.l_qseq - bam_cigar2qlen(cigar_op+1, bam_get_cigar(bam_record))) << 4) + BAM_CSOFT_CLIP; // soft-clip end of read
+		alignment.cigar[cigar_op+1] = bam_cigar_gen(bam_record->core.l_qseq - bam_cigar2qlen(cigar_op+1, bam_get_cigar(bam_record)), BAM_CSOFT_CLIP); // soft-clip end of read
 	} else { // do not clip, i.e., alignment is already split into a split-read and a supplementary alignment
 		alignment.start = bam_record->core.pos;
 		alignment.end = bam_endpos(bam_record) - 1;
@@ -210,18 +210,18 @@ bool is_tandem_duplication(const bam1_t* bam_record, const assembly_t& assembly,
 	int alignment_direction = +1;
 	int alignment_window_start = 0;
 	int alignment_window_end = 0;
-	if ((bam_get_cigar(bam_record)[0] & 15) == BAM_CSOFT_CLIP && (bam_get_cigar(bam_record)[0] >> 4) >= min_clipped_length) {
+	if (bam_cigar_op(bam_get_cigar(bam_record)[0]) == BAM_CSOFT_CLIP && bam_cigar_oplen(bam_get_cigar(bam_record)[0]) >= min_clipped_length) {
 		// read is clipped at start
-		clipped_sequence_length = bam_get_cigar(bam_record)[0] >> 4;
+		clipped_sequence_length = bam_cigar_oplen(bam_get_cigar(bam_record)[0]);
 		clipped_sequence_position = 0;
 		alignment_direction = -1;
 		alignment_window_start = bam_record->core.pos + min_duplication_length - clipped_sequence_length;
 		alignment_window_end = bam_record->core.pos + max_duplication_length - clipped_sequence_length;
 		clipped_start = true;
 	}
-	if ((bam_get_cigar(bam_record)[bam_record->core.n_cigar-1] & 15) == BAM_CSOFT_CLIP && (bam_get_cigar(bam_record)[bam_record->core.n_cigar-1] >> 4) >= max(min_clipped_length, clipped_sequence_length)) {
+	if (bam_cigar_op(bam_get_cigar(bam_record)[bam_record->core.n_cigar-1]) == BAM_CSOFT_CLIP && bam_cigar_oplen(bam_get_cigar(bam_record)[bam_record->core.n_cigar-1]) >= max(min_clipped_length, clipped_sequence_length)) {
 		// read is clipped at end
-		clipped_sequence_length = bam_get_cigar(bam_record)[bam_record->core.n_cigar-1] >> 4;
+		clipped_sequence_length = bam_cigar_oplen(bam_get_cigar(bam_record)[bam_record->core.n_cigar-1]);
 		clipped_sequence_position = bam_record->core.l_qseq - clipped_sequence_length;
 		alignment_direction = +1;
 		alignment_window_start = bam_endpos(bam_record) - max_duplication_length;
@@ -284,10 +284,10 @@ bool is_tandem_duplication(const bam1_t* bam_record, const assembly_t& assembly,
 			if (tandem_alignment.end < contig_pos + (int) clipped_sequence_length - 1)
 				clip_right += contig_pos + clipped_sequence_length - 1 - tandem_alignment.end;
 			if (clip_left > 0)
-				tandem_alignment.cigar.push_back((clip_left << 4) + BAM_CSOFT_CLIP);
-			tandem_alignment.cigar.push_back(((tandem_alignment.end - tandem_alignment.start + 1) << 4) + BAM_CMATCH);
+				tandem_alignment.cigar.push_back(bam_cigar_gen(clip_left, BAM_CSOFT_CLIP));
+			tandem_alignment.cigar.push_back(bam_cigar_gen(tandem_alignment.end - tandem_alignment.start + 1, BAM_CMATCH));
 			if (clip_right > 0)
-				tandem_alignment.cigar.push_back((clip_right << 4) + BAM_CSOFT_CLIP);
+				tandem_alignment.cigar.push_back(bam_cigar_gen(clip_right, BAM_CSOFT_CLIP));
 			return true;
 		}
 	}
@@ -578,7 +578,7 @@ unsigned int read_chimeric_alignments(const string& bam_file_path, const assembl
 						for (bam1_t* mate = bam_record; mate != NULL; mate = (mate == previously_seen_mate) ? NULL : previously_seen_mate) {
 							bool pristine_alignment = true;
 							for (unsigned int i = 0; i < mate->core.n_cigar && pristine_alignment; i++) {
-								uint32_t cigar_op = (bam_get_cigar(mate)[i]) & 15;
+								uint32_t cigar_op = bam_cigar_op(bam_get_cigar(mate)[i]);
 								if (cigar_op != BAM_CREF_SKIP && cigar_op != BAM_CMATCH && cigar_op != BAM_CDIFF)
 									pristine_alignment = false;
 							}

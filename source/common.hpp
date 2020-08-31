@@ -172,8 +172,8 @@ typedef annotation_index_t<exon_t> exon_annotation_index_t;
 
 class cigar_t: public vector<uint32_t> {
 	public:
-		uint32_t operation(unsigned int index) const { return this->at(index) & 15; }; // select lower 4 bits to get the operation of the CIGAR element
-		uint32_t op_length(unsigned int index) const { return this->at(index) >> 4; }; // remove lower 4 bits to get the length of the CIGAR element
+		uint32_t operation(unsigned int index) const { return bam_cigar_op(this->at(index)); };
+		uint32_t op_length(unsigned int index) const { return bam_cigar_oplen(this->at(index)); };
 };
 
 struct alignment_t {
