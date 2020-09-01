@@ -189,6 +189,24 @@ bool extract_read_through_alignment(chimeric_alignments_t& chimeric_alignments, 
 	return false;
 }
 
+// when the insert size is small, two mates fully overlap and the ends are clipped, because they contain adapter sequence
+// => ignore them, do not consider them for alignment of candidate internal tandem repeat reads
+bool clipped_sequence_is_adapter(const bam1_t* mate1, const bam1_t* mate2) {
+	if (mate1 == NULL || mate2 == NULL)
+		return false;
+	if (mate1->core.pos == mate2->core.pos) {
+		if (get_strand(mate1) == REVERSE && bam_cigar_op(bam_get_cigar(mate1)[0]) == BAM_CSOFT_CLIP &&
+		    get_strand(mate2) == FORWARD && bam_cigar_op(bam_get_cigar(mate2)[mate2->core.n_cigar-1]) == BAM_CSOFT_CLIP &&
+		    bam_cigar_oplen(bam_get_cigar(mate1)[0]) == bam_cigar_oplen(bam_get_cigar(mate2)[mate2->core.n_cigar-1]))
+			return true;
+		if (get_strand(mate2) == REVERSE && bam_cigar_op(bam_get_cigar(mate2)[0]) == BAM_CSOFT_CLIP &&
+		    get_strand(mate1) == FORWARD && bam_cigar_op(bam_get_cigar(mate1)[mate1->core.n_cigar-1]) == BAM_CSOFT_CLIP &&
+		    bam_cigar_oplen(bam_get_cigar(mate2)[0]) == bam_cigar_oplen(bam_get_cigar(mate1)[mate1->core.n_cigar-1]))
+			return true;
+	}
+	return false;
+}
+
 // STAR is bad at aligning internal tandem duplications
 // => if we see a clipped read, check manually if it can be aligned as a tandem duplication
 bool is_tandem_duplication(const bam1_t* bam_record, const assembly_t& assembly, alignment_t& tandem_alignment) {
@@ -552,7 +570,7 @@ unsigned int read_chimeric_alignments(const string& bam_file_path, const assembl
 				bool is_read_through_alignment = false;
 				alignment_t tandem_alignment;
 
-				if (bam_aux_get(bam_record, "SA") != NULL || previously_seen_mate != NULL && bam_aux_get(previously_seen_mate, "SA") != NULL) { // split-read
+				if (bam_aux_get(bam_record, "SA") != NULL || previously_seen_mate != NULL && bam_aux_get(previously_seen_mate, "SA") != NULL) { // split-read with SA tag
 					if (!separate_chimeric_bam_file) {
 						mates_t& mates = chimeric_alignments[read_name];
 						add_chimeric_alignment(mates, bam_record);
@@ -560,7 +578,8 @@ unsigned int read_chimeric_alignments(const string& bam_file_path, const assembl
 							add_chimeric_alignment(mates, previously_seen_mate);
 						no_chimeric_reads = false;
 					}
-				} else if ((previously_seen_mate == NULL || get_strand(bam_record) != get_strand(previously_seen_mate)) && // strands must be different, so we can distinguish mate1 from mate2
+				} else if (!clipped_sequence_is_adapter(bam_record, previously_seen_mate) &&
+				           (previously_seen_mate == NULL || get_strand(bam_record) != get_strand(previously_seen_mate)) && // strands must be different, so we can distinguish mate1 from mate2
 				           (is_tandem_duplication(bam_record, assembly, tandem_alignment) || // is it a tandem duplication that STAR failed to align?
 				            is_tandem_duplication(previously_seen_mate, assembly, tandem_alignment)) &&
 				           (!separate_chimeric_bam_file || is_rna_bam_file && chimeric_alignments.find(read_name) == chimeric_alignments.end())) {
