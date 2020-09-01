@@ -52,8 +52,8 @@ The following command demonstrates the usage. Please refer to section [Command-l
     --alignments=Aligned.sortedByCoord.out.bam \
     --output=fusions.pdf \
     --annotation=GENCODE19.gtf \
-    --cytobands=database/cytobands_hg19_hs37d5_GRCh37_2018-02-23.tsv \
-    --proteinDomains=database/protein_domains_hg19_hs37d5_GRCh37_2019-07-05.gff3
+    --cytobands=database/cytobands_hg19_hs37d5_GRCh37_v2.0.0.tsv \
+    --proteinDomains=database/protein_domains_hg19_hs37d5_GRCh37_v2.0.0.gff3
 ```
 
 **Execution via Docker**
