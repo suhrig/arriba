@@ -303,7 +303,7 @@ void assign_confidence(fusions_t& fusions, const coverage_t& coverage) {
 				if (fusion->second.split_reads1 + fusion->second.split_reads2 > 0) {
 					if (!fusion->second.exonic1 && !fusion->second.exonic2) {
 						// most intragenic artifacts have both breakpoints in exons
-						// => increase confidence a bit, if the breakpoints are in introns
+						// => increase confidence a bit if the breakpoints are in introns
 						if (fusion->second.split_reads1 > 0 && fusion->second.split_reads2 > 0)
 							fusion->second.confidence = CONFIDENCE_HIGH;
 						else
@@ -319,6 +319,18 @@ void assign_confidence(fusions_t& fusions, const coverage_t& coverage) {
 				}
 
 			}
+
+			// lift confidence score of rescued internal tandem duplications
+			if (fusion->second.confidence == CONFIDENCE_LOW &&
+			    fusion->second.gene1 == fusion->second.gene2 &&
+			    fusion->second.exonic1 && fusion->second.exonic2 &&
+			    !fusion->second.spliced1 && !fusion->second.spliced2 &&
+			    fusion->second.breakpoint2 - fusion->second.breakpoint1 < 100 &&
+			    fusion->second.split_reads1 > 0 && fusion->second.split_reads2 > 0 &&
+			    fusion->second.split_reads1 + fusion->second.split_reads2 >= 10 &&
+			    coverage_fraction > 0.15 &&
+			    fusion->second.direction1 == UPSTREAM && fusion->second.direction2 == DOWNSTREAM)
+				fusion->second.confidence = CONFIDENCE_MEDIUM;
 
 			// increase confidence, when there are multiple spliced events between the same pair of genes
 			if (fusion->second.confidence < CONFIDENCE_HIGH &&
