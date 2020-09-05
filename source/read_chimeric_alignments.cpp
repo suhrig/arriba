@@ -581,13 +581,14 @@ unsigned int read_chimeric_alignments(const string& bam_file_path, const assembl
 				} else if (!clipped_sequence_is_adapter(bam_record, previously_seen_mate) &&
 				           (previously_seen_mate == NULL || get_strand(bam_record) != get_strand(previously_seen_mate)) && // strands must be different, so we can distinguish mate1 from mate2
 				           (is_tandem_duplication(bam_record, assembly, tandem_alignment) || // is it a tandem duplication that STAR failed to align?
-				            is_tandem_duplication(previously_seen_mate, assembly, tandem_alignment)) &&
-				           (!separate_chimeric_bam_file || is_rna_bam_file && chimeric_alignments.find(read_name) == chimeric_alignments.end())) {
-					mates_t& mates = chimeric_alignments[read_name];
-					add_chimeric_alignment(mates, bam_record, get_strand(bam_record) == tandem_alignment.strand && !tandem_alignment.supplementary);
-					if (previously_seen_mate != NULL)
-						add_chimeric_alignment(mates, previously_seen_mate, get_strand(previously_seen_mate) == tandem_alignment.strand && !tandem_alignment.supplementary);
-					mates.push_back(tandem_alignment);
+				            is_tandem_duplication(previously_seen_mate, assembly, tandem_alignment))) {
+					if (!separate_chimeric_bam_file || is_rna_bam_file && chimeric_alignments.find(read_name) == chimeric_alignments.end()) {
+						mates_t& mates = chimeric_alignments[read_name];
+						add_chimeric_alignment(mates, bam_record, get_strand(bam_record) == tandem_alignment.strand && !tandem_alignment.supplementary);
+						if (previously_seen_mate != NULL)
+							add_chimeric_alignment(mates, previously_seen_mate, get_strand(previously_seen_mate) == tandem_alignment.strand && !tandem_alignment.supplementary);
+						mates.push_back(tandem_alignment);
+					}
 				} else { // could be a read-through alignment
 					is_read_through_alignment = extract_read_through_alignment(chimeric_alignments, read_name, bam_record, previously_seen_mate, gene_annotation_index, separate_chimeric_bam_file);
 
