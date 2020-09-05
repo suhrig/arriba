@@ -370,6 +370,14 @@ unsigned int remove_malformed_alignments(chimeric_alignments_t& chimeric_alignme
 					}
 				}
 
+				// the split read must be clipped at the end, the supplementary alignment at the beginning
+				// and the clipped segment of the split read must encompass the supplementary and vice versa
+				unsigned int clipped_bases_split_read = (chimeric_alignment->second[SPLIT_READ].strand == FORWARD) ? chimeric_alignment->second[SPLIT_READ].preclipping() : chimeric_alignment->second[SPLIT_READ].postclipping();
+				unsigned int clipped_bases_supplementary = (chimeric_alignment->second[SUPPLEMENTARY].strand == FORWARD) ? chimeric_alignment->second[SUPPLEMENTARY].postclipping() : chimeric_alignment->second[SUPPLEMENTARY].preclipping();
+				if (clipped_bases_split_read < chimeric_alignment->second[SPLIT_READ].sequence.size() - clipped_bases_supplementary ||
+				    clipped_bases_supplementary < chimeric_alignment->second[SPLIT_READ].sequence.size() - clipped_bases_split_read)
+					malformed = true;
+
 			} else {
 				// if we get here, there are either too many alignments with the same name or too few
 				// or something is wrong with the supplementary flags
@@ -402,6 +410,14 @@ unsigned int remove_malformed_alignments(chimeric_alignments_t& chimeric_alignme
 				    chimeric_alignment->second[MATE1].strand == chimeric_alignment->second[SPLIT_READ].strand)
 					malformed = true;
 
+				// the split read must be clipped at the end, the supplementary alignment at the beginning
+				// and the clipped segment of the split read must encompass the supplementary and vice versa
+				unsigned int clipped_bases_split_read = (chimeric_alignment->second[SPLIT_READ].strand == FORWARD) ? chimeric_alignment->second[SPLIT_READ].preclipping() : chimeric_alignment->second[SPLIT_READ].postclipping();
+				unsigned int clipped_bases_supplementary = (chimeric_alignment->second[SUPPLEMENTARY].strand == FORWARD) ? chimeric_alignment->second[SUPPLEMENTARY].postclipping() : chimeric_alignment->second[SUPPLEMENTARY].preclipping();
+				if (clipped_bases_split_read < chimeric_alignment->second[SPLIT_READ].sequence.size() - clipped_bases_supplementary ||
+				    clipped_bases_supplementary < chimeric_alignment->second[SPLIT_READ].sequence.size() - clipped_bases_split_read)
+					malformed = true;
+
 			} else if (chimeric_alignment->second.size() == 2) { // discordant mate
 				// none of the mates should have the supplementary bit set, or else something is wrong
 				if (chimeric_alignment->second[MATE1].supplementary || chimeric_alignment->second[MATE2].supplementary)
@@ -422,6 +438,22 @@ unsigned int remove_malformed_alignments(chimeric_alignments_t& chimeric_alignme
 	}
 
 	return malformed_count;
+}
+
+// paired-end overlap alignment produces chimeric alignments where the wrong end is the clipped segment,
+// when reads are longer than the insert size
+// we must ignore those, because they are probably adapters
+bool is_clipped_at_correct_end(const bam1_t* bam_record) {
+	if (!(bam_record->core.flag & BAM_FPAIRED))
+		return true; // single-end reads may be clipped at either end
+	//paired-end read must be clipped at the fragment end
+	unsigned int clipped_end;
+	if (bam_record->core.flag & BAM_FSUPPLEMENTARY)
+		clipped_end = (get_strand(bam_record) == FORWARD) ? bam_record->core.n_cigar-1 : 0;
+	else
+		clipped_end = (get_strand(bam_record) == FORWARD) ? 0 : bam_record->core.n_cigar-1;
+	uint32_t clipped_cigar = bam_cigar_op(bam_get_cigar(bam_record)[clipped_end]);
+	return clipped_cigar == BAM_CSOFT_CLIP || clipped_cigar == BAM_CHARD_CLIP;
 }
 
 unsigned int read_chimeric_alignments(const string& bam_file_path, const assembly_t& assembly, const string& assembly_file_path, chimeric_alignments_t& chimeric_alignments, unsigned long int& mapped_reads, vector<unsigned long int>& mapped_viral_reads_by_contig, coverage_t& coverage, contigs_t& contigs, const string& interesting_contigs, const string& viral_contigs, const gene_annotation_index_t& gene_annotation_index, const bool separate_chimeric_bam_file, const bool is_rna_bam_file, const bool external_duplicate_marking) {
@@ -475,6 +507,7 @@ unsigned int read_chimeric_alignments(const string& bam_file_path, const assembl
 	collated_bam_records_t collated_bam_records; // holds the first mate until we have found the second
 	bool no_chimeric_reads = true;
 	unsigned int missing_hi_tag = 0;
+	unsigned int malformed_count = 0;
 	string read_name;
 	while (sam_read1(bam_file, bam_header, bam_record) >= 0) {
 
@@ -508,7 +541,10 @@ unsigned int read_chimeric_alignments(const string& bam_file_path, const assembl
 		// add supplementary alignments directly to the chimeric alignments without collating
 		if (is_rna_bam_file && (bam_record->core.flag & BAM_FSUPPLEMENTARY)) { // extract supplementary reads from Aligned.out.bam
 			if (!separate_chimeric_bam_file) { // don't load alignments twice (from Chimeric.out.sam and from Aligned.out.bam)
-				add_chimeric_alignment(chimeric_alignments[read_name], bam_record, true/*supplementary*/);
+				if (is_clipped_at_correct_end(bam_record))
+					add_chimeric_alignment(chimeric_alignments[read_name], bam_record, true/*supplementary*/);
+				else
+					malformed_count++;
 				no_chimeric_reads = false;
 			}
 			continue;
@@ -570,7 +606,8 @@ unsigned int read_chimeric_alignments(const string& bam_file_path, const assembl
 				bool is_read_through_alignment = false;
 				alignment_t tandem_alignment;
 
-				if (bam_aux_get(bam_record, "SA") != NULL || previously_seen_mate != NULL && bam_aux_get(previously_seen_mate, "SA") != NULL) { // split-read with SA tag
+				if (bam_aux_get(bam_record, "SA") != NULL && is_clipped_at_correct_end(bam_record) ||
+				    previously_seen_mate != NULL && bam_aux_get(previously_seen_mate, "SA") != NULL && is_clipped_at_correct_end(previously_seen_mate)) { // split-read with SA tag
 					if (!separate_chimeric_bam_file) {
 						mates_t& mates = chimeric_alignments[read_name];
 						add_chimeric_alignment(mates, bam_record);
@@ -628,7 +665,7 @@ unsigned int read_chimeric_alignments(const string& bam_file_path, const assembl
 		exit(1);
 	}
 	// sanity check: remove malformed alignments
-	unsigned int malformed_count = remove_malformed_alignments(chimeric_alignments);
+	malformed_count += remove_malformed_alignments(chimeric_alignments);
 	if (malformed_count > 0)
 		cerr << "WARNING: " << malformed_count << " SAM records were malformed and ignored" << endl;
 	// sanity check: there should be at least 1 chimeric read, or else Arriba is probably not being used properly
