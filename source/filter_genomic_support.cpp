@@ -13,7 +13,10 @@
 using namespace std;
 
 bool parse_breakpoint(string breakpoint, const contigs_t& contigs, contig_t& contig, position_t& position) {
-	tsv_stream_t tsv(breakpoint, ':');
+	unsigned int separator = breakpoint.find_last_of(':'); // split by last colon, because there could be colons in the contig name
+	if (separator != string::npos)
+		breakpoint[separator] = '\t';
+	tsv_stream_t tsv(breakpoint);
 
 	// extract contig from breakpoint
 	string contig_name;

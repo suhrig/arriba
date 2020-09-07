@@ -14,9 +14,12 @@
 using namespace std;
 
 // convert string representation of a range into coordinates
-bool parse_range(const string& range, const contigs_t& contigs, blacklist_item_t& blacklist_item) {
+bool parse_range(string range, const contigs_t& contigs, blacklist_item_t& blacklist_item) {
 
-	tsv_stream_t tsv(range, ':');
+	unsigned int separator = range.find_last_of(':'); // split by last colon, because there could be colons in the contig name
+	if (separator != string::npos)
+		range[separator] = '\t';
+	tsv_stream_t tsv(range);
 	string contig_name, start_and_end_position;
 	tsv >> contig_name >> start_and_end_position;
 	if (tsv.fail() || contig_name.empty() || start_and_end_position.empty()) {
