@@ -46,7 +46,7 @@ The blacklist removes recurrent alignment artifacts and transcripts which are pr
 
 The blacklist is a tab-separated file with two columns and may optionally be gzip-compressed. Lines starting with a hash (`#`) are treated as comments. Each line represents a pair of regions between which events are ignored. A region can be
 
-- a 1-based coordinate in the format `CONTIG:POSITION`, optionally prefixed with the strand (example: `+9:56743754`).
+- a 1-based coordinate in the format `CONTIG:POSITION`, optionally prefixed with the strand (example: `+9:56743754`). If `CONTIG` ends on an asterisk (`*`), the contig with the closest matching name is chosen.
 
 - a range in the format `CONTIG:START-END`, optionally prefixed with a strand (example: `9:1000000-1100000`).
 
@@ -79,7 +79,7 @@ Arriba can be instructed to be particularly sensitive towards events between cer
 
 The file has two columns separated by a tab and may optionally be gzip-compressed. Lines starting with a hash (`#`) are treated as comments. Each line represents a pair of regions to which very sensitive filtering thresholds are applied. A region can be
 
-- a 1-based coordinate in the format `CONTIG:POSITION`, optionally prefixed with the strand (example: `+9:56743754`).
+- a 1-based coordinate in the format `CONTIG:POSITION`, optionally prefixed with the strand (example: `+9:56743754`). If `CONTIG` ends on an asterisk (`*`), the contig with the closest matching name is chosen.
 
 - a range in the format `CONTIG:START-END`, optionally prefixed with a strand (example: `9:1000000-1100000`).
 

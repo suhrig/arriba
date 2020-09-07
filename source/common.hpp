@@ -68,7 +68,7 @@ const filter_t FILTER_homologs = FILTERS.define("homologs");
 
 typedef int position_t;
 typedef short unsigned int contig_t;
-typedef unordered_map<string,contig_t> contigs_t;
+typedef map<string,contig_t> contigs_t; // must be ordered to find closest match
 // function to check if contig matches pattern, e.g., NC_*, AC_*, 1, 2, 3, 4, X, Y, M, ...
 inline bool is_interesting_contig(const string& contig, const string& interesting_contigs) {
 	istringstream iss(interesting_contigs);

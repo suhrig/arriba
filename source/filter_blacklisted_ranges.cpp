@@ -14,9 +14,8 @@
 using namespace std;
 
 // convert string representation of a range into coordinates
-bool parse_range(string range, const contigs_t& contigs, blacklist_item_t& blacklist_item) {
+bool parse_range(const string& range, const contigs_t& contigs, blacklist_item_t& blacklist_item) {
 
-	// extract contig from range
 	tsv_stream_t tsv(range, ':');
 	string contig_name, start_and_end_position;
 	tsv >> contig_name >> start_and_end_position;
@@ -24,6 +23,8 @@ bool parse_range(string range, const contigs_t& contigs, blacklist_item_t& black
 		cerr << "WARNING: unknown gene or malformed range: " << range << endl;
 		return false;
 	}
+
+	// strip strand from contig
 	if (contig_name[0] == '+') {
 		blacklist_item.strand_defined = true;
 		blacklist_item.strand = FORWARD;
@@ -35,12 +36,23 @@ bool parse_range(string range, const contigs_t& contigs, blacklist_item_t& black
 	} else {
 		blacklist_item.strand_defined = false;
 	}
+
+	// convert contig name to internal contig ID
 	contig_name = removeChr(contig_name);
-	if (contigs.find(contig_name) == contigs.end()) {
+	contigs_t::const_iterator contig;
+	if (contig_name.size() >= 2 && contig_name[contig_name.size()-1] == '*') { // if the contig ends on an asterisk, find the closest match
+		contig_name = contig_name.substr(0, contig_name.size()-1);
+		contig = contigs.lower_bound(contig_name);
+		if (contig_name != contig->first.substr(0, contig_name.size()))
+			contig = contigs.end();
+	} else { // contig does not end on asterisk => look for identical name
+		contig = contigs.find(contig_name);
+	}
+	if (contig == contigs.end()) {
 		cerr << "WARNING: unknown gene or malformed range: " << range << endl;
 		return false;
 	} else {
-		blacklist_item.contig = contigs.at(contig_name);
+		blacklist_item.contig = contig->second;
 	}
 
 	// extract start (and end) of range
