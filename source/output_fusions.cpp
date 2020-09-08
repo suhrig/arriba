@@ -722,8 +722,7 @@ transcript_t get_transcript(const string& transcript_sequence, const vector<posi
 	return best_transcript;
 }
 
-void write_fusions_to_file(fusions_t& fusions, const string& output_file, const coverage_t& coverage, const assembly_t& assembly, gene_annotation_index_t& gene_annotation_index, exon_annotation_index_t& exon_annotation_index, vector<string> contigs_by_id, const tags_t& tags, const protein_domain_annotation_index_t& protein_domain_annotation_index, const int max_mate_gap, const bool print_extra_info, const bool write_discarded_fusions) {
-//TODO add "chr", if necessary
+void write_fusions_to_file(fusions_t& fusions, const string& output_file, const coverage_t& coverage, const assembly_t& assembly, gene_annotation_index_t& gene_annotation_index, exon_annotation_index_t& exon_annotation_index, vector<string> original_contig_names, const tags_t& tags, const protein_domain_annotation_index_t& protein_domain_annotation_index, const int max_mate_gap, const bool print_extra_info, const bool write_discarded_fusions) {
 
 	// make a vector of pointers to all fusions
 	// the vector will hold the fusions in sorted order
@@ -824,7 +823,7 @@ void write_fusions_to_file(fusions_t& fusions, const string& output_file, const 
 		// write line to output file
 		out << gene_to_name(gene_5, contig_5, breakpoint_5, gene_annotation_index) << "\t" << gene_to_name(gene_3, contig_3, breakpoint_3, gene_annotation_index) << "\t"
 		    << get_fusion_strand(strand_5, gene_5, (**fusion).predicted_strands_ambiguous) << "\t" << get_fusion_strand(strand_3, gene_3, (**fusion).predicted_strands_ambiguous) << "\t"
-		    << contigs_by_id[contig_5] << ":" << (breakpoint_5+1) << "\t" << contigs_by_id[contig_3] << ":" << (breakpoint_3+1) << "\t"
+		    << original_contig_names[contig_5] << ":" << (breakpoint_5+1) << "\t" << original_contig_names[contig_3] << ":" << (breakpoint_3+1) << "\t"
 		    << site_5 << "\t" << site_3 << "\t"
 		    << get_fusion_type(**fusion) << "\t" << split_reads_5 << "\t" << split_reads_3 << "\t" << (**fusion).discordant_mates << "\t"
 		    << ((coverage_5 >= 0) ? to_string(static_cast<long long int>(coverage_5)) : ".") << "\t" << ((coverage_3 >= 0) ? to_string(static_cast<long long int>(coverage_3)) : ".") << "\t"
@@ -853,12 +852,12 @@ void write_fusions_to_file(fusions_t& fusions, const string& output_file, const 
 		// convert closest genomic breakpoints to strings of the format <chr>:<position>(<distance to transcriptomic breakpoint>)
 		out << "\t";
 		if (closest_genomic_breakpoint_5 >= 0)
-			out << contigs_by_id[contig_5] + ":" + to_string(static_cast<long long int>(closest_genomic_breakpoint_5+1)) + "(" + to_string(static_cast<long long int>(abs(breakpoint_5 - closest_genomic_breakpoint_5))) + ")";
+			out << original_contig_names[contig_5] + ":" + to_string(static_cast<long long int>(closest_genomic_breakpoint_5+1)) + "(" + to_string(static_cast<long long int>(abs(breakpoint_5 - closest_genomic_breakpoint_5))) + ")";
 		else
 			out << ".";
 		out << "\t";
 		if (closest_genomic_breakpoint_3 >= 0)
-			out << contigs_by_id[contig_3] + ":" + to_string(static_cast<long long int>(closest_genomic_breakpoint_3+1)) + "(" + to_string(static_cast<long long int>(abs(breakpoint_3 - closest_genomic_breakpoint_3))) + ")";
+			out << original_contig_names[contig_3] + ":" + to_string(static_cast<long long int>(closest_genomic_breakpoint_3+1)) + "(" + to_string(static_cast<long long int>(abs(breakpoint_3 - closest_genomic_breakpoint_3))) + ")";
 		else
 			out << ".";
 

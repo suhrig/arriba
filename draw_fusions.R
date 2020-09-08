@@ -122,8 +122,10 @@ between <- function(value, start, end) {
 fusions <- read.table(fusionsFile, stringsAsFactors=F, sep="\t", header=T, comment.char="", quote="")
 if (colnames(fusions)[1] == "X.gene1") { # Arriba output
 	colnames(fusions)[colnames(fusions) %in% c("X.gene1", "strand1.gene.fusion.", "strand2.gene.fusion.")] <- c("gene1", "strand1", "strand2")
-	fusions$contig1 <- sub(":[^:]*$", "", fusions$breakpoint1, perl=T)
-	fusions$contig2 <- sub(":[^:]*$", "", fusions$breakpoint2, perl=T)
+	fusions$display_contig1 <- sub(":[^:]*$", "", fusions$breakpoint1, perl=T)
+	fusions$display_contig2 <- sub(":[^:]*$", "", fusions$breakpoint2, perl=T)
+	fusions$contig1 <- removeChr(fusions$display_contig1)
+	fusions$contig2 <- removeChr(fusions$display_contig2)
 	fusions$breakpoint1 <- as.numeric(sub(".*:", "", fusions$breakpoint1, perl=T))
 	fusions$breakpoint2 <- as.numeric(sub(".*:", "", fusions$breakpoint2, perl=T))
 	fusions$split_reads <- fusions$split_reads1 + fusions$split_reads2
@@ -132,8 +134,10 @@ if (colnames(fusions)[1] == "X.gene1") { # Arriba output
 	fusions$gene2 <- sub("\\^.*", "", fusions$RightGene, perl=T)
 	fusions$strand1 <- sub(".*:(.)$", "\\1/\\1", fusions$LeftBreakpoint, perl=T)
 	fusions$strand2 <- sub(".*:(.)$", "\\1/\\1", fusions$RightBreakpoint, perl=T)
-	fusions$contig1 <- removeChr(sub(":[^:]*:[^:]*$", "", fusions$LeftBreakpoint, perl=T))
-	fusions$contig2 <- removeChr(sub(":[^:]*:[^:]*$", "", fusions$RightBreakpoint, perl=T))
+	fusions$display_contig1 <- sub(":[^:]*:[^:]*$", "", fusions$LeftBreakpoint, perl=T)
+	fusions$display_contig2 <- sub(":[^:]*:[^:]*$", "", fusions$RightBreakpoint, perl=T)
+	fusions$contig1 <- removeChr(fusions$display_contig1)
+	fusions$contig2 <- removeChr(fusions$display_contig2)
 	fusions$breakpoint1 <- as.numeric(sub(".*:([^:]*):[^:]*$", "\\1", fusions$LeftBreakpoint, perl=T))
 	fusions$breakpoint2 <- as.numeric(sub(".*:([^:]*):[^:]*$", "\\1", fusions$RightBreakpoint, perl=T))
 	fusions$direction1 <- ifelse(grepl(":\\+$", fusions$LeftBreakpoint, perl=T), "downstream", "upstream")
@@ -385,7 +389,7 @@ drawCircos <- function(fusion, fusions, cytobands, minConfidenceForCircosPlot) {
 	)
 	geneLabels$end <- geneLabels$start + 1
 	geneLabels$gene <- c(fusions[fusion,"gene1"], fusions[fusion,"gene2"])
-	geneLabels$gene <- ifelse(c(fusions[fusion,"site1"], fusions[fusion,"site2"]) == "intergenic", paste0(geneLabels$contig, ":", geneLabels$start), geneLabels$gene)
+	geneLabels$gene <- ifelse(c(fusions[fusion,"site1"], fusions[fusion,"site2"]) == "intergenic", paste0(c(fusions[fusion,"display_contig1"], fusions[fusion,"display_contig2"]), ":", geneLabels$start), geneLabels$gene)
 	# draw gene labels
 	circos.genomicLabels(geneLabels, labels.column=4, side="outside", cex=fontSize)
 	# draw chromosome labels in connector plot
@@ -1047,8 +1051,8 @@ for (fusion in 1:nrow(fusions)) {
 		}
 
 	# label breakpoints
-	text(breakpoint1+0.01, yBreakpointLabels-0.03, paste0("breakpoint\n", fusions[fusion,"contig1"], ":", fusions[fusion,"breakpoint1"]), adj=c(1,0), cex=fontSize)
-	text(gene2Offset+breakpoint2-0.01, yBreakpointLabels-0.03, paste0("breakpoint\n", fusions[fusion,"contig2"], ":", fusions[fusion,"breakpoint2"]), adj=c(0,0), cex=fontSize)
+	text(breakpoint1+0.01, yBreakpointLabels-0.03, paste0("breakpoint\n", fusions[fusion,"display_contig1"], ":", fusions[fusion,"breakpoint1"]), adj=c(1,0), cex=fontSize)
+	text(gene2Offset+breakpoint2-0.01, yBreakpointLabels-0.03, paste0("breakpoint\n", fusions[fusion,"display_contig2"], ":", fusions[fusion,"breakpoint2"]), adj=c(0,0), cex=fontSize)
 
 	# draw coverage axis
 	if (alignmentsFile != "") {

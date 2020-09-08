@@ -89,9 +89,10 @@ int main(int argc, char **argv) {
 	if (!options.filters.at("uninteresting_contigs"))
 		options.interesting_contigs = "*"; // load all contigs when the filter is disabled
 	contigs_t contigs;
+	vector<string> original_contig_names; // "chr" prefix is removed from contig names to ensure compatibility between assembly and annotation; this vector stores the original names
 	cout << get_time_string() << " Loading assembly from '" << options.assembly_file << "' " << endl;
 	assembly_t assembly;
-	load_assembly(assembly, options.assembly_file, contigs, options.interesting_contigs);
+	load_assembly(assembly, options.assembly_file, contigs, original_contig_names, options.interesting_contigs);
 
 	// load GTF file
 	// must be loaded after assembly to check if genes exceed the boundaries of contigs
@@ -100,7 +101,7 @@ int main(int argc, char **argv) {
 	transcript_annotation_t transcript_annotation;
 	exon_annotation_t exon_annotation;
 	unordered_map<string,gene_t> gene_names;
-	read_annotation_gtf(options.gene_annotation_file, options.gtf_features, contigs, assembly, gene_annotation, transcript_annotation, exon_annotation, gene_names);
+	read_annotation_gtf(options.gene_annotation_file, options.gtf_features, contigs, original_contig_names, assembly, gene_annotation, transcript_annotation, exon_annotation, gene_names);
 
 	// sort genes and exons by coordinate (make index)
 	exon_annotation_index_t exon_annotation_index;
@@ -118,17 +119,13 @@ int main(int argc, char **argv) {
 	coverage_t coverage;
 	if (!options.chimeric_bam_file.empty()) { // when STAR was run with --chimOutType SeparateSAMold, chimeric alignments must be read from a separate file named Chimeric.out.sam
 		cout << get_time_string() << " Reading chimeric alignments from '" << options.chimeric_bam_file << "' " << flush;
-		cout << "(total=" << read_chimeric_alignments(options.chimeric_bam_file, assembly, options.assembly_file, chimeric_alignments, mapped_reads, mapped_viral_reads_by_contig, coverage, contigs, options.interesting_contigs, options.viral_contigs, gene_annotation_index, true, false, options.external_duplicate_marking) << ")" << endl;
+		cout << "(total=" << read_chimeric_alignments(options.chimeric_bam_file, assembly, options.assembly_file, chimeric_alignments, mapped_reads, mapped_viral_reads_by_contig, coverage, contigs, original_contig_names, options.interesting_contigs, options.viral_contigs, gene_annotation_index, true, false, options.external_duplicate_marking) << ")" << endl;
 	}
 
 	// extract chimeric alignments and read-through alignments from Aligned.out.bam
 	cout << get_time_string() << " Reading chimeric alignments from '" << options.rna_bam_file << "' " << flush;
-	cout << "(total=" << read_chimeric_alignments(options.rna_bam_file, assembly, options.assembly_file, chimeric_alignments, mapped_reads, mapped_viral_reads_by_contig, coverage, contigs, options.interesting_contigs, options.viral_contigs, gene_annotation_index, !options.chimeric_bam_file.empty(), true, options.external_duplicate_marking) << ")" << endl;
+	cout << "(total=" << read_chimeric_alignments(options.rna_bam_file, assembly, options.assembly_file, chimeric_alignments, mapped_reads, mapped_viral_reads_by_contig, coverage, contigs, original_contig_names, options.interesting_contigs, options.viral_contigs, gene_annotation_index, !options.chimeric_bam_file.empty(), true, options.external_duplicate_marking) << ")" << endl;
 
-	// map contig IDs to names
-	vector<string> contigs_by_id(contigs.size());
-	for (contigs_t::iterator i = contigs.begin(); i != contigs.end(); ++i)
-		contigs_by_id[i->second] = i->first;
 	// convert viral contigs to vector of booleans for faster lookup
 	vector<bool> viral_contigs(contigs.size());
 	for (contigs_t::iterator contig = contigs.begin(); contig != contigs.end(); ++contig)
@@ -246,7 +243,6 @@ int main(int argc, char **argv) {
 			    gene_annotation_record.end+10000 < unmapped_alignment->start || // current alignment is too far away
 			    (next_known_gene != gene_annotation_index[gene_annotation_record.contig].end() && next_known_gene->first <= unmapped_alignment->start) || // dummy gene must not overlap known genes
 			    unmapped_alignment->contig != gene_annotation_record.contig) { // end of contig reached
-				gene_annotation_record.name = contigs_by_id[gene_annotation_record.contig] + ":" + to_string(static_cast<long long int>(gene_annotation_record.start)) + "-" + to_string(static_cast<long long int>(gene_annotation_record.end));
 				gene_annotation.push_back(gene_annotation_record);
 				if (unmapped_alignment != unmapped_alignments.end()) {
 					gene_annotation_record.contig = unmapped_alignment->contig;
@@ -551,11 +547,11 @@ int main(int argc, char **argv) {
 	}
 
 	cout << get_time_string() << " Writing fusions to file '" << options.output_file << "' " << endl;
-	write_fusions_to_file(fusions, options.output_file, coverage, assembly, gene_annotation_index, exon_annotation_index, contigs_by_id, tags, protein_domain_annotation_index, max_mate_gap, true, false);
+	write_fusions_to_file(fusions, options.output_file, coverage, assembly, gene_annotation_index, exon_annotation_index, original_contig_names, tags, protein_domain_annotation_index, max_mate_gap, true, false);
 
 	if (options.discarded_output_file != "") {
 		cout << get_time_string() << " Writing discarded fusions to file '" << options.discarded_output_file << "' " << endl;
-		write_fusions_to_file(fusions, options.discarded_output_file, coverage, assembly, gene_annotation_index, exon_annotation_index, contigs_by_id, tags, protein_domain_annotation_index, max_mate_gap, options.print_extra_info_for_discarded_fusions, true);
+		write_fusions_to_file(fusions, options.discarded_output_file, coverage, assembly, gene_annotation_index, exon_annotation_index, original_contig_names, tags, protein_domain_annotation_index, max_mate_gap, options.print_extra_info_for_discarded_fusions, true);
 	}
 
 	// print resource usage stats end exit

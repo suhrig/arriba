@@ -24,6 +24,6 @@ void dna_to_reverse_complement(const string& dna, string& reverse_complement);
 
 string dna_to_reverse_complement(const string& dna);
 
-void load_assembly(assembly_t& assembly, const string& fasta_file_path, contigs_t& contigs, const string& interesting_contigs);
+void load_assembly(assembly_t& assembly, const string& fasta_file_path, contigs_t& contigs, vector<string>& original_contig_names, const string& interesting_contigs);
 
 #endif /* _ASSEMBLY_H */

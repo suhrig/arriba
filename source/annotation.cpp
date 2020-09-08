@@ -4,12 +4,12 @@
 #include <iostream>
 #include <iterator>
 #include <map>
-#include <vector>
 #include <string>
 #include <sstream>
 #include <set>
 #include <tuple>
 #include <unordered_map>
+#include <vector>
 #include "sam.h"
 #include "common.hpp"
 #include "annotation.hpp"
@@ -118,14 +118,6 @@ string removeChr(string contig) {
 	return contig;
 }
 
-string addChr(string contig) {
-	if (contig.substr(0, 3) != "chr")
-		contig = "chr" + contig;
-	if (contig == "chrMT")
-		contig = "chrM";
-	return contig;
-}
-
 bool get_gtf_attribute(const string& attributes, const vector<string>& attribute_names, string& attribute_value) {
 
 	// find start of attribute
@@ -174,7 +166,7 @@ struct coding_region_t {
 	string transcript_id;
 };
 
-void read_annotation_gtf(const string& filename, const string& gtf_features_string, contigs_t& contigs, const assembly_t& assembly, gene_annotation_t& gene_annotation, transcript_annotation_t& transcript_annotation, exon_annotation_t& exon_annotation, unordered_map<string,gene_t>& gene_names) {
+void read_annotation_gtf(const string& filename, const string& gtf_features_string, contigs_t& contigs, vector<string>& original_contig_names, const assembly_t& assembly, gene_annotation_t& gene_annotation, transcript_annotation_t& transcript_annotation, exon_annotation_t& exon_annotation, unordered_map<string,gene_t>& gene_names) {
 
 	gtf_features_t gtf_features;
 	parse_gtf_features(gtf_features_string, gtf_features);
@@ -221,12 +213,14 @@ void read_annotation_gtf(const string& filename, const string& gtf_features_stri
 				short_gene_id = gene_id;
 
 			// convert string representation of contig to numeric ID
-			contig = removeChr(contig);
-			pair<contigs_t::iterator,bool> find_contig_by_name = contigs.insert(pair<string,contig_t>(contig, contigs.size())); // this adds a new contig only if it does not yet exist
+			pair<contigs_t::iterator,bool> find_contig_by_name = contigs.insert(pair<string,contig_t>(removeChr(contig), contigs.size())); // this adds a new contig only if it does not yet exist
 			if (contigs.size() == USHRT_MAX - 1) {
 				cerr << "ERROR: too many contigs" << endl;
 				exit(1);
 			}
+			if (original_contig_names.size() < contigs.size())
+				original_contig_names.resize(contigs.size());
+			original_contig_names[find_contig_by_name.first->second] = contig;
 
 			// make annotation record
 			annotation_record.contig = find_contig_by_name.first->second;
