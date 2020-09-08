@@ -1,3 +1,4 @@
+#include <map>
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -123,7 +124,6 @@ void load_protein_domains(const string& filename, const contigs_t& contigs, cons
 	make_annotation_index(protein_domain_annotation, protein_domain_annotation_index);
 }
 
-
 string annotate_retained_protein_domains(const contig_t contig, const position_t breakpoint, const strand_t predicted_strand, const bool predicted_strand_ambiguous, const gene_t gene, const direction_t direction, const protein_domain_annotation_index_t& protein_domain_annotation_index) {
 
 	if (!gene->is_protein_coding)
@@ -140,18 +140,28 @@ string annotate_retained_protein_domains(const contig_t contig, const position_t
 	position_t end = (direction == UPSTREAM) ? gene->end : breakpoint;
 
 	// find all protein domains located in the retained part of gene
-	set<string> retained_protein_domains;
+	map< string/*domain name*/, pair<unsigned int/*length*/,unsigned int/*retained bases*/> > retained_protein_domains;
 	for (auto protein_domains = protein_domain_annotation_index[contig].lower_bound(start); protein_domains != protein_domain_annotation_index[contig].end() && protein_domains->first <= end; ++protein_domains)
-		for (auto protein_domain = protein_domains->second.begin(); protein_domain != protein_domains->second.end(); ++protein_domain)
-			if ((**protein_domain).gene == gene)
-				retained_protein_domains.insert((**protein_domain).name);
+		for (auto protein_domain = protein_domains->second.begin(); protein_domain != protein_domains->second.end(); ++protein_domain) {
+			if ((**protein_domain).gene == gene) {
+				unsigned int length = (**protein_domain).end - (**protein_domain).start + 1;
+				unsigned int retained_bases;
+				if (direction == UPSTREAM)
+					retained_bases = (**protein_domain).end - max((**protein_domain).start, breakpoint) + 1;
+				else
+					retained_bases = min((**protein_domain).end, breakpoint) - (**protein_domain).start + 1;
+				pair<unsigned int,unsigned int>& retained_protein_domain = retained_protein_domains[(**protein_domain).name];
+				retained_protein_domain.first += length;
+				retained_protein_domain.second += retained_bases;
+			}
+		}
 
 	// concatenate tags to comma-separated string
 	string result;
 	for (auto protein_domain = retained_protein_domains.begin(); protein_domain != retained_protein_domains.end(); ++protein_domain) {
 		if (!result.empty())
 			result += ",";
-		result += *protein_domain;
+		result += protein_domain->first + "(" + to_string(static_cast<long long int>(protein_domain->second.second * 100 / protein_domain->second.first)) + "%)";
 	}
 	return result;
 }
