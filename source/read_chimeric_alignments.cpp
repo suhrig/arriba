@@ -513,7 +513,8 @@ unsigned int read_chimeric_alignments(const string& bam_file_path, const assembl
 	unsigned int missing_hi_tag = 0;
 	unsigned int malformed_count = 0;
 	string read_name;
-	while (sam_read1(bam_file, bam_header, bam_record) >= 0) {
+	int sam_read1_status;
+	while ((sam_read1_status = sam_read1(bam_file, bam_header, bam_record)) >= 0) {
 
 		if (is_rna_bam_file)
 			if ((bam_record->core.flag & BAM_FUNMAP) || (bam_record->core.flag & BAM_FPAIRED) && (bam_record->core.flag & BAM_FMUNMAP))
@@ -656,6 +657,11 @@ unsigned int read_chimeric_alignments(const string& bam_file_path, const assembl
 			if (previously_seen_mate != NULL)
 				bam_destroy1(previously_seen_mate);
 		}
+	}
+
+	if (sam_read1_status < -1) {
+		cerr << "ERROR: failed to load alignments" << endl;
+		exit(1);
 	}
 
 	// close BAM file
