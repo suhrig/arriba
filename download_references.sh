@@ -54,7 +54,9 @@ elif [[ ${ASSEMBLIES[$ASSEMBLY]} =~ \.gz$ ]]; then
 	gunzip -c
 else
 	cat
-fi > "$ASSEMBLY.fa"
+fi |
+# drop viral contigs from hs37d5 assembly
+awk '/^>/{ contig=$1 } contig!~/^>NC_|^>AC_/{ print }' > "$ASSEMBLY.fa"
 
 echo "Downloading annotation: ${ANNOTATIONS[$ANNOTATION]}"
 wget -q -O - "${ANNOTATIONS[$ANNOTATION]}" |
