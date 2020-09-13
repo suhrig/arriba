@@ -97,6 +97,7 @@ options_t get_default_options() {
 	options.high_expression_quantile = 0.998;
 	options.exonic_fraction = 0.33;
 	options.external_duplicate_marking = false;
+	options.fill_sequence_gaps = false;
 
 	return options;
 }
@@ -237,12 +238,15 @@ void print_usage() {
 	                  "transcribed. Default: " + to_string(static_cast<long double>(default_options.viral_contig_min_covered_fraction)))
 	     << wrap_help("-u", "Instead of performing duplicate marking itself, Arriba relies on "
 	                  "duplicate marking by a preceding program using the BAM_FDUP flag. This "
-	                  "makes sense when unique molecular identifiers (UMI) are used. Default: " + string((default_options.external_duplicate_marking) ? "on" : "off"))
+	                  "makes sense when unique molecular identifiers (UMI) are used.")
 	     << wrap_help("-X", "To reduce the runtime and file size, by default, the columns "
 	                  "'fusion_transcript', 'peptide_sequence', and 'read_identifiers' are left "
 	                  "empty in the file containing discarded fusion candidates (see parameter -O). "
 	                  "When this flag is set, this extra information is reported in the discarded "
 	                  "fusions file.")
+	     << wrap_help("-I", "If assembly of the fusion transcript sequence from the supporting "
+	                  "reads is incomplete (denoted as '...'), fill the gaps using the assembly "
+	                  "sequence wherever possible.")
 	     << wrap_help("-h", "Print help and exit.")
 	     << "For more information or help, visit: " << HELP_CONTACT << endl
 	     << "The user manual is available at: " << MANUAL_URL << endl;
@@ -263,7 +267,7 @@ options_t parse_arguments(int argc, char **argv) {
 	int c;
 	string junction_suffix(".junction");
 	unordered_map<char,unsigned int> duplicate_arguments;
-	while ((c = getopt(argc, argv, "c:x:d:g:G:o:O:t:p:a:b:k:s:i:v:f:E:S:m:L:H:D:R:A:M:K:V:F:U:Q:e:T:C:Xuh")) != -1) {
+	while ((c = getopt(argc, argv, "c:x:d:g:G:o:O:t:p:a:b:k:s:i:v:f:E:S:m:L:H:D:R:A:M:K:V:F:U:Q:e:T:C:uXIh")) != -1) {
 
 		// throw error if the same argument is specified more than once
 		duplicate_arguments[c]++;
@@ -515,11 +519,14 @@ options_t parse_arguments(int argc, char **argv) {
 					exit(1);
 				}
 				break;
+			case 'u':
+				options.external_duplicate_marking = true;
+				break;
 			case 'X':
 				options.print_extra_info_for_discarded_fusions = true;
 				break;
-			case 'u':
-				options.external_duplicate_marking = true;
+			case 'I':
+				options.fill_sequence_gaps = true;
 				break;
 			case 'h':
 				print_usage();

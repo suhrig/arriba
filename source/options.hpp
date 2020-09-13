@@ -57,6 +57,7 @@ struct options_t {
 	bool external_duplicate_marking;
 	string tags_file;
 	string protein_domains_file;
+	bool fill_sequence_gaps;
 };
 
 options_t parse_arguments(int argc, char **argv);

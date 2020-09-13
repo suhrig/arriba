@@ -722,7 +722,230 @@ transcript_t get_transcript(const string& transcript_sequence, const vector<posi
 	return best_transcript;
 }
 
-void write_fusions_to_file(fusions_t& fusions, const string& output_file, const coverage_t& coverage, const assembly_t& assembly, gene_annotation_index_t& gene_annotation_index, exon_annotation_index_t& exon_annotation_index, vector<string> original_contig_names, const tags_t& tags, const protein_domain_annotation_index_t& protein_domain_annotation_index, const int max_mate_gap, const bool print_extra_info, const bool write_discarded_fusions) {
+void fill_gaps_in_fusion_transcript_sequence(string& transcript_sequence, vector<position_t>& positions, const transcript_t transcript_5, const transcript_t transcript_3, const strand_t strand_5, const strand_t strand_3, const assembly_t& assembly) {
+
+
+	// fill gaps in 5' end of transcript
+	if (transcript_5 != NULL) {
+		assembly_t::const_iterator contig_sequence = assembly.find(transcript_5->first_exon->contig);
+		if (contig_sequence != assembly.end()) {
+
+			// find gap closest to the breakpoint junction, we complete the sequence starting from there
+			auto breakpoint = transcript_sequence.find('|');
+			auto gap = transcript_sequence.find_last_of("...", breakpoint);
+
+			bool imprecise_breakpoint = false;
+			if (gap != string::npos && gap+1 == breakpoint && gap >= 3) {
+				// in the special case that the breakpoint is not known exactly (represented as "...|..." in the transcript sequence),
+				// we check if the breakpoint is close to a splice site and use that as the precise breakpoint
+				imprecise_breakpoint = true;
+				gap -= 3;
+			} else if (gap != string::npos && positions[gap+1] > transcript_5->first_exon->start && positions[gap+1] < transcript_5->last_exon->end) {
+				gap++; // found a gap => skip "..."
+			} else if (gap == string::npos && positions[0] > transcript_5->first_exon->start && positions[0] < transcript_5->last_exon->end) {
+				gap = 0; // found no gap, but transcribed region does not reach the beginning of the transcript
+			} else {
+				// no gaps and the transcribed region fully covers the transcript
+				// => trim to boundaries of transcript and be done
+				for (unsigned int i = 0; i < breakpoint; i++) {
+					if (positions[i] >= transcript_5->first_exon->start && positions[i] <= transcript_5->last_exon->end) {
+						if (i > 0) {
+							transcript_sequence = transcript_sequence.substr(i);
+							positions.erase(positions.begin(), positions.begin() + i);
+						}
+						break;
+					}
+				}
+				// mark beginning of transcript if the transcript sequence reaches the beginning
+				if (strand_5 == FORWARD && positions[0] == transcript_5->first_exon->start ||
+				    strand_5 == REVERSE && positions[0] == transcript_5->last_exon->end) {
+					transcript_sequence = "^" + transcript_sequence;
+					positions.insert(positions.begin(), -1);
+				}
+				goto three_prime_end;
+			}
+
+			// find position between breakpoint and gap that overlaps with an exon of the transcript
+			bool overlap_found = false;
+			exon_t overlapping_exon = NULL;
+			for (; gap != breakpoint; gap++) {
+				for (overlapping_exon = transcript_5->first_exon; overlapping_exon != NULL && !overlap_found; overlapping_exon = overlapping_exon->next_exon) {
+					if (positions[gap] >= overlapping_exon->start && positions[gap] <= overlapping_exon->end) {
+						overlap_found = true;
+						break;
+					}
+				}
+				if (overlap_found)
+					break;
+			}
+
+			// don't use the start of the first exon or the end of the last exon as a splice site
+			if (imprecise_breakpoint &&
+			    (strand_5 == FORWARD && overlapping_exon == transcript_5->last_exon ||
+			     strand_5 == REVERSE && overlapping_exon == transcript_5->first_exon))
+				overlap_found = false;
+
+			if (overlap_found) {
+
+				// fake a precise breakpoint using the closest exon boundary
+				if (imprecise_breakpoint) {
+					gap = breakpoint - 1;
+					positions[gap] = (strand_5 == FORWARD) ? overlapping_exon->end : overlapping_exon->start;
+					transcript_sequence[gap] = contig_sequence->second[positions[gap]];
+				}
+
+				// copy assembly sequence from exons of transcript
+				string sequence_from_assembly = "(";
+				vector<position_t> positions_from_assembly(1, -1);
+				for (exon_t exon = (strand_5 == FORWARD) ? transcript_5->first_exon : transcript_5->last_exon; exon != NULL; exon = (strand_5 == FORWARD) ? exon->next_exon : exon->previous_exon) {
+					position_t position;
+					for (position = (strand_5 == FORWARD) ? exon->start : exon->end; position != positions[gap] && position >= exon->start && position <= exon->end; position += (strand_5 == FORWARD) ? +1 : -1) {
+						sequence_from_assembly += (strand_5 == FORWARD) ? contig_sequence->second[position] : dna_to_complement(contig_sequence->second[position]);
+						positions_from_assembly.push_back(position);
+					}
+					if (position == positions[gap])
+						break;
+					sequence_from_assembly += "___";
+					positions_from_assembly.resize(positions_from_assembly.size()+3, -1);
+				}
+
+				// undo faking a precise breakpoint (see code above)
+				if (imprecise_breakpoint) {
+					sequence_from_assembly += transcript_sequence[gap];
+					positions_from_assembly.push_back(positions[gap]);
+					gap++;
+				}
+
+				// replace gap with sequence from assembly
+				sequence_from_assembly += ")";
+				positions_from_assembly.push_back(-1);
+				sequence_from_assembly.insert(sequence_from_assembly.end(), transcript_sequence.begin()+gap, transcript_sequence.end());
+				positions_from_assembly.insert(positions_from_assembly.end(), positions.begin()+gap, positions.end());
+				transcript_sequence = sequence_from_assembly;
+				positions = positions_from_assembly;
+
+				// mark beginning of transcript if the transcript sequence reaches the beginning
+				if (strand_5 == FORWARD && positions[1] == transcript_5->first_exon->start ||
+				    strand_5 == REVERSE && positions[1] == transcript_5->last_exon->end) {
+					transcript_sequence = "^" + transcript_sequence;
+					positions.insert(positions.begin(), -1);
+				}
+			}
+		}
+	}
+
+	// fill gaps in 3' end of transcript
+	three_prime_end:
+	if (transcript_3 != NULL) {
+		assembly_t::const_iterator contig_sequence = assembly.find(transcript_3->first_exon->contig);
+		if (contig_sequence != assembly.end()) {
+
+			// find gap closest to the breakpoint junction, we complete the sequence starting from there
+			auto breakpoint = transcript_sequence.find_last_of('|');
+			auto gap = transcript_sequence.find("...", breakpoint);
+
+			bool imprecise_breakpoint = false;
+			if (gap != string::npos && gap-1 == breakpoint && gap+3 < transcript_sequence.size()) {
+				// in the special case that the breakpoint is not known exactly (represented as "...|..." in the transcript sequence),
+				// we check if the breakpoint is close to a splice site and use that as the precise breakpoint
+				imprecise_breakpoint = true;
+				gap += 3;
+			} else if (gap != string::npos && positions[gap-1] > transcript_3->first_exon->start && positions[gap-1] < transcript_3->last_exon->end) {
+				gap--; // found a gap => go to last position before "..."
+			} else if (gap == string::npos && positions[transcript_sequence.size()-1] > transcript_3->first_exon->start && positions[transcript_sequence.size()-1] < transcript_3->last_exon->end) {
+				gap = transcript_sequence.size()-1; // found no gap, but transcribed region does not reach the end of the transcript
+			} else {
+				// no gaps and the transcribed region fully covers the transcript
+				// => trim to boundaries of transcript and be done
+				for (unsigned int i = transcript_sequence.size() - 1; i > breakpoint; i--) {
+					if (positions[i] >= transcript_3->first_exon->start && positions[i] <= transcript_3->last_exon->end) {
+						if (i < transcript_sequence.size() - 1) {
+							transcript_sequence = transcript_sequence.substr(0, i + 1);
+							positions.erase(positions.begin() + i + 1, positions.end());
+						}
+						break;
+					}
+				}
+				// mark end of transcript if the transcript sequence reaches the end
+				if (strand_3 == FORWARD && positions[positions.size()-1] == transcript_3->last_exon->end ||
+				    strand_3 == REVERSE && positions[positions.size()-1] == transcript_3->first_exon->start) {
+					transcript_sequence += "$";
+					positions.push_back(-1);
+				}
+				return;
+			}
+
+			// find position between breakpoint and gap that overlaps with an exon of the transcript
+			bool overlap_found = false;
+			exon_t overlapping_exon = NULL;
+			for (; gap != breakpoint; gap--) {
+				for (overlapping_exon = transcript_3->first_exon; overlapping_exon != NULL && !overlap_found; overlapping_exon = overlapping_exon->next_exon) {
+					if (positions[gap] >= overlapping_exon->start && positions[gap] <= overlapping_exon->end) {
+						overlap_found = true;
+						break;
+					}
+				}
+				if (overlap_found)
+					break;
+			}
+
+			// don't use the start of the first exon or the end of the last exon as a splice site
+			if (imprecise_breakpoint &&
+			    (strand_3 == FORWARD && overlapping_exon == transcript_3->first_exon ||
+			     strand_3 == REVERSE && overlapping_exon == transcript_3->last_exon))
+				overlap_found = false;
+
+			if (overlap_found) {
+
+				// fake a precise breakpoint using the closest exon boundary
+				if (imprecise_breakpoint) {
+					gap = breakpoint + 1;
+					positions[gap] = (strand_3 == FORWARD) ? overlapping_exon->start : overlapping_exon->end;
+					transcript_sequence[gap] = contig_sequence->second[positions[gap]];
+				}
+
+				// copy assembly sequence from exons of transcript
+				string sequence_from_assembly;
+				vector<position_t> positions_from_assembly;
+				for (exon_t exon = overlapping_exon; exon != NULL; exon = (strand_3 == FORWARD) ? exon->next_exon : exon->previous_exon) {
+					for (position_t position = (strand_3 == FORWARD) ? max(exon->start, positions[gap]+1) : min(exon->end, positions[gap]-1); position >= exon->start && position <= exon->end; position += (strand_3 == FORWARD) ? +1 : -1) {
+						sequence_from_assembly += (strand_3 == FORWARD) ? contig_sequence->second[position] : dna_to_complement(contig_sequence->second[position]);
+						positions_from_assembly.push_back(position);
+					}
+					if ((strand_3 == FORWARD) && exon->next_exon != NULL || (strand_3 == REVERSE) && exon->previous_exon != NULL) {
+						sequence_from_assembly += "___";
+						positions_from_assembly.resize(positions_from_assembly.size()+3, -1);
+					}
+				}
+
+				// replace gap with sequence from assembly
+				transcript_sequence.resize(gap + 1);
+				transcript_sequence += "(";
+				positions.resize(gap + 1);
+				positions.push_back(-1);
+				transcript_sequence.insert(transcript_sequence.end(), sequence_from_assembly.begin(), sequence_from_assembly.end());
+				positions.insert(positions.end(), positions_from_assembly.begin(), positions_from_assembly.end());
+				transcript_sequence += ")";
+				positions.push_back(-1);
+
+				// undo faking a precise breakpoint (see code above)
+				if (imprecise_breakpoint) {
+					swap(transcript_sequence[breakpoint+1], transcript_sequence[breakpoint+2]);
+					swap(positions[breakpoint+1], positions[breakpoint+2]);
+				}
+
+				// mark end of transcript if the transcript sequence reaches the end
+				if (strand_3 == FORWARD && positions[positions.size()-2] == transcript_3->last_exon->end ||
+				    strand_3 == REVERSE && positions[positions.size()-2] == transcript_3->first_exon->start) {
+					transcript_sequence += "$";
+					positions.push_back(-1);
+				}
+			}
+		}
+	}
+}
+
+void write_fusions_to_file(fusions_t& fusions, const string& output_file, const coverage_t& coverage, const assembly_t& assembly, gene_annotation_index_t& gene_annotation_index, exon_annotation_index_t& exon_annotation_index, vector<string> original_contig_names, const tags_t& tags, const protein_domain_annotation_index_t& protein_domain_annotation_index, const int max_mate_gap, const bool print_extra_info, const bool fill_sequence_gaps, const bool write_discarded_fusions) {
 
 	// make a vector of pointers to all fusions
 	// the vector will hold the fusions in sorted order
@@ -816,6 +1039,8 @@ void write_fusions_to_file(fusions_t& fusions, const string& output_file, const 
 			get_fusion_transcript_sequence(**fusion, assembly, transcript_sequence, positions);
 			transcript_5 = get_transcript(transcript_sequence, positions, gene_5, strand_5, (**fusion).predicted_strands_ambiguous, 5, exon_annotation_index);
 			transcript_3 = get_transcript(transcript_sequence, positions, gene_3, strand_3, (**fusion).predicted_strands_ambiguous, 3, exon_annotation_index);
+			if (fill_sequence_gaps)
+				fill_gaps_in_fusion_transcript_sequence(transcript_sequence, positions, transcript_5, transcript_3, strand_5, strand_3, assembly);
 			fusion_peptide_sequence = get_fusion_peptide_sequence(transcript_sequence, positions, gene_5, gene_3, transcript_5, transcript_3, strand_3, exon_annotation_index, assembly);
 			reading_frame = is_in_frame(fusion_peptide_sequence);
 		}
