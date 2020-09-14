@@ -50,13 +50,12 @@ bool parse_range(string range, const contigs_t& contigs, blacklist_item_t& black
 			contig = contigs.end();
 	} else { // contig does not end on asterisk => look for identical name
 		contig = contigs.find(contig_name);
+		if (contig == contigs.end())
+			cerr << "WARNING: unknown gene or malformed range: " << range << endl;
 	}
-	if (contig == contigs.end()) {
-		cerr << "WARNING: unknown gene or malformed range: " << range << endl;
+	if (contig == contigs.end())
 		return false;
-	} else {
-		blacklist_item.contig = contig->second;
-	}
+	blacklist_item.contig = contig->second;
 
 	// extract start (and end) of range
 	tsv_stream_t tsv2(start_and_end_position, '-');
