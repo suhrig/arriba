@@ -6,6 +6,8 @@ ASSEMBLIES[hg19]="http://hgdownload.cse.ucsc.edu/goldenpath/hg19/bigZips/chromFa
 ASSEMBLIES[GRCh37]="ftp://ftp.ensembl.org/pub/grch37/release-87/fasta/homo_sapiens/dna/Homo_sapiens.GRCh37.dna.primary_assembly.fa.gz"
 ASSEMBLIES[hg38]="http://hgdownload.cse.ucsc.edu/goldenpath/hg38/bigZips/hg38.chromFa.tar.gz"
 ASSEMBLIES[GRCh38]="ftp://ftp.ensembl.org/pub/release-93/fasta/homo_sapiens/dna/Homo_sapiens.GRCh38.dna.primary_assembly.fa.gz"
+ASSEMBLIES[mm10]="http://hgdownload.cse.ucsc.edu/goldenpath/mm10/bigZips/chromFa.tar.gz"
+ASSEMBLIES[GRCm38]="ftp://ftp.ensembl.org/pub/release-99/fasta/mus_musculus/dna/Mus_musculus.GRCm38.dna.primary_assembly.fa.gz"
 
 declare -A ANNOTATIONS
 ANNOTATIONS[GENCODE19]="ftp://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_human/release_19/gencode.v19.annotation.gtf.gz"
@@ -14,6 +16,8 @@ ANNOTATIONS[ENSEMBL87]="ftp://ftp.ensembl.org/pub/grch37/release-87/gtf/homo_sap
 ANNOTATIONS[GENCODE28]="ftp://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_human/release_28/gencode.v28.annotation.gtf.gz"
 ANNOTATIONS[RefSeq_hg38]="http://hgdownload.cse.ucsc.edu/goldenpath/hg38/database/refGene.txt.gz"
 ANNOTATIONS[ENSEMBL93]="ftp://ftp.ensembl.org/pub/release-93/gtf/homo_sapiens/Homo_sapiens.GRCh38.93.chr.gtf.gz"
+ANNOTATIONS[GENCODEM25]="ftp://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_mouse/release_M25/gencode.vM25.annotation.gtf.gz"
+ANNOTATIONS[RefSeq_mm10]="http://hgdownload.cse.ucsc.edu/goldenpath/mm10/database/refGene.txt.gz"
 
 declare -A COMBINATIONS
 COMBINATIONS["hs37d5+GENCODE19"]="hs37d5+GENCODE19"
@@ -31,6 +35,10 @@ COMBINATIONS["hg38+ENSEMBL93"]="hg38+ENSEMBL93"
 COMBINATIONS["GRCh38+GENCODE28"]="GRCh38+GENCODE28"
 COMBINATIONS["GRCh38+RefSeq"]="GRCh38+RefSeq_hg38"
 COMBINATIONS["GRCh38+ENSEMBL93"]="GRCh38+ENSEMBL93"
+COMBINATIONS["GRCm38+GENCODEM25"]="GRCm38+GENCODEM25"
+COMBINATIONS["GRCm38+RefSeq"]="GRCm38+RefSeq_mm10"
+COMBINATIONS["mm10+GENCODEM25"]="mm10+GENCODEM25"
+COMBINATIONS["mm10+RefSeq"]="mm10+RefSeq_mm10"
 for COMBINATION in ${!COMBINATIONS[@]}; do
 	COMBINATIONS["${COMBINATION%+*}viral+${COMBINATION#*+}"]="${COMBINATIONS[$COMBINATION]%+*}viral+${COMBINATIONS[$COMBINATION]#*+}"
 done
