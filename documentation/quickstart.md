@@ -11,10 +11,10 @@ tar -xzf arriba_v1.2.0.tar.gz
 cd arriba_v1.2.0 && make # or use precompiled binaries
 ```
 
-Arriba requires an assembly in FastA format, gene annotation in GTF format, and a STAR index built from the two. You can use your preferred assembly and annotation, as long as their coordinates are compatible with hg19/hs37d5/GRCh37 or hg38/GRCh38. Support for mm10 is in development. If you use another assembly, then the coordinates in the blacklist will not match and the predictions will contain many false positives. GENCODE annotation is recommended over RefSeq due to more comprehensive annotation of splice-sites, which improves sensitivity. If you do not already have the files and a STAR index, you can use the script `download_references.sh`. It downloads the files to the current working directory and builds a STAR index. Run the script without arguments to see a list of available files. Note that this step requires ~35 GB of RAM and 8 cores (can be adjusted by setting the environment variable `THREADS`).
+Arriba requires an assembly in FastA format, gene annotation in GTF format, and a STAR index built from the two. You can use your preferred assembly and annotation, as long as their coordinates are compatible with hg19/hs37d5/GRCh37 or hg38/GRCh38. Support for mm10 is in development. If you use another assembly, then the coordinates in the blacklist will not match and the predictions will contain many false positives. GENCODE annotation is recommended over RefSeq due to more comprehensive annotation of splice-sites, which improves sensitivity. If you do not already have the files and a STAR index, you can use the script `download_references.sh`. It downloads the files to the current working directory and builds a STAR index. Run the script without arguments to see a list of available files. Choose a file with the keyword `viral` if Arriba is supposed to detect viral integration sites. Note that this step requires ~45 GB of RAM and 8 cores (can be adjusted by setting the environment variable `THREADS`).
 
 ```bash
-./download_references.sh hs37d5+GENCODE19
+./download_references.sh hs37d5viral+GENCODE19
 ```
 
 The download file contains a script `run_arriba.sh`, which demonstrates the usage of Arriba (see also section [Workflow](workflow.md#demo-script)). We recommend that you use this as a guide to integrate Arriba into your existing STAR-based RNA-Seq pipeline. When Arriba is integrated properly, fusion detection only adds a few minutes to the regular alignment workflow, since Arriba utilizes the alignments produced by STAR during a standard RNA-Seq workflow and does not require alignment solely for the sake of fusion detection.
@@ -22,7 +22,7 @@ The download file contains a script `run_arriba.sh`, which demonstrates the usag
 Run the demo script with 8 threads:
 
 ```bash
-./run_arriba.sh STAR_index_hs37d5_GENCODE19/ GENCODE19.gtf hs37d5.fa database/blacklist_hg19_hs37d5_GRCh37_v2.0.0.tsv.gz database/known_fusions_hg19_hs37d5_GRCh37_v2.0.0.tsv.gz database/protein_domains_hg19_hs37d5_GRCh37_v2.0.0.gff3 8 test/read1.fastq.gz test/read2.fastq.gz
+./run_arriba.sh STAR_index_hs37d5viral_GENCODE19/ GENCODE19.gtf hs37d5viral.fa database/blacklist_hg19_hs37d5_GRCh37_v2.0.0.tsv.gz database/known_fusions_hg19_hs37d5_GRCh37_v2.0.0.tsv.gz database/protein_domains_hg19_hs37d5_GRCh37_v2.0.0.gff3 8 test/read1.fastq.gz test/read2.fastq.gz
 ```
 
 Installation using Docker
@@ -30,13 +30,13 @@ Installation using Docker
 
 Install [Docker](https://www.docker.com/) according to the developers' instructions.
 
-Run the script `download_references.sh` inside the Docker container. It downloads the assembly and gene annotation to the directory `/path/to/references` and builds a STAR index. Run the script without arguments to see a list of available files. Note that this step requires ~35 GB of RAM and 8 cores (can be adjusted by passing the parameter `--env=THREADS=...`).
+Run the script `download_references.sh` inside the Docker container. It downloads the assembly and gene annotation to the directory `/path/to/references` and builds a STAR index. Run the script without arguments to see a list of available files. Choose a file with the keyword `viral` if Arriba is supposed to detect viral integration sites. Note that this step requires ~45 GB of RAM and 8 cores (can be adjusted by passing the parameter `--env=THREADS=...`).
 
 ```bash
-docker run --rm -v /path/to/references:/references uhrigs/arriba:1.2.0 download_references.sh hs37d5+GENCODE19
+docker run --rm -v /path/to/references:/references uhrigs/arriba:1.2.0 download_references.sh hs37d5viral+GENCODE19
 ```
 
-Use the following Docker command to run Arriba from the container. Replace `/path/to/` with the path to the respective input file. Leave the paths after the colons unmodified - these are the paths inside the Docker container. Running Arriba requires ~35 GB of RAM and 8 cores (can be adjusted by passing the parameter `--env=THREADS=...`).
+Use the following Docker command to run Arriba from the container. Replace `/path/to/` with the path to the respective input file. Leave the paths after the colons unmodified - these are the paths inside the Docker container. Running Arriba requires ~45 GB of RAM and 8 cores (can be adjusted by passing the parameter `--env=THREADS=...`).
 
 ```bash
 docker run --rm \
@@ -53,14 +53,14 @@ Installation using Singularity
 
 Install [Singularity](https://www.sylabs.io/) according to the developers' instructions.
 
-The Docker container is compatible with Singularity. If desired, it can be converted to a Singularity image, but executing the Docker container directly works, too. Run the script `download_references.sh` inside the Docker container/Singularity image. It downloads the assembly and gene annotation to the directory `/path/to/references` and builds a STAR index. Run the script without arguments to see a list of available files. Note that this step requires ~35 GB of RAM and 8 cores (can be adjusted by setting the environment variable `SINGULARITYENV_THREADS`).
+The Docker container is compatible with Singularity. If desired, it can be converted to a Singularity image, but executing the Docker container directly works, too. Run the script `download_references.sh` inside the Docker container/Singularity image. It downloads the assembly and gene annotation to the directory `/path/to/references` and builds a STAR index. Run the script without arguments to see a list of available files. Choose a file with the keyword `viral` if Arriba is supposed to detect viral integration sites. Note that this step requires ~45 GB of RAM and 8 cores (can be adjusted by setting the environment variable `SINGULARITYENV_THREADS`).
 
 ```bash
 mkdir /path/to/references
-singularity exec -B /path/to/references:/references docker://uhrigs/arriba:1.2.0 download_references.sh hs37d5+GENCODE19
+singularity exec -B /path/to/references:/references docker://uhrigs/arriba:1.2.0 download_references.sh hs37d5viral+GENCODE19
 ```
 
-Use the following Singularity command to run Arriba from the container. Replace `/path/to/` with the path to the respective input file. Leave the paths after the colons unmodified - these are the paths inside the Singularity container. Running Arriba requires ~35 GB of RAM and 8 cores (can be adjusted by setting the environment variable `SINGULARITYENV_THREADS`).
+Use the following Singularity command to run Arriba from the container. Replace `/path/to/` with the path to the respective input file. Leave the paths after the colons unmodified - these are the paths inside the Singularity container. Running Arriba requires ~45 GB of RAM and 8 cores (can be adjusted by setting the environment variable `SINGULARITYENV_THREADS`).
 
 ```bash
 singularity exec \

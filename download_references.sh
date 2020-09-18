@@ -31,14 +31,23 @@ COMBINATIONS["hg38+ENSEMBL93"]="hg38+ENSEMBL93"
 COMBINATIONS["GRCh38+GENCODE28"]="GRCh38+GENCODE28"
 COMBINATIONS["GRCh38+RefSeq"]="GRCh38+RefSeq_hg38"
 COMBINATIONS["GRCh38+ENSEMBL93"]="GRCh38+ENSEMBL93"
+for COMBINATION in ${!COMBINATIONS[@]}; do
+	COMBINATIONS["${COMBINATION%+*}viral+${COMBINATION#*+}"]="${COMBINATIONS[$COMBINATION]%+*}viral+${COMBINATIONS[$COMBINATION]#*+}"
+done
 
 if [ $# -ne 1 ] || [ -z "$1" ] || [ -z "${COMBINATIONS[$1]}" ]; then
 	echo "Usage: $(basename $0) ASSEMBLY+ANNOTATION" 1>&2
-	echo "Available assemblies and annotations: ${!COMBINATIONS[@]}" 1>&2
+	echo "Available assemblies and annotations:" 1>&2
+	sed -e 's/ /\n/g' <<<"${!COMBINATIONS[@]}" | sort 1>&2
 	exit 1
 fi
 
 ASSEMBLY="${COMBINATIONS[$1]%+*}"
+VIRAL=""
+if [[ $ASSEMBLY =~ viral ]]; then
+	ASSEMBLY="${ASSEMBLY%viral}"
+	VIRAL="viral"
+fi
 ANNOTATION="${COMBINATIONS[$1]#*+}"
 THREADS="${THREADS-8}"
 SJDBOVERHANG="${SJDBOVERHANG-250}"
@@ -55,8 +64,18 @@ elif [[ ${ASSEMBLIES[$ASSEMBLY]} =~ \.gz$ ]]; then
 else
 	cat
 fi |
-# drop viral contigs from hs37d5 assembly
-awk '/^>/{ contig=$1 } contig!~/^>NC_|^>AC_/{ print }' > "$ASSEMBLY.fa"
+if [ "$VIRAL" = "viral" ]; then
+	# drop viral contigs from hs37d5 assembly
+	awk '/^>/{ contig=$1 } contig!~/^>NC_|^>AC_/{ print }'
+else
+	cat
+fi > "$ASSEMBLY$VIRAL.fa"
+
+if [ "$VIRAL" = "viral" ]; then
+	echo "Appending RefSeq viral genomes"
+	DATABASE_DIR=$(dirname "$0")/database
+	gunzip -c "$DATABASE_DIR/RefSeq_viral_genomes.fa.gz" >> "$ASSEMBLY$VIRAL.fa"
+fi
 
 echo "Downloading annotation: ${ANNOTATIONS[$ANNOTATION]}"
 wget -q -O - "${ANNOTATIONS[$ANNOTATION]}" |
@@ -104,12 +123,12 @@ if [[ $ANNOTATION =~ RefSeq ]]; then
 else
 	cat
 fi |
-if ! grep -q '^>chr' "$ASSEMBLY.fa"; then
+if ! grep -q '^>chr' "$ASSEMBLY$VIRAL.fa"; then
 	sed -e 's/^chrM\t/MT\t/' -e 's/^chr//'
 else
 	sed -e 's/^MT\t/chrM\t/' -e 's/^\([1-9XY]\|[12][0-9]\)\t/\1\t/'
 fi > "$ANNOTATION.gtf"
 
-mkdir STAR_index_${ASSEMBLY}_${ANNOTATION}
-STAR --runMode genomeGenerate --genomeDir STAR_index_${ASSEMBLY}_${ANNOTATION} --genomeFastaFiles "$ASSEMBLY.fa" --sjdbGTFfile "$ANNOTATION.gtf" --runThreadN "$THREADS" --sjdbOverhang "$SJDBOVERHANG"
+mkdir STAR_index_${ASSEMBLY}${VIRAL}_${ANNOTATION}
+STAR --runMode genomeGenerate --genomeDir STAR_index_${ASSEMBLY}${VIRAL}_${ANNOTATION} --genomeFastaFiles "$ASSEMBLY$VIRAL.fa" --sjdbGTFfile "$ANNOTATION.gtf" --runThreadN "$THREADS" --sjdbOverhang "$SJDBOVERHANG"
 
