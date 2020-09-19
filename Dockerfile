@@ -4,8 +4,12 @@ MAINTAINER Sebastian Uhrig @ DKFZ
 # install dependencies
 RUN export DEBIAN_FRONTEND=noninteractive && \
 apt-get update -y && \
-apt-get install -y --no-install-recommends build-essential samtools r-base rna-star wget ca-certificates libcurl4-openssl-dev libxml2-dev && \
+apt-get install -y --no-install-recommends build-essential samtools r-base wget ca-certificates libcurl4-openssl-dev libxml2-dev && \
 Rscript -e 'install.packages("circlize", repos="http://cran.r-project.org"); source("https://bioconductor.org/biocLite.R"); biocLite(c("GenomicRanges", "GenomicAlignments"))'
+
+# install version of STAR that supports --chimMultimapNmax and --chimOutType WithinBAM
+RUN wget -q -O - 'https://github.com/alexdobin/STAR/archive/2.7.6a.tar.gz' | tar -xzf - && \
+cp -p STAR-2.7.6a/bin/Linux_x86_64/STAR /usr/local/bin/
 
 # install arriba
 RUN wget -q -O - "https://github.com/suhrig/arriba/releases/download/v1.2.0/arriba_v1.2.0.tar.gz" | tar -xzf -

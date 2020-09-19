@@ -23,14 +23,14 @@ READ2="${9-}"
 # find installation directory of arriba
 BASE_DIR=$(dirname "$0")
 
-# align FastQ files (STAR >=2.5.3a recommended)
+# align FastQ files (STAR >=2.7.6a recommended)
 STAR \
 	--runThreadN "$THREADS" \
 	--genomeDir "$STAR_INDEX_DIR" --genomeLoad NoSharedMemory \
 	--readFilesIn "$READ1" "$READ2" --readFilesCommand zcat \
 	--outStd BAM_Unsorted --outSAMtype BAM Unsorted --outSAMunmapped Within --outBAMcompression 0 \
-	--outFilterMultimapNmax 1 --outFilterMismatchNmax 3 \
-	--chimSegmentMin 10 --chimOutType WithinBAM SoftClip --chimJunctionOverhangMin 10 --chimScoreMin 1 --chimScoreDropMax 30 --chimScoreJunctionNonGTAG 0 --chimScoreSeparation 1 --alignSJstitchMismatchNmax 5 -1 5 5 --chimSegmentReadGapMax 3 |
+	--outFilterMultimapNmax 50 --peOverlapNbasesMin 10 --alignSplicedMateMapLminOverLmate 0.5 --alignSJstitchMismatchNmax 5 -1 5 5 \
+	--chimSegmentMin 10 --chimOutType WithinBAM HardClip --chimJunctionOverhangMin 10 --chimScoreDropMax 30 --chimScoreJunctionNonGTAG 0 --chimScoreSeparation 1 --chimSegmentReadGapMax 3 --chimMultimapNmax 50 |
 
 tee Aligned.out.bam |
 
