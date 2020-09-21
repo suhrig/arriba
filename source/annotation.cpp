@@ -242,7 +242,7 @@ void read_annotation_gtf(const string& filename, const string& gtf_features_stri
 					continue;
 				// if Gencode, remove version number from transcript ID
 				string short_transcript_id = transcript_id;
-				if (short_transcript_id.substr(0, 3) == "ENS" && (trim_position = short_transcript_id.find_last_of('.', string::npos)) != string::npos)
+				if (short_transcript_id.substr(0, 3) == "ENS" && (trim_position = short_transcript_id.find_last_of('.')) != string::npos)
 					short_transcript_id = short_transcript_id.substr(0, trim_position);
 				transcript_t& transcript = transcripts[make_tuple(short_transcript_id, annotation_record.contig, annotation_record.strand)];
 				if (transcript == NULL) { // this is the first time we encounter this transcript ID => make a new transcript_annotation_record_t
@@ -351,11 +351,17 @@ void read_annotation_gtf(const string& filename, const string& gtf_features_stri
 	}
 
 	// fix some errors in the Gencode annotation
-	malformed_transcripts.push_back(make_tuple("ENST00000507166", contigs["4"], FORWARD)); // FIP1L1:PDGFRA
-	malformed_transcripts.push_back(make_tuple("ENST00000467125", contigs["6"], REVERSE)); // GOPC:ROS1
-	malformed_transcripts.push_back(make_tuple("ENST00000404796", contigs["9"], FORWARD)); // MTAP:CDKN2B-AS1
-	malformed_transcripts.push_back(make_tuple("ENST00000577563", contigs["9"], FORWARD)); // MTAP:CDKN2B-AS1
-	malformed_transcripts.push_back(make_tuple("ENST00000580900", contigs["9"], FORWARD)); // MTAP:CDKN2B-AS1
+	if (contigs.find("4") != contigs.end())
+		malformed_transcripts.push_back(make_tuple("ENST00000507166", contigs["4"], FORWARD)); // FIP1L1:PDGFRA
+	if (contigs.find("6") != contigs.end())
+		malformed_transcripts.push_back(make_tuple("ENST00000467125", contigs["6"], REVERSE)); // GOPC:ROS1
+	if (contigs.find("9") != contigs.end()) {
+		malformed_transcripts.push_back(make_tuple("ENST00000404796", contigs["9"], FORWARD)); // MTAP:CDKN2B-AS1
+		malformed_transcripts.push_back(make_tuple("ENST00000577563", contigs["9"], FORWARD)); // MTAP:CDKN2B-AS1
+		malformed_transcripts.push_back(make_tuple("ENST00000580900", contigs["9"], FORWARD)); // MTAP:CDKN2B-AS1
+	}
+	if (contigs.find("7") != contigs.end())
+		malformed_transcripts.push_back(make_tuple("ENSMUST00000124096", contigs["7"], REVERSE)); // Fgfr2 in mouse
 
 	// remove transcripts that are non-unique or unreasonably large
 	for (auto transcript = transcripts.begin(); transcript != transcripts.end(); ++transcript) {
