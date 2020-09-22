@@ -1043,6 +1043,8 @@ void write_fusions_to_file(fusions_t& fusions, const string& output_file, const 
 				fill_gaps_in_fusion_transcript_sequence(transcript_sequence, positions, transcript_5, transcript_3, strand_5, strand_3, assembly);
 			fusion_peptide_sequence = get_fusion_peptide_sequence(transcript_sequence, positions, gene_5, gene_3, transcript_5, transcript_3, strand_3, exon_annotation_index, assembly);
 			reading_frame = is_in_frame(fusion_peptide_sequence);
+			if (reading_frame == "stop-codon") // discard peptide sequence when there is a stop codon prior to the fusion junction
+				fusion_peptide_sequence = ".";
 		}
 
 		// write line to output file
