@@ -13,8 +13,8 @@
 using namespace std;
 
 bool parse_breakpoint(string breakpoint, const contigs_t& contigs, contig_t& contig, position_t& position) {
-	unsigned int separator = breakpoint.find_last_of(':'); // split by last colon, because there could be colons in the contig name
-	if (separator != string::npos)
+	size_t separator = breakpoint.find_last_of(':'); // split by last colon, because there could be colons in the contig name
+	if (separator < breakpoint.size())
 		breakpoint[separator] = '\t';
 	tsv_stream_t tsv(breakpoint);
 
@@ -51,7 +51,7 @@ bool parse_vcf_info(const string& vcf_info, const string& field, string& value) 
 		start = field.size() + 1; // +1 for "="
 	} else {
 		start = vcf_info.find(";" + field + "="); // if it's not the first, there must be a semi-colon preceding it
-		if (start == string::npos)
+		if (start >= vcf_info.size())
 			return false;
 		start += field.size() + 2; // +2 for ";" and "="
 	}
@@ -114,7 +114,7 @@ unsigned int mark_genomic_support(fusions_t& fusions, const string& genomic_brea
 					char bracket = (opening_bracket < closing_bracket) ? '[' : ']';
 					size_t bracket_pos1 = min(opening_bracket, closing_bracket);
 					size_t bracket_pos2 = vcf_alt.find(bracket, bracket_pos1 + 1);
-					if (bracket_pos1 == string::npos || bracket_pos2 == string::npos)
+					if (bracket_pos1 >= vcf_alt.size() || bracket_pos2 >= vcf_alt.size())
 						if (!vcf_alt.empty() && (vcf_alt[0] == '.' || vcf_alt[vcf_alt.size()-1] == '.')) // is it a single breakend?
 							continue; // silently ignore single breakend
 						else

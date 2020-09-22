@@ -641,7 +641,7 @@ transcript_t get_transcript(const string& transcript_sequence, const vector<posi
 	if (which_end == 5) {
 		from = 0;
 		to = transcript_sequence.find('|');
-		if (to == string::npos)
+		if (to >= transcript_sequence.size())
 			return NULL;
 		while (to > 0 && transcribed_bases[to] == -1) // skip control characters in transcript sequence, such as "..."
 			to--;
@@ -735,14 +735,14 @@ void fill_gaps_in_fusion_transcript_sequence(string& transcript_sequence, vector
 			auto gap = transcript_sequence.find_last_of("...", breakpoint);
 
 			bool imprecise_breakpoint = false;
-			if (gap != string::npos && gap+1 == breakpoint && gap >= 3) {
+			if (gap < transcript_sequence.size() && gap+1 == breakpoint && gap >= 3) {
 				// in the special case that the breakpoint is not known exactly (represented as "...|..." in the transcript sequence),
 				// we check if the breakpoint is close to a splice site and use that as the precise breakpoint
 				imprecise_breakpoint = true;
 				gap -= 3;
-			} else if (gap != string::npos && positions[gap+1] > transcript_5->first_exon->start && positions[gap+1] < transcript_5->last_exon->end) {
+			} else if (gap < transcript_sequence.size() && positions[gap+1] > transcript_5->first_exon->start && positions[gap+1] < transcript_5->last_exon->end) {
 				gap++; // found a gap => skip "..."
-			} else if (gap == string::npos && positions[0] > transcript_5->first_exon->start && positions[0] < transcript_5->last_exon->end) {
+			} else if (gap >= transcript_sequence.size() && positions[0] > transcript_5->first_exon->start && positions[0] < transcript_5->last_exon->end) {
 				gap = 0; // found no gap, but transcribed region does not reach the beginning of the transcript
 			} else {
 				// no gaps and the transcribed region fully covers the transcript
@@ -841,18 +841,18 @@ void fill_gaps_in_fusion_transcript_sequence(string& transcript_sequence, vector
 		if (contig_sequence != assembly.end()) {
 
 			// find gap closest to the breakpoint junction, we complete the sequence starting from there
-			auto breakpoint = transcript_sequence.find_last_of('|');
-			auto gap = transcript_sequence.find("...", breakpoint);
+			size_t breakpoint = transcript_sequence.find_last_of('|');
+			size_t gap = transcript_sequence.find("...", breakpoint);
 
 			bool imprecise_breakpoint = false;
-			if (gap != string::npos && gap-1 == breakpoint && gap+3 < transcript_sequence.size()) {
+			if (gap < transcript_sequence.size() && gap-1 == breakpoint && gap+3 < transcript_sequence.size()) {
 				// in the special case that the breakpoint is not known exactly (represented as "...|..." in the transcript sequence),
 				// we check if the breakpoint is close to a splice site and use that as the precise breakpoint
 				imprecise_breakpoint = true;
 				gap += 3;
-			} else if (gap != string::npos && positions[gap-1] > transcript_3->first_exon->start && positions[gap-1] < transcript_3->last_exon->end) {
+			} else if (gap < transcript_sequence.size() && positions[gap-1] > transcript_3->first_exon->start && positions[gap-1] < transcript_3->last_exon->end) {
 				gap--; // found a gap => go to last position before "..."
-			} else if (gap == string::npos && positions[transcript_sequence.size()-1] > transcript_3->first_exon->start && positions[transcript_sequence.size()-1] < transcript_3->last_exon->end) {
+			} else if (gap >= transcript_sequence.size() && positions[transcript_sequence.size()-1] > transcript_3->first_exon->start && positions[transcript_sequence.size()-1] < transcript_3->last_exon->end) {
 				gap = transcript_sequence.size()-1; // found no gap, but transcribed region does not reach the end of the transcript
 			} else {
 				// no gaps and the transcribed region fully covers the transcript

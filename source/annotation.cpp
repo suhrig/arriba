@@ -122,11 +122,11 @@ bool get_gtf_attribute(const string& attributes, const vector<string>& attribute
 
 	// find start of attribute
 	size_t start = string::npos;
-	for (auto attribute_name = attribute_names.begin(); attribute_name != attribute_names.end() && start == string::npos; ++attribute_name)
+	for (auto attribute_name = attribute_names.begin(); attribute_name != attribute_names.end() && start >= attributes.size(); ++attribute_name)
 		start = attributes.find(*attribute_name + " \"");
-	if (start != string::npos)
+	if (start < attributes.size())
 		start = attributes.find('"', start);
-	if (start == string::npos) {
+	if (start >= attributes.size()) {
 		cerr << "WARNING: failed to extract ";
 		for (auto attribute_name = attribute_names.begin(); attribute_name != attribute_names.end(); ++attribute_name) {
 			if (attribute_name != attribute_names.begin())
@@ -140,7 +140,7 @@ bool get_gtf_attribute(const string& attributes, const vector<string>& attribute
 
 	// find end of attribute
 	size_t end = attributes.find('"', start);
-	if (end == string::npos) {
+	if (end >= attributes.size()) {
 		cerr << "WARNING: failed to extract ";
 		for (auto attribute_name = attribute_names.begin(); attribute_name != attribute_names.end(); ++attribute_name) {
 			if (attribute_name != attribute_names.begin())
@@ -207,7 +207,7 @@ void read_annotation_gtf(const string& filename, const string& gtf_features_stri
 			// if Gencode, remove version number from gene ID
 			string::size_type trim_position = string::npos;
 			string short_gene_id;
-			if (gene_id.substr(0, 3) == "ENS" && (trim_position = gene_id.find_last_of('.', string::npos)) != string::npos)
+			if (gene_id.substr(0, 3) == "ENS" && (trim_position = gene_id.find_last_of('.')) < gene_id.size())
 				short_gene_id = gene_id.substr(0, trim_position);
 			else
 				short_gene_id = gene_id;
@@ -242,7 +242,7 @@ void read_annotation_gtf(const string& filename, const string& gtf_features_stri
 					continue;
 				// if Gencode, remove version number from transcript ID
 				string short_transcript_id = transcript_id;
-				if (short_transcript_id.substr(0, 3) == "ENS" && (trim_position = short_transcript_id.find_last_of('.')) != string::npos)
+				if (short_transcript_id.substr(0, 3) == "ENS" && (trim_position = short_transcript_id.find_last_of('.')) < short_transcript_id.size())
 					short_transcript_id = short_transcript_id.substr(0, trim_position);
 				transcript_t& transcript = transcripts[make_tuple(short_transcript_id, annotation_record.contig, annotation_record.strand)];
 				if (transcript == NULL) { // this is the first time we encounter this transcript ID => make a new transcript_annotation_record_t

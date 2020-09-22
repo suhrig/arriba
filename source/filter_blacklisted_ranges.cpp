@@ -16,8 +16,8 @@ using namespace std;
 // convert string representation of a range into coordinates
 bool parse_range(string range, const contigs_t& contigs, blacklist_item_t& blacklist_item) {
 
-	unsigned int separator = range.find_last_of(':'); // split by last colon, because there could be colons in the contig name
-	if (separator != string::npos)
+	size_t separator = range.find_last_of(':'); // split by last colon, because there could be colons in the contig name
+	if (separator < range.size())
 		range[separator] = '\t';
 	tsv_stream_t tsv(range);
 	string contig_name, start_and_end_position;
@@ -59,7 +59,7 @@ bool parse_range(string range, const contigs_t& contigs, blacklist_item_t& black
 
 	// extract start (and end) of range
 	tsv_stream_t tsv2(start_and_end_position, '-');
-	if (start_and_end_position.find('-') != string::npos) { // range has start and end (chr:start-end)
+	if (start_and_end_position.find('-') < start_and_end_position.size()) { // range has start and end (chr:start-end)
 		if ((tsv2 >> blacklist_item.start >> blacklist_item.end).fail()) {
 			cerr << "WARNING: unknown gene or malformed range: " << range << endl;
 			return false;

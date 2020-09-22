@@ -14,7 +14,7 @@ bool get_gff3_attribute(const string& attributes, const string& attribute_name, 
 
 	// find start of attribute
 	size_t start = attributes.find(attribute_name + "=");
-	if (start == string::npos) {
+	if (start >= attributes.size()) {
 		cerr << "WARNING: failed to extract " << attribute_name << " from line in GFF3 file: " << attributes << endl;
 		return false;
 	}
@@ -22,7 +22,7 @@ bool get_gff3_attribute(const string& attributes, const string& attribute_name, 
 
 	// find end of attribute
 	size_t end = attributes.find(';', start);
-	if (end == string::npos)
+	if (end >= attributes.size())
 		end = attributes.size();
 
 	attribute_value = attributes.substr(start, end - start);
@@ -67,7 +67,7 @@ void load_protein_domains(const string& filename, const contigs_t& contigs, cons
 			}
 
 			// decode hex representations of special characters (e.g., "%2C" for ",")
-			for (string::size_type pos = protein_domain.name.find("%"); pos != string::npos; pos = protein_domain.name.find("%", pos+1)) {
+			for (string::size_type pos = protein_domain.name.find("%"); pos < protein_domain.name.size(); pos = protein_domain.name.find("%", pos+1)) {
 				if (pos + 2 < protein_domain.name.size()) {
 					char c1 = protein_domain.name[pos+1];
 					char c2 = protein_domain.name[pos+2];
@@ -89,7 +89,7 @@ void load_protein_domains(const string& filename, const contigs_t& contigs, cons
 			// map protein domain to gene by gene ID or name
 			string short_gene_id; // if Gencode, remove version number from gene ID
                         string::size_type trim_position = string::npos;
-			if (gene_id.substr(0, 3) == "ENS" && (trim_position = gene_id.find_last_of('.', string::npos)) != string::npos)
+			if (gene_id.substr(0, 3) == "ENS" && (trim_position = gene_id.find_last_of('.')) < gene_id.size())
 				short_gene_id = gene_id.substr(0, trim_position);
 			else
 				short_gene_id = gene_id;
@@ -248,7 +248,7 @@ string get_fusion_peptide_sequence(const string& transcript_sequence, const vect
 
 	// abort if there is uncertainty in the transcript sequence around the junction or if the transcript sequence is unknown
 	if (transcript_sequence.empty() || transcript_sequence == "." ||
-	    transcript_sequence.find("...|") != string::npos || transcript_sequence.find("|...") != string::npos)
+	    transcript_sequence.find("...|") < transcript_sequence.size() || transcript_sequence.find("|...") < transcript_sequence.size())
 		return ".";
 
 	if (assembly.find(gene_5->contig) == assembly.end() || assembly.find(gene_3->contig) == assembly.end())
@@ -258,12 +258,12 @@ string get_fusion_peptide_sequence(const string& transcript_sequence, const vect
 	// moreover, remove sequences beyond "...", i.e., regions with unclear sequence
 	size_t transcription_5_end = transcript_sequence.find('|') - 1;
 	size_t transcription_5_start = transcript_sequence.rfind("...", transcription_5_end);
-	if (transcription_5_start == string::npos)
+	if (transcription_5_start >= transcript_sequence.size())
 		transcription_5_start = 0;
 	else
 		transcription_5_start += 3; // skip "..."
 	size_t non_template_bases_length = transcript_sequence.find('|', transcription_5_end + 2);
-	if (non_template_bases_length == string::npos)
+	if (non_template_bases_length >= transcript_sequence.size())
 		non_template_bases_length = 0;
 	else
 		non_template_bases_length -= transcription_5_end + 2;
@@ -271,7 +271,7 @@ string get_fusion_peptide_sequence(const string& transcript_sequence, const vect
 	if (non_template_bases_length > 0)
 		transcription_3_start += non_template_bases_length + 1;
 	size_t transcription_3_end = transcript_sequence.find("...", transcription_3_start);
-	if (transcription_3_end == string::npos)
+	if (transcription_3_end >= transcript_sequence.size())
 		transcription_3_end = transcript_sequence.size() - 1;
 	else
 		transcription_3_end--;
