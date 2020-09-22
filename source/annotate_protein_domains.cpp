@@ -1,4 +1,5 @@
 #include <map>
+#include <set>
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -39,6 +40,7 @@ void load_protein_domains(const string& filename, const contigs_t& contigs, cons
 	// read lines from GFF3 file
 	autodecompress_file_t gff3_file(filename);
 	string line;
+	set<string> unknown_genes;
 	while (gff3_file.getline(line)) {
 		if (!line.empty() && line[0] != '#') { // skip comment lines
 
@@ -97,7 +99,10 @@ void load_protein_domains(const string& filename, const contigs_t& contigs, cons
 			if (find_gene_by_id == gene_ids.end()) {
 				auto find_gene_by_name = gene_names.find(gene_name);
 				if (find_gene_by_name == gene_names.end()) {
-					cerr << "WARNING: unknown gene: " << gene_name << " " << gene_id << endl;
+					if (unknown_genes.find(gene_name + " " + gene_id) == unknown_genes.end()) {
+						cerr << "WARNING: unknown gene: " << gene_name << " " << gene_id << endl;
+						unknown_genes.insert(gene_name + " " + gene_id); // report an unknown gene only once
+					}
 					continue;
 				} else {
 					protein_domain.gene = find_gene_by_name->second;

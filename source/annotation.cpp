@@ -184,6 +184,7 @@ void read_annotation_gtf(const string& filename, const string& gtf_features_stri
 
 	autodecompress_file_t gtf_file(filename);
 	string line;
+	set<string> non_unique_items;
 	unsigned int new_id = 0; // ID generator for genes and transcripts
 	while (gtf_file.getline(line)) {
 		if (!line.empty() && line[0] != '#') { // skip comment lines
@@ -277,12 +278,18 @@ void read_annotation_gtf(const string& filename, const string& gtf_features_stri
 						gene->end = exon_annotation_record.end;
 					// check if annotation is sensible
 					if (gene->contig != annotation_record.contig || gene->end - gene->start > max_gene_size) {
-						cout << "WARNING: gene ID '" << gene_id << "' appears to be non-unique and will be ignored" << endl;
+						if (non_unique_items.find(gene_id) == non_unique_items.end()) {
+							cout << "WARNING: gene ID '" << gene_id << "' appears to be non-unique and will be ignored" << endl;
+							non_unique_items.insert(gene_id); // report gene only once
+						}
 						malformed_genes.insert(gene);
 					}
 				}
 				if (assembly.find(gene->contig) != assembly.end() && (unsigned int) gene->end >= assembly.at(gene->contig).size()) {
-					cout << "WARNING: gene with ID '" << gene_id << "' extends beyond end of contig and will be ignored" << endl;
+					if (non_unique_items.find(gene_id) == non_unique_items.end()) {
+						cout << "WARNING: gene with ID '" << gene_id << "' extends beyond end of contig and will be ignored" << endl;
+						non_unique_items.insert(gene_id); // report gene only once
+					}
 					malformed_genes.insert(gene);
 				}
 
