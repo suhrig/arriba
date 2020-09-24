@@ -559,10 +559,15 @@ int main(int argc, char **argv) {
 	time(&end_time);
 	struct rusage usage;
 	getrusage(RUSAGE_SELF, &usage);
+	#ifdef __APPLE__
+		#define RU_MAXRSS_UNIT 1024.0*1024*1024
+	#else
+		#define RU_MAXRSS_UNIT 1024.0*1024
+	#endif
 	cout << get_time_string() << " Done "
 	     << "(elapsed time=" << get_hhmmss_string(difftime(end_time, start_time)) << ", "
 	     << "CPU time=" << get_hhmmss_string(usage.ru_utime.tv_sec + usage.ru_stime.tv_sec) << ", "
-	     << "peak memory=" << setprecision(3) << (usage.ru_maxrss/1024.0/1024) << "gb)" << endl;
+	     << "peak memory=" << setprecision(3) << (usage.ru_maxrss/(RU_MAXRSS_UNIT)) << "gb)" << endl;
 
 	return 0;
 }
