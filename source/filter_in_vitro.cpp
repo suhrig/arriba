@@ -5,6 +5,7 @@
 #include "sam.h"
 #include "common.hpp"
 #include "annotation.hpp"
+#include "read_stats.hpp"
 #include "filter_in_vitro.hpp"
 
 using namespace std;
@@ -81,7 +82,7 @@ void find_top_expressed_genes(const chimeric_alignments_t& chimeric_alignments, 
 	}
 }
 
-unsigned int filter_in_vitro(fusions_t& fusions, const chimeric_alignments_t& chimeric_alignments, const float high_expression_quantile, const gene_annotation_index_t& gene_annotation_index) {
+unsigned int filter_in_vitro(fusions_t& fusions, const chimeric_alignments_t& chimeric_alignments, const float high_expression_quantile, const gene_annotation_index_t& gene_annotation_index, const coverage_t& coverage) {
 
 	// older version of STAR occasionally clipped discordant mates for no good reason,
 	// which appeared as though the mate overlaps a breakpoint
@@ -181,6 +182,9 @@ unsigned int filter_in_vitro(fusions_t& fusions, const chimeric_alignments_t& ch
 			find_or_default(exonic_breakpoints_by_gene_pair, make_tuple(fusion->second.gene1, fusion->second.gene2), (unsigned int) 0)
 		);
 
+		int coverage1 = coverage.get_coverage(fusion->second.contig1, fusion->second.breakpoint1, (fusion->second.direction1 == UPSTREAM) ? DOWNSTREAM : UPSTREAM);
+		int coverage2 = coverage.get_coverage(fusion->second.contig2, fusion->second.breakpoint2, (fusion->second.direction2 == UPSTREAM) ? DOWNSTREAM : UPSTREAM);
+
 		// check if the event exhibits the characteristics of a RT-mediated fusion
 		if (
 			// RT artifacts often have very few split reads
@@ -192,6 +196,10 @@ unsigned int filter_in_vitro(fusions_t& fusions, const chimeric_alignments_t& ch
 			// RT artifacts occur between highly expressed genes
 			// => the sum of the chimeric reads of the fused genes must be in the top percentile
 			gene1_expression + gene2_expression > high_expression_threshold &&
+			// make an exception for fusions that make up a substantial fraction of the overall expression of a gene and have a spliced breakpoint
+			!(fusion->second.supporting_reads() >= 10 && ((int) fusion->second.supporting_reads() * 4) >= max(coverage1, coverage2) &&
+			  coverage1 > (int) fusion->second.supporting_reads() && coverage2 > (int) fusion->second.supporting_reads() &&
+			  (fusion->second.spliced1 || fusion->second.spliced2) && ((fusion->second.spliced1 || !fusion->second.exonic1) && (fusion->second.spliced2 || !fusion->second.exonic2))) &&
 			// RT artifacts typically have breakpoints inside exons, otherwise they might be true events
 			// => if we see an intronic/spliced breakpoint, only discard the event, if the genes are expressed at extreme levels
 			(

@@ -434,7 +434,7 @@ int main(int argc, char **argv) {
 	// which are prone to recovering reverse transcriptase-mediated fusions
 	if (options.filters.at("in_vitro")) {
 		cout << get_time_string() << " Filtering in vitro-generated fusions between genes with an expression above the " << (options.high_expression_quantile*100) << "% quantile " << flush;
-		cout << "(remaining=" << filter_in_vitro(fusions, chimeric_alignments, options.high_expression_quantile, gene_annotation_index) << ")" << endl;
+		cout << "(remaining=" << filter_in_vitro(fusions, chimeric_alignments, options.high_expression_quantile, gene_annotation_index, coverage) << ")" << endl;
 	}
 
 	// this step must come closely after the 'relative_support' and 'min_support' filters
