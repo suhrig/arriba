@@ -82,7 +82,7 @@ fi > "$ASSEMBLY$VIRAL.fa"
 if [ "$VIRAL" = "viral" ]; then
 	echo "Appending RefSeq viral genomes"
 	DATABASE_DIR=$(dirname "$0")/database
-	gunzip -c "$DATABASE_DIR/RefSeq_viral_genomes.fa.gz" >> "$ASSEMBLY$VIRAL.fa"
+	gunzip -c "$DATABASE_DIR/RefSeq_viral_genomes_v2.0.0.fa.gz" >> "$ASSEMBLY$VIRAL.fa"
 fi
 
 echo "Downloading annotation: ${ANNOTATIONS[$ANNOTATION]}"
