@@ -552,15 +552,21 @@ string get_fusion_site(const gene_t gene, const bool spliced, const bool exonic,
 	} else if (exonic) {
 		// re-annotate exonic breakpoints
 		if (breakpoint < gene->start) {
-			if (gene->strand == FORWARD)
-				site = "5'UTR";
-			else
-				site = "3'UTR";
+			if (gene->is_protein_coding) {
+				if (gene->strand == FORWARD)
+					site = "5'UTR";
+				else
+					site = "3'UTR";
+			} else
+				site = "exon";
 		} else if (breakpoint > gene->end) {
-			if (gene->strand == FORWARD)
-				site = "3'UTR";
-			else
-				site = "5'UTR";
+			if (gene->is_protein_coding) {
+				if (gene->strand == FORWARD)
+					site = "3'UTR";
+				else
+					site = "5'UTR";
+			} else
+				site = "exon";
 		} else {
 			exon_set_t exons;
 			get_annotation_by_coordinate(contig, breakpoint, breakpoint, exons, exon_annotation_index);
