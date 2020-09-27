@@ -5,7 +5,7 @@ MAINTAINER Sebastian Uhrig @ DKFZ
 RUN export DEBIAN_FRONTEND=noninteractive && \
 apt-get update -y && \
 apt-get install -y --no-install-recommends build-essential samtools r-base wget ca-certificates libcurl4-openssl-dev libxml2-dev && \
-Rscript -e 'install.packages("circlize", repos="http://cran.r-project.org"); source("https://bioconductor.org/biocLite.R"); biocLite(c("GenomicRanges", "GenomicAlignments"))'
+Rscript -e 'install.packages("circlize", repos="http://cran.r-project.org"); install.packages("BiocManager"); BiocManager::install(c("GenomicRanges", "GenomicAlignments"))'
 
 # install version of STAR that supports --chimMultimapNmax and --chimOutType WithinBAM
 RUN wget -q -O - 'https://github.com/alexdobin/STAR/archive/2.7.6a.tar.gz' | tar -xzf - && \

@@ -27,9 +27,9 @@ In order to use the script, [R Project](http://r-project.org/) must be installed
 
 ```R
 install.packages("circlize")
-source("https://bioconductor.org/biocLite.R")
-biocLite("GenomicAlignments")
-biocLite("GenomicRanges")
+if (!requireNamespace("BiocManager", quietly = TRUE))
+    install.packages("BiocManager")
+BiocManager::install(c("GenomicRanges", "GenomicAlignments"))
 ```
 
 Moreover, [samtools](http://www.htslib.org/) must be installed, if a coverage track should be drawn, because for this purpose the main output file of STAR (`Aligned.out.bam`) needs to be sorted by coordinate and indexed.
