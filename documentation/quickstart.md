@@ -83,7 +83,18 @@ Install the `arriba` package:
 conda install -c conda-forge -c bioconda arriba=1.2.0
 ```
 
-Run the scripts `download_references.sh` and `run_arriba.sh` as explained in the [manual installation instructions](#manual-installation). The blacklists are located in `$CONDA_PREFIX/var/lib/arriba`.
+Run the script `download_references.sh`, which is installed inside the conda environment. It downloads the assembly and gene annotation to the current working directory and builds a STAR index. Run the script without arguments to see a list of available files. Choose a file with the keyword `viral` if Arriba is supposed to detect viral integration sites. Note that this step requires ~45 GB of RAM and 8 cores (can be adjusted by setting the environment variable `THREADS`). Replace `$CONDA_PREFIX` with the path to your conda environment.
+
+```bash
+$CONDA_PREFIX/var/lib/arriba/download_references.sh hs37d5viral+GENCODE19
+```
+
+To process FastQ files, run the script `run_arriba.sh`, which is installed inside the conda environment. Replace `$CONDA_PREFIX` with the path to your conda environment.
+
+```bash
+ARRIBA_FILES=$CONDA_PREFIX/var/lib/arriba
+run_arriba.sh STAR_index_hs37d5viral_GENCODE19/ GENCODE19.gtf hs37d5viral.fa $ARRIBA_FILES/blacklist_hg19_hs37d5_GRCh37_v2.0.0.tsv.gz $ARRIBA_FILES/known_fusions_hg19_hs37d5_GRCh37_v2.0.0.tsv.gz $ARRIBA_FILES/protein_domains_hg19_hs37d5_GRCh37_v2.0.0.gff3 8 $ARRIBA_FILES/read1.fastq.gz $ARRIBA_FILES/read2.fastq.gz
+```
 
 Output files
 ------------

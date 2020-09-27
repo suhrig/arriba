@@ -88,7 +88,7 @@ singularity exec \
 
 **Execution via Bioconda**
 
-When Arriba was installed via Bioconda, the script `draw_fusions.R` is available in the `$PATH` and can be executed as explained above. The database files (protein domain track, cytobands) are located in `$CONDA_PREFIX/var/lib/arriba`.
+When Arriba was installed via Bioconda, the script `draw_fusions.R` is available in the `$PATH` and can be executed as explained in the section **Manual execution**. The database files (protein domain track, cytobands) are located in `$CONDA_PREFIX/var/lib/arriba`.
 
 Inspection of events using IGV
 ------------------------------
