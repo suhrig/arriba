@@ -19,7 +19,7 @@ Arriba requires an assembly in FastA format, gene annotation in GTF format, and 
 
 The download file contains a script `run_arriba.sh`, which demonstrates the usage of Arriba (see also section [Workflow](workflow.md#demo-script)). We recommend that you use this as a guide to integrate Arriba into your existing STAR-based RNA-Seq pipeline. When Arriba is integrated properly, fusion detection only adds a few minutes to the regular alignment workflow, since Arriba utilizes the alignments produced by STAR during a standard RNA-Seq workflow and does not require alignment solely for the sake of fusion detection.
 
-Run the demo script with 8 threads:
+Run the demo script with 8 threads. In case of single-end data, the second FastQ file is omitted.
 
 ```bash
 ./run_arriba.sh STAR_index_hs37d5viral_GENCODE19/ GENCODE19.gtf hs37d5viral.fa database/blacklist_hg19_hs37d5_GRCh37_v2.0.0.tsv.gz database/known_fusions_hg19_hs37d5_GRCh37_v2.0.0.tsv.gz database/protein_domains_hg19_hs37d5_GRCh37_v2.0.0.gff3 8 test/read1.fastq.gz test/read2.fastq.gz
@@ -36,7 +36,7 @@ Run the script `download_references.sh` inside the Docker container. It download
 docker run --rm -v /path/to/references:/references uhrigs/arriba:1.2.0 download_references.sh hs37d5viral+GENCODE19
 ```
 
-Use the following Docker command to run Arriba from the container. Replace `/path/to/` with the path to the respective input file. Leave the paths after the colons unmodified - these are the paths inside the Docker container. Running Arriba requires ~45 GB of RAM and 8 cores (can be adjusted by passing the parameter `--env=THREADS=...`).
+Use the following Docker command to run Arriba from the container. Replace `/path/to/` with the path to the respective input file. Leave the paths after the colons unmodified - these are the paths inside the Docker container. In case of single-end data, the second FastQ file is omitted. Running Arriba requires ~45 GB of RAM and 8 cores (can be adjusted by passing the parameter `--env=THREADS=...`).
 
 ```bash
 docker run --rm \
@@ -60,7 +60,7 @@ mkdir /path/to/references
 singularity exec -B /path/to/references:/references docker://uhrigs/arriba:1.2.0 download_references.sh hs37d5viral+GENCODE19
 ```
 
-Use the following Singularity command to run Arriba from the container. Replace `/path/to/` with the path to the respective input file. Leave the paths after the colons unmodified - these are the paths inside the Singularity container. Running Arriba requires ~45 GB of RAM and 8 cores (can be adjusted by setting the environment variable `SINGULARITYENV_THREADS`).
+Use the following Singularity command to run Arriba from the container. Replace `/path/to/` with the path to the respective input file. Leave the paths after the colons unmodified - these are the paths inside the Singularity container. In case of single-end data, the second FastQ file is omitted. Running Arriba requires ~45 GB of RAM and 8 cores (can be adjusted by setting the environment variable `SINGULARITYENV_THREADS`).
 
 ```bash
 singularity exec \
@@ -89,7 +89,7 @@ Run the script `download_references.sh`, which is installed inside the conda env
 $CONDA_PREFIX/var/lib/arriba/download_references.sh hs37d5viral+GENCODE19
 ```
 
-To process FastQ files, run the script `run_arriba.sh`, which is installed inside the conda environment. Replace `$CONDA_PREFIX` with the path to your conda environment.
+To process FastQ files, run the script `run_arriba.sh`, which is installed inside the conda environment. In case of single-end data, the second FastQ file is omitted. Replace `$CONDA_PREFIX` with the path to your conda environment.
 
 ```bash
 ARRIBA_FILES=$CONDA_PREFIX/var/lib/arriba
