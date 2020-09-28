@@ -117,7 +117,7 @@ unsigned int filter_in_vitro(fusions_t& fusions, const chimeric_alignments_t& ch
 
 		if (fusion->second.filter != FILTER_none && // fusion has already been filtered
 		    // also tag filtered events, if they are spliced to prevent the filters 'spliced' and 'many_spliced' from recovering them
-		    !((fusion->second.spliced1 || fusion->second.spliced2) && (fusion->second.filter == FILTER_relative_support || fusion->second.filter == FILTER_min_support)))
+		    !((fusion->second.spliced1 || fusion->second.spliced2) && (fusion->second.filter == FILTER_relative_support || fusion->second.filter == FILTER_min_support || fusion->second.filter == FILTER_homopolymer)))
 			continue;
 
 		// RT-mediated fusions often have both breakpoints within exons,
