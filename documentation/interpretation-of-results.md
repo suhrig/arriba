@@ -97,7 +97,7 @@ S100A6 GAPDH  -/-     +/+     1:153507153 12:6645674  3'UTR UTR   translocation 
 
 **Fusions recovered by the known fusions list**
 
-When Arriba is run with a list of known fusions (parameter `-k`), it is particularly sensitive towards evidence concerning these fusion partners. Even when there are only few supporting reads, the event is reported. Obviously, this may lead to false positive predictions. These false positives can be recognized as low-confidence predictions with typically only 2 supporting reads (which is the minimum number of supporting reads to be recovered by the filter `known_fusions`).
+When Arriba is run with a list of known fusions (parameter `-k`), it is particularly sensitive towards evidence concerning these fusion partners. Even when there are only few supporting reads, the event is reported. Obviously, this may lead to false positive predictions. These false positives can be recognized as low-confidence predictions with typically only 1 or 2 supporting reads (which is the minimum number of supporting reads to be recovered by the filter `known_fusions`).
 
 Multiple transcript variants
 -----------------------------
