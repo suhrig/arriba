@@ -86,7 +86,11 @@ bool fusion_has_more_support(const fusion_t* fusion, const fusion_t* current_bes
 		return true;
 	} else if (current_best->supporting_reads() != fusion->supporting_reads()) {
 		return current_best->supporting_reads() < fusion->supporting_reads();
-	} else if (fusion->contig1 != current_best->contig1) { // all following rules are tie-breakers fr deterministic behavior
+	} else if (fusion->gene1->is_protein_coding != current_best->gene1->is_protein_coding) { // preferrably pick protein-coding genes in case of ties
+		return fusion->gene1->is_protein_coding;
+	} else if (fusion->gene2->is_protein_coding != current_best->gene2->is_protein_coding) {
+		return fusion->gene2->is_protein_coding;
+	} else if (fusion->contig1 != current_best->contig1) { // all following rules are purely technical tie-breakers for deterministic behavior
 		return fusion->contig1 < current_best->contig1;
 	} else if (fusion->contig2 != current_best->contig2) {
 		return fusion->contig2 < current_best->contig2;
