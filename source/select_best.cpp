@@ -40,15 +40,21 @@ unsigned int select_most_supported_breakpoints(fusions_t& fusions) {
 			} else if (rank_fusion(fusion->second) == rank_fusion(current_best->second)) { // then look for the breakpoints with most supporting reads
 				if (fusion->second.supporting_reads() > current_best->second.supporting_reads()) {
 					best_breakpoints[gene_pair] = fusion;
-				} else if (fusion->second.supporting_reads() == current_best->second.supporting_reads()) { // then look for the most upstream / downstream breakpoints
-					if (fusion->second.direction1 == DOWNSTREAM && fusion->second.breakpoint1 > current_best->second.breakpoint1 ||
-					    fusion->second.direction1 == UPSTREAM   && fusion->second.breakpoint1 < current_best->second.breakpoint1) {
+				} else if (fusion->second.supporting_reads() == current_best->second.supporting_reads()) { // preferentially pick an exonic breakpoint
+					if (fusion->second.exonic1 && !current_best->second.exonic1 ||
+					    fusion->second.exonic2 && !current_best->second.exonic2) {
 						best_breakpoints[gene_pair] = fusion;
-					} else if (fusion->second.direction1 == DOWNSTREAM && fusion->second.breakpoint1 == current_best->second.breakpoint1 ||
-					           fusion->second.direction1 == UPSTREAM   && fusion->second.breakpoint1 == current_best->second.breakpoint1) {
-						if (fusion->second.direction2 == DOWNSTREAM && fusion->second.breakpoint2 > current_best->second.breakpoint2 ||
-					            fusion->second.direction2 == UPSTREAM   && fusion->second.breakpoint2 < current_best->second.breakpoint2)
+					} else if ((!current_best->second.exonic1 || fusion->second.exonic1 == current_best->second.exonic1) &&
+					           (!current_best->second.exonic2 || fusion->second.exonic2 == current_best->second.exonic2)) { // then look for the most upstream / downstream breakpoints
+						if (fusion->second.direction1 == DOWNSTREAM && fusion->second.breakpoint1 > current_best->second.breakpoint1 ||
+						    fusion->second.direction1 == UPSTREAM   && fusion->second.breakpoint1 < current_best->second.breakpoint1) {
 							best_breakpoints[gene_pair] = fusion;
+						} else if (fusion->second.direction1 == DOWNSTREAM && fusion->second.breakpoint1 == current_best->second.breakpoint1 ||
+						           fusion->second.direction1 == UPSTREAM   && fusion->second.breakpoint1 == current_best->second.breakpoint1) {
+							if (fusion->second.direction2 == DOWNSTREAM && fusion->second.breakpoint2 > current_best->second.breakpoint2 ||
+						            fusion->second.direction2 == UPSTREAM   && fusion->second.breakpoint2 < current_best->second.breakpoint2)
+								best_breakpoints[gene_pair] = fusion;
+						}
 					}
 				}
 			}
