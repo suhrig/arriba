@@ -119,12 +119,15 @@ if [[ $ANNOTATION =~ RefSeq ]]; then
 					$8-=start[i]-end[i-1]
 		}
 		# append running number to duplicate uses of the same transcript ID
-		if (transcripts[$2]++)
+		gene_id=$13
+		if (transcripts[$2]++) {
+			gene_id=$13"_"transcripts[$2]
 			$2=$2"_"transcripts[$2]
+		}
 		# print one line for each exon
 		for (i=1; i<=$9; i++) {
 			exon=($4=="+") ? i : $9-i+1
-			attributes="gene_id \""$13"\"; transcript_id \""$2"\"; exon_number \""exon"\"; exon_id \""$2"."exon"\"; gene_name \""$13"\";"
+			attributes="gene_id \""gene_id"\"; transcript_id \""$2"\"; exon_number \""exon"\"; exon_id \""$2"."exon"\"; gene_name \""$13"\";"
 			print $3,"RefSeq","exon",start[i]+1,end[i],".",$4,".",attributes
 			# print one line for each coding region
 			if ($14~/cmpl/ && $7<=end[i] && $8>=start[i])
