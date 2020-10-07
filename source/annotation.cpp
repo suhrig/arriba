@@ -159,6 +159,14 @@ bool sort_exons_by_coordinate(const exon_annotation_record_t* exon1, const exon_
 	return *exon1 < *exon2;
 }
 
+inline string strip_ensembl_version_number(const string& ensembl_identifier) {
+	string::size_type trim_position = string::npos;
+	if (ensembl_identifier.substr(0, 3) == "ENS" && (trim_position = ensembl_identifier.find_last_of('.')) < ensembl_identifier.size())
+		return ensembl_identifier.substr(0, trim_position);
+	else
+		return ensembl_identifier;
+}
+
 struct coding_region_t {
 	strand_t strand;
 	contig_t contig;
@@ -204,14 +212,7 @@ void read_annotation_gtf(const string& filename, const string& gtf_features_stri
 			if (!get_gtf_attribute(attributes, gtf_features.gene_name, gene_name) ||
 			    !get_gtf_attribute(attributes, gtf_features.gene_id, gene_id))
 				continue;
-
-			// if Gencode, remove version number from gene ID
-			string::size_type trim_position = string::npos;
-			string short_gene_id;
-			if (gene_id.substr(0, 3) == "ENS" && (trim_position = gene_id.find_last_of('.')) < gene_id.size())
-				short_gene_id = gene_id.substr(0, trim_position);
-			else
-				short_gene_id = gene_id;
+			string short_gene_id = strip_ensembl_version_number(gene_id);
 
 			// convert string representation of contig to numeric ID
 			pair<contigs_t::iterator,bool> find_contig_by_name = contigs.insert(pair<string,contig_t>(removeChr(contig), contigs.size())); // this adds a new contig only if it does not yet exist
@@ -241,10 +242,9 @@ void read_annotation_gtf(const string& filename, const string& gtf_features_stri
 				string transcript_id;
 				if (!get_gtf_attribute(attributes, gtf_features.transcript_id, transcript_id))
 					continue;
-				// if Gencode, remove version number from transcript ID
-				string short_transcript_id = transcript_id;
-				if (short_transcript_id.substr(0, 3) == "ENS" && (trim_position = short_transcript_id.find_last_of('.')) < short_transcript_id.size())
-					short_transcript_id = short_transcript_id.substr(0, trim_position);
+				string short_transcript_id = strip_ensembl_version_number(transcript_id);
+
+				// make transcript annotation record
 				transcript_t& transcript = transcripts[make_tuple(short_transcript_id, annotation_record.contig, annotation_record.strand)];
 				if (transcript == NULL) { // this is the first time we encounter this transcript ID => make a new transcript_annotation_record_t
 					transcript_annotation_record_t transcript_annotation_record;
