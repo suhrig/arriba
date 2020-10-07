@@ -279,7 +279,7 @@ void read_annotation_gtf(const string& filename, const string& gtf_features_stri
 					// check if annotation is sensible
 					if (gene->contig != annotation_record.contig || gene->end - gene->start > max_gene_size) {
 						if (non_unique_items.find(gene_id) == non_unique_items.end()) {
-							cout << "WARNING: gene ID '" << gene_id << "' appears to be non-unique and will be ignored" << endl;
+							cerr << "WARNING: gene ID '" << gene_id << "' appears to be non-unique and will be ignored" << endl;
 							non_unique_items.insert(gene_id); // report gene only once
 						}
 						malformed_genes.insert(gene);
@@ -287,7 +287,7 @@ void read_annotation_gtf(const string& filename, const string& gtf_features_stri
 				}
 				if (assembly.find(gene->contig) != assembly.end() && (unsigned int) gene->end >= assembly.at(gene->contig).size()) {
 					if (non_unique_items.find(gene_id) == non_unique_items.end()) {
-						cout << "WARNING: gene with ID '" << gene_id << "' extends beyond end of contig and will be ignored" << endl;
+						cerr << "WARNING: gene with ID '" << gene_id << "' extends beyond end of contig and will be ignored" << endl;
 						non_unique_items.insert(gene_id); // report gene only once
 					}
 					malformed_genes.insert(gene);
@@ -374,7 +374,7 @@ void read_annotation_gtf(const string& filename, const string& gtf_features_stri
 	for (auto transcript = transcripts.begin(); transcript != transcripts.end(); ++transcript) {
 		if (transcript->second->last_exon->end - transcript->second->first_exon->start > max_gene_size) {
 			malformed_transcripts.push_back(transcript->first);
-			cout << "WARNING: transcript ID '" << get<0>(transcript->first) << "' appears to be non-unique and will be ignored" << endl;
+			cerr << "WARNING: transcript ID '" << get<0>(transcript->first) << "' appears to be non-unique and will be ignored" << endl;
 		}
 	}
 	for (auto malformed_transcript = malformed_transcripts.begin(); malformed_transcript != malformed_transcripts.end(); ++malformed_transcript)
