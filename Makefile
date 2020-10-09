@@ -33,7 +33,7 @@ $(STATIC_LIBS)/libbz2.a:
 	$(WGET) 'https://sourceware.org/pub/bzip2/bzip2-1.0.8.tar.gz' | tar -xzf - -C $(STATIC_LIBS) && \
 	cd $(STATIC_LIBS)/bzip2-*/ && $(MAKE) libbz2.a && cp libbz2.a bzlib.h ..
 $(STATIC_LIBS)/liblzma.a:
-	$(WGET) 'https://tukaani.org/xz/xz-5.2.4.tar.gz' | tar -xzf - -C $(STATIC_LIBS) && \
+	$(WGET) 'https://sourceforge.net/projects/lzmautils/files/xz-5.2.4.tar.gz' | tar -xzf - -C $(STATIC_LIBS) && \
 	cd $(STATIC_LIBS)/xz-*/ && ./configure && $(MAKE) && cp -r src/liblzma/.libs/liblzma.a src/liblzma/api/lzma src/liblzma/api/lzma.h ..
 $(STATIC_LIBS)/libhts.a: $(STATIC_LIBS)/libdeflate.a $(STATIC_LIBS)/libz.a $(STATIC_LIBS)/libbz2.a $(STATIC_LIBS)/liblzma.a
 	$(WGET) 'https://github.com/samtools/htslib/archive/1.11.tar.gz' | tar -xzf - -C $(STATIC_LIBS) && \
