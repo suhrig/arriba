@@ -243,7 +243,7 @@ struct fusion_t {
 	position_t closest_genomic_breakpoint1, closest_genomic_breakpoint2;
 	gene_t gene1, gene2;
 	vector<chimeric_alignments_t::iterator> split_read1_list, split_read2_list, discordant_mate_list;
-	fusion_t(): split_reads1(0), split_reads2(0), exonic1(false), exonic2(false), filter(FILTER_none), discordant_mates(0), anchor_start1(0), anchor_start2(0), closest_genomic_breakpoint1(-1), closest_genomic_breakpoint2(-1) {};
+	fusion_t(): transcript_start_ambiguous(true), split_reads1(0), transcript_start(TRANSCRIPT_START_GENE1), split_reads2(0), spliced1(false), spliced2(false), exonic1(false), exonic2(false), predicted_strand1(FORWARD), predicted_strand2(FORWARD), direction1(DOWNSTREAM), direction2(DOWNSTREAM), confidence(CONFIDENCE_LOW), filter(FILTER_none), predicted_strands_ambiguous(true), discordant_mates(0), contig1(USHRT_MAX), contig2(USHRT_MAX), evalue(0), breakpoint1(-1), breakpoint2(-1), anchor_start1(0), anchor_start2(0), closest_genomic_breakpoint1(-1), closest_genomic_breakpoint2(-1), gene1(NULL), gene2(NULL) {};
 	unsigned int supporting_reads() const { return split_reads1 + split_reads2 + discordant_mates; };
 	bool breakpoint_overlaps_both_genes(const unsigned int which_breakpoint = 0) const {
 		if (which_breakpoint == 1) return breakpoint1 >= gene2->start && breakpoint1 <= gene2->end;

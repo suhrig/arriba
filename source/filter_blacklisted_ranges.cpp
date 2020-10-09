@@ -289,7 +289,7 @@ unsigned int filter_blacklisted_ranges(fusions_t& fusions, const string& blackli
 	// count remaining fusions
 	unsigned int remaining = 0;
 	for (fusions_t::iterator fusion = fusions.begin(); fusion != fusions.end(); ++fusion)
-		if (!fusion->second.filter != FILTER_none)
+		if (fusion->second.filter == FILTER_none)
 			remaining++;
 	return remaining;
 }
