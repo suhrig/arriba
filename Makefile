@@ -1,6 +1,6 @@
 # input directories
 SOURCE := source
-STATIC_LIBS := libraries
+STATIC_LIBS := $(shell mkdir -p libraries && echo libraries)
 
 # compiler flags
 CXX := g++
@@ -8,7 +8,6 @@ CXXFLAGS := -Wall -Wno-parentheses -pthread -std=c++0x -O2
 
 # make a statically linked binary by default and a dynamically linked one for bioconda
 all:
-	mkdir -p $(STATIC_LIBS)
 	$(MAKE) LIBS_A="$(STATIC_LIBS)/libhts.a $(STATIC_LIBS)/libdeflate.a $(STATIC_LIBS)/libz.a $(STATIC_LIBS)/libbz2.a $(STATIC_LIBS)/liblzma.a" arriba
 bioconda:
 	$(MAKE) LIBS_SO="-ldl -lhts -ldeflate -lz -lbz2 -llzma -lm" arriba
