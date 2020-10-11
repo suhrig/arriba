@@ -327,7 +327,7 @@ drawCoverage <- function(left, right, y, coverage, start, end, color) {
 	maxResolution <- 5000 # max number of data points to draw coverage
 	# draw coverage as bars
 	if (!is.null(coverage)) {
-		coverageData <- as.numeric(coverage[IRanges(start, end)])
+		coverageData <- as.numeric(coverage[IRanges(sapply(start, max, min(start(coverage))), sapply(end, min, max(end(coverage))))])
 		# downsample to maxResolution, if there are too many data points
 		coverageData <- aggregate(coverageData, by=list(round(1:length(coverageData) * (right-left) * maxResolution/length(coverageData))), mean)$x
 		polygon(c(left, seq(left, right, length.out=length(coverageData)), right), c(y, y+coverageData*0.1, y), col=color, border=NA)
@@ -772,6 +772,8 @@ findExons <- function(exons, contig, gene, direction, breakpoint, coverage, tran
 			lengthOfTranscriptWithHighestCoverage <- 0
 			for (transcript in unique(candidateExons$transcript)) {
 				exonsOfTranscript <- candidateExons[candidateExons$transcript==transcript,]
+				exonsOfTranscript$start <- sapply(exonsOfTranscript$start, max, min(start(coverage)))
+				exonsOfTranscript$end <- sapply(exonsOfTranscript$end, min, max(end(coverage)))
 				lengthOfTranscript <- sum(exonsOfTranscript$end - exonsOfTranscript$start + 1)
 				coverageSum <- sum(as.numeric(coverage[IRanges(exonsOfTranscript$start, exonsOfTranscript$end)]))
 				# we prefer shorter transcripts over longer ones, because otherwise there is a bias towards transcripts with long UTRs
@@ -909,7 +911,9 @@ for (fusion in 1:nrow(fusions)) {
 	if (alignmentsFile != "") {
 		coverageNormalization <- ifelse(
 			squishIntrons, # => ignore intronic coverage
-			max(as.numeric(coverage1[IRanges(exons1$start,exons1$end)]), as.numeric(coverage2[IRanges(exons2$start,exons2$end)])),
+			max(
+				as.numeric(coverage1[IRanges(sapply(exons1$start,max,min(start(coverage1))),sapply(exons1$end,min,max(end(coverage1))))]),
+				as.numeric(coverage2[IRanges(sapply(exons2$start,max,min(start(coverage2))),sapply(exons2$end,min,max(end(coverage2))))])),
 			max(max(coverage1), max(coverage2))
 		)
 		coverage1 <- coverage1/coverageNormalization
