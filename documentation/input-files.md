@@ -111,7 +111,7 @@ Protein domain annotation can be passed to Arriba via the parameter `-p`. The co
 Name=PROTEIN_DOMAIN_NAME;gene_id=GENE_ID;gene_name=GENE_NAME
 ```
 
-The attribute `Name` is reported in the column `retained_protein_domains` of Arriba's output file. Some special characters in the name are replaced with underscores (`_`). The columns `gene_id` and `gene_name` are used to match the protein domains to the genes given in the [gene annotation](#Annotation). If a match cannot be found, Arriba cannot determine the retained protein domains of the respective gene and a warning is issued. There may be many warnings if RefSeq annotation is used, because the protein domains file distributed with Arriba uses ENSEMBL gene names/IDs.
+The attribute `Name` is reported in the column `retained_protein_domains` of Arriba's output file. Some special characters in the name are replaced with underscores (`_`). The columns `gene_id` and `gene_name` are used to match the protein domains to the genes given in the [gene annotation](#annotation). If a match cannot be found, Arriba cannot determine the retained protein domains of the respective gene and a warning is issued. There may be many warnings if RefSeq annotation is used, because the protein domains file distributed with Arriba uses ENSEMBL gene names/IDs.
 
 Structural variant calls from WGS
 ---------------------------------
