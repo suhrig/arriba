@@ -10,7 +10,7 @@ using namespace std;
 
 const string HELP_CONTACT = "https://github.com/suhrig/arriba/";
 const string MANUAL_URL = "https://arriba.readthedocs.io/";
-const string ARRIBA_VERSION = "1.2.0";
+const string ARRIBA_VERSION = "2.0.0";
 
 string wrap_help(const string& option, const string& text, const unsigned short int max_line_width = 80);
 

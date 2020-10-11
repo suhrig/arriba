@@ -12,7 +12,7 @@ RUN wget -q -O - 'https://github.com/alexdobin/STAR/archive/2.7.6a.tar.gz' | tar
 cp -p STAR-2.7.6a/bin/Linux_x86_64/STAR /usr/local/bin/
 
 # install arriba
-RUN wget -q -O - "https://github.com/suhrig/arriba/releases/download/v1.2.0/arriba_v1.2.0.tar.gz" | tar -xzf -
+RUN wget -q -O - "https://github.com/suhrig/arriba/releases/download/v2.0.0/arriba_v2.0.0.tar.gz" | tar -xzf -
 
 # make wrapper script for download_references.sh
 RUN echo '#!/bin/bash\n\
