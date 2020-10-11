@@ -403,12 +403,13 @@ drawCircos <- function(fusion, fusions, cytobands, minConfidenceForCircosPlot) {
 	confidenceRank <- c(low=0, medium=1, high=2)
 	for (i in c(setdiff(1:nrow(fusions), fusion), fusion)) { # draw fusion of interest last, such that its arc is on top
 		f <- fusions[i,]
-		if (minConfidenceForCircosPlot != "none" && confidenceRank[f$confidence] >= confidenceRank[minConfidenceForCircosPlot] || i==fusion)
-			circos.link(
-				f$contig1, f$breakpoint1,
-				f$contig2, f$breakpoint2,
-				lwd=2, col=ifelse(i==fusion, rgb(1,0,0), rgb(1,0.7,0.7))
-			)
+		if (any(cytobands$contig==f$contig1) && any(cytobands$contig==f$contig2)) # ignore viral contigs, because we have no cytoband information for them
+			if (minConfidenceForCircosPlot != "none" && confidenceRank[f$confidence] >= confidenceRank[minConfidenceForCircosPlot] || i==fusion)
+				circos.link(
+					f$contig1, f$breakpoint1,
+					f$contig2, f$breakpoint2,
+					lwd=2, col=ifelse(i==fusion, rgb(1,0,0), rgb(1,0.7,0.7))
+				)
 	}
 }
 
