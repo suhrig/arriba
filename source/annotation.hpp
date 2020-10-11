@@ -3,9 +3,9 @@
 
 #include <unordered_map>
 #include <map>
-#include <vector>
 #include <set>
 #include <string>
+#include <vector>
 #include "common.hpp"
 
 using namespace std;
@@ -25,9 +25,8 @@ const string DEFAULT_GTF_FEATURES = "gene_name=gene_name|gene_id gene_id=gene_id
 bool parse_gtf_features(string gtf_features_string, gtf_features_t& gtf_features);
 
 string removeChr(string contig);
-string addChr(string contig);
 
-void read_annotation_gtf(const string& filename, const string& gtf_features_string, contigs_t& contigs, gene_annotation_t& gene_annotation, transcript_annotation_t& transcript_annotation, exon_annotation_t& exon_annotation, unordered_map<string,gene_t>& gene_names);
+void read_annotation_gtf(const string& filename, const string& gtf_features_string, contigs_t& contigs, vector<string>& original_contig_names, const assembly_t& assembly, gene_annotation_t& gene_annotation, transcript_annotation_t& transcript_annotation, exon_annotation_t& exon_annotation, unordered_map<string,gene_t>& gene_names);
 
 template <class T> void make_annotation_index(annotation_t<T>& annotation, annotation_index_t<T*>& annotation_index, const contigs_t& contigs);
 
@@ -41,7 +40,7 @@ void annotate_alignments(mates_t& mates, const exon_annotation_index_t& exon_ann
 
 void get_boundaries_of_biggest_gene(gene_set_t& genes, position_t& start, position_t& end);
 
-int get_spliced_distance(const contig_t contig, const position_t position1, const position_t position2, const direction_t direction1, const direction_t direction2, const gene_t gene, const exon_annotation_index_t& exon_annotation_index);
+int get_spliced_distance(const contig_t contig, const position_t position1, const position_t position2, const gene_t gene, const exon_annotation_index_t& exon_annotation_index);
 
 // get the complementary strand
 inline strand_t complement_strand(const strand_t strand) {

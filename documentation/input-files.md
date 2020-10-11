@@ -40,13 +40,13 @@ GENCODE annotation is recommended over RefSeq annotation, because the former has
 Blacklist
 ---------
 
-It is strongly advised to run Arriba with a blacklist (parameter `-b`). Otherwise, the false positive rate increases by an order of magnitude. For this reason, using Arriba with assemblies or organisms which are not officially supported is not recommended. At the moment, the supported assemblies are: hg19, hs37d5, GRCh37, hg38, and GRCh38 (and any other assemblies that have compatible coordinates). Support for mm10 is in development. The blacklists are contained in the [release tarballs](https://github.com/suhrig/arriba/releases) of Arriba.
+It is strongly advised to run Arriba with a blacklist (parameter `-b`). Otherwise, the false positive rate increases by an order of magnitude. For this reason, using Arriba with assemblies or organisms which are not officially supported is not recommended. At the moment, the supported assemblies are: hg19/hs37d5/GRCh37, hg38/GRCh38, and mm10/GRCm38 (as well as any other assemblies that have compatible coordinates). The blacklists are contained in the [release tarballs](https://github.com/suhrig/arriba/releases) of Arriba.
 
 The blacklist removes recurrent alignment artifacts and transcripts which are present in healthy tissue. This helps eliminate frequently observed transcripts, such as read-through fusions between neighboring genes, circular RNAs and other non-canonically spliced transcripts. It was trained on RNA-Seq samples from the [Human Protein Atlas](https://www.proteinatlas.org/), the [Illumina Human BodyMap2](https://www.ebi.ac.uk/arrayexpress/experiments/E-MTAB-513/) , the [ENCODE project](https://www.encodeproject.org/) , the [Roadmap Epigenomics project](http://www.roadmapepigenomics.org/), and the [NCT MASTER cohort](https://doi.org/10.1002/ijc.30828), a heterogeneous cohort of cancer samples, from which highly recurrent artifacts were identified.
 
 The blacklist is a tab-separated file with two columns and may optionally be gzip-compressed. Lines starting with a hash (`#`) are treated as comments. Each line represents a pair of regions between which events are ignored. A region can be
 
-- a 1-based coordinate in the format `CONTIG:POSITION`, optionally prefixed with the strand (example: `+9:56743754`).
+- a 1-based coordinate in the format `CONTIG:POSITION`, optionally prefixed with the strand (example: `+9:56743754`). If `CONTIG` ends on an asterisk (`*`), the contig with the closest matching name is chosen.
 
 - a range in the format `CONTIG:START-END`, optionally prefixed with a strand (example: `9:1000000-1100000`).
 
@@ -77,9 +77,41 @@ Known fusions
 
 Arriba can be instructed to be particularly sensitive towards events between certain gene pairs by supplying a list of gene pairs (parameter `-k`). A number of filters are not applied to these gene pairs. This is useful to improve the detection rate of expected or highly relevant events, such as recurrent fusions. Occassionally, this leads to false positive calls. But if high sensitivity is more important than specificity, this might be acceptable. Events which would be discarded by a filter and were recovered due to being listed in the known fusions list are usually assigned a low confidence.
 
-A comprehensive list of known fusions can be obtained from [CancerGeneCensus](http://cancer.sanger.ac.uk/cosmic/download) in the section titled "Complete Fusion Export". Depending on the gene annotation that is used to run Arriba, some gene names need to be adjusted.
+The file has two columns separated by a tab and may optionally be gzip-compressed. Lines starting with a hash (`#`) are treated as comments. Each line represents a pair of regions to which very sensitive filtering thresholds are applied. A region can be
 
-The file has two columns separated by a tab. Each line lists a pair of genes. The order of the genes is irrelevant. Arriba searches for both genes as the 5' end and the 3' end of a fusion. Lines starting with a hash (`#`) are treated as comments. Optionally, the file can be gzip-compressed.
+- a 1-based coordinate in the format `CONTIG:POSITION`, optionally prefixed with the strand (example: `+9:56743754`). If `CONTIG` ends on an asterisk (`*`), the contig with the closest matching name is chosen.
+
+- a range in the format `CONTIG:START-END`, optionally prefixed with a strand (example: `9:1000000-1100000`).
+
+- the name of a gene given in the provided annotation.
+
+The order of the given regions is important. The region given in the first column is assumed to denote the 5' end of the fusion and the region in the second column to be the 3' end. If Arriba cannot determine with confidence which gene constitutes the 5' and which the 3' end of a fusion prediction, then the order is ignored and the prediction is rescued in both cases.
+
+Tags
+----
+
+Arriba can be supplied with a list of user-defined tags using the parameter `-t`. Whenever a fusion prediction matches the selection criteria for a tag, the column `tags` is populated with the respective tag. This feature is useful to annotate known oncogenic fusions, for example.
+
+The file has three columns separated by a tab and may optionally be gzip-compressed. Lines starting with a hash (`#`) are treated as comments. Each line represents a pair of regions to be annotated. The first two columns specify the regions to be annotated; the third column the tag that is used for annotation. Some special characters in the tag are replaced with underscores (`_`) in Arriba's output file. A region can be
+
+- a 1-based coordinate in the format `CONTIG:POSITION`, optionally prefixed with the strand (example: `+9:56743754`).
+
+- a range in the format `CONTIG:START-END`, optionally prefixed with a strand (example: `9:1000000-1100000`).
+
+- the name of a gene given in the provided annotation.
+
+The order of the given regions is important. The region given in the first column is assumed to denote the 5' end of the fusion and the region in the second column to be the 3' end.
+
+Protein domains
+---------------
+
+Protein domain annotation can be passed to Arriba via the parameter `-p`. The column `retained_protein_domains` of Arriba's output file is then populated accordingly. The file must be in GFF3 format and may optionally be gzip-compressed. The ninth column must at least contain the following attributes:
+
+```
+Name=PROTEIN_DOMAIN_NAME;gene_id=GENE_ID;gene_name=GENE_NAME
+```
+
+The attribute `Name` is reported in the column `retained_protein_domains` of Arriba's output file. Some special characters in the name are replaced with underscores (`_`). The columns `gene_id` and `gene_name` are used to match the protein domains to the genes given in the [gene annotation](#annotation). If a match cannot be found, Arriba cannot determine the retained protein domains of the respective gene and a warning is issued. There may be many warnings if RefSeq annotation is used, because the protein domains file distributed with Arriba uses ENSEMBL gene names/IDs.
 
 Structural variant calls from WGS
 ---------------------------------
@@ -92,7 +124,9 @@ If whole-genome sequencing (WGS) data is available, the sensitivity and specific
 
 Both of these behaviors can be disabled by disabling the filters `genomic_support` and `no_genomic_support`, respectively. Providing Arriba with a list of structural variant calls then does not influence the calls, but it still has the benefit of filling the columns `closest_genomic_breakpoint1` and `closest_genomic_breakpoint2` with the breakpoints of the structural variant which is closest to a fusion. If the structural variant calls were obtained from whole-exome sequencing (WES) data rather than WGS data, the filter `no_genomic_support` should be disabled, since WES has poor coverage in most regions of the genome, such that many structural variants are missed.
 
-The file must contain four columns separated by tabs. The first two columns contain the breakpoints of the structural variants in the format `CONTIG:POSITION`. The last two columns contain the orientation of the breakpoints. The accepted values are:
+Two file formats are accepted: a simple four-column format and the standard Variant Call Format (VCF). The format is detected automatically.
+
+In case of the simple format, the file must contain four columns separated by tabs. The first two columns contain the breakpoints of the structural variants in the format `CONTIG:POSITION`. The last two columns contain the orientation of the breakpoints. The accepted values are:
 
 - `downstream` or `+`: the fusion partner is fused downstream of the breakpoint, i.e., at a coordinate higher than the breakpoint
 
@@ -106,6 +140,8 @@ Example:
 17:61499820	20:45133874	+	+
 3:190967119	7:77868317	-	-
 ```
+
+In case of the Variant Call Format, the file must comply with the [VCF specification for structural variants](https://samtools.github.io/hts-specs/VCFv4.2.pdf). In particular, Arriba requires that the `SVTYPE` field be present in the `INFO` column and specify one of the four values `BND`, `DEL`, `DUP`, `INV`. In addition, for all `SVTYPE`s other than `BND`, the `END` field must be present and specify the second breakpoint of the structural variant. Structural variants with single breakends are silently ignored.
 
 Arriba checks if the orientation of the structural variant matches that of a fusion detected in the RNA-Seq data. If, for example, Arriba predicts the 5' end of a gene to be retained in a fusion, then a structural variant is expected to confirm this, or else the variant is not considered to be related.
 

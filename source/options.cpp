@@ -48,8 +48,7 @@ bool output_directory_exists(const string& output_file) {
 }
 
 bool validate_int(const char* optarg, int& value, const int min_value, const int max_value) {
-	value = atoi(optarg);
-	if (string(optarg) != string("0") && value == 0)
+	if (!str_to_int(optarg, value))
 		return false;
 	return value >= min_value && value <= max_value;
 }
@@ -64,8 +63,7 @@ bool validate_int(const char* optarg, unsigned int& value, const unsigned int mi
 }
 
 bool validate_float(const char* optarg, float& value, const float min_value, const float max_value) {
-	value = atof(optarg);
-	if (string(optarg) != string("0") && value == 0)
+	if (!str_to_float(optarg, value))
 		return false;
 	return value >= min_value && value <= max_value;
 }
@@ -73,9 +71,13 @@ bool validate_float(const char* optarg, float& value, const float min_value, con
 options_t get_default_options() {
 	options_t options;
 
-	options.interesting_contigs = "1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 X Y";
-	for (auto i = FILTERS.begin(); i != FILTERS.end(); ++i)
-		options.filters[i->first] = true;
+	options.interesting_contigs = "1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 X Y AC_* NC_*";
+	options.viral_contigs = "AC_* NC_*";
+	options.top_viral_contigs = 5;
+	options.viral_contig_min_covered_fraction = 0.15;
+	for (size_t i = 0; i < FILTERS.size(); ++i)
+		if (i != FILTER_none)
+			options.filters[FILTERS[i]] = true;
 	options.evalue_cutoff = 0.3;
 	options.min_support = 2;
 	options.max_mismapper_fraction = 0.8;
@@ -84,12 +86,7 @@ options_t get_default_options() {
 	options.homopolymer_length = 6;
 	options.max_genomic_breakpoint_distance = 100000;
 	options.min_read_through_distance = 10000;
-	options.print_supporting_reads = false;
-	options.print_supporting_reads_for_discarded_fusions = false;
-	options.print_fusion_sequence = false;
-	options.print_fusion_sequence_for_discarded_fusions = false;
-	options.print_peptide_sequence = false;
-	options.print_peptide_sequence_for_discarded_fusions = false;
+	options.print_extra_info_for_discarded_fusions = false;
 	options.max_kmer_content = 0.6;
 	options.fragment_length = 200;
 	options.strandedness = STRANDEDNESS_AUTO;
@@ -98,7 +95,9 @@ options_t get_default_options() {
 	options.mismatch_pvalue_cutoff = 0.01;
 	options.subsampling_threshold = 300;
 	options.high_expression_quantile = 0.998;
-	options.exonic_fraction = 0.2;
+	options.exonic_fraction = 0.33;
+	options.external_duplicate_marking = false;
+	options.fill_sequence_gaps = false;
 
 	return options;
 }
@@ -122,6 +121,7 @@ void print_usage() {
 	     << endl
 	     << "Usage: arriba [-c Chimeric.out.sam] -x Aligned.out.bam \\" << endl
 	     << "              -g annotation.gtf -a assembly.fa [-b blacklists.tsv] [-k known_fusions.tsv] \\" << endl
+	     << "              [-t tags.tsv] [-p protein_domains.gff3] [-d structural_variants_from_WGS.tsv] \\" << endl
 	     << "              -o fusions.tsv [-O fusions.discarded.tsv] \\" << endl
 	     << "              [OPTIONS]" << endl
 	     << endl
@@ -148,6 +148,12 @@ void print_usage() {
 	                  "separated by tabs.")
 	     << wrap_help("-o FILE", "Output file with fusions that have passed all filters.")
 	     << wrap_help("-O FILE", "Output file with fusions that were discarded due to filtering.")
+	     << wrap_help("-t FILE", "Tab-separated file containing fusions to annotate with tags "
+	                  "in the 'tags' column. The first two columns specify the genes; the third "
+	                  "column specifies the tag. The file may be gzip-compressed.")
+	     << wrap_help("-p FILE", "File in GFF3 format containing coordinates of the protein domains "
+	                  "of genes. The protein domains retained in a fusion are listed in the "
+	                  "column 'retained_protein_domains'. The file may be gzip-compressed.")
 	     << wrap_help("-d FILE", "Tab-separated file with coordinates of structural variants "
 	                  "found using whole-genome sequencing data. These coordinates serve to "
 	                  "increase sensitivity towards weakly expressed fusions and to eliminate "
@@ -165,7 +171,10 @@ void print_usage() {
 	                  "data helps resolve ambiguities. Default: " + string((default_options.strandedness == STRANDEDNESS_NO) ? "no" : ((default_options.strandedness == STRANDEDNESS_YES) ? "yes" : ((default_options.strandedness == STRANDEDNESS_REVERSE) ? "reverse" : "auto"))))
 	     << wrap_help("-i CONTIGS", "Comma-/space-separated list of interesting contigs. Fusions "
 	                  "between genes on other contigs are ignored. Contigs can be specified with "
-	                  "or without the prefix \"chr\".\nDefault: " + default_options.interesting_contigs)
+	                  "or without the prefix \"chr\". Asterisks (*) are treated as wild-cards.\n"
+	                  "Default: " + default_options.interesting_contigs)
+	     << wrap_help("-v CONTIGS", "Comma-/space-separated list of viral contigs. Asterisks (*) "
+	                  "are treated as wild-cards.\nDefault: " + default_options.viral_contigs)
 	     << wrap_help("-f FILTERS", "Comma-/space-separated list of filters to disable. By default "
 	                  "all filters are enabled. Valid values: " + valid_filters)
 	     << wrap_help("-E MAX_E-VALUE", "Arriba estimates the number of fusions with a given "
@@ -214,7 +223,7 @@ void print_usage() {
 	                  "Default: " + to_string(static_cast<long long unsigned int>(default_options.subsampling_threshold)))
 	     << wrap_help("-Q QUANTILE", "Highly expressed genes are prone to produce artifacts "
 	                  "during library preparation. Genes with an expression above the given quantile "
-	                  "are eligible for filtering by the 'pcr_fusions' filter. "
+	                  "are eligible for filtering by the 'in_vitro' filter. "
 	                  "Default: " + to_string(static_cast<long double>(default_options.high_expression_quantile)))
 	     << wrap_help("-e EXONIC_FRACTION", "The breakpoints of false-positive predictions of "
 	                  "intragenic events are often both in exons. True predictions are more likely "
@@ -222,18 +231,22 @@ void print_usage() {
 	                  "If the fraction of exonic sequence between two breakpoints is smaller than "
 	                  "the given fraction, the 'intragenic_exonic' filter discards the event. "
 	                  "Default: " + to_string(static_cast<long double>(default_options.exonic_fraction)))
-	     << wrap_help("-T", "When set, the column 'fusion_transcript' is populated with "
-	                  "the sequence of the fused genes as assembled from the supporting reads. "
-	                  "Specify the flag twice to also print the fusion transcripts to the file "
-	                  "containing discarded fusions (-O). Default: " + string((default_options.print_fusion_sequence) ? "on" : "off"))
-	     << wrap_help("-P", "When set, the column 'peptide_sequence' is populated with "
-	                  "the sequence of the fused proteins as assembled from the supporting reads. "
-	                  "Specify the flag twice to also print the peptide sequence to the file "
-	                  "containing discarded fusions (-O). Default: " + string((default_options.print_peptide_sequence) ? "on" : "off"))
-	     << wrap_help("-I", "When set, the column 'read_identifiers' is populated with "
-	                  "identifiers of the reads which support the fusion. The identifiers "
-	                  "are separated by commas. Specify the flag twice to also print the read "
-	                  "identifiers to the file containing discarded fusions (-O). Default: " + string((default_options.print_supporting_reads) ? "on" : "off"))
+	     << wrap_help("-T TOP_N", "Only report viral integration sites of the top N most highly "
+	                  "expressed viral contigs. Default: " + to_string(static_cast<long long unsigned int>(default_options.top_viral_contigs)))
+	     << wrap_help("-C COVERED_FRACTION", "Ignore virally associated events if the virus is not "
+	                  "fully expressed, i.e., less than the given fraction of the viral contig is "
+	                  "transcribed. Default: " + to_string(static_cast<long double>(default_options.viral_contig_min_covered_fraction)))
+	     << wrap_help("-u", "Instead of performing duplicate marking itself, Arriba relies on "
+	                  "duplicate marking by a preceding program using the BAM_FDUP flag. This "
+	                  "makes sense when unique molecular identifiers (UMI) are used.")
+	     << wrap_help("-X", "To reduce the runtime and file size, by default, the columns "
+	                  "'fusion_transcript', 'peptide_sequence', and 'read_identifiers' are left "
+	                  "empty in the file containing discarded fusion candidates (see parameter -O). "
+	                  "When this flag is set, this extra information is reported in the discarded "
+	                  "fusions file.")
+	     << wrap_help("-I", "If assembly of the fusion transcript sequence from the supporting "
+	                  "reads is incomplete (denoted as '...'), fill the gaps using the assembly "
+	                  "sequence wherever possible.")
 	     << wrap_help("-h", "Print help and exit.")
 	     << "For more information or help, visit: " << HELP_CONTACT << endl
 	     << "The user manual is available at: " << MANUAL_URL << endl;
@@ -245,7 +258,7 @@ options_t parse_arguments(int argc, char **argv) {
 	// throw error when first argument is not prefixed with a dash
 	// for some reason getopt does not detect this error and simply skips the argument
 	if (argc > 1 && (string(argv[1]).empty() || argv[1][0] != '-')) {
-		cerr << "ERROR: Cannot interpret the first argument \"" << argv[1] << "\"." << endl;
+		cerr << "ERROR: cannot interpret the first argument: " << argv[1] << endl;
 		exit(1);
 	}
 
@@ -253,25 +266,33 @@ options_t parse_arguments(int argc, char **argv) {
 	opterr = 0;
 	int c;
 	string junction_suffix(".junction");
-	while ((c = getopt(argc, argv, "c:x:d:g:G:o:O:a:b:k:s:i:f:E:S:m:L:H:D:R:A:M:K:V:F:U:Q:e:TPIh")) != -1) {
+	unordered_map<char,unsigned int> duplicate_arguments;
+	while ((c = getopt(argc, argv, "c:x:d:g:G:o:O:t:p:a:b:k:s:i:v:f:E:S:m:L:H:D:R:A:M:K:V:F:U:Q:e:T:C:uXIh")) != -1) {
+
+		// throw error if the same argument is specified more than once
+		duplicate_arguments[c]++;
+		if (duplicate_arguments[c] > 1) {
+			cerr << "ERROR: argument -" << ((char) c) << " specified too often" << endl;
+			exit(1);
+		}
 
 		switch (c) {
 			case 'c':
 				options.chimeric_bam_file = optarg;
 				if (access(options.chimeric_bam_file.c_str(), R_OK) != 0) {
-					cerr << "ERROR: File '" << options.chimeric_bam_file << "' not found." << endl;
+					cerr << "ERROR: file not found/readable: " << options.chimeric_bam_file << endl;
 					exit(1);
 				}
 				if (options.chimeric_bam_file.size() >= junction_suffix.size() &&
 				    options.chimeric_bam_file.substr(options.chimeric_bam_file.size() - junction_suffix.size()) == junction_suffix) {
-					cerr << "WARNING: It seems you passed the chimeric junction file ('Chimeric.out.junction') to the parameter -c. However, this parameter takes the chimeric alignments file ('Chimeric.out.sam') as input." << endl;
+					cerr << "WARNING: it seems you passed the chimeric junction file ('Chimeric.out.junction') to the parameter -c, but this parameter takes the chimeric alignments file ('Chimeric.out.sam') as input" << endl;
 					exit(1);
 				}
 				break;
 			case 'x': {
 				options.rna_bam_file = optarg;
 				if (access(options.rna_bam_file.c_str(), R_OK) != 0) {
-					cerr << "ERROR: File '" << options.rna_bam_file << "' not found." << endl;
+					cerr << "ERROR: file not found/readable: " << options.rna_bam_file << endl;
 					exit(1);
 				}
 				break;
@@ -279,14 +300,14 @@ options_t parse_arguments(int argc, char **argv) {
 			case 'd':
 				options.genomic_breakpoints_file = optarg;
 				if (access(options.genomic_breakpoints_file.c_str(), R_OK) != 0) {
-					cerr << "ERROR: File '" << options.genomic_breakpoints_file << "' not found." << endl;
+					cerr << "ERROR: file not found/readable: " << options.genomic_breakpoints_file << endl;
 					exit(1);
 				}
 				break;
 			case 'g':
 				options.gene_annotation_file = optarg;
 				if (access(options.gene_annotation_file.c_str(), R_OK) != 0) {
-					cerr << "ERROR: File '" << options.gene_annotation_file << "' not found." << endl;
+					cerr << "ERROR: file not found/readable: " << options.gene_annotation_file << endl;
 					exit(1);
 				}
 				break;
@@ -295,7 +316,7 @@ options_t parse_arguments(int argc, char **argv) {
 				{
 					gtf_features_t gtf_features;
 					if (!parse_gtf_features(options.gtf_features, gtf_features)) {
-						cerr << "ERROR: Malformed GTF features: " << options.gtf_features << endl;
+						cerr << "ERROR: malformed GTF features: " << options.gtf_features << endl;
 						exit(1);
 					}
 				}
@@ -303,41 +324,56 @@ options_t parse_arguments(int argc, char **argv) {
 			case 'o':
 				options.output_file = optarg;
 				if (!output_directory_exists(options.output_file)) {
-					cerr << "ERROR: Parent directory of output file '" << options.output_file << "' does not exist." << endl;
+					cerr << "ERROR: parent directory of output file '" << options.output_file << "' does not exist" << endl;
 					exit(1);
 				}
 				break;
 			case 'O':
 				options.discarded_output_file = optarg;
 				if (!output_directory_exists(options.discarded_output_file)) {
-					cerr << "ERROR: Parent directory of output file '" << options.discarded_output_file << "' does not exist." << endl;
+					cerr << "ERROR: parent directory of output file '" << options.discarded_output_file << "' does not exist" << endl;
 					exit(1);
 				}
 				break;
+			case 't':
+				options.tags_file = optarg;
+				if (access(options.tags_file.c_str(), R_OK) != 0) {
+					cerr << "ERROR: file not found/readable: " << options.tags_file << endl;
+					exit(1);
+				}
+				break;
+			case 'p':
+				options.protein_domains_file = optarg;
+				if (access(options.protein_domains_file.c_str(), R_OK) != 0) {
+					cerr << "ERROR: file not found/readable: " << options.protein_domains_file << endl;
+					exit(1);
+				}
+				break;
+
 			case 'a':
 				options.assembly_file = optarg;
 				if (access(options.assembly_file.c_str(), R_OK) != 0) {
-					cerr << "ERROR: File '" << options.assembly_file << "' not found." << endl;
+					cerr << "ERROR: file not found/readable: " << options.assembly_file << endl;
 					exit(1);
 				}
 				// when CRAM files are used, the FastA file must be indexed
 				if (options.rna_bam_file.size() >= 5 && options.rna_bam_file.substr(options.rna_bam_file.size()-5) == ".cram")
 					if (access((options.assembly_file + ".fai").c_str(), R_OK) != 0) {
-						cerr << "ERROR: Index for '" << options.assembly_file << "' not found." << endl;
+						cerr << "ERROR: index file not found/readable: " << options.assembly_file << ".fai" << endl;
 						exit(1);
 					}
 				break;
 			case 'b':
 				options.blacklist_file = optarg;
 				if (access(options.blacklist_file.c_str(), R_OK) != 0) {
-					cerr << "ERROR: File '" << options.blacklist_file << "' not found." << endl;
+					cerr << "ERROR: file not found/readable: " << options.blacklist_file << endl;
 					exit(1);
 				}
 				break;
 			case 'k':
 				options.known_fusions_file = optarg;
 				if (access(options.known_fusions_file.c_str(), R_OK) != 0) {
-					cerr << "ERROR: File '" << options.known_fusions_file << "' not found." << endl;
+					cerr << "ERROR: file not found/readable: " << options.known_fusions_file << endl;
 					exit(1);
 				}
 				break;
@@ -351,13 +387,17 @@ options_t parse_arguments(int argc, char **argv) {
 				} else if (string(optarg) == "reverse") {
 					options.strandedness = STRANDEDNESS_REVERSE;
 				} else {
-					cerr << "ERROR: Invalid type of strandedness: " << optarg << endl;
+					cerr << "ERROR: invalid type of strandedness: " << optarg << endl;
 					exit(1);
 				}
 				break;
 			case 'i':
 				options.interesting_contigs = optarg;
 				replace(options.interesting_contigs.begin(), options.interesting_contigs.end(), ',', ' ');
+				break;
+			case 'v':
+				options.viral_contigs = optarg;
+				replace(options.viral_contigs.begin(), options.viral_contigs.end(), ',', ' ');
 				break;
 			case 'f':
 				{
@@ -370,7 +410,7 @@ options_t parse_arguments(int argc, char **argv) {
 						string disabled_filter;
 						disabled_filters_ss >> disabled_filter;
 						if (!disabled_filter.empty() && options.filters.find(disabled_filter) == options.filters.end()) {
-							cerr << "ERROR: Invalid argument to option -f: " << disabled_filter << endl;
+							cerr << "ERROR: invalid argument to option -f: " << disabled_filter << endl;
 							exit(1);
 						} else
 							options.filters[disabled_filter] = false;
@@ -379,111 +419,114 @@ options_t parse_arguments(int argc, char **argv) {
 				break;
 			case 'E':
 				if (!validate_float(optarg, options.evalue_cutoff, 0)) {
-					cerr << "ERROR: " << "Argument to -" << ((char) c) << " must be greater than 0." << endl;
+					cerr << "ERROR: argument to -" << ((char) c) << " must be greater than 0" << endl;
 					exit(1);
 				}
 				break;
 			case 'S':
 				if (!validate_int(optarg, options.min_support, 0)) {
-					cerr << "ERROR: " << "Invalid argument to -" << ((char) c) << "." << endl;
+					cerr << "ERROR: invalid argument to -" << ((char) c) << endl;
 					exit(1);
 				}
 				break;
 			case 'm':
 				if (!validate_float(optarg, options.max_mismapper_fraction, 0, 1)) {
-					cerr << "ERROR: " << "Argument to -" << ((char) c) << " must be between 0 and 1." << endl;
+					cerr << "ERROR: argument to -" << ((char) c) << " must be between 0 and 1" << endl;
 					exit(1);
 				}
 				break;
 			case 'L':
 				if (!validate_float(optarg, options.max_homolog_identity, 0, 1)) {
-					cerr << "ERROR: " << "Argument to -" << ((char) c) << " must be between 0 and 1." << endl;
+					cerr << "ERROR: argument to -" << ((char) c) << " must be between 0 and 1" << endl;
 					exit(1);
 				}
 				break;
 			case 'H':
 				if (!validate_int(optarg, options.homopolymer_length, 2)) {
-					cerr << "ERROR: " << "Argument to -" << ((char) c) << " must be greater than 1." << endl;
+					cerr << "ERROR: argument to -" << ((char) c) << " must be greater than 1" << endl;
 					exit(1);
 				}
 				break;
 			case 'D':
 				if (!validate_int(optarg, options.max_genomic_breakpoint_distance, 0)) {
-					cerr << "ERROR: " << "Invalid argument to -" << ((char) c) << "." << endl;
+					cerr << "ERROR: invalid argument to -" << ((char) c) << endl;
 					exit(1);
 				}
 				break;
 			case 'R':
 				if (!validate_int(optarg, options.min_read_through_distance, 0)) {
-					cerr << "ERROR: " << "Invalid argument to -" << ((char) c) << "." << endl;
+					cerr << "ERROR: invalid argument to -" << ((char) c) << endl;
 					exit(1);
 				}
 				break;
 			case 'A':
 				if (!validate_int(optarg, options.min_anchor_length, 0)) {
-					cerr << "ERROR: " << "Invalid argument to -" << ((char) c) << "." << endl;
+					cerr << "ERROR: invalid argument to -" << ((char) c) << endl;
 					exit(1);
 				}
 				break;
 			case 'M':
 				if (!validate_int(optarg, options.min_spliced_events, 0)) {
-					cerr << "ERROR: " << "Invalid argument to -" << ((char) c) << "." << endl;
+					cerr << "ERROR: invalid argument to -" << ((char) c) << endl;
 					exit(1);
 				}
 				break;
 			case 'K':
 				if (!validate_float(optarg, options.max_kmer_content, 0, 1)) {
-					cerr << "ERROR: " << "Argument to -" << ((char) c) << " must be between 0 and 1." << endl;
+					cerr << "ERROR: argument to -" << ((char) c) << " must be between 0 and 1" << endl;
 					exit(1);
 				}
 				break;
 			case 'V':
 				if (!validate_float(optarg, options.mismatch_pvalue_cutoff, 0, 1)) {
-					cerr << "ERROR: " << "Argument to -" << ((char) c) << " must be between 0 and 1." << endl;
+					cerr << "ERROR: argument to -" << ((char) c) << " must be between 0 and 1" << endl;
 					exit(1);
 				}
 				break;
 			case 'F':
 				if (!validate_int(optarg, options.fragment_length, 1)) {
-					cerr << "ERROR: " << "Argument to -" << ((char) c) << " must be an integer greater than 0." << endl;
+					cerr << "ERROR: argument to -" << ((char) c) << " must be an integer greater than 0" << endl;
 					exit(1);
 				}
 				break;
 			case 'U':
 				if (!validate_int(optarg, options.subsampling_threshold, 1, SHRT_MAX)) {
-					cerr << "ERROR: " << "Argument to -" << ((char) c) << " must be an integer between 1 and " << SHRT_MAX << "." << endl;
+					cerr << "ERROR: argument to -" << ((char) c) << " must be an integer between 1 and " << SHRT_MAX << endl;
 					exit(1);
 				}
 				break;
 			case 'Q':
 				if (!validate_float(optarg, options.high_expression_quantile, 0, 1)) {
-					cerr << "ERROR: " << "Argument to -" << ((char) c) << " must be between 0 and 1." << endl;
+					cerr << "ERROR: argument to -" << ((char) c) << " must be between 0 and 1" << endl;
 					exit(1);
 				}
 				break;
 			case 'e':
 				if (!validate_float(optarg, options.exonic_fraction, 0, 1)) {
-					cerr << "ERROR: " << "Argument to -" << ((char) c) << " must be between 0 and 1." << endl;
+					cerr << "ERROR: argument to -" << ((char) c) << " must be between 0 and 1" << endl;
 					exit(1);
 				}
 				break;
 			case 'T':
-				if (!options.print_fusion_sequence)
-					options.print_fusion_sequence = true;
-				else
-					options.print_fusion_sequence_for_discarded_fusions = true;
+				if (!validate_int(optarg, options.top_viral_contigs, 1)) {
+					cerr << "ERROR: invalid argument to -" << ((char) c) << endl;
+					exit(1);
+				}
 				break;
-			case 'P':
-				if (!options.print_peptide_sequence)
-					options.print_peptide_sequence = true;
-				else
-					options.print_peptide_sequence_for_discarded_fusions = true;
+			case 'C':
+				if (!validate_float(optarg, options.viral_contig_min_covered_fraction, 0, 1)) {
+					cerr << "ERROR: argument to -" << ((char) c) << " must be between 0 and 1" << endl;
+					exit(1);
+				}
+				break;
+			case 'u':
+				options.external_duplicate_marking = true;
+				break;
+			case 'X':
+				options.print_extra_info_for_discarded_fusions = true;
 				break;
 			case 'I':
-				if (!options.print_supporting_reads)
-					options.print_supporting_reads = true;
-				else
-					options.print_supporting_reads_for_discarded_fusions = true;
+				options.fill_sequence_gaps = true;
 				break;
 			case 'h':
 				print_usage();
@@ -492,18 +535,18 @@ options_t parse_arguments(int argc, char **argv) {
 			default:
 				switch (optopt) {
 					case 'c': case 'x': case 'd': case 'g': case 'G': case 'o': case 'O': case 'a': case 'k': case 'b': case 'i': case 'f': case 'E': case 's': case 'm': case 'H': case 'D': case 'R': case 'A': case 'M': case 'K': case 'V': case 'F': case 'S': case 'U': case 'Q':
-						cerr << "ERROR: " << "Option -" << ((char) optopt) << " requires an argument." << endl;
+						cerr << "ERROR: option -" << ((char) optopt) << " requires an argument" << endl;
 						exit(1);
 						break;
 					default:
-						cerr << "ERROR: " << "Unknown option: -" << ((char) optopt) << endl;
+						cerr << "ERROR: unknown option: -" << ((char) optopt) << endl;
 						exit(1);
 						break;
 				}
 		}
 
 		if (optind < argc && (string(argv[optind]).empty() || argv[optind][0] != '-')) {
-			cerr << "ERROR: Option -" << ((char) c) << " has more than one argument. Arguments with blanks must be wrapped in quotes." << endl;
+			cerr << "ERROR: option -" << ((char) c) << " has more than one argument (arguments with blanks must be wrapped in quotes)" << endl;
 			exit(1);
 		}
 
@@ -511,28 +554,28 @@ options_t parse_arguments(int argc, char **argv) {
 
 	// check for mandatory arguments
 	if (argc == 1) {
-		cerr << "ERROR: No arguments given." << endl;
+		cerr << "ERROR: no arguments given" << endl;
 		print_usage();
 		exit(1);
 	}
 	if (options.rna_bam_file.empty()) {
-		cerr << "ERROR: Missing mandatory option: -x" << endl;
+		cerr << "ERROR: missing mandatory option: -x" << endl;
 		exit(1);
 	}
 	if (options.gene_annotation_file.empty()) {
-		cerr << "ERROR: Missing mandatory option: -g" << endl;
+		cerr << "ERROR: missing mandatory option: -g" << endl;
 		exit(1);
 	}
 	if (options.output_file.empty()) {
-		cerr << "ERROR: Missing mandatory option: -o" << endl;
+		cerr << "ERROR: missing mandatory option: -o" << endl;
 		exit(1);
 	}
 	if (options.assembly_file.empty()) {
-        	cerr << "ERROR: Missing mandatory option: -a" << endl;
+        	cerr << "ERROR: missing mandatory option: -a" << endl;
 		exit(1);
 	}
 	if (options.filters["blacklist"] && options.blacklist_file.empty()) {
-		cerr << "ERROR: Filter 'blacklist' enabled, but missing option: -b" << endl;
+		cerr << "ERROR: filter 'blacklist' enabled, but missing option: -b" << endl;
 		exit(1);
 	}
 

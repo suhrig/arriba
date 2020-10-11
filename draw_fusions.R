@@ -1,64 +1,88 @@
 #!/usr/bin/env Rscript
 
-# parse command-line parameters
+# define valid parameters
+parameters <- list(
+	annotation=list("exonsFile", "file", "annotation.gtf", T),
+	fusions=list("fusionsFile", "file", "fusions.tsv", T),
+	output=list("outputFile", "string", "output.pdf", T),
+	alignments=list("alignmentsFile", "file", "Aligned.sortedByCoord.out.bam"),
+	cytobands=list("cytobandsFile", "file", "cytobands.tsv"),
+	minConfidenceForCircosPlot=list("minConfidenceForCircosPlot", "string", "medium"),
+	proteinDomains=list("proteinDomainsFile", "file", "protein_domains.gff3"),
+	squishIntrons=list("squishIntrons", "bool", T),
+	printExonLabels=list("printExonLabels", "bool", T),
+	render3dEffect=list("render3dEffect", "bool", T),
+	pdfWidth=list("pdfWidth", "numeric", 11.692),
+	pdfHeight=list("pdfHeight", "numeric", 8.267),
+	color1=list("color1", "string", "#e5a5a5"),
+	color2=list("color2", "string", "#a7c4e5"),
+	mergeDomainsOverlappingBy=list("mergeDomainsOverlappingBy", "numeric", 0.9),
+	optimizeDomainColors=list("optimizeDomainColors", "bool", F),
+	fontSize=list("fontSize", "numeric", 1),
+	showIntergenicVicinity=list("showVicinity", "numeric", 0),
+	transcriptSelection=list("transcriptSelection", "string", "coverage")
+)
+
+# print help if necessary
 args <- commandArgs(trailingOnly=T)
-parseBooleanParameter <- function(parameter, args, default) {
-	arg <- sub(paste0("^--", parameter, "="), "", args[which(grepl(paste0("^--", parameter, "="), args))], perl=T)
-	if (length(arg) == 0) {
-		return(default)
-	} else if (arg == "TRUE" || arg == "T") {
-		return(T)
-	} else if (arg == "FALSE" || arg == "F") {
-		return(F)
-	} else {
-		stop(paste0("Invalid argument to --", parameter))
+if (any(grepl("^--help", args)) || length(args) == 0) {
+	usage <- "Usage: draw_fusions.R"
+	for (parameter in names(parameters)) {
+		usage <- paste0(usage, " ")
+		if (length(parameters[[parameter]]) <= 3 || !parameters[[parameter]][[4]])
+			usage <- paste0(usage, "[")
+		usage <- paste0(usage, "--", parameter, "=", parameters[[parameter]][[3]])
+		if (length(parameters[[parameter]]) <= 3 || !parameters[[parameter]][[4]])
+			usage <- paste0(usage, "]")
 	}
-}
-parseStringParameter <- function(parameter, args, default="") {
-	result <- sub(paste0("^--", parameter, "="), "", args[tail(which(grepl(paste0("^--", parameter, "="), args)), 1)], perl=T)
-	return(ifelse(length(result) == 0, default, result))
-}
-parseFileParameter <- function(parameter, args, mandatory=FALSE) {
-	fileName <- sub(paste0("^--", parameter, "="), "", args[tail(which(grepl(paste0("^--", parameter, "="), args)), 1)], perl=T)
-	if (length(fileName) > 0) {
-		if (file.access(fileName) == -1)
-			stop(paste("Cannot read file:", fileName))
-	} else {
-		if (mandatory)
-			stop(paste0("Missing mandatory argument: --", parameter))
-		fileName = ""
-	}
-	return(fileName)
+	message(usage)
+	quit("no", ifelse(length(args) == 0, 1, 0))
 }
 
-if (any(grepl("^--help", args)) || length(args) == 0)
-	stop("Usage: draw_fusions.R --annotation=annotation.gtf --fusions=fusions.tsv --output=output.pdf [--alignments=Aligned.sortedByCoord.out.bam] [--cytobands=cytobands.tsv] [--minConfidenceForCircosPlot=medium] [--proteinDomains=protein_domains.gff3] [--squishIntrons=TRUE] [--printExonLabels=TRUE] [--render3dEffect=TRUE] [--pdfWidth=11.692] [--pdfHeight=8.267] [--color1=#e5a5a5] [--color2=#a7c4e5] [--mergeDomainsOverlappingBy=0.9] [--optimizeDomainColors=FALSE] [--fontSize=1] [--showIntergenicVicinity=0]")
-exonsFile <- parseFileParameter("annotation", args, T)
-fusionsFile <- parseFileParameter("fusions", args, T)
-outputFile <- parseStringParameter("output", args)
-if (outputFile == "")
-	stop("Missing mandatory argument: --output")
-alignmentsFile <- parseFileParameter("alignments", args)
-cytobandsFile <- parseFileParameter("cytobands", args)
+# make sure mandatory arguments are present
+for (parameter in names(parameters))
+	if (length(parameters[[parameter]]) > 3 && parameters[[parameter]][[4]])
+		if (!any(grepl(paste0("^--", parameter, "="), args), perl=T))
+			stop(paste0("Missing mandatory argument: --", parameter))
+
+# set default values
+for (parameter in names(parameters))
+	assign(parameters[[parameter]][[1]], ifelse(parameters[[parameter]][[2]] == "file", "", parameters[[parameter]][[3]]))
+
+# parse command-line parameters
+for (arg in args) {
+	argName <- sub("=.*", "", sub("^--", "", arg, perl=T), perl=T)
+	argValue <- sub("^[^=]*=", "", arg, perl=T)
+	if (!(argName %in% names(parameters)) || !grepl("^--", arg, perl=T))
+		stop(paste("Unknown parameter:", arg))
+	if (parameters[[argName]][[2]] == "bool") {
+		if (argValue %in% c("TRUE", "T")) {
+			assign(parameters[[argName]][[1]], T)
+		} else if (argValue %in% c("FALSE", "F")) {
+			assign(parameters[[argName]][[1]], F)
+		} else {
+			stop(paste0("Invalid argument to --", argName))
+		}
+	} else if (parameters[[argName]][[2]] == "string") {
+		assign(parameters[[argName]][[1]], argValue)
+	} else if (parameters[[argName]][[2]] == "numeric") {
+		assign(parameters[[argName]][[1]], as.numeric(argValue))
+	} else if (parameters[[argName]][[2]] == "file") {
+		if (file.access(argValue) == -1)
+			stop(paste("Cannot read file:", argValue))
+		assign(parameters[[argName]][[1]], argValue)
+	}
+}
+
+# validate values of parameters
 if (cytobandsFile == "")
 	warning("Missing parameter '--cytobands'. No ideograms and circos plots will be drawn.")
-minConfidenceForCircosPlot <- parseStringParameter("minConfidenceForCircosPlot", args, "medium")
-if (!(minConfidenceForCircosPlot %in% c("low", "medium", "high")))
+if (!(minConfidenceForCircosPlot %in% c("none", "low", "medium", "high")))
 	stop("Invalid argument to --minConfidenceForCircosPlot")
-proteinDomainsFile <- parseFileParameter("proteinDomains", args)
-squishIntrons <- parseBooleanParameter("squishIntrons", args, T)
-printExonLabels <- parseBooleanParameter("printExonLabels", args, T)
-render3dEffect <- parseBooleanParameter("render3dEffect", args, T)
-pdfWidth <- as.numeric(parseStringParameter("pdfWidth", args, "11.692"))
-pdfHeight <- as.numeric(parseStringParameter("pdfHeight", args, "8.267"))
-color1 <- parseStringParameter("color1", args, "#e5a5a5")
-color2 <- parseStringParameter("color2", args, "#a7c4e5")
-mergeDomainsOverlappingBy <- as.numeric(parseStringParameter("mergeDomainsOverlappingBy", args, 0.9))
-optimizeDomainColors <- parseBooleanParameter("optimizeDomainColors", args, F)
-fontSize <- as.numeric(parseStringParameter("fontSize", args, 1))
-showVicinity <- as.numeric(parseStringParameter("showIntergenicVicinity", args, 0))
 if (showVicinity > 0 && squishIntrons)
 	stop("--squishIntrons must be disabled, when --showIntergenicVicinity is > 0")
+if (!(transcriptSelection %in% c("coverage", "provided", "canonical")))
+	stop("Invalid argument to --transcriptSelection")
 
 # check if required packages are installed
 if (!suppressPackageStartupMessages(require(GenomicRanges)))
@@ -81,22 +105,6 @@ getDarkColor <- function(color) {
 darkColor1 <- getDarkColor(color1)
 darkColor2 <- getDarkColor(color2)
 
-# read fusions
-fusions <- read.table(fusionsFile, stringsAsFactors=F, sep="\t", header=T, comment.char="", quote="")
-colnames(fusions)[colnames(fusions) %in% c("X.gene1", "strand1.gene.fusion.", "strand2.gene.fusion.")] <- c("gene1", "strand1", "strand2")
-fusions$contig1 <- sub(":.*", "", fusions$breakpoint1)
-fusions$breakpoint1 <- as.numeric(sub(".*:", "", fusions$breakpoint1, perl=T))
-fusions$contig2 <- sub(":.*", "", fusions$breakpoint2)
-fusions$breakpoint2 <- as.numeric(sub(".*:", "", fusions$breakpoint2, perl=T))
-
-pdf(outputFile, onefile=T, width=pdfWidth, height=pdfHeight, title=fusionsFile)
-if (nrow(fusions) == 0) {
-	plot(0, 0, type="l", xaxt="n", yaxt="n", xlab="", ylab="")
-	text(0, 0, "Error: empty input file\n")
-	dev.off()
-	quit("no")
-}
-
 # convenience functions to add/remove "chr" prefix
 addChr <- function(contig) {
 	ifelse(contig == "MT", "chrM", paste0("chr", contig))
@@ -108,6 +116,51 @@ removeChr <- function(contig) {
 # convenience function to check if a value is between two others
 between <- function(value, start, end) {
 	value >= start & value <= end
+}
+
+# read fusions
+fusions <- read.table(fusionsFile, stringsAsFactors=F, sep="\t", header=T, comment.char="", quote="")
+if (colnames(fusions)[1] == "X.gene1") { # Arriba output
+	colnames(fusions)[colnames(fusions) %in% c("X.gene1", "strand1.gene.fusion.", "strand2.gene.fusion.")] <- c("gene1", "strand1", "strand2")
+	fusions$display_contig1 <- sub(":[^:]*$", "", fusions$breakpoint1, perl=T)
+	fusions$display_contig2 <- sub(":[^:]*$", "", fusions$breakpoint2, perl=T)
+	fusions$contig1 <- removeChr(fusions$display_contig1)
+	fusions$contig2 <- removeChr(fusions$display_contig2)
+	fusions$breakpoint1 <- as.numeric(sub(".*:", "", fusions$breakpoint1, perl=T))
+	fusions$breakpoint2 <- as.numeric(sub(".*:", "", fusions$breakpoint2, perl=T))
+	fusions$split_reads <- fusions$split_reads1 + fusions$split_reads2
+} else if (colnames(fusions)[1] == "X.FusionName") { # STAR-Fusion
+	fusions$gene1 <- sub("\\^.*", "", fusions$LeftGene, perl=T)
+	fusions$gene2 <- sub("\\^.*", "", fusions$RightGene, perl=T)
+	fusions$strand1 <- sub(".*:(.)$", "\\1/\\1", fusions$LeftBreakpoint, perl=T)
+	fusions$strand2 <- sub(".*:(.)$", "\\1/\\1", fusions$RightBreakpoint, perl=T)
+	fusions$display_contig1 <- sub(":[^:]*:[^:]*$", "", fusions$LeftBreakpoint, perl=T)
+	fusions$display_contig2 <- sub(":[^:]*:[^:]*$", "", fusions$RightBreakpoint, perl=T)
+	fusions$contig1 <- removeChr(fusions$display_contig1)
+	fusions$contig2 <- removeChr(fusions$display_contig2)
+	fusions$breakpoint1 <- as.numeric(sub(".*:([^:]*):[^:]*$", "\\1", fusions$LeftBreakpoint, perl=T))
+	fusions$breakpoint2 <- as.numeric(sub(".*:([^:]*):[^:]*$", "\\1", fusions$RightBreakpoint, perl=T))
+	fusions$direction1 <- ifelse(grepl(":\\+$", fusions$LeftBreakpoint, perl=T), "downstream", "upstream")
+	fusions$direction2 <- ifelse(grepl(":\\+$", fusions$RightBreakpoint, perl=T), "upstream", "downstream")
+	fusions$transcript_id1 <- ifelse(rep(!("CDS_LEFT_ID" %in% colnames(fusions)), nrow(fusions)), ".", fusions$CDS_LEFT_ID)
+	fusions$transcript_id2 <- ifelse(rep(!("CDS_RIGHT_ID" %in% colnames(fusions)), nrow(fusions)), ".", fusions$CDS_RIGHT_ID)
+	fusions$fusion_transcript <- ifelse(rep(!("FUSION_CDS" %in% colnames(fusions)), nrow(fusions)), ".", toupper(sub("([a-z]*)", "\\1|", fusions$FUSION_CDS)))
+	fusions$reading_frame <- ifelse(rep(!("PROT_FUSION_TYPE" %in% colnames(fusions)), nrow(fusions)), ".", ifelse(fusions$PROT_FUSION_TYPE == "INFRAME", "in-frame", ifelse(fusions$PROT_FUSION_TYPE == "FRAMESHIFT", "out-of-frame", ".")))
+	fusions$split_reads <- fusions$JunctionReadCount
+	fusions$discordant_mates <- fusions$SpanningFragCount
+	fusions$site1 <- rep("exon", nrow(fusions))
+	fusions$site2 <- rep("exon", nrow(fusions))
+	fusions$confidence <- rep("high", nrow(fusions))
+} else {
+	stop("Unrecognized fusion file format")
+}
+
+pdf(outputFile, onefile=T, width=pdfWidth, height=pdfHeight, title=fusionsFile)
+if (nrow(fusions) == 0) {
+	plot(0, 0, type="l", xaxt="n", yaxt="n", xlab="", ylab="")
+	text(0, 0, "Error: empty input file\n")
+	dev.off()
+	quit("no")
 }
 
 # read cytoband annotation
@@ -122,11 +175,21 @@ message("Loading annotation")
 exons <- read.table(exonsFile, header=F, sep="\t", comment.char="#", quote="", stringsAsFactors=F)[,c(1, 3, 4, 5, 7, 9)]
 colnames(exons) <- c("contig", "type", "start", "end", "strand", "attributes")
 exons <- exons[exons$type %in% c("exon", "CDS"),]
-exons$geneName <- gsub(".*gene_name \"?([^;\"]+)\"?;.*", "\\1", exons$attributes)
-exons$geneID <- gsub(".*gene_id \"?([^;\"]+)\"?;.*", "\\1", exons$attributes)
-exons$transcript <- gsub(".*transcript_id \"?([^;\"]+)\"?;.*", "\\1", exons$attributes)
-exons$exonNumber <- ifelse(printExonLabels & grepl("exon_number ", exons$attributes), gsub(".*exon_number \"?([^;\"]+)\"?;.*", "\\1", exons$attributes), "")
 exons$contig <- removeChr(exons$contig)
+parseGtfAttribute <- function(attribute, exons) {
+	parsed <- gsub(paste0(".*", attribute, " \"?([^;\"]+)\"?;.*"), "\\1", exons$attributes)
+	failedToParse <- parsed == exons$attributes
+	if (any(failedToParse)) {
+		warning(paste0("Failed to parse '", attribute, "' attribute of ", sum(failedToParse), " GTF record(s)."))
+		parsed <- ifelse(failedToParse, "", parsed)
+	}
+	return(parsed)
+}
+exons$geneID <- parseGtfAttribute("gene_id", exons)
+exons$geneName <- parseGtfAttribute("gene_name", exons)
+exons$geneName <- ifelse(exons$geneName == "", exons$geneID, exons$geneName)
+exons$transcript <- parseGtfAttribute("transcript_id", exons)
+exons$exonNumber <- ifelse(rep(printExonLabels, nrow(exons)), parseGtfAttribute("exon_number", exons), "")
 
 # read protein domain annotation
 proteinDomains <- NULL
@@ -140,11 +203,11 @@ if (proteinDomainsFile != "") {
 	proteinDomains <- proteinDomains[,colnames(proteinDomains) != "attributes"]
 }
 
-# insert dummy annotations for dummy genes
-if (any(grepl(",", fusions$gene1) | grepl(",", fusions$gene2))) {
+# insert dummy annotations for intergenic breakpoints
+if (any(fusions$site1 == "intergenic" | fusions$site2 == "intergenic")) {
 	intergenicBreakpoints <- rbind(
-		setNames(fusions[grepl(",", fusions$gene1),c("gene1", "strand1", "contig1", "breakpoint1")], c("gene", "strand", "contig", "breakpoint")),
-		setNames(fusions[grepl(",", fusions$gene2),c("gene2", "strand2", "contig2", "breakpoint2")], c("gene", "strand", "contig", "breakpoint"))
+		setNames(fusions[fusions$site1 == "intergenic",c("gene1", "strand1", "contig1", "breakpoint1")], c("gene", "strand", "contig", "breakpoint")),
+		setNames(fusions[fusions$site2 == "intergenic",c("gene2", "strand2", "contig2", "breakpoint2")], c("gene", "strand", "contig", "breakpoint"))
 	)
 	exons <- rbind(exons, data.frame(
 		contig=intergenicBreakpoints$contig,
@@ -244,6 +307,11 @@ drawIdeogram <- function(adjust, left, right, y, cytobands, contig, breakpoint) 
 	rightArcX <- bands[band,"right"] - (1+cos(seq(1.5*pi,pi/2,len=arcSteps))) * (bands[band,"right"]-bands[band,"left"])
 	rightArcY <- y + sin(seq(pi/2,1.5*pi,len=arcSteps)) * ideogramHeight/2
 	polygon(rightArcX, rightArcY, col=bands[band,"color"])
+	# if there is no centromere, make an artificial one with length zero
+	if (is.null(centromereStart) || is.null(centromereEnd)) {
+		centromereStart <- bands[1,"right"]
+		centromereEnd <- bands[1,"right"]
+	}
 	# draw gradients for 3D effect
 	drawVerticalGradient(leftArcX, rep(centromereStart, arcSteps), leftArcY, rgb(0,0,0,0.8), 1:round(arcSteps*0.4)) # black from top on p-arm
 	drawVerticalGradient(leftArcX, rep(centromereStart, arcSteps), leftArcY, rgb(1,1,1,0.7), round(arcSteps*0.4):round(arcSteps*0.1)) # white to top on p-arm
@@ -259,7 +327,7 @@ drawCoverage <- function(left, right, y, coverage, start, end, color) {
 	maxResolution <- 5000 # max number of data points to draw coverage
 	# draw coverage as bars
 	if (!is.null(coverage)) {
-		coverageData <- as.numeric(coverage[IRanges(start, end)])
+		coverageData <- as.numeric(coverage[IRanges(sapply(start, max, min(start(coverage))), sapply(end, min, max(end(coverage))))])
 		# downsample to maxResolution, if there are too many data points
 		coverageData <- aggregate(coverageData, by=list(round(1:length(coverageData) * (right-left) * maxResolution/length(coverageData))), mean)$x
 		polygon(c(left, seq(left, right, length.out=length(coverageData)), right), c(y, y+coverageData*0.1, y), col=color, border=NA)
@@ -321,7 +389,7 @@ drawCircos <- function(fusion, fusions, cytobands, minConfidenceForCircosPlot) {
 	)
 	geneLabels$end <- geneLabels$start + 1
 	geneLabels$gene <- c(fusions[fusion,"gene1"], fusions[fusion,"gene2"])
-	geneLabels$gene <- ifelse(grepl(",", geneLabels$gene), paste0(geneLabels$contig, ":", geneLabels$start), geneLabels$gene)
+	geneLabels$gene <- ifelse(c(fusions[fusion,"site1"], fusions[fusion,"site2"]) == "intergenic", paste0(c(fusions[fusion,"display_contig1"], fusions[fusion,"display_contig2"]), ":", geneLabels$start), geneLabels$gene)
 	# draw gene labels
 	circos.genomicLabels(geneLabels, labels.column=4, side="outside", cex=fontSize)
 	# draw chromosome labels in connector plot
@@ -335,12 +403,13 @@ drawCircos <- function(fusion, fusions, cytobands, minConfidenceForCircosPlot) {
 	confidenceRank <- c(low=0, medium=1, high=2)
 	for (i in c(setdiff(1:nrow(fusions), fusion), fusion)) { # draw fusion of interest last, such that its arc is on top
 		f <- fusions[i,]
-		if (confidenceRank[f$confidence] >= confidenceRank[minConfidenceForCircosPlot] || i==fusion)
-			circos.link(
-				f$contig1, f$breakpoint1,
-				f$contig2, f$breakpoint2,
-				lwd=2, col=ifelse(i==fusion, rgb(1,0,0), rgb(1,0.7,0.7))
-			)
+		if (any(cytobands$contig==f$contig1) && any(cytobands$contig==f$contig2)) # ignore viral contigs, because we have no cytoband information for them
+			if (minConfidenceForCircosPlot != "none" && confidenceRank[f$confidence] >= confidenceRank[minConfidenceForCircosPlot] || i==fusion)
+				circos.link(
+					f$contig1, f$breakpoint1,
+					f$contig2, f$breakpoint2,
+					lwd=2, col=ifelse(i==fusion, rgb(1,0,0), rgb(1,0.7,0.7))
+				)
 	}
 }
 
@@ -351,8 +420,8 @@ drawProteinDomains <- function(fusion, exons1, exons2, proteinDomains, color1, c
 	geneNamesY <- exonsY - exonHeight/2 - 0.05
 
 	# find coding exons
-	codingExons1 <- exons1[exons1$type == "CDS",]
-	codingExons2 <- exons2[exons2$type == "CDS",]
+	codingExons1 <- exons1[exons1$type == "CDS" & fusion$site1 != "intergenic",]
+	codingExons2 <- exons2[exons2$type == "CDS" & fusion$site2 != "intergenic",]
 
 	# cut off coding regions beyond breakpoint
 	if (fusion$direction1 == "upstream") {
@@ -615,7 +684,7 @@ drawProteinDomains <- function(fusion, exons1, exons2, proteinDomains, color1, c
 	# draw title of plot
 	titleY <- exonsY + exonHeight/2 + (uniqueDomains1 + 2) * 0.05
 	text(0.5, titleY+0.01, "RETAINED PROTEIN DOMAINS", adj=c(0.5, 0), font=2, cex=fontSize)
-	text(0.5, titleY, ifelse(fusion$reading_frame != ".", paste(fusion$reading_frame, "fusion"), "reading frame unclear"), adj=c(0.5, 1), cex=fontSize)
+	text(0.5, titleY, ifelse(fusion$reading_frame %in% c("in-frame", "out-of-frame"), paste(fusion$reading_frame, "fusion"), ifelse(fusion$reading_frame == "stop-codon", "stop codon before fusion junction", "reading frame unclear")), adj=c(0.5, 1), cex=fontSize)
 
 	# draw domain labels for gene1
 	if (length(unlist(retainedDomains1)) > 0) {
@@ -671,14 +740,57 @@ drawProteinDomains <- function(fusion, exons1, exons2, proteinDomains, color1, c
 
 }
 
-findExons <- function(exons, contig, gene, direction, breakpoint) {
-	# look for exon with breakpoint as splice site
-	transcripts <- exons[exons$geneName == gene & exons$contig == contig & exons$type == "exon" & (direction == "downstream" & abs(exons$end - breakpoint) <= 2 | direction == "upstream" & abs(exons$start - breakpoint) <= 2),"transcript"]
-	candidateExons <- exons[exons$transcript %in% transcripts,]
-	# if none was found, search for transcripts which encompass the breakpoint
-	if (nrow(candidateExons) == 0) {
+findExons <- function(exons, contig, gene, direction, breakpoint, coverage, transcriptId, transcriptSelection) {
+	# use the provided transcript if desired
+	if (transcriptSelection == "provided" && transcriptId != "." && transcriptId != "") {
+		candidateExons <- exons[exons$transcript == transcriptId,]
+		if (nrow(candidateExons) == 0) {
+			warning(paste0("Unknown transcript given in fusions file (", transcriptId, "), selecting a different one"))
+		} else {
+			return(candidateExons)
+		}
+	}
+
+	if (transcriptSelection == "canonical") {
 		candidateExons <- exons[exons$geneName == gene & exons$contig == contig,]
-		if (nrow(candidateExons) > 0) {
+	} else {
+		# look for exon with breakpoint as splice site
+		transcripts <- exons[exons$geneName == gene & exons$contig == contig & exons$type == "exon" & (direction == "downstream" & abs(exons$end - breakpoint) <= 2 | direction == "upstream" & abs(exons$start - breakpoint) <= 2),"transcript"]
+		candidateExons <- exons[exons$transcript %in% transcripts,]
+		# if none was found, use all exons of the gene closest to the breakpoint
+		if (nrow(candidateExons) == 0) {
+			candidateExons <- exons[exons$geneName == gene & exons$contig == contig,]
+			if (length(unique(candidateExons$geneID)) > 0) { # more than one gene found with the given name => use the closest one
+				distanceToBreakpoint <- aggregate(1:nrow(candidateExons), by=list(candidateExons$geneID), function(x) { min(abs(candidateExons[x,"start"]-breakpoint), abs(candidateExons[x,"end"]-breakpoint)) })
+				closestGene <- head(distanceToBreakpoint[distanceToBreakpoint[,2] == min(distanceToBreakpoint[,2]),1], 1)
+				candidateExons <- candidateExons[candidateExons$geneID == closestGene,]
+			}
+		}
+		# if we have coverage information, use the transcript with the highest coverage if there are multiple hits
+		if (!is.null(coverage)) {
+			highestCoverage <- -1
+			transcriptWithHighestCoverage <- NULL
+			lengthOfTranscriptWithHighestCoverage <- 0
+			for (transcript in unique(candidateExons$transcript)) {
+				exonsOfTranscript <- candidateExons[candidateExons$transcript==transcript,]
+				exonsOfTranscript$start <- sapply(exonsOfTranscript$start, max, min(start(coverage)))
+				exonsOfTranscript$end <- sapply(exonsOfTranscript$end, min, max(end(coverage)))
+				lengthOfTranscript <- sum(exonsOfTranscript$end - exonsOfTranscript$start + 1)
+				coverageSum <- sum(as.numeric(coverage[IRanges(exonsOfTranscript$start, exonsOfTranscript$end)]))
+				# we prefer shorter transcripts over longer ones, because otherwise there is a bias towards transcripts with long UTRs
+				# => a longer transcript must have substantially higher coverage to replace a shorter one
+				substantialDifference <- (1 - min(lengthOfTranscript, lengthOfTranscriptWithHighestCoverage) / max(lengthOfTranscript, lengthOfTranscriptWithHighestCoverage)) / 10
+				if (lengthOfTranscript > lengthOfTranscriptWithHighestCoverage && coverageSum * (1-substantialDifference) > highestCoverage ||
+				    lengthOfTranscript < lengthOfTranscriptWithHighestCoverage && coverageSum > highestCoverage * (1-substantialDifference)) {
+					highestCoverage <- coverageSum
+					transcriptWithHighestCoverage <- transcript
+					lengthOfTranscriptWithHighestCoverage <- lengthOfTranscript
+				}
+			}
+			candidateExons <- candidateExons[candidateExons$transcript==transcriptWithHighestCoverage,]
+		}
+		# if the gene has multiple transcripts, search for transcripts which encompass the breakpoint
+		if (length(unique(candidateExons$transcript)) > 1) {
 			transcriptStart <- aggregate(candidateExons$start, by=list(candidateExons$transcript), min)
 			rownames(transcriptStart) <- transcriptStart[,1]
 			transcriptEnd <- aggregate(candidateExons$end, by=list(candidateExons$transcript), max)
@@ -686,15 +798,7 @@ findExons <- function(exons, contig, gene, direction, breakpoint) {
 			candidateExons <- candidateExons[between(breakpoint, transcriptStart[candidateExons$transcript,2], transcriptEnd[candidateExons$transcript,2]),]
 		}
 	}
-	# if still none was found, use all exons of the gene closest to the breakpoint
-	if (nrow(candidateExons) == 0) {
-		candidateExons <- exons[exons$geneName == gene & exons$contig == contig,]
-		if (length(unique(candidateExons$geneID)) > 0) { # more than one gene found with the given name => use the closest one
-			distanceToBreakpoint <- aggregate(1:nrow(candidateExons), by=list(candidateExons$geneID), function(x) { min(abs(candidateExons[x,"start"]-breakpoint), abs(candidateExons[x,"end"]-breakpoint)) })
-			closestGene <- head(distanceToBreakpoint[distanceToBreakpoint[,2] == min(distanceToBreakpoint[,2]),1], 1)
-			candidateExons <- candidateExons[candidateExons$geneID == closestGene,]
-		}
-	}
+
 	# find the consensus transcript, if there are multiple hits
 	if (length(unique(candidateExons$transcript)) > 1) {
 		consensusTranscript <-
@@ -737,15 +841,52 @@ for (fusion in 1:nrow(fusions)) {
 
 	message(paste0("Drawing fusion #", fusion, ": ", fusions[fusion,"gene1"], ":", fusions[fusion,"gene2"]))
 
+	# compute coverage from alignments file
+	coverage1 <- NULL
+	coverage2 <- NULL
+	if (alignmentsFile != "") {
+		# determine range in which we need to compute the coverage
+		determineCoverageRange <- function(exons, gene, contig, breakpoint, showVicinity) {
+			# find gene with given name closest to the breakpoint
+			closestExons <- exons[exons$geneName == gene & exons$contig == contig,]
+			if (length(unique(closestExons$geneID)) > 0) { # more than one gene found with the given name => use the closest one
+				distanceToBreakpoint <- aggregate(1:nrow(closestExons), by=list(closestExons$geneID), function(x) { min(abs(closestExons[x,"start"]-breakpoint), abs(closestExons[x,"end"]-breakpoint)) })
+				closestGene <- head(distanceToBreakpoint[distanceToBreakpoint[,2] == min(distanceToBreakpoint[,2]),1], 1)
+				closestExons <- closestExons[closestExons$geneID == closestGene,]
+			}
+			return(IRanges(min(closestExons$start, breakpoint-showVicinity), max(closestExons$end, breakpoint+showVicinity)))
+		}
+		coverageRange1 <- determineCoverageRange(exons, fusions[fusion,"gene1"], fusions[fusion,"contig1"], fusions[fusion,"breakpoint1"], showVicinity)
+		coverageRange2 <- determineCoverageRange(exons, fusions[fusion,"gene2"], fusions[fusion,"contig2"], fusions[fusion,"breakpoint2"], showVicinity)
+		# function which reads alignments from BAM file with & without "chr" prefix
+		readCoverage <- function(alignmentsFile, contig, coverageRange) {
+			coverageData <- tryCatch(
+				{
+					alignments <- readGAlignments(alignmentsFile, param=ScanBamParam(which=GRanges(contig, coverageRange)))
+					coverage(alignments)[[contig]]
+				},
+				error=function(e) {
+					alignments <- readGAlignments(alignmentsFile, param=ScanBamParam(which=GRanges(addChr(contig), coverageRange)))
+					coverage(alignments)[[addChr(contig)]]
+				}
+			)
+			if (exists("alignments")) rm(alignments)
+			return(coverageData)
+		}
+		# get coverage track
+		coverage1 <- readCoverage(alignmentsFile, fusions[fusion,"contig1"], coverageRange1)
+		coverage2 <- readCoverage(alignmentsFile, fusions[fusion,"contig2"], coverageRange2)
+	}
+
 	# find all exons belonging to the fused genes
-	exons1 <- findExons(exons, fusions[fusion,"contig1"], fusions[fusion,"gene1"], fusions[fusion,"direction1"], fusions[fusion,"breakpoint1"])
+	exons1 <- findExons(exons, fusions[fusion,"contig1"], fusions[fusion,"gene1"], fusions[fusion,"direction1"], fusions[fusion,"breakpoint1"], coverage1, fusions[fusion,"transcript_id1"], transcriptSelection)
 	if (nrow(exons1) == 0) {
 		par(mfrow=c(1,1))
 		plot(0, 0, type="l", xaxt="n", yaxt="n", xlab="", ylab="")
 		text(0, 0, paste0("Error: exon coordinates of ", fusions[fusion,"gene1"], " not found in\n", exonsFile))
 		next
 	}
-	exons2 <- findExons(exons, fusions[fusion,"contig2"], fusions[fusion,"gene2"], fusions[fusion,"direction2"], fusions[fusion,"breakpoint2"])
+	exons2 <- findExons(exons, fusions[fusion,"contig2"], fusions[fusion,"gene2"], fusions[fusion,"direction2"], fusions[fusion,"breakpoint2"], coverage2, fusions[fusion,"transcript_id2"], transcriptSelection)
 	if (nrow(exons2) == 0) {
 		par(mfrow=c(1,1))
 		plot(0, 0, type="l", xaxt="n", yaxt="n", xlab="", ylab="")
@@ -755,56 +896,34 @@ for (fusion in 1:nrow(fusions)) {
 
 	# in case of intergenic breakpoints, show the vicinity
 	if (showVicinity > 0) {
-		if (grepl(",", fusions[fusion,"gene1"]))
+		if (fusions[fusion,"site1"] == "intergenic")
 			for (gene in unique(exons[exons$contig == fusions[fusion,"contig1"] & exons$exonNumber != "intergenic" &
 			     (between(exons$end, fusions[fusion,"breakpoint1"]-showVicinity, fusions[fusion,"breakpoint1"]+showVicinity) |
 			      between(exons$start, fusions[fusion,"breakpoint1"]-showVicinity, fusions[fusion,"breakpoint1"]+showVicinity)),"geneName"]))
-				exons1 <- rbind(exons1, findExons(exons, fusions[fusion,"contig1"], gene, fusions[fusion,"direction1"], fusions[fusion,"breakpoint1"]))
-		if (grepl(",", fusions[fusion,"gene2"]))
+				exons1 <- rbind(exons1, findExons(exons, fusions[fusion,"contig1"], gene, fusions[fusion,"direction1"], fusions[fusion,"breakpoint1"], coverage1))
+		if (fusions[fusion,"site2"] == "intergenic")
 			for (gene in unique(exons[exons$contig == fusions[fusion,"contig2"] & exons$exonNumber != "intergenic" &
 			     (between(exons$end, fusions[fusion,"breakpoint2"]-showVicinity, fusions[fusion,"breakpoint2"]+showVicinity) |
 			      between(exons$start, fusions[fusion,"breakpoint2"]-showVicinity, fusions[fusion,"breakpoint2"]+showVicinity)),"geneName"]))
-				exons2 <- rbind(exons2, findExons(exons, fusions[fusion,"contig2"], gene, fusions[fusion,"direction2"], fusions[fusion,"breakpoint2"]))
+				exons2 <- rbind(exons2, findExons(exons, fusions[fusion,"contig2"], gene, fusions[fusion,"direction2"], fusions[fusion,"breakpoint2"], coverage2))
 	}
 
-	# sort coding exons last, such that they are drawn over the border of non-coding exons
-	exons1 <- exons1[order(exons1$start, -rank(exons1$type)),]
-	exons2 <- exons2[order(exons2$start, -rank(exons2$type)),]
-
-	# compute coverage from alignments file
-	coverage1 <- NULL
-	coverage2 <- NULL
+	# normalize coverage
 	if (alignmentsFile != "") {
-		# function which reads alignments from BAM file with & without "chr" prefix
-		readCoverage <- function(alignmentsFile, contig, start, end) {
-			coverageData <- tryCatch(
-				{
-					alignments <- readGAlignments(alignmentsFile, param=ScanBamParam(which=GRanges(contig, IRanges(start, end))))
-					coverage(alignments)[[contig]]
-				},
-				error=function(e) {
-					alignments <- readGAlignments(alignmentsFile, param=ScanBamParam(which=GRanges(addChr(contig), IRanges(start, end))))
-					coverage(alignments)[[addChr(contig)]]
-				}
-			)
-			if (exists("alignments")) rm(alignments)
-			return(coverageData)
-		}
-		# get coverage track
-		coverage1 <- readCoverage(alignmentsFile, fusions[fusion,"contig1"], min(exons1$start), max(exons1$end))
-		coverage2 <- readCoverage(alignmentsFile, fusions[fusion,"contig2"], min(exons2$start), max(exons2$end))
-		# normalize coverage
 		coverageNormalization <- ifelse(
 			squishIntrons, # => ignore intronic coverage
 			max(
-				apply(exons1[,c("start", "end")], 1, function(e) {max(as.numeric(coverage1[IRanges(e["start"],e["end"])]))}),
-				apply(exons2[,c("start", "end")], 1, function(e) {max(as.numeric(coverage2[IRanges(e["start"],e["end"])]))})
-			),
+				as.numeric(coverage1[IRanges(sapply(exons1$start,max,min(start(coverage1))),sapply(exons1$end,min,max(end(coverage1))))]),
+				as.numeric(coverage2[IRanges(sapply(exons2$start,max,min(start(coverage2))),sapply(exons2$end,min,max(end(coverage2))))])),
 			max(max(coverage1), max(coverage2))
 		)
 		coverage1 <- coverage1/coverageNormalization
 		coverage2 <- coverage2/coverageNormalization
 	}
+
+	# sort coding exons last, such that they are drawn over the border of non-coding exons
+	exons1 <- exons1[order(exons1$start, -rank(exons1$type)),]
+	exons2 <- exons2[order(exons2$start, -rank(exons2$type)),]
 
 	# insert dummy exons, if breakpoints are outside the gene (e.g., in UTRs)
 	# this avoids plotting artifacts
@@ -916,20 +1035,20 @@ for (fusion in 1:nrow(fusions)) {
 
 	# draw gene & transcript names
 	text(max(exons1$right)/2, yGeneNames, fusions[fusion,"gene1"], font=2, cex=fontSize, adj=c(0.5,0))
-	if (!grepl(",", fusions[fusion,"gene1"]))
+	if (fusions[fusion,"site1"] != "intergenic")
 		text(max(exons1$right)/2, yGeneNames-0.01, head(exons1$transcript,1), cex=0.9*fontSize, adj=c(0.5,1))
 	text(gene2Offset+max(exons2$right)/2, yGeneNames, fusions[fusion,"gene2"], font=2, cex=fontSize, adj=c(0.5,0))
-	if (!grepl(",", fusions[fusion,"gene2"]))
+	if (fusions[fusion,"site2"] != "intergenic")
 		text(gene2Offset+max(exons2$right)/2, yGeneNames-0.01, head(exons2$transcript,1), cex=0.9*fontSize, adj=c(0.5,1))
 
 	# if multiple genes in the vicinity are shown, label them
-	if (length(unique(exons1$geneName)) > 1)
+	if (fusions[fusion,"site1"] == "intergenic")
 		for (gene in unique(exons1$geneName)) {
 			exonsOfGene <- exons1[exons1$geneName == gene & exons1$type != "dummy",]
 			if (any(exonsOfGene$type == "exon"))
 				text(mean(c(min(exonsOfGene$left), max(exonsOfGene$right))), yExons-0.04, gene, cex=0.9*fontSize, adj=c(0.5,1))
 		}
-	if (length(unique(exons2$geneName)) > 1)
+	if (fusions[fusion,"site2"] == "intergenic")
 		for (gene in unique(exons2$geneName)) {
 			exonsOfGene <- exons2[exons2$geneName == gene & exons2$type != "dummy",]
 			if (any(exonsOfGene$type == "exon"))
@@ -937,8 +1056,8 @@ for (fusion in 1:nrow(fusions)) {
 		}
 
 	# label breakpoints
-	text(breakpoint1+0.01, yBreakpointLabels-0.03, paste0("breakpoint\n", fusions[fusion,"contig1"], ":", fusions[fusion,"breakpoint1"]), adj=c(1,0), cex=fontSize)
-	text(gene2Offset+breakpoint2-0.01, yBreakpointLabels-0.03, paste0("breakpoint\n", fusions[fusion,"contig2"], ":", fusions[fusion,"breakpoint2"]), adj=c(0,0), cex=fontSize)
+	text(breakpoint1+0.01, yBreakpointLabels-0.03, paste0("breakpoint\n", fusions[fusion,"display_contig1"], ":", fusions[fusion,"breakpoint1"]), adj=c(1,0), cex=fontSize)
+	text(gene2Offset+breakpoint2-0.01, yBreakpointLabels-0.03, paste0("breakpoint\n", fusions[fusion,"display_contig2"], ":", fusions[fusion,"breakpoint2"]), adj=c(0,0), cex=fontSize)
 
 	# draw coverage axis
 	if (alignmentsFile != "") {
@@ -1089,7 +1208,7 @@ for (fusion in 1:nrow(fusions)) {
 	scaleLabel <- paste(realScaleOptimalFit/max(1,1000^realScaleThousands), scaleUnits[realScaleThousands+1])
 	text(mapScaleOptimalFit/2, yScale+0.005, scaleLabel, adj=c(0.5,0), cex=fontSize*0.9)
 	if (squishIntrons)
-		text(mapScaleOptimalFit, yScale, expression(italic("  introns not to scale")), adj=c(0,0.5), cex=fontSize*0.9)
+		text(mapScaleOptimalFit, yScale, "  introns not to scale", adj=c(0,0.5), cex=fontSize*0.9, font=3)
 
 	# draw circos plot
 	if (is.null(cytobands) || !("circlize" %in% names(sessionInfo()$otherPkgs)) || !("GenomicRanges" %in% names(sessionInfo()$otherPkgs))) {
@@ -1109,10 +1228,8 @@ for (fusion in 1:nrow(fusions)) {
 
 	# print statistics about supporting alignments
 	plot(0, 0, type="l", xlim=c(0, 1), ylim=c(0, 1), bty="n", xaxt="n", yaxt="n")
-	text(0, 0.575, "SUPPORTING READ COUNT", font=2, adj=c(0,0.5), cex=fontSize)
-	text(0, 0.525, paste("Split reads in", fusions[fusion,"gene1"], "=", fusions[fusion,"split_reads1"]), adj=c(0,0.5), cex=fontSize)
-	text(0, 0.475, paste("Split reads in", fusions[fusion,"gene2"], "=", fusions[fusion,"split_reads2"]), adj=c(0,0.5), cex=fontSize)
-	text(0, 0.425, paste("Discordant mates =", fusions[fusion,"discordant_mates"]), adj=c(0,0.5), cex=fontSize)
+	text(0, 0.575, "SUPPORTING READ COUNT", font=2, adj=c(0,0), cex=fontSize)
+	text(0, 0.525, paste0("Split reads = ", fusions[fusion,"split_reads"], "\n", "Discordant mates = ", fusions[fusion,"discordant_mates"]), adj=c(0,1), cex=fontSize)
 
 }
 

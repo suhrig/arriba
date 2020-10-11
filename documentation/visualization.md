@@ -9,6 +9,8 @@ If a gene has multiple transcript variants, the script picks a transcript in the
 
 - transcripts with splice-sites matching the breakpoints
 
+- if alignments are given: the highest expressed transcript as determined by the coverage
+
 - transcripts tagged as `appris_principal`
 
 - transcripts tagged as `appris_candidate`
@@ -25,9 +27,9 @@ In order to use the script, [R Project](http://r-project.org/) must be installed
 
 ```R
 install.packages("circlize")
-source("https://bioconductor.org/biocLite.R")
-biocLite("GenomicAlignments")
-biocLite("GenomicRanges")
+if (!requireNamespace("BiocManager", quietly = TRUE))
+    install.packages("BiocManager")
+BiocManager::install(c("GenomicRanges", "GenomicAlignments"))
 ```
 
 Moreover, [samtools](http://www.htslib.org/) must be installed, if a coverage track should be drawn, because for this purpose the main output file of STAR (`Aligned.out.bam`) needs to be sorted by coordinate and indexed.
@@ -50,8 +52,8 @@ The following command demonstrates the usage. Please refer to section [Command-l
     --alignments=Aligned.sortedByCoord.out.bam \
     --output=fusions.pdf \
     --annotation=GENCODE19.gtf \
-    --cytobands=database/cytobands_hg19_hs37d5_GRCh37_2018-02-23.tsv \
-    --proteinDomains=database/protein_domains_hg19_hs37d5_GRCh37_2019-07-05.gff3
+    --cytobands=database/cytobands_hg19_hs37d5_GRCh37_v2.0.0.tsv \
+    --proteinDomains=database/protein_domains_hg19_hs37d5_GRCh37_v2.0.0.gff3
 ```
 
 **Execution via Docker**
@@ -86,12 +88,12 @@ singularity exec \
 
 **Execution via Bioconda**
 
-When Arriba was installed via Bioconda, the script `draw_fusions.R` is available in the `$PATH` and can be executed as explained above. The database files (protein domain track, cytobands) are located in `$CONDA_PREFIX/var/lib/arriba`.
+When Arriba was installed via Bioconda, the script `draw_fusions.R` is available in the `$PATH` and can be executed as explained in the section **Manual execution**. The database files (protein domain track, cytobands) are located in `$CONDA_PREFIX/var/lib/arriba`.
 
 Inspection of events using IGV
 ------------------------------
 
-Inspecting the supporting reads of an event using [IGV](http://software.broadinstitute.org/software/igv/) can help identify alignment artifacts. All the information that Arriba uses as a basis for fusion prediction can be found in the files `Chimeric.out.sam` and `Aligned.out.bam`). By loading these files into IGV, all supporting reads of predicted fusions can be checked for alignment artifacts. (Note that the files first need to be sorted by coordinate and indexed, before they can be loaded into IGV.) Both breakpoints can be opened side-by-side simply by pasting the breakpoint coordinates into the location field separated by white-space. One can zoom in and out the two panes using the `+` and `-` keys. If Arriba was run with the parameter `-I`, the column `read_identifiers` contains the names of the supporting reads. Reads can be highlighted by name by right-clicking anywhere in one of the panes and choosing `Select by name...`. If you suspect that a predicted event is an alignment artifact, because the alignment quality of the supporting reads looks poor (many mismatches/clipped bases), then you can have IGV search for a better alignment. Right-click a read and choose `Blat read sequence` to perform a sensitive search for alternative alignments that STAR did not find.
+Inspecting the supporting reads of an event using [IGV](http://software.broadinstitute.org/software/igv/) can help identify alignment artifacts. All the information that Arriba uses as a basis for fusion prediction can be found in the files `Chimeric.out.sam` and `Aligned.out.bam`). By loading these files into IGV, all supporting reads of predicted fusions can be checked for alignment artifacts. (Note that the files first need to be sorted by coordinate and indexed, before they can be loaded into IGV.) Both breakpoints can be opened side-by-side simply by pasting the breakpoint coordinates into the location field separated by white-space. One can zoom in and out the two panes using the `+` and `-` keys. The column `read_identifiers` contains the names of the supporting reads. Reads can be highlighted by name by right-clicking anywhere in one of the panes and choosing `Select by name...`. If you suspect that a predicted event is an alignment artifact, because the alignment quality of the supporting reads looks poor (many mismatches/clipped bases), then you can have IGV search for a better alignment. Right-click a read and choose `Blat read sequence` to perform a sensitive search for alternative alignments that STAR did not find.
 
 ![IGV](igv.png)
 

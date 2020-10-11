@@ -5,7 +5,9 @@ Arriba
 
 ```bash
 arriba [-c Chimeric.out.sam] -x Aligned.out.sam \
-       -g annotation.gtf -a assembly.fa [-b blacklists.tsv] [-k known_fusions.tsv] \
+       -g annotation.gtf -a assembly.fa \
+       [-b blacklists.tsv] [-k known_fusions.tsv] [-d structural_variants_from_WGS.tsv] \
+       [-t tags.tsv] [-p protein_domains.gff3] \
        -o fusions.tsv [-O fusions.discarded.tsv] \
        [OPTIONS]
 ```
@@ -22,7 +24,7 @@ arriba [-c Chimeric.out.sam] -x Aligned.out.sam \
 : GTF file with gene annotation. The file may be gzip-compressed.
 
 `-G GTF_FEATURES`
-: Comma-/space-separated list of names of GTF features. The names of features in GTF files are not standardized. Different publishers use different names for the same features. For example, GENCODE uses `gene_type` for the gene type feature, whereas ENSEMBL uses `gene_biotype`. In order that Arriba can parse the GTF files from various publishers, the names of GTF features is configurable. Alternative names for one and the same feature can be specified by using the pipe symbol as a separator (`|`). Arriba supports a set of names which is suitable for RefSeq, GENCODE, and ENSEMBL. Default: `gene_name=gene_name|gene_id gene_id=gene_id transcript_id=transcript_id feature_exon=exon feature_CDS=CDS`
+: Comma-/space-separated list of names of GTF features. The names of features in GTF files are not standardized. Different publishers use different names for the same features. For example, GENCODE uses `gene_type` for the gene type feature, whereas ENSEMBL uses `gene_biotype`. In order that Arriba can parse the GTF files from various publishers, the names of GTF features are configurable. Alternative names for one and the same feature can be specified by using the pipe symbol as a separator (`|`). Arriba supports a set of names which is suitable for RefSeq, GENCODE, and ENSEMBL. Default: `gene_name=gene_name|gene_id gene_id=gene_id transcript_id=transcript_id feature_exon=exon feature_CDS=CDS`
 
 `-a FILE`
 : FastA file with genome sequence (assembly). The file may be gzip-compressed. An index with the file extension `.fai` must exist only if CRAM data is processed.
@@ -31,7 +33,7 @@ arriba [-c Chimeric.out.sam] -x Aligned.out.sam \
 : File containing blacklisted ranges. Refer to section [Blacklist](input-files.md#blacklist) for a description of the expected file format. The file may be gzip-compressed.
 
 `-k FILE`
-: File containing known/recurrent fusions. Some cancer entities are often characterized by fusions between the same pair of genes. In order to boost sensitivity, a list of known fusions can be supplied using this parameter. Refer to section (Known fusions)[input-files.md#known-fusions] for a description of the expected file format. The file may be gzip-compressed.
+: File containing known/recurrent fusions. Some cancer entities are often characterized by fusions between the same pair of genes. In order to boost sensitivity, a list of known fusions can be supplied using this parameter. Refer to section [Known fusions](input-files.md#known-fusions) for a description of the expected file format. The file may be gzip-compressed.
 
 `-o FILE`
 : Output file with fusions that have passed all filters. Refer to section [fusions.tsv](output-files.md#fusionstsv) for a description of the columns.
@@ -39,6 +41,12 @@ arriba [-c Chimeric.out.sam] -x Aligned.out.sam \
 `-O FILE`
 : Output file with fusions that were discarded due to filtering. The format is the same as for parameter `-o`.
 
+`-t FILE`
+: Tab-separated file containing fusions to annotate with tags in the `tags` column. The first two columns specify the genes; the third column specifies the tag. See section [Tags file](input-files.md#tags) for a detailed description of the format.
+
+`-p FILE`
+: File in GFF3 format containing coordinates of the protein domains of genes. The detailed format is described in the section [Protein domains](input-files.md#protein-domains). The protein domains retained in a fusion are listed in the column `retained_protein_domains` of Arriba's output file. The file may be gzip-compressed.
+ 
 `-d FILE`
 : Tab-separated file with coordinates of structural variants found using whole-genome sequencing data. These coordinates serve to increase sensitivity towards weakly expressed fusions and to eliminate fusions with low confidence. Refer to section [Structural variant calls from WGS](input-files.md#structural-variant-calls-from-wgs) for a description of the expected file format. The file may be gzip-compressed.
 
@@ -59,10 +67,13 @@ arriba [-c Chimeric.out.sam] -x Aligned.out.sam \
 Even when an unstranded library is processed, Arriba can often infer the strand from splice-patterns. But in unclear situations, stranded data helps resolve ambiguities. Default: `auto` 
 
 `-i CONTIGS`
-: Comma-/space-separated list of interesting contigs. Fusions between genes on other contigs are ignored. Contigs can be specified with or without the prefix `chr`. Default: `1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 X Y`
+: Comma-/space-separated list of interesting contigs. Fusions between genes on other contigs are ignored. Contigs can be specified with or without the prefix `chr`. Asterisks (`*`) are treated as wild-cards. Default: `1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 X Y AC_* NC_*`
+
+`-v CONTIGS`
+: Comma-/space-separated list of viral contigs for reporting of viral integration sites. Asterisks (`*`) are treated as wild-cards. Default: `AC_* NC_*`
 
 `-f FILTERS`
-: Comma-/space-separated list of filters to disable. By default all filters are enabled. Valid values are: `uninteresting_contigs`, `non_coding_neighbors`, `merge_adjacent`, `pcr_fusions`, `spliced`, `select_best`, `hairpin`, `small_insert_size`, `genomic_support`, `read_through`, `mismatches`, `homopolymer`, `long_gap`, `many_spliced`, `isoforms`, `intronic`, `end_to_end`, `known_fusions`, `inconsistently_clipped`, `duplicates`, `blacklist`, `homologs`, `intragenic_exonic`, `relative_support`, `min_support`, `same_gene`, `mismappers`, `no_coverage`, `short_anchor`, `no_genomic_support`, `low_entropy`
+: Comma-/space-separated list of filters to disable. By default all filters are enabled. Valid values are: `top_expressed_viral_contigs`, `viral_contigs`, `low_coverage_viral_contigs`, `uninteresting_contigs`, `no_genomic_support`, `short_anchor`, `select_best`, `many_spliced`, `long_gap`, `merge_adjacent`, `hairpin`, `small_insert_size`, `same_gene`, `genomic_support`, `read_through`, `no_coverage`, `mismatches`, `homopolymer`, `low_entropy`, `multimappers`, `inconsistently_clipped`, `duplicates`, `homologs`, `blacklist`, `mismappers`, `spliced`, `relative_support`, `min_support`, `known_fusions`, `end_to_end`, `non_coding_neighbors`, `isoforms`, `intronic`, `in_vitro`, `intragenic_exonic`, `internal_tandem_duplication`
 
 `-E MAX_E-VALUE`
 : Arriba estimates the number of fusions with a given number of supporting reads which one would expect to see by random chance. If the expected number of fusions (e-value) is higher than this threshold, the fusion is discarded by the filter `relative_support`. Note: Increasing this threshold can dramatically increase the number of false positives and may increase the runtime of resource-intensive steps. Fractional values are possible. Default: `0.3`
@@ -101,16 +112,25 @@ Even when an unstranded library is processed, Arriba can often infer the strand 
 : Subsample fusions with more than the given number of supporting reads. This improves performance without compromising sensitivity, as long as the threshold is high. Counting of supporting reads beyond the threshold is inaccurate, obviously. Default: `300`
 
 `-Q QUANTILE`
-: Highly expressed genes are prone to produce artifacts during library preparation. Genes with an expression above the given quantile are eligible for filtering by the filter `pcr_fusions`. Default: `0.998`
+: Highly expressed genes are prone to produce artifacts during library preparation. Genes with an expression above the given quantile are eligible for filtering by the filter `in_vitro`. Default: `0.998`
 
-`-T`
-: When set, the column `fusion_transcript` is populated with the sequence of the fused genes as assembled from the supporting reads. Specify the flag twice to also print the fusion transcripts to the file containing discarded fusions (`-O`). Refer to section [fusions.tsv](output-files.md#fusionstsv) for a description of the format of the column. Default: off
+`-e EXONIC_FRACTION`
+: The breakpoints of false-positive predictions of intragenic events are often both in exons. True predictions are more likely to have at least one breakpoint in an intron, because introns are larger. If the fraction of exonic sequence between two breakpoints is smaller than the given fraction, the filter discards the event. Default: `0.2`
 
-`-P`
-: When set, the column `peptide_sequence` is populated with the sequence of the peptide around the fusion junction as translated from the fusion transcript. Specify the flag twice to also print the peptide sequence to the file containing discarded fusions (`-O`). Refer to section [fusions.tsv](output-files.md#fusionstsv) for a description of the format of the column. Default: off
+`-T TOP_N`
+: If a tumor is truly infected with a virus, a substantial number of reads should map to the respective viral contig. Only report viral integration sites of the top N most highly expressed viral contigs. Default: `5`
+
+`-C COVERAGE_FRACTION`
+: Ignore virus-associated events if the virus is not fully expressed, i.e., less than the given fraction of the viral contig is transcribed. Default: `0.15`
+
+`-u`
+: Arriba performs marking of duplicates internally based on identical mapping coordinates. When this switch is set, internal marking of duplicates is disabled and Arriba assumes that duplicates have been marked by a preceding program. In this case, Arriba only discards alignments flagged with the `BAM_FDUP` flag. This makes sense when duplicates cannot be reliably identified solely based on their mapping coordinates, e.g. when unique molecular identifiers (UMIs) are used or when independently generated libraries are merged in a single BAM file and the read group must be interrogated to distinguish duplicates from reads that map to the same coordinates by chance. In addition, when this switch is set, duplicate reads are not considered for the calculation of the coverage at fusion breakpoints (columns `coverage1` and `coverage2` in the output file).
+
+`-X`
+: To reduce the runtime and file size, by default, the columns `fusion_transcript`, `peptide_sequence`, and `read_identifiers` are left empty in the file containing discarded fusion candidates (see parameter `-O`). When this flag is set, this extra information is reported in the discarded fusions file.
 
 `-I`
-: When set, the column `read_identifiers` is populated with identifiers of the reads which support the fusion. The identifiers are separated by commas. Specify the flag twice to also print the read identifiers to the file containing discarded fusions (`-O`). Default: off
+: By default, the fusion transcript sequence is assembled from the supporting reads. Like so, non-template bases, reference mismatches, aberrant splicing, and other deviations from the reference are correctly reflected in the sequence. However, when there are only few supporting reads, the assembled transcript can be incomplete. Gaps in the sequence are then denoted as `...`. When this switch is enabled, such gaps are filled with the sequence from the assembly wherever possible. Moreover, the sequence is expanded to the start and end of the fusion partners, yielding the complete sequence of the fusion gene. If the sequence exceeds the boundaries of the fused transcripts, it is trimmed to the boundaries. Since the fusion peptide sequence builds upon the fusion transcript sequence, enabling this switch implicitly causes Arriba to compute the full peptide sequence from the start codon of the 5' fusion partner to the stop codon of the 3' fusion partner. The main disadvantage of enabling this switch is that under rare circumstances the resulting sequence may lack some deviations from the reference, such as reference mismatches or aberrant splicing. It should be noted that not all gaps can be filled and that the fusion transcript sequence may still be incomplete. A complete construction of the 5' end is marked by a caret sign (`^`) at the beginning of the fusion transcript sequence; a complete construction of the 3' end is marked by a dollar sign (`$`) at the end.
 
 `-h`
 : Print help and exit.
@@ -130,7 +150,7 @@ draw_fusions.R --annotation=annotation.gtf --fusions=fusions.tsv --output=output
 **Options**
 
 `--fusions=FILE`
-: Ouput file `fusions.tsv` containing the gene fusion predictions which passed all filters of Arriba.
+: File containing fusion predictions from Arriba (`fusions.tsv`) or STAR-Fusion (`star-fusion.fusion_predictions.tsv` or `star-fusion.fusion_predictions.abridged.coding_effect.tsv`).
 
 `--annotation=FILE`
 : Gene annotation in GTF format.
@@ -141,8 +161,8 @@ draw_fusions.R --annotation=annotation.gtf --fusions=fusions.tsv --output=output
 `--cytobands=FILE`
 : Coordinates of the Giemsa staining bands. This information is used to draw ideograms. If the argument is omitted, then no ideograms are rendered. The file must have the following columns: `contig`, `start`, `end`, `name`, `giemsa`. Recognized values for the Giemsa staining intensity are: `gneg`, `gpos` followed by a percentage, `acen`, `stalk`. Distributions of Arriba provide Giemsa staining annotation for all supported assemblies in the `database` directory.
 
-`--minConfidenceForCircosPlot=low|medium|high`
-: Specifies the minimum confidence that a prediction must have to be included in the circos plot. It usually makes no sense to include low-confidence fusions in circos plots, because they are abundant and unreliable, and would clutter up the circos plot. Default: `medium`
+`--minConfidenceForCircosPlot=none|low|medium|high`
+: The fusion of interest is drawn as a solid line in the circos plot. To give an impression of the overall degree of rearrangement, all other fusions are drawn as semi-transparent lines in the background. This option determines which other fusions should be included in the circos plot. `none` means only the fusion of interest is drawn; all other values specify the minimum confidence a fusion must have to be included. It usually makes no sense to include low-confidence fusions in circos plots, because they are abundant and unreliable, and would clutter up the circos plot. Default: `medium`
 
 `--alignments=FILE`
 : BAM file containing normal alignments from STAR (`Aligned.sortedByCoord.out.bam`). The file must be sorted by coordinates and indexed. If this argument is given, the script generates coverage plots. This argument requires the Bioconductor package `GenomicAlignments`.
@@ -182,4 +202,7 @@ draw_fusions.R --annotation=annotation.gtf --fusions=fusions.tsv --output=output
 
 `--showIntergenicVicinity=DISTANCE`
 : This option only applies to intergenic breakpoints. If it is set to a value greater than 0, then the script draws the genes which are no more than the given distance away from an intergenic breakpoint. Note that this option is incompatible with `--squishIntrons`. Default: `0`
+
+`--transcriptSelection=coverage|provided|canonical`
+: By default the transcript isoform with the highest coverage is drawn. Alternatively, the transcript isoform that is provided in the columns `transcript_id1` and `transcript_id2` in the given fusions file can be drawn. Selecting the isoform with the highest coverage usually produces nicer plots, in the sense that the coverage track is smooth and shows a visible increase in coverage after the fusion breakpoint. However, the isoform with the highest coverage may not be the one that is involved in the fusion. Often, genomic rearrangements lead to non-canonical isoforms being transcribed. For this reason, it can make sense to rely on the transcript selection provided by the columns `transcript_id1/2`, which reflect the actual isoforms involved in a fusion. As a third option, the transcripts that are annotated as canonical can be drawn. Transcript isoforms tagged with `appris_principal`, `appris_candidate`, or `CCDS` are considered canonical. Default: `coverage`
 

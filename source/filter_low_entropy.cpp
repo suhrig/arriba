@@ -10,7 +10,7 @@ unsigned int filter_low_entropy(chimeric_alignments_t& chimeric_alignments, cons
 	unsigned int remaining = 0;
 	for (chimeric_alignments_t::iterator chimeric_alignment = chimeric_alignments.begin(); chimeric_alignment != chimeric_alignments.end(); ++chimeric_alignment) {
 
-		if (chimeric_alignment->second.filter != NULL)
+		if (chimeric_alignment->second.filter != FILTER_none)
 			continue; // read has already been filtered
 
 		// look for recurrent k-mers in read sequence
@@ -76,7 +76,7 @@ unsigned int filter_low_entropy(chimeric_alignments_t& chimeric_alignments, cons
 						if (kmer_count[kmer_as_int] >= max_kmer_count ||
 						    kmer_count_aligned1[kmer_as_int] >= max_kmer_count_aligned1 ||
 						    kmer_count_aligned2[kmer_as_int] >= max_kmer_count_aligned2) {
-							chimeric_alignment->second.filter = FILTERS.at("low_entropy");
+							chimeric_alignment->second.filter = FILTER_low_entropy;
 							goto next_read;
 						}
 					}

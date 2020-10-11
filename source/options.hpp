@@ -33,6 +33,9 @@ struct options_t {
 	string assembly_file;
 	string blacklist_file;
 	string interesting_contigs;
+	string viral_contigs;
+	unsigned int top_viral_contigs;
+	float viral_contig_min_covered_fraction;
 	unsigned int homopolymer_length;
 	unsigned int min_read_through_distance;
 	unordered_map<string,bool> filters;
@@ -41,12 +44,7 @@ struct options_t {
 	float max_mismapper_fraction;
 	float max_homolog_identity;
 	unsigned int min_anchor_length;
-	bool print_supporting_reads;
-	bool print_supporting_reads_for_discarded_fusions;
-	bool print_fusion_sequence;
-	bool print_fusion_sequence_for_discarded_fusions;
-	bool print_peptide_sequence;
-	bool print_peptide_sequence_for_discarded_fusions;
+	bool print_extra_info_for_discarded_fusions;
 	float max_kmer_content;
 	unsigned int fragment_length;
 	string gtf_features;
@@ -56,6 +54,10 @@ struct options_t {
 	unsigned int subsampling_threshold;
 	float high_expression_quantile;
 	float exonic_fraction;
+	bool external_duplicate_marking;
+	string tags_file;
+	string protein_domains_file;
+	bool fill_sequence_gaps;
 };
 
 options_t parse_arguments(int argc, char **argv);

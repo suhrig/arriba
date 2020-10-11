@@ -21,7 +21,7 @@ unsigned int filter_long_gap(chimeric_alignments_t& chimeric_alignments) {
 	unsigned int remaining = 0;
 	for (chimeric_alignments_t::iterator chimeric_alignment = chimeric_alignments.begin(); chimeric_alignment != chimeric_alignments.end(); ++chimeric_alignment) {
 
-		if (chimeric_alignment->second.filter != NULL)
+		if (chimeric_alignment->second.filter != FILTER_none)
 			continue; // read has already been filtered
 
 		// check if event is a deletion between min_long_gap and max_long_gap in size
@@ -73,7 +73,7 @@ unsigned int filter_long_gap(chimeric_alignments_t& chimeric_alignments) {
 					end_of_loop_right:
 
 					if (matching_segment_left <= short_segment && matching_segment_right <= short_segment) {
-						chimeric_alignment->second.filter = FILTERS.at("long_gap");
+						chimeric_alignment->second.filter = FILTER_long_gap;
 						goto next_read;
 					}
 				}

@@ -1,14 +1,15 @@
 #include <algorithm>
 #include <cmath>
+#include <climits>
 #include <iostream>
 #include <iterator>
 #include <map>
-#include <vector>
 #include <string>
 #include <sstream>
 #include <set>
 #include <tuple>
 #include <unordered_map>
+#include <vector>
 #include "sam.h"
 #include "common.hpp"
 #include "annotation.hpp"
@@ -26,11 +27,13 @@ void split_string(const string& unsplit, const char separator, vector<string>& s
 
 bool parse_gtf_features(string gtf_features_string, gtf_features_t& gtf_features) {
 	replace(gtf_features_string.begin(), gtf_features_string.end(), ',', ' ');
-	replace(gtf_features_string.begin(), gtf_features_string.end(), '=', ' ');
 	istringstream iss(gtf_features_string);
 	while (iss) {
+		string feature_value_pair;
+		iss >> feature_value_pair;
+		tsv_stream_t tsv(feature_value_pair, '=');
 		string feature, value;
-		iss >> feature >> value;
+		tsv >> feature >> value;
 		if (feature != "" && value == "")
 			return false;
 		if (feature == "gene_name") {
@@ -115,23 +118,15 @@ string removeChr(string contig) {
 	return contig;
 }
 
-string addChr(string contig) {
-	if (contig.substr(0, 3) != "chr")
-		contig = "chr" + contig;
-	if (contig == "chrMT")
-		contig = "chrM";
-	return contig;
-}
-
 bool get_gtf_attribute(const string& attributes, const vector<string>& attribute_names, string& attribute_value) {
 
 	// find start of attribute
 	size_t start = string::npos;
-	for (auto attribute_name = attribute_names.begin(); attribute_name != attribute_names.end() && start == string::npos; ++attribute_name)
+	for (auto attribute_name = attribute_names.begin(); attribute_name != attribute_names.end() && start >= attributes.size(); ++attribute_name)
 		start = attributes.find(*attribute_name + " \"");
-	if (start != string::npos)
+	if (start < attributes.size())
 		start = attributes.find('"', start);
-	if (start == string::npos) {
+	if (start >= attributes.size()) {
 		cerr << "WARNING: failed to extract ";
 		for (auto attribute_name = attribute_names.begin(); attribute_name != attribute_names.end(); ++attribute_name) {
 			if (attribute_name != attribute_names.begin())
@@ -145,7 +140,7 @@ bool get_gtf_attribute(const string& attributes, const vector<string>& attribute
 
 	// find end of attribute
 	size_t end = attributes.find('"', start);
-	if (end == string::npos) {
+	if (end >= attributes.size()) {
 		cerr << "WARNING: failed to extract ";
 		for (auto attribute_name = attribute_names.begin(); attribute_name != attribute_names.end(); ++attribute_name) {
 			if (attribute_name != attribute_names.begin())
@@ -164,55 +159,70 @@ bool sort_exons_by_coordinate(const exon_annotation_record_t* exon1, const exon_
 	return *exon1 < *exon2;
 }
 
+inline string strip_ensembl_version_number(const string& ensembl_identifier) {
+	string::size_type trim_position = string::npos;
+	if (ensembl_identifier.substr(0, 3) == "ENS" && (trim_position = ensembl_identifier.find_last_of('.')) < ensembl_identifier.size())
+		return ensembl_identifier.substr(0, trim_position);
+	else
+		return ensembl_identifier;
+}
+
 struct coding_region_t {
+	strand_t strand;
+	contig_t contig;
 	position_t start, end;
 	string transcript_id;
 };
 
-void read_annotation_gtf(const string& filename, const string& gtf_features_string, contigs_t& contigs, gene_annotation_t& gene_annotation, transcript_annotation_t& transcript_annotation, exon_annotation_t& exon_annotation, unordered_map<string,gene_t>& gene_names) {
+void read_annotation_gtf(const string& filename, const string& gtf_features_string, contigs_t& contigs, vector<string>& original_contig_names, const assembly_t& assembly, gene_annotation_t& gene_annotation, transcript_annotation_t& transcript_annotation, exon_annotation_t& exon_annotation, unordered_map<string,gene_t>& gene_names) {
 
 	gtf_features_t gtf_features;
 	parse_gtf_features(gtf_features_string, gtf_features);
 
-	unordered_map<string,transcript_t> transcripts; // translates transcript IDs to numeric IDs
+	unordered_map<tuple<string,contig_t,strand_t>,transcript_t> transcripts; // translates transcript IDs to numeric IDs
 	unordered_map<tuple<string,contig_t,strand_t>,gene_t> gene_by_id; // maps gene IDs to genes (used to map exons to genes)
-	unordered_map<string,vector<exon_annotation_record_t*> > exons_by_transcript_id; // maps transcript IDs to exons (used to map coding regions to exons)
+	unordered_map<tuple<string,contig_t,strand_t>,vector<exon_annotation_record_t*> > exons_by_transcript_id; // maps transcript IDs to exons (used to map coding regions to exons)
 	vector<coding_region_t> coding_regions; // keeps track of coding regions (used to map coding regions to exons)
 
-	gene_set_t bogus_genes; // genes with bogus annotation are ignored
+	// genes and transcripts with malformed annotation are ignored,
+	// e.g., when the same ID appears multiple times or the gene is unreasonably large
+	const int max_gene_size = 3000000;
+	gene_set_t malformed_genes;
+	vector< tuple<string,contig_t,strand_t> > malformed_transcripts;
 
-	stringstream gtf_file;
-	autodecompress_file(filename, gtf_file);
+	autodecompress_file_t gtf_file(filename);
 	string line;
+	set<string> non_unique_items;
 	unsigned int new_id = 0; // ID generator for genes and transcripts
-	while (getline(gtf_file, line)) {
+	while (gtf_file.getline(line)) {
 		if (!line.empty() && line[0] != '#') { // skip comment lines
 
-			istringstream iss(line);
+			tsv_stream_t tsv(line);
 			annotation_record_t annotation_record;
 			string contig, strand, feature, attributes, trash, gene_name, gene_id;
 
 			// parse line
-			iss >> contig >> trash >> feature >> annotation_record.start >> annotation_record.end >> trash >> strand >> trash;
-			if (contig.empty() || feature.empty() || strand.empty()) {
+			tsv >> contig >> trash >> feature >> annotation_record.start >> annotation_record.end >> trash >> strand >> trash >> attributes;
+			if (tsv.fail() || contig.empty() || feature.empty() || strand.empty()) {
 				cerr << "WARNING: failed to parse line in GTF file: " << line << endl;
 				continue;
 			}
-			getline(iss, attributes);
 
 			// extract gene name and ID from attributes
 			if (!get_gtf_attribute(attributes, gtf_features.gene_name, gene_name) ||
 			    !get_gtf_attribute(attributes, gtf_features.gene_id, gene_id))
 				continue;
-
-			// if Gencode, remove version number from gene ID
-			string::size_type trim_position = string::npos;
-			if (gene_id.substr(0, 3) == "ENS" && (trim_position = gene_id.find_last_of('.', string::npos)) != string::npos)
-				gene_id = gene_id.substr(0, trim_position);
+			string short_gene_id = strip_ensembl_version_number(gene_id);
 
 			// convert string representation of contig to numeric ID
-			contig = removeChr(contig);
-			pair<contigs_t::iterator,bool> find_contig_by_name = contigs.insert(pair<string,contig_t>(contig, contigs.size())); // this adds a new contig only if it does not yet exist
+			pair<contigs_t::iterator,bool> find_contig_by_name = contigs.insert(pair<string,contig_t>(removeChr(contig), contigs.size())); // this adds a new contig only if it does not yet exist
+			if (contigs.size() == USHRT_MAX - 1) {
+				cerr << "ERROR: too many contigs" << endl;
+				exit(1);
+			}
+			if (original_contig_names.size() < contigs.size())
+				original_contig_names.resize(contigs.size());
+			original_contig_names[find_contig_by_name.first->second] = contig;
 
 			// make annotation record
 			annotation_record.contig = find_contig_by_name.first->second;
@@ -232,33 +242,34 @@ void read_annotation_gtf(const string& filename, const string& gtf_features_stri
 				string transcript_id;
 				if (!get_gtf_attribute(attributes, gtf_features.transcript_id, transcript_id))
 					continue;
-				// if Gencode, remove version number from transcript ID
-				string short_transcript_id = transcript_id;
-				if (short_transcript_id.substr(0, 3) == "ENS" && (trim_position = short_transcript_id.find_last_of('.', string::npos)) != string::npos)
-					short_transcript_id = short_transcript_id.substr(0, trim_position);
-				exon_annotation_record.transcript = transcripts[short_transcript_id];
-				if (exon_annotation_record.transcript == NULL) { // this is the first time we encounter this transcript ID => make a new transcript_annotation_record_t
+				string short_transcript_id = strip_ensembl_version_number(transcript_id);
+
+				// make transcript annotation record
+				transcript_t& transcript = transcripts[make_tuple(short_transcript_id, annotation_record.contig, annotation_record.strand)];
+				if (transcript == NULL) { // this is the first time we encounter this transcript ID => make a new transcript_annotation_record_t
 					transcript_annotation_record_t transcript_annotation_record;
 					transcript_annotation_record.id = new_id++;
-					transcript_annotation_record.start = -1; // is set once we have loaded all exons
-					transcript_annotation_record.end = -1; // is set once we have loaded all exons
+					transcript_annotation_record.name = transcript_id;
+					transcript_annotation_record.first_exon = NULL; // is set once we have loaded all exons
+					transcript_annotation_record.last_exon = NULL; // is set once we have loaded all exons
 					transcript_annotation.push_back(transcript_annotation_record);
-					exon_annotation_record.transcript = transcripts[short_transcript_id] = &(*transcript_annotation.rbegin());
+					transcript = &(*transcript_annotation.rbegin());
 				}
+				exon_annotation_record.transcript = transcript;
 
 				// make a gene annotation record, if this is the first exon of a gene
-				gene_t gene = gene_by_id[make_tuple(gene_id, annotation_record.contig, annotation_record.strand)];
+				gene_t& gene = gene_by_id[make_tuple(short_gene_id, annotation_record.contig, annotation_record.strand)];
 				if (gene == NULL) {
 					gene_annotation_record_t gene_annotation_record;
 					gene_annotation_record.copy(annotation_record);
-					gene_annotation_record.name = gene_name;
 					gene_annotation_record.id = new_id++;
+					gene_annotation_record.gene_id = gene_id;
+					gene_annotation_record.name = gene_name;
 					gene_annotation_record.exonic_length = 0; // is calculated later in arriba.cpp
 					gene_annotation_record.is_dummy = false;
 					gene_annotation_record.is_protein_coding = false;
 					gene_annotation.push_back(gene_annotation_record);
 					gene = &(*gene_annotation.rbegin());
-					gene_by_id[make_tuple(gene_id, annotation_record.contig, annotation_record.strand)] = gene;
 				} else { // gene has already been seen previously
 					// expand the boundaries of the gene, so that all exons fit inside
 					if (gene->start > exon_annotation_record.start)
@@ -266,22 +277,34 @@ void read_annotation_gtf(const string& filename, const string& gtf_features_stri
 					if (gene->end < exon_annotation_record.end)
 						gene->end = exon_annotation_record.end;
 					// check if annotation is sensible
-					if (gene->contig != annotation_record.contig || gene->end - gene->start > 3000000) {
-						cout << "WARNING: gene ID '" << gene_id << "' appears to be non-unique and will be ignored" << endl;
-						bogus_genes.insert(gene);
+					if (gene->contig != annotation_record.contig || gene->end - gene->start > max_gene_size) {
+						if (non_unique_items.find(gene_id) == non_unique_items.end()) {
+							cerr << "WARNING: gene ID '" << gene_id << "' appears to be non-unique and will be ignored" << endl;
+							non_unique_items.insert(gene_id); // report gene only once
+						}
+						malformed_genes.insert(gene);
 					}
 				}
-				exon_annotation_record.gene = gene;
+				if (assembly.find(gene->contig) != assembly.end() && (unsigned int) gene->end >= assembly.at(gene->contig).size()) {
+					if (non_unique_items.find(gene_id) == non_unique_items.end()) {
+						cerr << "WARNING: gene with ID '" << gene_id << "' extends beyond end of contig and will be ignored" << endl;
+						non_unique_items.insert(gene_id); // report gene only once
+					}
+					malformed_genes.insert(gene);
+				}
 
+				exon_annotation_record.gene = gene;
 				exon_annotation.push_back(exon_annotation_record);
 
 				// keep track of all exons of a transcript, so we can map coding regions to exons later
-				exons_by_transcript_id[transcript_id].push_back(&(*exon_annotation.rbegin()));
+				exons_by_transcript_id[make_tuple(transcript_id, annotation_record.contig, annotation_record.strand)].push_back(&(*exon_annotation.rbegin()));
 
 			} else if (find(gtf_features.feature_cds.begin(), gtf_features.feature_cds.end(), feature) != gtf_features.feature_cds.end()) {
 
 				// remember which regions of an exon are coding
 				coding_region_t coding_region;
+				coding_region.strand = annotation_record.strand;
+				coding_region.contig = annotation_record.contig;
 				coding_region.start = annotation_record.start;
 				coding_region.end = annotation_record.end;
 				if (!get_gtf_attribute(attributes, gtf_features.transcript_id, coding_region.transcript_id))
@@ -300,7 +323,7 @@ void read_annotation_gtf(const string& filename, const string& gtf_features_stri
 	for (auto coding_region = coding_regions.begin(); coding_region != coding_regions.end(); ++coding_region) {
 
 		// find exons of the same transcript as the coding region
-		auto transcript = exons_by_transcript_id.find(coding_region->transcript_id);
+		auto transcript = exons_by_transcript_id.find(make_tuple(coding_region->transcript_id, coding_region->contig, coding_region->strand));
 		if (transcript == exons_by_transcript_id.end()) {
 			cerr << "WARNING: CDS record has unknown transcript ID: " << coding_region->transcript_id << endl;
 			continue;
@@ -326,37 +349,46 @@ void read_annotation_gtf(const string& filename, const string& gtf_features_stri
 		}
 	}
 
-	// remove bogus genes
-	for (gene_set_t::iterator bogus_gene = bogus_genes.begin(); bogus_gene != bogus_genes.end(); ++bogus_gene)
-		remove_gene(*bogus_gene, gene_annotation, exon_annotation);
+	// compute starts and ends of all transcripts
+	for (exon_annotation_t::iterator exon = exon_annotation.begin(); exon != exon_annotation.end(); ++exon) {
+		if (exon->transcript->first_exon == NULL || exon->start < exon->transcript->first_exon->start)
+			exon->transcript->first_exon = &(*exon);
+		if (exon->transcript->last_exon == NULL || exon->end > exon->transcript->last_exon->end)
+			exon->transcript->last_exon = &(*exon);
+	}
 
 	// fix some errors in the Gencode annotation
-	// remove fusion transcript FIP1L1:PDGFRA
-	if (transcripts.find("ENST00000507166") != transcripts.end())
-		remove_transcript(transcripts.at("ENST00000507166"), gene_annotation, exon_annotation);
-	// remove fusion transcript GOPC:ROS1
-	if (transcripts.find("ENST00000467125") != transcripts.end())
-		remove_transcript(transcripts.at("ENST00000467125"), gene_annotation, exon_annotation);
-	// remove fusion transcripts MTAP:CDKN2B-AS1
-	if (transcripts.find("ENST00000404796") != transcripts.end())
-		remove_transcript(transcripts.at("ENST00000404796"), gene_annotation, exon_annotation);
-	if (transcripts.find("ENST00000577563") != transcripts.end())
-		remove_transcript(transcripts.at("ENST00000577563"), gene_annotation, exon_annotation);
-	if (transcripts.find("ENST00000580900") != transcripts.end())
-		remove_transcript(transcripts.at("ENST00000580900"), gene_annotation, exon_annotation);
+	if (contigs.find("4") != contigs.end())
+		malformed_transcripts.push_back(make_tuple("ENST00000507166", contigs["4"], FORWARD)); // FIP1L1:PDGFRA
+	if (contigs.find("6") != contigs.end())
+		malformed_transcripts.push_back(make_tuple("ENST00000467125", contigs["6"], REVERSE)); // GOPC:ROS1
+	if (contigs.find("9") != contigs.end()) {
+		malformed_transcripts.push_back(make_tuple("ENST00000404796", contigs["9"], FORWARD)); // MTAP:CDKN2B-AS1
+		malformed_transcripts.push_back(make_tuple("ENST00000577563", contigs["9"], FORWARD)); // MTAP:CDKN2B-AS1
+		malformed_transcripts.push_back(make_tuple("ENST00000580900", contigs["9"], FORWARD)); // MTAP:CDKN2B-AS1
+	}
+	if (contigs.find("7") != contigs.end())
+		malformed_transcripts.push_back(make_tuple("ENSMUST00000124096", contigs["7"], REVERSE)); // Fgfr2 in mouse
+
+	// remove transcripts that are non-unique or unreasonably large
+	for (auto transcript = transcripts.begin(); transcript != transcripts.end(); ++transcript) {
+		if (transcript->second->last_exon->end - transcript->second->first_exon->start > max_gene_size) {
+			malformed_transcripts.push_back(transcript->first);
+			cerr << "WARNING: transcript ID '" << get<0>(transcript->first) << "' appears to be non-unique and will be ignored" << endl;
+		}
+	}
+	for (auto malformed_transcript = malformed_transcripts.begin(); malformed_transcript != malformed_transcripts.end(); ++malformed_transcript)
+		if (transcripts.find(*malformed_transcript) != transcripts.end())
+			remove_transcript(transcripts.at(*malformed_transcript), gene_annotation, exon_annotation);
+
+	// remove malformed genes
+	for (gene_set_t::iterator malformed_gene = malformed_genes.begin(); malformed_gene != malformed_genes.end(); ++malformed_gene)
+		remove_gene(*malformed_gene, gene_annotation, exon_annotation);
 
 	// make a map of gene_name -> gene
 	//TODO this can cause collisions, because gene names are not unique
 	for (gene_annotation_t::iterator gene = gene_annotation.begin(); gene != gene_annotation.end(); ++gene)
 		gene_names[gene->name] = &(*gene);
-
-	// compute starts and ends of all transcripts
-	for (exon_annotation_t::iterator exon = exon_annotation.begin(); exon != exon_annotation.end(); ++exon) {
-		if (exon->start < exon->transcript->start || exon->transcript->start == -1)
-			exon->transcript->start = exon->start;
-		if (exon->end > exon->transcript->end || exon->transcript->end == -1)
-			exon->transcript->end = exon->end;
-	}
 
 }
 
@@ -551,60 +583,52 @@ void get_boundaries_of_biggest_gene(gene_set_t& genes, position_t& start, positi
 }
 
 // get the distance between two positions after splicing (i.e., ignoring introns)
-int get_spliced_distance(const contig_t contig, position_t position1, position_t position2, direction_t direction1, direction_t direction2, const gene_t gene, const exon_annotation_index_t& exon_annotation_index) {
+int get_spliced_distance(const contig_t contig, position_t position1, position_t position2, const gene_t gene, const exon_annotation_index_t& exon_annotation_index) {
 
 	// make sure position1 contains the smaller coordinate
-	if (position1 > position2) {
+	if (position1 > position2)
 		swap(position1, position2);
-		swap(direction1, direction2);
-	}
 
 	// take the plain distance, if no exons are annotated for the given contig
-	if ((unsigned int) contig >= exon_annotation_index.size() || exon_annotation_index[contig].empty())
+	if (contig >= exon_annotation_index.size() || exon_annotation_index[contig].empty())
 		return position2 - position1;
 
-	// find exon/intron of position1 & 2
-	exon_contig_annotation_index_t::const_iterator p1 = exon_annotation_index[contig].lower_bound(position1);
-	exon_contig_annotation_index_t::const_iterator p2 = exon_annotation_index[contig].lower_bound(position2);
-
-	// take the plain distance, if no exons are annotated for the given region or if the positions are in the same exon
-	if (p1 == exon_annotation_index[contig].end() || p1 == p2)
-		return position2 - position1;
-
+	// compute the shortest splice distance from position1 to position2 taking all transcripts into account
+	exon_contig_annotation_index_t::const_iterator exons = exon_annotation_index[contig].lower_bound(position1);
 	int distance = 0;
-
-	// check if position1 is at a splice-site
-	// if not, add the distance from the position to the next exon boundary
-	bool position1_is_spliced = direction1 == DOWNSTREAM && is_breakpoint_spliced(gene, direction1, position1, exon_annotation_index);
-	if (!position1_is_spliced)
-		distance += p1->first - position1;
-
-	// move p1 towards p2 and sum up the lengths of all exons in-between for each transcript
-	unordered_map<transcript_t,int> distance_by_transcript;
-	unordered_map<transcript_t,position_t> boundary_by_transcript;
-	position_t boundary = p1->first;
-	for (; p1 != p2; p1++) {
-		for (auto exon = p1->second.begin(); exon != p1->second.end(); exon++) {
-			auto transcript = distance_by_transcript.insert(make_pair((**exon).transcript, distance)); // if this is the first exon of a transcript, initialize with distance incl. all exons
-			transcript.first->second += p1->first - boundary;
-			boundary_by_transcript[(**exon).transcript] = p1->first;
-		}
-		distance += p1->first - boundary; // measure distance between positions considering all exons of all transcripts
-		boundary = p1->first;
+	if (exons != exon_annotation_index[contig].end() && exons->first < position2) {
+		distance += exons->first - position1; // add distance from position1 to next exon boundary
+		position1 = exons->first;
 	}
-
-	// add the remaining distance from position2 to the next exon boundary
-	bool position2_is_spliced = direction2 == UPSTREAM && is_breakpoint_spliced(gene, direction2, position2, exon_annotation_index);
-	for (auto transcript = distance_by_transcript.begin(); transcript != distance_by_transcript.end(); ++transcript)
-		if (!position2_is_spliced)
-			transcript->second += position2 - boundary_by_transcript[transcript->first];
-	if (!position2_is_spliced)
-		distance += position2 - boundary;
-
-	// find transcript with shortest spliced distance between positions
-	for (auto transcript = distance_by_transcript.begin(); transcript != distance_by_transcript.end(); ++transcript)
-		if (transcript->second < distance)
-			distance = transcript->second;
+	for (; exons != exon_annotation_index[contig].end() && exons->first < position2; ++exons) {
+		if (exons->first >= position1) {
+			// find the transcript that skips the furthest from the current position to position2 (but not beyond position2)
+			position_t furthest_skipping_exon_start = -1;
+			position_t furthest_skipping_exon_end = -1;
+			position_t furthest_skipping_exon_skip = -1;
+			for (auto exon = exons->second.begin(); exon != exons->second.end(); ++exon) {
+				if ((**exon).gene == gene) {
+					if ((**exon).next_exon != NULL && (**exon).next_exon->start <= position2) {
+						position_t exon_start = max(position1, (**exon).start);
+						position_t exon_end = min(position2, (**exon).end);
+						position_t exon_skip = (**exon).next_exon->start - exon_start + 1;
+						if (furthest_skipping_exon_start == -1 ||
+						    1.0 * (exon_end - exon_start) / exon_skip <
+						    1.0 * (furthest_skipping_exon_end - furthest_skipping_exon_start) / furthest_skipping_exon_skip) {
+							furthest_skipping_exon_start = exon_start;
+							furthest_skipping_exon_end = exon_end;
+							furthest_skipping_exon_skip = exon_skip;
+						}
+					}
+				}
+			}
+			if (furthest_skipping_exon_start != -1) {
+				distance += furthest_skipping_exon_end - furthest_skipping_exon_start + 1;
+				position1 = furthest_skipping_exon_start + furthest_skipping_exon_skip - 1;
+			}
+		}
+	}
+	distance += position2 - position1; // add remaining distance between current position and position2
 
 	return distance;
 }

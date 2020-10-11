@@ -41,7 +41,7 @@ void predict_fusion_strands(fusion_t& fusion) {
 
 	for (auto discordant_mate = fusion.discordant_mate_list.begin(); discordant_mate != fusion.discordant_mate_list.end(); ++discordant_mate) {
 		if (!(**discordant_mate).second[MATE1].predicted_strand_ambiguous &&
-		    (**discordant_mate).second.filter != FILTERS.at("hairpin")) { // skip discordant mates arising from hairpin structures, because they are usually ambiguous
+		    (**discordant_mate).second.filter != FILTER_hairpin) { // skip discordant mates arising from hairpin structures, because they are usually ambiguous
 
 			// find out which mate supports breakpoint1
 			alignment_t* mate1 = &(**discordant_mate).second[MATE1];
@@ -202,8 +202,7 @@ void predict_transcript_start(fusion_t& fusion) {
 
 unsigned int find_fusions(chimeric_alignments_t& chimeric_alignments, fusions_t& fusions, exon_annotation_index_t& exon_annotation_index, const int max_mate_gap, const unsigned int subsampling_threshold) {
 
-	typedef unordered_map< tuple<unsigned int/*gene1->id*/,unsigned int/*gene2->id*/>, vector<chimeric_alignments_t::iterator> > discordant_mates_by_gene_pair_t;
-	discordant_mates_by_gene_pair_t discordant_mates_by_gene_pair; // contains the discordant mates for each pair of genes
+	unordered_map< tuple<unsigned int/*gene1->id*/,unsigned int/*gene2->id*/,direction_t/*1*/,direction_t/*2*/>, vector< tuple<position_t/*breakpoint1*/,position_t/*breakpoint2*/,chimeric_alignments_t::iterator> > > discordant_mates_by_gene_pair; // contains the discordant mates for each pair of genes
 
 	bool subsampled_fusions = false;
 
@@ -250,24 +249,23 @@ unsigned int find_fusions(chimeric_alignments_t& chimeric_alignments, fusions_t&
 				for (gene_set_t::iterator gene2 = genes2.begin(); gene2 != genes2.end(); ++gene2) {
 
 					// copy properties of supporting read to fusion
-					fusion_t& fusion = fusions[make_tuple((**gene1).id, (**gene2).id, contig1, contig2, breakpoint1, breakpoint2, direction1, direction2)];
-					fusion.gene1 = *gene1; fusion.gene2 = *gene2;
-					fusion.direction1 = direction1; fusion.direction2 = direction2;
-					fusion.contig1 = contig1; fusion.contig2 = contig2;
-					fusion.breakpoint1 = breakpoint1; fusion.breakpoint2 = breakpoint2;
+					pair<fusions_t::iterator,bool> is_new_fusion = fusions.insert(make_pair(make_tuple((**gene1).id, (**gene2).id, contig1, contig2, breakpoint1, breakpoint2, direction1, direction2), fusion_t()));
+					fusion_t& fusion = is_new_fusion.first->second;
+					if (is_new_fusion.second) {
+						fusion.gene1 = *gene1; fusion.gene2 = *gene2;
+						fusion.direction1 = direction1; fusion.direction2 = direction2;
+						fusion.contig1 = contig1; fusion.contig2 = contig2;
+						fusion.breakpoint1 = breakpoint1; fusion.breakpoint2 = breakpoint2;
+					}
 					fusion.exonic1 = exonic1 || fusion.exonic1; fusion.exonic2 = exonic2 || fusion.exonic2;
 
-					if (fusion.supporting_reads() == 0) {
-						if (chimeric_alignment->second.filter == NULL)
-							fusion.filter = NULL;
-						else
-							fusion.filter = chimeric_alignment->second.filter;
-					}
+					if (is_new_fusion.second || chimeric_alignment->second.filter == FILTER_none || fusion.filter == FILTER_duplicates)
+						fusion.filter = chimeric_alignment->second.filter;
 
 					if (fusion.split_reads1 >= subsampling_threshold && !swapped ||
 					    fusion.split_reads2 >= subsampling_threshold &&  swapped ||
-					    chimeric_alignment->second.filter != NULL && !swapped && fusion.split_read1_list.size() >= subsampling_threshold ||
-					    chimeric_alignment->second.filter != NULL &&  swapped && fusion.split_read2_list.size() >= subsampling_threshold) {
+					    chimeric_alignment->second.filter != FILTER_none && !swapped && fusion.split_read1_list.size() >= subsampling_threshold ||
+					    chimeric_alignment->second.filter != FILTER_none &&  swapped && fusion.split_read2_list.size() >= subsampling_threshold) {
 
 						// subsampling improves performance, especially in multiple myeloma samples
 						subsampled_fusions = true;
@@ -289,11 +287,11 @@ unsigned int find_fusions(chimeric_alignments_t& chimeric_alignments, fusions_t&
 						// increase split read counters for the given fusion
 						if (swapped) {
 							fusion.split_read2_list.push_back(chimeric_alignment);
-							if (chimeric_alignment->second.filter == NULL)
+							if (chimeric_alignment->second.filter == FILTER_none)
 								fusion.split_reads2++;
 						} else {
 							fusion.split_read1_list.push_back(chimeric_alignment);
-							if (chimeric_alignment->second.filter == NULL)
+							if (chimeric_alignment->second.filter == FILTER_none)
 								fusion.split_reads1++;
 						}
 
@@ -333,19 +331,18 @@ unsigned int find_fusions(chimeric_alignments_t& chimeric_alignments, fusions_t&
 				for (gene_set_t::iterator gene2 = genes2.begin(); gene2 != genes2.end(); ++gene2) {
 
 					// copy properties of supporting read to fusion
-					bool is_new_fusion = fusions.find(make_tuple((**gene1).id, (**gene2).id, contig1, contig2, breakpoint1, breakpoint2, direction1, direction2)) == fusions.end();
-					fusion_t& fusion = fusions[make_tuple((**gene1).id, (**gene2).id, contig1, contig2, breakpoint1, breakpoint2, direction1, direction2)];
-					fusion.gene1 = *gene1; fusion.gene2 = *gene2;
-					fusion.direction1 = direction1; fusion.direction2 = direction2;
-					fusion.contig1 = contig1; fusion.contig2 = contig2;
-					fusion.breakpoint1 = breakpoint1; fusion.breakpoint2 = breakpoint2;
+					pair<fusions_t::iterator,bool> is_new_fusion = fusions.insert(make_pair(make_tuple((**gene1).id, (**gene2).id, contig1, contig2, breakpoint1, breakpoint2, direction1, direction2), fusion_t()));
+					fusion_t& fusion = is_new_fusion.first->second;
+					if (is_new_fusion.second) {
+						fusion.gene1 = *gene1; fusion.gene2 = *gene2;
+						fusion.direction1 = direction1; fusion.direction2 = direction2;
+						fusion.contig1 = contig1; fusion.contig2 = contig2;
+						fusion.breakpoint1 = breakpoint1; fusion.breakpoint2 = breakpoint2;
+					}
 					fusion.exonic1 = exonic1 || fusion.exonic1; fusion.exonic2 = exonic2 || fusion.exonic2;
 
-					if (chimeric_alignment->second.filter == NULL) {
-						fusion.filter = NULL;
-					} else if (is_new_fusion || fusion.filter != NULL) {
+					if (is_new_fusion.second || chimeric_alignment->second.filter == FILTER_none || fusion.filter == FILTER_duplicates)
 						fusion.filter = chimeric_alignment->second.filter;
-					}
 
 					// expand the size of the anchor
 					if (fusion.direction1 == DOWNSTREAM && (anchor_start1 < fusion.anchor_start1 || fusion.anchor_start1 == 0)) {
@@ -361,7 +358,7 @@ unsigned int find_fusions(chimeric_alignments_t& chimeric_alignments, fusions_t&
 
 					// store the discordant mates in a hashmap for fast lookup
 					// we will need this later to find all the discordant mates supporting a given fusion
-					discordant_mates_by_gene_pair[make_tuple((**gene1).id, (**gene2).id)].push_back(chimeric_alignment);
+					discordant_mates_by_gene_pair[make_tuple((**gene1).id, (**gene2).id, direction1, direction2)].push_back(make_tuple(breakpoint1, breakpoint2, chimeric_alignment));
 				}
 			}
 		}
@@ -370,61 +367,67 @@ unsigned int find_fusions(chimeric_alignments_t& chimeric_alignments, fusions_t&
 	// for each fusion, count the supporting discordant mates
 	for (fusions_t::iterator fusion = fusions.begin(); fusion != fusions.end(); ++fusion) {
 
-		if (fusion->second.filter != NULL)
+		if (fusion->second.filter != FILTER_none)
 			continue; // don't look for discordant mates, if the fusion has been filtered
 
 		// get list of discordant mates supporting a fusion between the given gene pair
-		discordant_mates_by_gene_pair_t::iterator discordant_mates = discordant_mates_by_gene_pair.find(make_tuple(fusion->second.gene1->id, fusion->second.gene2->id));
+		direction_t direction1 = fusion->second.direction1;
+		direction_t direction2 = fusion->second.direction2;
+		auto discordant_mates = discordant_mates_by_gene_pair.find(make_tuple(fusion->second.gene1->id, fusion->second.gene2->id, direction1, direction2));
 		if (discordant_mates != discordant_mates_by_gene_pair.end()) {
 
-			// discard those discordant mates which point in the wrong direction (away from the breakpoint)
+			// if the precise breakpoint is known (i.e., there are split reads), the discordant mate must not run over the breakpoint (at most 2bp)
+			// if the precise breakpoint is not known (i.e., there are only discordant mates), we are more permissive (max_mate_gap)
+			int max_overlap_with_breakpoint = (fusion->second.split_read1_list.size() + fusion->second.split_read2_list.size() > 0) ? 2 : max_mate_gap;
+			position_t fusion_breakpoint1 = (fusion->second.direction1 == DOWNSTREAM) ? fusion->second.breakpoint1 + max_overlap_with_breakpoint : fusion->second.breakpoint1 - max_overlap_with_breakpoint;
+			position_t fusion_breakpoint2 = (fusion->second.direction2 == DOWNSTREAM) ? fusion->second.breakpoint2 + max_overlap_with_breakpoint : fusion->second.breakpoint2 - max_overlap_with_breakpoint;
+
 			for (auto discordant_mate = discordant_mates->second.begin(); discordant_mate != discordant_mates->second.end(); ++discordant_mate) {
 
-				// ignore discarded reads, if we already have a lot of supporting reads (improves performance in multiple myeloma samples)
-				if ((*discordant_mate)->second.filter != NULL && fusion->second.discordant_mate_list.size() >= subsampling_threshold) {
-					subsampled_fusions = true;
-					continue;
-				}
+				// mate breakpoints must match fusion breakpoints
+				if (((fusion->second.direction1 == DOWNSTREAM && get<0>(*discordant_mate) /*mate1 breakpoint*/ <= fusion_breakpoint1) ||
+				     (fusion->second.direction1 == UPSTREAM   && get<0>(*discordant_mate) /*mate1 breakpoint*/ >= fusion_breakpoint1)) &&
+				    ((fusion->second.direction2 == DOWNSTREAM && get<1>(*discordant_mate) /*mate2 breakpoint*/ <= fusion_breakpoint2) ||
+				     (fusion->second.direction2 == UPSTREAM   && get<1>(*discordant_mate) /*mate2 breakpoint*/ >= fusion_breakpoint2)) &&
+				    (!fusion->second.is_intragenic() ||
+				     abs(fusion->second.breakpoint1 - get<0>(*discordant_mate) /*mate1 breakpoint*/) <= max_mate_gap &&
+				     abs(fusion->second.breakpoint2 - get<1>(*discordant_mate) /*mate2 breakpoint*/) <= max_mate_gap)) {
 
-				alignment_t* mate1 = &((**discordant_mate).second[MATE1]); // introduce some aliases for cleaner code
-				alignment_t* mate2 = &((**discordant_mate).second[MATE2]);
-
-				// make sure mate1 points to the mate with the lower coordinate
-				// this ensures that the coordinate of the correct mate is compared against the coordinate of the breakpoint
-				position_t mate1_breakpoint = (mate1->strand == FORWARD) ? mate1->end : mate1->start;
-				position_t mate2_breakpoint = (mate2->strand == FORWARD) ? mate2->end : mate2->start;
-				if (mate1->contig > mate2->contig || mate1->contig == mate2->contig && mate1_breakpoint > mate2_breakpoint)
-					swap(mate1, mate2);
-
-				// if the precise breakpoint is known (i.e., there are split reads), the discordant mate must not run over the breakpoint (at most 2bp)
-				// if the precise breakpoint is not known (i.e., there are only discordant mates), we are more permissive (max_mate_gap)
-				int max_overlap_with_breakpoint = (fusion->second.split_read1_list.size() + fusion->second.split_read2_list.size() > 0) ? 2 : max_mate_gap;
-
-				if (((fusion->second.direction1 == DOWNSTREAM && mate1->strand == FORWARD && (!fusion->second.is_intragenic() || mate1->end   >= fusion->second.breakpoint1 - max_mate_gap) && mate1->end   <= fusion->second.breakpoint1 + max_overlap_with_breakpoint) ||
-				     (fusion->second.direction1 == UPSTREAM   && mate1->strand == REVERSE && (!fusion->second.is_intragenic() || mate1->start <= fusion->second.breakpoint1 + max_mate_gap) && mate1->start >= fusion->second.breakpoint1 - max_overlap_with_breakpoint)) &&
-				    ((fusion->second.direction2 == DOWNSTREAM && mate2->strand == FORWARD && (!fusion->second.is_intragenic() || mate2->end   >= fusion->second.breakpoint2 - max_mate_gap) && mate2->end   <= fusion->second.breakpoint2 + max_overlap_with_breakpoint) ||
-				     (fusion->second.direction2 == UPSTREAM   && mate2->strand == REVERSE && (!fusion->second.is_intragenic() || mate2->start <= fusion->second.breakpoint2 + max_mate_gap) && mate2->start >= fusion->second.breakpoint2 - max_overlap_with_breakpoint))) {
-
-					fusion->second.discordant_mate_list.push_back(*discordant_mate);
-
-					if ((**discordant_mate).second.filter == NULL)
-						fusion->second.discordant_mates++;
-
-					// expand the size of the anchor
-					if (fusion->second.direction1 == DOWNSTREAM && (mate1->start < fusion->second.anchor_start1 || fusion->second.anchor_start1 == 0)) {
-						fusion->second.anchor_start1 = mate1->start;
-					} else if (fusion->second.direction1 == UPSTREAM && (mate1->end > fusion->second.anchor_start1 || fusion->second.anchor_start1 == 0)) {
-						fusion->second.anchor_start1 = mate1->end;
+					// ignore further discordant mates if we already have a lot of supporting reads,
+					// because runtime and memory increase quadratically with the number of discordant mates
+					if (get<2>(*discordant_mate)->second.filter != FILTER_none && fusion->second.discordant_mate_list.size() >= subsampling_threshold) {
+						subsampled_fusions = true;
+						continue; // ignore discarded read, but continue looking for non-discarded reads
 					}
-					if (fusion->second.direction2 == DOWNSTREAM && (mate2->start < fusion->second.anchor_start2 || fusion->second.anchor_start2 == 0)) {
-						fusion->second.anchor_start2 = mate2->start;
-					} else if (fusion->second.direction2 == UPSTREAM && (mate2->end > fusion->second.anchor_start2 || fusion->second.anchor_start2 == 0)) {
-						fusion->second.anchor_start2 = mate2->end;
-					}
-
 					if (fusion->second.discordant_mates >= subsampling_threshold) {
 						subsampled_fusions = true;
-						break;
+						break; // abort and go to next fusion - we already have enough discordant mates for this one
+					}
+
+					// count the discordant mates as supporting reads
+					fusion->second.discordant_mate_list.push_back(get<2>(*discordant_mate));
+					if (get<2>(*discordant_mate)->second.filter == FILTER_none)
+						fusion->second.discordant_mates++;
+
+					// make sure mate1 points to the mate with the lower coordinate
+					// this ensures that the coordinate of the correct mate is compared against the coordinate of the breakpoint
+					alignment_t& mate1 = get<2>(*discordant_mate)->second[MATE1];
+					alignment_t& mate2 = get<2>(*discordant_mate)->second[MATE2];
+					position_t mate1_breakpoint = (mate1.strand == FORWARD) ? mate1.end : mate1.start;
+					position_t mate2_breakpoint = (mate2.strand == FORWARD) ? mate2.end : mate2.start;
+					if (mate1.contig > mate2.contig || mate1.contig == mate2.contig && mate1_breakpoint > mate2_breakpoint)
+						swap(mate1, mate2);
+
+					// expand the size of the anchor
+					if (fusion->second.direction1 == DOWNSTREAM && (mate1.start < fusion->second.anchor_start1 || fusion->second.anchor_start1 == 0)) {
+						fusion->second.anchor_start1 = mate1.start;
+					} else if (fusion->second.direction1 == UPSTREAM && (mate1.end > fusion->second.anchor_start1 || fusion->second.anchor_start1 == 0)) {
+						fusion->second.anchor_start1 = mate1.end;
+					}
+					if (fusion->second.direction2 == DOWNSTREAM && (mate2.start < fusion->second.anchor_start2 || fusion->second.anchor_start2 == 0)) {
+						fusion->second.anchor_start2 = mate2.start;
+					} else if (fusion->second.direction2 == UPSTREAM && (mate2.end > fusion->second.anchor_start2 || fusion->second.anchor_start2 == 0)) {
+						fusion->second.anchor_start2 = mate2.end;
 					}
 				}
 			}
@@ -432,7 +435,7 @@ unsigned int find_fusions(chimeric_alignments_t& chimeric_alignments, fusions_t&
 	}
 
 	if (subsampled_fusions)
-		cerr << "WARNING: Some fusions were subsampled, because they have more than " << subsampling_threshold << " supporting reads" << endl;
+		cerr << "WARNING: some fusions were subsampled, because they have more than " << subsampling_threshold << " supporting reads" << endl;
 
 	unsigned int remaining = 0;
 	for (fusions_t::iterator fusion = fusions.begin(); fusion != fusions.end(); ++fusion) {
@@ -460,7 +463,7 @@ unsigned int find_fusions(chimeric_alignments_t& chimeric_alignments, fusions_t&
 		predict_transcript_start(fusion->second);
 
 		// count fusions which have at least one non-filtered read
-		if (fusion->second.filter == NULL)
+		if (fusion->second.filter == FILTER_none)
 			remaining++;
 	}
 

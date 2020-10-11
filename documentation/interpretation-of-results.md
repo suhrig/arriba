@@ -71,7 +71,7 @@ For some genes, this is a common phenomenon, which is not reflected in the gene 
 
 **In vitro artifacts**
 
-In some tissues certain genes are expressed at very high levels, for example hemoglobin and fibrinogen in blood or collagens in connective tissue. Presumably, the abundance of RNA molecules from these genes increases the chance of unrelated molecules sticking together via hybridization. These hybdrized molecules mediate template switching by reverse transcriptase or might serve as primers for polymerases, generating a large amount of chimeric fragments in vitro. The filter `pcr_fusions` should remove such events, but sometimes it fails, because making it more restrictive would increase the risk of missing fusions involving highly expressed genes. In vitro-generated fusions have the following characteristics:
+In some tissues certain genes are expressed at very high levels, for example hemoglobin and fibrinogen in blood or collagens in connective tissue. Presumably, the abundance of RNA molecules from these genes increases the chance of unrelated molecules sticking together via hybridization. These hybdrized molecules mediate template switching by reverse transcriptase, generating a large amount of chimeric fragments in vitro. The filter `in_vitro` should remove such events, but sometimes it fails, because making it more restrictive would increase the risk of missing fusions involving highly expressed genes. In vitro-generated fusions have the following characteristics:
 
 - Most of the time, these events have very few split-reads (1-2) while having a high number of discordant mates (dozens).
 
@@ -97,7 +97,7 @@ S100A6 GAPDH  -/-     +/+     1:153507153 12:6645674  3'UTR UTR   translocation 
 
 **Fusions recovered by the known fusions list**
 
-When Arriba is run with a list of known fusions (parameter `-k`), it is particularly sensitive towards evidence concerning these fusion partners. Even when there are only few supporting reads, the event is reported. Obviously, this may lead to false positive predictions. These false positives can be recognized as low-confidence predictions with typically only 2 supporting reads (which is the minimum number of supporting reads to be recovered by the filter `known_fusions`).
+When Arriba is run with a list of known fusions (parameter `-k`), it is particularly sensitive towards evidence concerning these fusion partners. Even when there are only few supporting reads, the event is reported. Obviously, this may lead to false positive predictions. These false positives can be recognized as low-confidence predictions with typically only 1 or 2 supporting reads (which is the minimum number of supporting reads to be recovered by the filter `known_fusions`).
 
 Multiple transcript variants
 -----------------------------

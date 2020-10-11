@@ -6,14 +6,14 @@ using namespace std;
 // throw away fusions with few supporting reads
 unsigned int filter_min_support(fusions_t& fusions, const int min_support) {
 	unsigned int remaining = 0;
-	for (fusions_t::iterator chimeric_alignment = fusions.begin(); chimeric_alignment != fusions.end(); ++chimeric_alignment) {
+	for (fusions_t::iterator fusion = fusions.begin(); fusion != fusions.end(); ++fusion) {
 
-		if (chimeric_alignment->second.filter != NULL)
+		if (fusion->second.filter != FILTER_none)
 			continue; // fusion has already been filtered
 
-		if (chimeric_alignment->second.split_reads1 + chimeric_alignment->second.split_reads2 + chimeric_alignment->second.discordant_mates < min_support ||
-		    chimeric_alignment->second.breakpoint_overlaps_both_genes() && chimeric_alignment->second.split_reads1 + chimeric_alignment->second.split_reads2 < min_support)
-			chimeric_alignment->second.filter = FILTERS.at("min_support");
+		if (fusion->second.split_reads1 + fusion->second.split_reads2 + fusion->second.discordant_mates < min_support ||
+		    fusion->second.breakpoint_overlaps_both_genes() && fusion->second.split_reads1 + fusion->second.split_reads2 < min_support)
+			fusion->second.filter = FILTER_min_support;
 		else
 			remaining++;
 	}

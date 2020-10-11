@@ -1,6 +1,8 @@
+#include <climits>
 #include <iostream>
 #include <sstream>
 #include <string>
+#include <vector>
 #include "sam.h"
 #include "common.hpp"
 #include "annotation.hpp"
@@ -23,42 +25,38 @@ string dna_to_reverse_complement(const string& dna) {
 	return reverse_complement;
 }
 
-void load_assembly(assembly_t& assembly, const string& fasta_file_path, contigs_t& contigs, const contigs_t& interesting_contigs) {
+void load_assembly(assembly_t& assembly, const string& fasta_file_path, contigs_t& contigs, vector<string>& original_contig_names, const string& interesting_contigs) {
 
-	// open FastA file
-	stringstream fasta_file;
-	autodecompress_file(fasta_file_path, fasta_file);
-
-	// read line by line
+	// read FastA file line by line
+	autodecompress_file_t fasta_file(fasta_file_path);
 	string line;
-	contig_t current_contig = -1;
-	while (getline(fasta_file, line)) {
+	contig_t current_contig = USHRT_MAX;
+	while (fasta_file.getline(line)) {
 		if (!line.empty()) {
 
 			// get contig name
 			if (line[0] == '>') {
+				if (contigs.size() == USHRT_MAX - 1) {
+					cerr << "ERROR: too many contigs" << endl;
+					exit(1);
+				}
 				istringstream iss(line.substr(1));
 				string contig_name;
 				iss >> contig_name;
-				contig_name = removeChr(contig_name);
-				pair<contigs_t::iterator,bool> new_contig = contigs.insert(pair<string,contig_t>(contig_name, contigs.size()));
+				pair<contigs_t::iterator,bool> new_contig = contigs.insert(pair<string,contig_t>(removeChr(contig_name), contigs.size()));
 				current_contig = new_contig.first->second;
-				if (!interesting_contigs.empty() && interesting_contigs.find(contig_name) == interesting_contigs.end())
-					current_contig = -1; // skip uninteresting contigs
+				if (original_contig_names.size() < contigs.size())
+					original_contig_names.resize(contigs.size());
+				original_contig_names[current_contig] = contig_name;
+				if (!is_interesting_contig(removeChr(contig_name), interesting_contigs))
+					current_contig = USHRT_MAX; // skip uninteresting contigs
 
 			// get sequence
-			} else if (current_contig != -1) { // skip line if contig is undefined or not interesting
+			} else if (current_contig != USHRT_MAX) { // skip line if contig is undefined or not interesting
 				std::transform(line.begin(), line.end(), line.begin(), (int (*)(int))std::toupper); // convert sequence to uppercase
 				assembly[current_contig] += line;
 			}
 		}
 	}
-
-	// check if we found the sequence for all interesting contigs
-	for (contigs_t::const_iterator contig = interesting_contigs.begin(); contig != interesting_contigs.end(); ++contig)
-		if (assembly.find(contig->second) == assembly.end()) {
-			cerr << "ERROR: could not find sequence of contig '" << contig->first << "'" << endl;
-			exit(1);
-		}
 }
 

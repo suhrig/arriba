@@ -3,7 +3,6 @@
 #include <iostream>
 #include <set>
 #include <string>
-#include <sstream>
 #include <tuple>
 #include <unordered_map>
 #include <vector>
@@ -14,30 +13,21 @@
 
 using namespace std;
 
-enum blacklist_item_type_t { BLACKLIST_RANGE, BLACKLIST_POSITION, BLACKLIST_GENE, BLACKLIST_ANY, BLACKLIST_SPLIT_READ_DONOR, BLACKLIST_SPLIT_READ_ACCEPTOR, BLACKLIST_SPLIT_READ_ANY, BLACKLIST_DISCORDANT_MATES, BLACKLIST_READ_THROUGH, BLACKLIST_LOW_SUPPORT, BLACKLIST_FILTER_SPLICED, BLACKLIST_NOT_BOTH_SPLICED };
-struct blacklist_item_t {
-	blacklist_item_type_t type;
-	bool strand_defined;
-	strand_t strand;
-	contig_t contig;
-	position_t start;
-	position_t end;
-	gene_t gene;
-};
-
 // convert string representation of a range into coordinates
 bool parse_range(string range, const contigs_t& contigs, blacklist_item_t& blacklist_item) {
-	istringstream iss;
 
-	// extract contig from range
-	string contig_name;
-	replace(range.begin(), range.end(), ':', ' ');
-	iss.str(range);
-	iss >> contig_name;
-	if (contig_name.empty()) {
+	size_t separator = range.find_last_of(':'); // split by last colon, because there could be colons in the contig name
+	if (separator < range.size())
+		range[separator] = '\t';
+	tsv_stream_t tsv(range);
+	string contig_name, start_and_end_position;
+	tsv >> contig_name >> start_and_end_position;
+	if (tsv.fail() || contig_name.empty() || start_and_end_position.empty()) {
 		cerr << "WARNING: unknown gene or malformed range: " << range << endl;
 		return false;
 	}
+
+	// strip strand from contig
 	if (contig_name[0] == '+') {
 		blacklist_item.strand_defined = true;
 		blacklist_item.strand = FORWARD;
@@ -49,19 +39,28 @@ bool parse_range(string range, const contigs_t& contigs, blacklist_item_t& black
 	} else {
 		blacklist_item.strand_defined = false;
 	}
-	if (contigs.find(contig_name) == contigs.end()) {
-		cerr << "WARNING: unknown gene or malformed range: " << range << endl;
-		return false;
-	} else {
-		blacklist_item.contig = contigs.at(contig_name);
+
+	// convert contig name to internal contig ID
+	contig_name = removeChr(contig_name);
+	contigs_t::const_iterator contig;
+	if (contig_name.size() >= 2 && contig_name[contig_name.size()-1] == '*') { // if the contig ends on an asterisk, find the closest match
+		contig_name = contig_name.substr(0, contig_name.size()-1);
+		contig = contigs.lower_bound(contig_name);
+		if (contig_name != contig->first.substr(0, contig_name.size()))
+			contig = contigs.end();
+	} else { // contig does not end on asterisk => look for identical name
+		contig = contigs.find(contig_name);
+		if (contig == contigs.end())
+			cerr << "WARNING: unknown gene or malformed range: " << range << endl;
 	}
+	if (contig == contigs.end())
+		return false;
+	blacklist_item.contig = contig->second;
 
 	// extract start (and end) of range
-	if (range.find("-") != string::npos) { // range has start and end (chr:start-end)
-		replace(range.begin(), range.end(), '-', ' ');
-		iss.str(range);
-		iss >> contig_name; // discard contig
-		if ((iss >> blacklist_item.start).fail() || (iss >> blacklist_item.end).fail()) {
+	tsv_stream_t tsv2(start_and_end_position, '-');
+	if (start_and_end_position.find('-') < start_and_end_position.size()) { // range has start and end (chr:start-end)
+		if ((tsv2 >> blacklist_item.start >> blacklist_item.end).fail()) {
 			cerr << "WARNING: unknown gene or malformed range: " << range << endl;
 			return false;
 		}
@@ -69,7 +68,7 @@ bool parse_range(string range, const contigs_t& contigs, blacklist_item_t& black
 		blacklist_item.end--;
 
 	} else { // range is a single base (chr:position)
-		if ((iss >> blacklist_item.start).fail()) {
+		if ((tsv2 >> blacklist_item.start).fail()) {
 			cerr << "WARNING: unknown gene or malformed range: " << range << endl;
 			return false;
 		}
@@ -119,17 +118,19 @@ bool parse_blacklist_item(const string& text, blacklist_item_t& blacklist_item, 
 float overlapping_fraction(const position_t start1, const position_t end1, const position_t start2, const position_t end2) {
 	if (start1 >= start2 && end1 <= end2) {
 		return 1;
+	} else if (start1 < start2 && end1 > end2) {
+		return 1.0 * (end2 - start2) / (end1 - start1 + 1);
 	} else if (start1 >= start2 && start1 <= end2) {
-		return 1.0 * (start1 - start2) / (end1 - start1 + 1);
+		return 1.0 * (end2 - start1) / (end1 - start1 + 1);
 	} else if (end1 >= start2 && end1 <= end2) {
-		return 1.0 * (end2 - end1) / (end1 - start1 + 1);
+		return 1.0 * (end1 - start2) / (end1 - start1 + 1);
 	} else {
 		return 0;
 	}
 }
 
 // check if the breakpoint of a fusion match an entry in the blacklist
-bool matches_blacklist_item(const blacklist_item_t& blacklist_item, const fusion_t& fusion, const char which_breakpoint, const float evalue_cutoff, const int max_mate_gap) {
+bool matches_blacklist_item(const blacklist_item_t& blacklist_item, const fusion_t& fusion, const unsigned char which_breakpoint, const int max_mate_gap, const float evalue_cutoff) {
 
 	switch (blacklist_item.type) {
 		case BLACKLIST_ANY: // remove the fusion if one breakpoint is within a region that is completely blacklisted
@@ -216,67 +217,66 @@ bool matches_blacklist_item(const blacklist_item_t& blacklist_item, const fusion
 	return false; // blacklist item does not match
 }
 
-// divide the genome into buckets of ...bps in size
-void get_index_keys_from_range(const contig_t contig, const position_t start, const position_t end, vector< tuple<contig_t,position_t> >& index_keys) {
+// divide the genome into fixed size bins
+void get_genome_bins_from_range(const contig_t contig, const position_t start, const position_t end, genome_bins_t& genome_bins) {
 	const int bucket_size = 100000; // bp
 	for (position_t position = start/bucket_size; position <= (end+bucket_size-1)/bucket_size /*integer ceil*/; ++position)
-		index_keys.push_back(make_tuple(contig, position*bucket_size));
+		genome_bins.push_back(make_tuple(contig, position*bucket_size));
 }
 
 unsigned int filter_blacklisted_ranges(fusions_t& fusions, const string& blacklist_file_path, const contigs_t& contigs, const unordered_map<string,gene_t>& genes, const float evalue_cutoff, const int max_mate_gap) {
 
 	// index fusions by coordinate
-	unordered_map< tuple<contig_t,position_t>, set<fusion_t*> > fusions_by_coordinate;
+	unordered_map< genome_bin_t, set<fusion_t*> > fusions_by_coordinate;
 	for (fusions_t::iterator fusion = fusions.begin(); fusion != fusions.end(); ++fusion) {
 
-		if (fusion->second.filter != NULL && fusion->second.closest_genomic_breakpoint1 < 0)
+		if (fusion->second.filter != FILTER_none && fusion->second.closest_genomic_breakpoint1 < 0)
 			continue; // fusion has already been filtered and won't be recovered by the 'genomic_support' filter
 
-		// assign fusions within a window of ...bps to the same index key
+		// assign fusions within a window of ...bps to the same bin
 		// for fast lookup of fusions by coordinate
-		vector< tuple<contig_t,position_t> > index_keys;
-		get_index_keys_from_range(fusion->second.contig1, fusion->second.breakpoint1, fusion->second.breakpoint1, index_keys);
-		get_index_keys_from_range(fusion->second.contig2, fusion->second.breakpoint2, fusion->second.breakpoint2, index_keys);
-		get_index_keys_from_range(fusion->second.contig1, fusion->second.gene1->start, fusion->second.gene1->end, index_keys);
-		get_index_keys_from_range(fusion->second.contig2, fusion->second.gene2->start, fusion->second.gene2->end, index_keys);
-		for (auto index_key = index_keys.begin(); index_key != index_keys.end(); ++index_key)
-			fusions_by_coordinate[*index_key].insert(&(fusion->second));
+		genome_bins_t genome_bins;
+		get_genome_bins_from_range(fusion->second.contig1, fusion->second.breakpoint1, fusion->second.breakpoint1, genome_bins);
+		get_genome_bins_from_range(fusion->second.contig2, fusion->second.breakpoint2, fusion->second.breakpoint2, genome_bins);
+		get_genome_bins_from_range(fusion->second.contig1, fusion->second.gene1->start, fusion->second.gene1->end, genome_bins);
+		get_genome_bins_from_range(fusion->second.contig2, fusion->second.gene2->start, fusion->second.gene2->end, genome_bins);
+		for (auto genome_bin = genome_bins.begin(); genome_bin != genome_bins.end(); ++genome_bin)
+			fusions_by_coordinate[*genome_bin].insert(&(fusion->second));
 	}
 
 	// load blacklist from file
-	stringstream blacklist_file;
-	autodecompress_file(blacklist_file_path, blacklist_file);
+	autodecompress_file_t blacklist_file(blacklist_file_path);
 	string line;
-	while (getline(blacklist_file, line)) {
+	while (blacklist_file.getline(line)) {
 
 		// skip comment lines
 		if (line.empty() || line[0] == '#')
 			continue;
 
 		// parse line
-		istringstream iss(line);
+		tsv_stream_t tsv(line);
 		string range1, range2;
-		iss >> range1 >> range2;
+		tsv >> range1 >> range2;
 		blacklist_item_t item1, item2;
 		if (!parse_blacklist_item(range1, item1, contigs, genes, false) ||
 		    !parse_blacklist_item(range2, item2, contigs, genes, true))
 			continue;
 
 		// find all fusions with breakpoints in the vicinity of the blacklist items
-		vector< tuple<contig_t,position_t> > index_keys;
+		genome_bins_t genome_bins;
 		if (item1.type == BLACKLIST_POSITION || item1.type == BLACKLIST_RANGE || item1.type == BLACKLIST_GENE)
-			get_index_keys_from_range(item1.contig, item1.start-max_mate_gap, item1.end+max_mate_gap, index_keys);
+			get_genome_bins_from_range(item1.contig, item1.start-max_mate_gap, item1.end+max_mate_gap, genome_bins);
 		if (item2.type == BLACKLIST_POSITION || item2.type == BLACKLIST_RANGE || item2.type == BLACKLIST_GENE)
-			get_index_keys_from_range(item2.contig, item2.start-max_mate_gap, item2.end+max_mate_gap, index_keys);
-		for (auto index_key = index_keys.begin(); index_key != index_keys.end(); ++index_key) {
-			auto fusions_near_coordinate = fusions_by_coordinate.find(*index_key);
+			get_genome_bins_from_range(item2.contig, item2.start-max_mate_gap, item2.end+max_mate_gap, genome_bins);
+		for (auto genome_bin = genome_bins.begin(); genome_bin != genome_bins.end(); ++genome_bin) {
+			auto fusions_near_coordinate = fusions_by_coordinate.find(*genome_bin);
 			if (fusions_near_coordinate != fusions_by_coordinate.end()) {
 				for (auto fusion = fusions_near_coordinate->second.begin(); fusion != fusions_near_coordinate->second.end();) {
-					if (matches_blacklist_item(item1, **fusion, 1, evalue_cutoff, max_mate_gap) &&
-					    matches_blacklist_item(item2, **fusion, 2, evalue_cutoff, max_mate_gap) ||
-					    matches_blacklist_item(item1, **fusion, 2, evalue_cutoff, max_mate_gap) &&
-					    matches_blacklist_item(item2, **fusion, 1, evalue_cutoff, max_mate_gap)) {
-						(**fusion).filter = FILTERS.at("blacklist");
+					if (matches_blacklist_item(item1, **fusion, 1, max_mate_gap, evalue_cutoff) &&
+					    matches_blacklist_item(item2, **fusion, 2, max_mate_gap, evalue_cutoff) ||
+					    matches_blacklist_item(item1, **fusion, 2, max_mate_gap, evalue_cutoff) &&
+					    matches_blacklist_item(item2, **fusion, 1, max_mate_gap, evalue_cutoff)) {
+						(**fusion).filter = FILTER_blacklist;
 						fusions_near_coordinate->second.erase(fusion++); // remove fusion from index, so we don't check it again
 					} else {
 						++fusion;
@@ -289,7 +289,7 @@ unsigned int filter_blacklisted_ranges(fusions_t& fusions, const string& blackli
 	// count remaining fusions
 	unsigned int remaining = 0;
 	for (fusions_t::iterator fusion = fusions.begin(); fusion != fusions.end(); ++fusion)
-		if (fusion->second.filter == NULL)
+		if (fusion->second.filter == FILTER_none)
 			remaining++;
 	return remaining;
 }

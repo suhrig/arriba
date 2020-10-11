@@ -1,16 +1,16 @@
-#include <fstream>
 #include <string>
-#include <sstream>
 #include <iostream>
 #include "bgzf.h"
 #include "sam.h"
+#include "common.hpp"
 #include "read_compressed_file.hpp"
 
 using namespace std;
 
-void autodecompress_file(const string& file_path, stringstream& file_content) {
+autodecompress_file_t::autodecompress_file_t(const string& file_path) {
 
-	if (file_path.length() >= 3 && file_path.substr(file_path.length() - 3) == ".gz") {
+	compressed = file_path.length() >= 3 && file_path.substr(file_path.length() - 3) == ".gz";
+	if (compressed) {
 
 		// allocate some memory for buffered reading
 		const unsigned int buffer_size = 64*1024;
@@ -37,8 +37,8 @@ void autodecompress_file(const string& file_path, stringstream& file_content) {
 				exit(1);
 			}
 			buffer[bytes_read] = '\0';
-			file_content << buffer;
-			if (file_content.fail()) {
+			decompressed_file_content << buffer;
+			if (!decompressed_file_content.good()) {
 				cerr << "ERROR: failed to load file '" << file_path << "' into memory." << endl;
 				exit(1);
 			}
@@ -48,22 +48,59 @@ void autodecompress_file(const string& file_path, stringstream& file_content) {
 		bgzf_close(compressed_file);
 		free(buffer);
 
-	} else { // file is not compressed
-		
-		// copy file content to stringstream object
-		ifstream uncompressed_file(file_path);
-		if (uncompressed_file.fail()) {
+	} else {
+		// the file is not compressed => only open it now and read it on-demand
+		this->file_path = file_path;
+		uncompressed_file.open(file_path);
+		if (!uncompressed_file.is_open()) {
 			cerr << "ERROR: failed to open file '" << file_path << "'." << endl;
 			exit(1);
 		}
-		if (uncompressed_file.rdbuf()->in_avail() > 0) { // don't attempt to read anything, when the input file is empty, or else it will cause an error
-			file_content << uncompressed_file.rdbuf();
-			if (file_content.fail()) {
-				cerr << "ERROR: failed to load file '" << file_path << "' into memory." << endl;
-				exit(1);
-			}
-		}
-		uncompressed_file.close();
 	}
 }
 
+bool autodecompress_file_t::getline(string& line) {
+	if (compressed) {
+		if (std::getline(decompressed_file_content, line))
+			return true;
+		else
+			return false;
+	} else {
+		if (std::getline(uncompressed_file, line)) {
+			return true;
+		} else {
+			if (uncompressed_file.bad()) {
+				cerr << "ERROR: failed to load file '" << file_path << "' into memory." << endl;
+				exit(1);
+			} else if (uncompressed_file.eof()) {
+				uncompressed_file.close();
+			}
+			return false;
+		}
+	}
+}
+
+tsv_stream_t& tsv_stream_t::operator>>(string& out) {
+	if (position >= data->size()) {
+		failbit = true;
+	} else {
+		size_t start_position = position;
+		position = data->find(delimiter, start_position);
+		out = data->substr(start_position, position - start_position);
+		position++; // skip delimiter
+	}
+	return *this;
+}
+
+tsv_stream_t& tsv_stream_t::operator>>(int& out) {
+	if (position >= data->size()) {
+		failbit = true;
+	} else {
+		size_t start_position = position;
+		position = data->find(delimiter, start_position);
+		if (!str_to_int(data->substr(start_position, position - start_position).c_str(), out))
+			failbit = true;
+		position++; // skip delimiter
+	}
+	return *this;
+}

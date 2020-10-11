@@ -8,33 +8,40 @@
 #include "annotation.hpp"
 #include "read_stats.hpp"
 
-bool estimate_mate_gap_distribution(const chimeric_alignments_t& chimeric_alignments, float& mate_gap_mean, float& mate_gap_stddev, const gene_annotation_index_t& gene_annotation_index, const exon_annotation_index_t& exon_annotation_index) {
+bool estimate_fragment_length(const chimeric_alignments_t& chimeric_alignments, float& mate_gap_mean, float& mate_gap_stddev, float& read_length_mean, const gene_annotation_index_t& gene_annotation_index, const exon_annotation_index_t& exon_annotation_index) {
 
-	// use MATE1 and MATE2 from split reads to calculate insert size distribution
 	list<int> mate_gaps;
-	unsigned int count = 0;
+	unsigned int mate_gap_count = 0;
+	read_length_mean = 0;
+	unsigned int read_length_count = 0;
 	for (chimeric_alignments_t::const_iterator chimeric_alignment = chimeric_alignments.begin(); chimeric_alignment != chimeric_alignments.end(); ++chimeric_alignment) {
-		if (chimeric_alignment->second.filter != NULL || chimeric_alignment->second.single_end)
-			continue;
-		if (chimeric_alignment->second.size() == 3) { // split read
 
+		// compute average read length
+		read_length_mean += (chimeric_alignment->second[MATE1].sequence.length() + chimeric_alignment->second[MATE2].sequence.length()) / 2;
+		read_length_count++;
+
+		if (chimeric_alignment->second.filter != FILTER_none || chimeric_alignment->second.single_end)
+			continue; // skip discarded alignments, they might be bogus and impair the calculation
+
+		// collect distances between MATE1 and MATE2 to calculate mate gap distribution
+		if (chimeric_alignment->second.size() == 3) { // only consider split reads, because here the mates are properly paired
 			alignment_t const* forward_mate = &(chimeric_alignment->second[MATE1]);
 			alignment_t const* reverse_mate = &(chimeric_alignment->second[SPLIT_READ]);
 			if (forward_mate->strand == REVERSE)
 				swap(forward_mate, reverse_mate);
-
-			mate_gaps.push_back(get_spliced_distance(forward_mate->contig, forward_mate->end, reverse_mate->start, DOWNSTREAM, UPSTREAM, *forward_mate->genes.begin(), exon_annotation_index));
-
-			count++;
-			if (count > 100000)
+			mate_gaps.push_back(get_spliced_distance(forward_mate->contig, forward_mate->end, reverse_mate->start, *forward_mate->genes.begin(), exon_annotation_index));
+			mate_gap_count++;
+			if (mate_gap_count > 100000)
 				break; // the sample size should be big enough
 		}
 	}
 
-	if (count < 10000) {
+	if (mate_gap_count < 10000) {
 		cerr << "WARNING: not enough chimeric reads to estimate mate gap distribution, using default values" << endl;
 		return false;
 	}
+
+	read_length_mean = read_length_mean / read_length_count;
 
 	bool no_more_outliers = false;
 	while (true) {
@@ -42,23 +49,23 @@ bool estimate_mate_gap_distribution(const chimeric_alignments_t& chimeric_alignm
 		mate_gap_mean = 0;
 		for (list<int>::iterator i = mate_gaps.begin(); i != mate_gaps.end(); i++)
 			mate_gap_mean += *i;
-		mate_gap_mean /= count;
+		mate_gap_mean /= mate_gap_count;
 
 		// calculate standard deviation
 		mate_gap_stddev = 0;
 		for (list<int>::iterator i = mate_gaps.begin(); i != mate_gaps.end(); i++)
 			mate_gap_stddev += (*i - mate_gap_mean) * (*i - mate_gap_mean);
-		mate_gap_stddev = sqrt(1.0/(count-1) * mate_gap_stddev);
+		mate_gap_stddev = sqrt(1.0/(mate_gap_count-1) * mate_gap_stddev);
 
-		// due to alterantive splicing the mate gap distribution is not distributed normally
+		// due to alternative splicing the mate gap distribution is not distributed normally
 		// there are usually many outliers which inflate the standard deviation
 		// => remove outliers until the distribution resembles a normal distribution
-		//    (i.e., 68.24% are inside the range: mean +/- 1*stddev)
+		//    (i.e., 68.3% are inside the range: mean +/- 1*stddev)
 		unsigned int within_range = 0;
 		for (list<int>::iterator i = mate_gaps.begin(); i != mate_gaps.end(); ++i)
 			if (*i > mate_gap_mean - mate_gap_stddev || *i < mate_gap_mean + mate_gap_stddev)
 				within_range++;
-		if (1.0*within_range/count < 0.683 || no_more_outliers)
+		if (1.0*within_range/mate_gap_count < 0.683 || no_more_outliers)
 			break; // all outliers have been removed
 
 		// remove outliers, if the mate gap distribution is not yet normally distributed
@@ -66,7 +73,7 @@ bool estimate_mate_gap_distribution(const chimeric_alignments_t& chimeric_alignm
 		for (list<int>::iterator i = mate_gaps.begin(); i != mate_gaps.end();) {
 			if (*i < mate_gap_mean - 3*mate_gap_stddev || *i > mate_gap_mean + 3*mate_gap_stddev) {
 				i = mate_gaps.erase(i); // remove outlier
-				count--;
+				mate_gap_count--;
 				no_more_outliers = false;
 			} else {
 				++i;
@@ -80,7 +87,7 @@ bool estimate_mate_gap_distribution(const chimeric_alignments_t& chimeric_alignm
 strandedness_t detect_strandedness(const chimeric_alignments_t& chimeric_alignments, const gene_annotation_index_t& gene_annotation_index, const exon_annotation_index_t& exon_annotation_index) {
 
 	const unsigned int sample_size = 100; // examine at least this many reads to determine strandedness
-	const float threshold = 0.75; // fraction of reads which must support strandedness to be convinced
+	const float threshold = 0.95; // fraction of reads which must support strandedness to be convinced
 
 	unsigned int count = 0;
 	unsigned int matching_strand = 0;
@@ -129,7 +136,7 @@ strandedness_t detect_strandedness(const chimeric_alignments_t& chimeric_alignme
 }
 
 // initialize data structure to compute coverage for windows of size <COVERAGE_RESOLUTION>
-coverage_t::coverage_t(const contigs_t& contigs, const assembly_t& assembly) {
+void coverage_t::resize(const contigs_t& contigs, const assembly_t& assembly) {
 	fragment_starts.resize(contigs.size());
 	fragment_ends.resize(contigs.size());
 	coverage.resize(contigs.size());
@@ -144,7 +151,7 @@ coverage_t::coverage_t(const contigs_t& contigs, const assembly_t& assembly) {
 }
 
 // add alignment to coverage
-void coverage_t::add_fragment(bam1_t* mate1, bam1_t* mate2, const bool is_read_through_alignment) {
+void coverage_t::add_fragment(bam1_t* mate1, bam1_t* mate2, bool is_chimeric) {
 
 	// fake paired-end data, if single-end data given, to avoid NULL pointer exceptions
 	if (mate2 == NULL)
@@ -154,7 +161,6 @@ void coverage_t::add_fragment(bam1_t* mate1, bam1_t* mate2, const bool is_read_t
 	    (unsigned int) mate2->core.tid >= fragment_starts.size() || fragment_starts[mate2->core.tid].empty())
 		return; // ignore reads on uninteresting contigs
 
-	bool is_chimeric = is_read_through_alignment;
 	if (mate1->core.flag & BAM_FPAIRED) { // paired-end data
 		if (!(mate1->core.flag & BAM_FPROPER_PAIR) || // discordant mates
 	            !(mate1->core.flag & BAM_FREVERSE) && bam_cigar_type(bam_cigar_op(bam_get_cigar(mate1)[0])) == BAM_CSOFT_CLIP || // clipped at start => likely split-read
