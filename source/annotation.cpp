@@ -159,14 +159,6 @@ bool sort_exons_by_coordinate(const exon_annotation_record_t* exon1, const exon_
 	return *exon1 < *exon2;
 }
 
-inline string strip_ensembl_version_number(const string& ensembl_identifier) {
-	string::size_type trim_position = string::npos;
-	if (ensembl_identifier.substr(0, 3) == "ENS" && (trim_position = ensembl_identifier.find_last_of('.')) < ensembl_identifier.size())
-		return ensembl_identifier.substr(0, trim_position);
-	else
-		return ensembl_identifier;
-}
-
 struct coding_region_t {
 	strand_t strand;
 	contig_t contig;

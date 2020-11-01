@@ -35,7 +35,7 @@ void load_protein_domains(const string& filename, const contigs_t& contigs, cons
 	// make a map of gene id -> gene
 	unordered_map<string,gene_t> gene_ids;
 	for (auto gene = gene_annotation.begin(); gene != gene_annotation.end(); ++gene)
-		gene_ids[gene->gene_id] = (gene_t) &(*gene);
+		gene_ids[strip_ensembl_version_number(gene->gene_id)] = (gene_t) &(*gene);
 
 	// read lines from GFF3 file
 	autodecompress_file_t gff3_file(filename);
@@ -89,13 +89,7 @@ void load_protein_domains(const string& filename, const contigs_t& contigs, cons
 					protein_domain.name[pos] = '_';
 
 			// map protein domain to gene by gene ID or name
-			string short_gene_id; // if Gencode, remove version number from gene ID
-                        string::size_type trim_position = string::npos;
-			if (gene_id.substr(0, 3) == "ENS" && (trim_position = gene_id.find_last_of('.')) < gene_id.size())
-				short_gene_id = gene_id.substr(0, trim_position);
-			else
-				short_gene_id = gene_id;
-			auto find_gene_by_id = gene_ids.find(gene_id);
+			auto find_gene_by_id = gene_ids.find(strip_ensembl_version_number(gene_id));
 			if (find_gene_by_id == gene_ids.end()) {
 				auto find_gene_by_name = gene_names.find(gene_name);
 				if (find_gene_by_name == gene_names.end()) {
