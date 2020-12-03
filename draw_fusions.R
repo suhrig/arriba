@@ -93,17 +93,20 @@ if (alignmentsFile != "")
 	if (!suppressPackageStartupMessages(require(GenomicAlignments)))
 		stop("Package 'GenomicAlignments' must be installed when '--alignments' is used")
 
-# get darker variants of colors
-getDarkColor <- function(color) {
+# define colors
+changeColorBrightness <- function(color, delta) {
 	rgb(
-		max(0,col2rgb(color)["red",]-100),
-		max(0,col2rgb(color)["green",]-100),
-		max(0,col2rgb(color)["blue",]-100),
+		min(255,max(0,col2rgb(color)["red",]+delta)),
+		min(255,max(0,col2rgb(color)["green",]+delta)),
+		min(255,max(0,col2rgb(color)["blue",]+delta)),
 		maxColorValue=255
 	)
 }
+getDarkColor <- function(color) { changeColorBrightness(color, -100) }
+getBrightColor <- function(color) { changeColorBrightness(color, +190) }
 darkColor1 <- getDarkColor(color1)
 darkColor2 <- getDarkColor(color2)
+circosColors <- c(translocation="#000000", duplication="#00bb00", deletion="#ff0000", inversion="#0000ff")
 
 # convenience functions to add/remove "chr" prefix
 addChr <- function(contig) {
@@ -129,6 +132,7 @@ if (colnames(fusions)[1] == "X.gene1") { # Arriba output
 	fusions$breakpoint1 <- as.numeric(sub(".*:", "", fusions$breakpoint1, perl=T))
 	fusions$breakpoint2 <- as.numeric(sub(".*:", "", fusions$breakpoint2, perl=T))
 	fusions$split_reads <- fusions$split_reads1 + fusions$split_reads2
+	fusions$type <- sub(".*(translocation|duplication|deletion|inversion).*", "\\1", fusions$type)
 } else if (colnames(fusions)[1] == "X.FusionName") { # STAR-Fusion
 	fusions$gene1 <- sub("\\^.*", "", fusions$LeftGene, perl=T)
 	fusions$gene2 <- sub("\\^.*", "", fusions$RightGene, perl=T)
@@ -151,6 +155,7 @@ if (colnames(fusions)[1] == "X.gene1") { # Arriba output
 	fusions$site1 <- rep("exon", nrow(fusions))
 	fusions$site2 <- rep("exon", nrow(fusions))
 	fusions$confidence <- rep("high", nrow(fusions))
+	fusions$type <- ifelse(fusions$contig1 != fusions$contig2, "translocation", ifelse(fusions$direction1 == fusions$direction2, "inversion", ifelse((fusions$direction1 == "downstream") == (fusions$breakpoint1 < fusions$breakpoint2), "deletion", "duplication")))
 } else {
 	stop("Unrecognized fusion file format")
 }
@@ -371,7 +376,7 @@ drawExon <- function(left, right, y, color, title, type) {
 	}
 }
 
-drawCircos <- function(fusion, fusions, cytobands, minConfidenceForCircosPlot) {
+drawCircos <- function(fusion, fusions, cytobands, minConfidenceForCircosPlot, circosColors) {
 	# check if Giemsa staining information is available
 	for (contig in unlist(fusions[fusion,c("contig1", "contig2")])) {
 		if (!any(cytobands$contig==contig)) {
@@ -408,7 +413,7 @@ drawCircos <- function(fusion, fusions, cytobands, minConfidenceForCircosPlot) {
 				circos.link(
 					f$contig1, f$breakpoint1,
 					f$contig2, f$breakpoint2,
-					lwd=2, col=ifelse(i==fusion, rgb(1,0,0), rgb(1,0.7,0.7))
+					lwd=2, col=ifelse(i==fusion, circosColors[f$type], getBrightColor(circosColors[f$type]))
 				)
 	}
 }
@@ -1009,7 +1014,7 @@ for (fusion in 1:nrow(fusions)) {
 	fusionOffset2 <- fusionOffset1 + ifelse(fusions[fusion,"direction1"] == "downstream", breakpoint1, max(exons1$right)-breakpoint1)
 
 	# layout: fusion on top, circos plot on bottom left, protein domains on bottom center, statistics on bottom right
-	layout(matrix(c(1,1,1,2,3,4), 2, 3, byrow=TRUE), widths=c(0.9, 1.2, 0.9))
+	layout(matrix(c(1,1,1,2,4,5,3,4,5), 3, 3, byrow=TRUE), widths=c(1.1, 1.2, 0.7), heights=c(1.5, 1.2, 0.3))
 	par(mar=c(0, 0, 0, 0))
 	plot(0, 0, type="l", xlim=c(-0.12, 1.12), ylim=c(0.4, 1.1), bty="n", xaxt="n", yaxt="n")
 
@@ -1213,9 +1218,12 @@ for (fusion in 1:nrow(fusions)) {
 	# draw circos plot
 	if (is.null(cytobands) || !("circlize" %in% names(sessionInfo()$otherPkgs)) || !("GenomicRanges" %in% names(sessionInfo()$otherPkgs))) {
 		plot(0, 0, type="l", xlim=c(0, 1), ylim=c(0, 1), bty="n", xaxt="n", yaxt="n")
+		plot(0, 0, type="l", xlim=c(0, 1), ylim=c(0, 1), bty="n", xaxt="n", yaxt="n")
 	} else {
 		par(mar=c(0, 4, 0, 0))
-		drawCircos(fusion, fusions, cytobands, minConfidenceForCircosPlot)
+		drawCircos(fusion, fusions, cytobands, minConfidenceForCircosPlot, circosColors)
+		plot(0, 0, type="l", xlim=c(0, 1), ylim=c(0, 1), bty="n", xaxt="n", yaxt="n", ylab="", xlab="")
+		legend(x="top", legend=names(circosColors), col=sapply(circosColors, getBrightColor), lwd=3, ncol=2, box.lty=0)
 		par(mar=c(0, 0, 0, 0))
 	}
 
