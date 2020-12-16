@@ -20,6 +20,8 @@ Assembly
 
 Arriba takes the assembly as input (parameter `-a`) to find mismatches between the chimeric reads and the reference genome, as well as to find alignment artifacts and homologous genes.
 
+The script `download_references.sh` can be used to download the assembly. The available assemblies are listed when the script is run without parameters. The user is not restricted to these assemblies, however. Any assembly can be used as long as its coordinates are compatible with one of the supported assemblies (hg19/hs37d5/GRCh37 or hg38/GRCh38 or mm10/GRCm38).
+
 The assembly must be provided in FastA format and may be gzip-compressed. An index with the file extension `.fai` must exist only if CRAM files are processed.
 
 Annotation
@@ -37,12 +39,16 @@ The gene annotation (parameter `-g`) is used for multiple purposes:
 
 GENCODE annotation is recommended over RefSeq annotation, because the former has a more comprehensive annotation of transcripts and splice-sites, which boosts the sensitivity. The file must be provided in GTF format and may be gzip-compressed. It does not need to be sorted.
 
+The script `download_references.sh` can be used to download the annotation. The available annotation files are listed when the script is run without parameters. The user is not restricted to these annotation files, however. Any assembly can be used as long as its coordinates are compatible with one of the supported assemblies (hg19/hs37d5/GRCh37 or hg38/GRCh38 or mm10/GRCm38).
+
 Blacklist
 ---------
 
 It is strongly advised to run Arriba with a blacklist (parameter `-b`). Otherwise, the false positive rate increases by an order of magnitude. For this reason, using Arriba with assemblies or organisms which are not officially supported is not recommended. At the moment, the supported assemblies are: hg19/hs37d5/GRCh37, hg38/GRCh38, and mm10/GRCm38 (as well as any other assemblies that have compatible coordinates). The blacklists are contained in the [release tarballs](https://github.com/suhrig/arriba/releases) of Arriba.
 
 The blacklist removes recurrent alignment artifacts and transcripts which are present in healthy tissue. This helps eliminate frequently observed transcripts, such as read-through fusions between neighboring genes, circular RNAs and other non-canonically spliced transcripts. It was trained on RNA-Seq samples from the [Human Protein Atlas](https://www.proteinatlas.org/), the [Illumina Human BodyMap2](https://www.ebi.ac.uk/arrayexpress/experiments/E-MTAB-513/) , the [ENCODE project](https://www.encodeproject.org/) , the [Roadmap Epigenomics project](http://www.roadmapepigenomics.org/), and the [NCT MASTER cohort](https://doi.org/10.1002/ijc.30828), a heterogeneous cohort of cancer samples, from which highly recurrent artifacts were identified.
+
+Blacklists for all supported assemblies are shipped with the download package of Arriba. They can be found in the package as `database/blacklist_*`.
 
 The blacklist is a tab-separated file with two columns and may optionally be gzip-compressed. Lines starting with a hash (`#`) are treated as comments. Each line represents a pair of regions between which events are ignored. A region can be
 
@@ -77,6 +83,8 @@ Known fusions
 
 Arriba can be instructed to be particularly sensitive towards events between certain gene pairs by supplying a list of gene pairs (parameter `-k`). A number of filters are not applied to these gene pairs. This is useful to improve the detection rate of expected or highly relevant events, such as recurrent fusions. Occassionally, this leads to false positive calls. But if high sensitivity is more important than specificity, this might be acceptable. Events which would be discarded by a filter and were recovered due to being listed in the known fusions list are usually assigned a low confidence.
 
+Known fusions files for all supported assemblies are shipped with the download package of Arriba. They can be found in the package as `database/known_fusions_*`.
+
 The file has two columns separated by a tab and may optionally be gzip-compressed. Lines starting with a hash (`#`) are treated as comments. Each line represents a pair of regions to which very sensitive filtering thresholds are applied. A region can be
 
 - a 1-based coordinate in the format `CONTIG:POSITION`, optionally prefixed with the strand (example: `+9:56743754`). If `CONTIG` ends on an asterisk (`*`), the contig with the closest matching name is chosen.
@@ -92,6 +100,8 @@ Tags
 
 Arriba can be supplied with a list of user-defined tags using the parameter `-t`. Whenever a fusion prediction matches the selection criteria for a tag, the column `tags` is populated with the respective tag. This feature is useful to annotate known oncogenic fusions, for example.
 
+The known fusions file shipped with the download package of Arriba can be used for both known fusions and tags. It is constructed in a way that it can be passed as arguments to the parameters `-k` and `-t` alike. The former only uses the first two columns, the latter uses all three columns. If a user wants to separate filtering of known fusions and tagging of interesting fusions, different files may be used, however.
+
 The file has three columns separated by a tab and may optionally be gzip-compressed. Lines starting with a hash (`#`) are treated as comments. Each line represents a pair of regions to be annotated. The first two columns specify the regions to be annotated; the third column the tag that is used for annotation. Some special characters in the tag are replaced with underscores (`_`) in Arriba's output file. A region can be
 
 - a 1-based coordinate in the format `CONTIG:POSITION`, optionally prefixed with the strand (example: `+9:56743754`).
@@ -102,12 +112,14 @@ The file has three columns separated by a tab and may optionally be gzip-compres
 
 The order of the given regions is important. The region given in the first column is assumed to denote the 5' end of the fusion and the region in the second column to be the 3' end.
 
-The known fusions file shipped with the download package of Arriba can be used for both known fusions and tags. It is constructed in a way that it can be passed as arguments to the parameters `-k` and `-t` alike. The former only uses the first two columns, the latter uses all three columns. If a user wants to separate filtering of known fusions and tagging of interesting fusions, different files may be used, however.
-
 Protein domains
 ---------------
 
-Protein domain annotation can be passed to Arriba via the parameter `-p`. The column `retained_protein_domains` of Arriba's output file is then populated accordingly. The file must be in GFF3 format and may optionally be gzip-compressed. The ninth column must at least contain the following attributes:
+Protein domain annotation can be passed to Arriba via the parameter `-p`. The column `retained_protein_domains` of Arriba's output file is then populated accordingly.
+
+Protein domain annotation files for all supported assemblies are shipped with the download package of Arriba. They can be found in the package as `database/protein_domains_*`.
+
+The file must be in GFF3 format and may optionally be gzip-compressed. The ninth column must at least contain the following attributes:
 
 ```
 Name=PROTEIN_DOMAIN_NAME;gene_id=GENE_ID;gene_name=GENE_NAME
