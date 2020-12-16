@@ -575,7 +575,7 @@ options_t parse_arguments(int argc, char **argv) {
 		exit(1);
 	}
 	if (options.filters["blacklist"] && options.blacklist_file.empty()) {
-		cerr << "ERROR: filter 'blacklist' enabled, but missing option: -b" << endl;
+		cerr << "ERROR: filter 'blacklist' enabled, but missing option -b (use '-f blacklist' if you want to disable the blacklist)" << endl;
 		exit(1);
 	}
 
