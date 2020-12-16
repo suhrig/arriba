@@ -110,14 +110,6 @@ void remove_transcript(const transcript_t transcript_to_remove, gene_annotation_
 	}
 }
 
-string removeChr(string contig) {
-	if (contig.substr(0, 3) == "chr")
-		contig = contig.substr(3);
-	if (contig == "M")
-		contig = "MT";
-	return contig;
-}
-
 bool get_gtf_attribute(const string& attributes, const vector<string>& attribute_names, string& attribute_value) {
 
 	// find start of attribute

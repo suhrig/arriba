@@ -24,8 +24,6 @@ const string DEFAULT_GTF_FEATURES = "gene_name=gene_name|gene_id gene_id=gene_id
 
 bool parse_gtf_features(string gtf_features_string, gtf_features_t& gtf_features);
 
-string removeChr(string contig);
-
 inline string strip_ensembl_version_number(const string& ensembl_identifier) {
 	string::size_type trim_position = string::npos;
 	if (ensembl_identifier.substr(0, 3) == "ENS" && (trim_position = ensembl_identifier.find_last_of('.')) < ensembl_identifier.size())

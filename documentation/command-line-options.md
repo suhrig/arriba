@@ -70,7 +70,7 @@ Even when an unstranded library is processed, Arriba can often infer the strand 
 : Comma-/space-separated list of interesting contigs. Fusions between genes on other contigs are ignored. Contigs can be specified with or without the prefix `chr`. Asterisks (`*`) are treated as wild-cards. Default: `1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 X Y AC_* NC_*`
 
 `-v CONTIGS`
-: Comma-/space-separated list of viral contigs for reporting of viral integration sites. Asterisks (`*`) are treated as wild-cards. Default: `AC_* NC_*`
+: Comma-/space-separated list of viral contigs for reporting of viral integration sites. Contigs can be specified with or without the prefix `chr`. Asterisks (`*`) are treated as wild-cards. Default: `AC_* NC_*`
 
 `-f FILTERS`
 : Comma-/space-separated list of filters to disable. By default all filters are enabled. Valid values are: `top_expressed_viral_contigs`, `viral_contigs`, `low_coverage_viral_contigs`, `uninteresting_contigs`, `no_genomic_support`, `short_anchor`, `select_best`, `many_spliced`, `long_gap`, `merge_adjacent`, `hairpin`, `small_insert_size`, `same_gene`, `genomic_support`, `read_through`, `no_coverage`, `mismatches`, `homopolymer`, `low_entropy`, `multimappers`, `inconsistently_clipped`, `duplicates`, `homologs`, `blacklist`, `mismappers`, `spliced`, `relative_support`, `min_support`, `known_fusions`, `end_to_end`, `non_coding_neighbors`, `isoforms`, `intronic`, `in_vitro`, `intragenic_exonic`, `internal_tandem_duplication`

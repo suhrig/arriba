@@ -48,7 +48,7 @@ void load_assembly(assembly_t& assembly, const string& fasta_file_path, contigs_
 				if (original_contig_names.size() < contigs.size())
 					original_contig_names.resize(contigs.size());
 				original_contig_names[current_contig] = contig_name;
-				if (!is_interesting_contig(removeChr(contig_name), interesting_contigs))
+				if (!is_interesting_contig(contig_name, interesting_contigs))
 					current_contig = USHRT_MAX; // skip uninteresting contigs
 
 			// get sequence
