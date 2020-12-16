@@ -616,7 +616,7 @@ drawProteinDomains <- function(fusion, exons1, exons2, proteinDomains, color1, c
 		for (domain in rownames(domains))
 			domains[domains$start >= domains[domain,"start"] & domains$end <= domains[domain,"end"] & rownames(domains) != domain,"parent"] <- domain
 		# find partially overlapping domains
-		maxOverlappingDomains <- max(coverage(IRanges(domains$start*10e6, domains$end*10e6)))
+		maxOverlappingDomains <- max(1, as.integer(coverage(IRanges(domains$start*10e6, domains$end*10e6))))
 		padding <- 1 / maxOverlappingDomains * 0.4
 		domains$y <- 0
 		domains$height <- 0
@@ -842,6 +842,7 @@ findExons <- function(exons, contig, gene, direction, breakpoint, coverage, tran
 	return(candidateExons)
 }
 
+# main loop starts here
 for (fusion in 1:nrow(fusions)) {
 
 	message(paste0("Drawing fusion #", fusion, ": ", fusions[fusion,"gene1"], ":", fusions[fusion,"gene2"]))
