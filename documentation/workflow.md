@@ -50,5 +50,7 @@ arriba \
 	-b /path/to/blacklist.tsv.gz -k /path/to/known_fusions.tsv.gz -t /path/to/known_fusions.tsv.gz -p /path/to/protein_domains.gff3
 ```
 
+Note: In this example, the same file is passed to the parameters `-k` and `-t`, because it is used for two purposes: applying sensitive filtering parameters to known fusions (`-k`) and tagging known fusions in the `tags` column (`-t`). However, it is possible to use different files for these two parameters if a user wants to separate the two tasks.
+
 For a comprehensive list of the parameters, please refer to section [Command-line options](command-line-options.md).
 

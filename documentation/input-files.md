@@ -102,6 +102,8 @@ The file has three columns separated by a tab and may optionally be gzip-compres
 
 The order of the given regions is important. The region given in the first column is assumed to denote the 5' end of the fusion and the region in the second column to be the 3' end.
 
+The known fusions file shipped with the download package of Arriba can be used for both known fusions and tags. It is constructed in a way that it can be passed as arguments to the parameters `-k` and `-t` alike. The former only uses the first two columns, the latter uses all three columns. If a user wants to separate filtering of known fusions and tagging of interesting fusions, different files may be used, however.
+
 Protein domains
 ---------------
 
