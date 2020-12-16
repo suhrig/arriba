@@ -39,7 +39,7 @@ The file `fusions.tsv` (as specified by the parameter `-o`) contains fusions whi
 : If Arriba is provided with protein domain annotation using the parameter `-p`, then this column is populated with protein domains retained in the fusion. Multiple protein domains are separated by a comma. Redundant protein domains are only listed once. After every domain the fraction that is retained is stated as a percentage value in parentheses. The protein domains of the 5' and 3' genes are separated by a pipe symbol (`|`).
 
 `closest_genomic_breakpoint1` and `closest_genomic_breakpoint2`
-: When a matched whole-genome sequencing sample is available, one can feed structural variant calls obtained therefrom into Arriba (see parameter `-d`). Arriba then considers this information during fusion calling, which improves the overall accuracy. These two columns contain the coordinates of the genomic breakpoints which are closest to the transcriptomic breakpoints given in the columns `breakpoint1` and `breakpoint2`.
+: When a matched whole-genome sequencing sample is available, one can feed structural variant calls obtained therefrom into Arriba (see parameter `-d`). Arriba then considers this information during fusion calling, which improves the overall accuracy. These two columns contain the coordinates of the genomic breakpoints which are closest to the transcriptomic breakpoints given in the columns `breakpoint1` and `breakpoint2`. The values in parentheses are the distances between transcriptomic and genomic breakpoints.
 
 `gene_id1` and `gene_id2`
 : These two columns state the identifiers of the fused genes as given in the `gene_id` attribute in the GTF file.
