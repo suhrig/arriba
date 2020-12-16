@@ -267,7 +267,8 @@ options_t parse_arguments(int argc, char **argv) {
 	int c;
 	string junction_suffix(".junction");
 	unordered_map<char,unsigned int> duplicate_arguments;
-	while ((c = getopt(argc, argv, "c:x:d:g:G:o:O:t:p:a:b:k:s:i:v:f:E:S:m:L:H:D:R:A:M:K:V:F:U:Q:e:T:C:uXIh")) != -1) {
+	const string valid_arguments = "c:x:d:g:G:o:O:t:p:a:b:k:s:i:v:f:E:S:m:L:H:D:R:A:M:K:V:F:U:Q:e:T:C:uXIh";
+	while ((c = getopt(argc, argv, valid_arguments.c_str())) != -1) {
 
 		// throw error if the same argument is specified more than once
 		duplicate_arguments[c]++;
@@ -533,16 +534,12 @@ options_t parse_arguments(int argc, char **argv) {
 				exit(0);
 				break;
 			default:
-				switch (optopt) {
-					case 'c': case 'x': case 'd': case 'g': case 'G': case 'o': case 'O': case 'a': case 'k': case 'b': case 'i': case 'f': case 'E': case 's': case 'm': case 'H': case 'D': case 'R': case 'A': case 'M': case 'K': case 'V': case 'F': case 'S': case 'U': case 'Q':
-						cerr << "ERROR: option -" << ((char) optopt) << " requires an argument" << endl;
-						exit(1);
-						break;
-					default:
-						cerr << "ERROR: unknown option: -" << ((char) optopt) << endl;
-						exit(1);
-						break;
-				}
+				if (valid_arguments.find(string(1, (char) optopt) + ":") != string::npos)
+					cerr << "ERROR: option -" << ((char) optopt) << " requires an argument" << endl;
+				else
+					cerr << "ERROR: unknown option: -" << ((char) optopt) << endl;
+				exit(1);
+				break;
 		}
 
 		if (optind < argc && (string(argv[optind]).empty() || argv[optind][0] != '-')) {
