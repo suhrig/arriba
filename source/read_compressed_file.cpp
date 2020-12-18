@@ -61,14 +61,10 @@ autodecompress_file_t::autodecompress_file_t(const string& file_path) {
 
 bool autodecompress_file_t::getline(string& line) {
 	if (compressed) {
-		if (std::getline(decompressed_file_content, line))
-			return true;
-		else
+		if (!std::getline(decompressed_file_content, line))
 			return false;
 	} else {
-		if (std::getline(uncompressed_file, line)) {
-			return true;
-		} else {
+		if (!std::getline(uncompressed_file, line)) {
 			if (uncompressed_file.bad()) {
 				cerr << "ERROR: failed to load file '" << file_path << "' into memory." << endl;
 				exit(1);
@@ -78,6 +74,10 @@ bool autodecompress_file_t::getline(string& line) {
 			return false;
 		}
 	}
+	// remove carriage return in case of DOS line breaks
+	if (!line.empty() && line[line.size()-1] == '\r')
+		line.resize(line.size()-1);
+	return true;
 }
 
 tsv_stream_t& tsv_stream_t::operator>>(string& out) {
