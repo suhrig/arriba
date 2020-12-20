@@ -637,10 +637,18 @@ string get_fusion_site(const gene_t gene, const bool spliced, const bool exonic,
 	return site;
 }
 
-transcript_t get_transcript(const string& transcript_sequence, const vector<position_t>& transcribed_bases, const gene_t gene, const strand_t strand, const bool strand_ambiguous, const unsigned char which_end, const exon_annotation_index_t& exon_annotation_index) {
+bool sort_best_transcripts_by_size(const transcript_annotation_record_t* x, const transcript_annotation_record_t* y) {
+	int length_x = x->last_exon->end - x->first_exon->start;
+	int length_y = y->last_exon->end - y->first_exon->start;
+	return (length_x > length_y ||
+	        length_x == length_y && x->id < y->id); // IDs as tie breaker ensures deterministic behavior
+}
+
+// find transcripts whose exons match the splice pattern of the fusion transcript sequence well
+void get_transcripts(const string& transcript_sequence, const vector<position_t>& transcribed_bases, const gene_t gene, const strand_t strand, const bool strand_ambiguous, const unsigned char which_end, const exon_annotation_index_t& exon_annotation_index, vector<transcript_t>& best_transcripts) {
 
 	if (strand_ambiguous || strand != gene->strand)
-		return NULL; // in case of anti-sense transcription, it makes no sense to determine the transcript
+		return; // in case of anti-sense transcription, it makes no sense to determine the transcript
 
 	// determine start and end of 5' or 3' moiety of transcript sequence (whichever is requested)
 	size_t from, to, breakpoint;
@@ -648,18 +656,18 @@ transcript_t get_transcript(const string& transcript_sequence, const vector<posi
 		from = 0;
 		to = transcript_sequence.find('|');
 		if (to >= transcript_sequence.size())
-			return NULL;
+			return;
 		while (to > 0 && transcribed_bases[to] == -1) // skip control characters in transcript sequence, such as "..."
 			to--;
 		if (transcribed_bases[to] == -1)
-			return NULL; // we get here when the sequence consists of only control characters (should be impossible, but who knows)
+			return; // we get here when the sequence consists of only control characters (should be impossible, but who knows)
 		breakpoint = to;
 	} else { // which_end == 3
 		from = transcript_sequence.find_last_of('|');
 		while (from < transcript_sequence.size() && transcribed_bases[from] == -1) // skip control characters in transcript sequence, such as "..."
 			from++;
 		if (from >= transcript_sequence.size())
-			return NULL; // we get here when the sequence is empty or consists of only control characters (should be impossible, but who knows)
+			return; // we get here when the sequence is empty or consists of only control characters (should be impossible, but who knows)
 		breakpoint = from;
 		to = transcript_sequence.size() - 1;
 	}
@@ -707,25 +715,30 @@ transcript_t get_transcript(const string& transcript_sequence, const vector<posi
 
 	}
 	if (peak_score.empty())
-		return NULL; // transcribed region does not overlap any annotated transcript
+		return; // transcribed region does not overlap any annotated transcript
 
 	// with which annotated transcript does the transcribed region have the best overlap?
-	// search for the transcript with the best ratio of transcribed length/total length
-	transcript_t best_transcript = peak_score.begin()->first;
-	for (auto transcript = peak_score.begin(); transcript != peak_score.end(); ++transcript) {
-		int transcript_length = transcript->first->last_exon->end - transcript->first->first_exon->start;
-		int best_transcript_length = best_transcript->last_exon->end - best_transcript->first_exon->start;
-		if (transcript->second > peak_score[best_transcript] ||
-		    transcript->second == peak_score[best_transcript] && !is_coding_at_breakpoint[best_transcript] && is_coding_at_breakpoint[transcript->first] ||
-		    transcript->second == peak_score[best_transcript] && is_coding_at_breakpoint[best_transcript] == is_coding_at_breakpoint[transcript->first] && transcript_length > best_transcript_length ||
-		    transcript->second == peak_score[best_transcript] && is_coding_at_breakpoint[best_transcript] == is_coding_at_breakpoint[transcript->first] && transcript_length == best_transcript_length && transcript->first->id < best_transcript->id) { // IDs as tie breaker ensures deterministic behavior
-			best_transcript = transcript->first;
+	// search for the transcript with the best ratio of transcribed regions/exonic regions
+	best_transcripts.push_back(peak_score.begin()->first);
+	for (auto transcript = next(peak_score.begin()); transcript != peak_score.end(); ++transcript) {
+		if (transcript->second == peak_score[best_transcripts[0]] && is_coding_at_breakpoint[best_transcripts[0]] == is_coding_at_breakpoint[transcript->first]) {
+			best_transcripts.push_back(transcript->first);
+		} else if (transcript->second > peak_score[best_transcripts[0]] ||
+		    transcript->second == peak_score[best_transcripts[0]] && !is_coding_at_breakpoint[best_transcripts[0]] && is_coding_at_breakpoint[transcript->first]) {
+			best_transcripts.clear();
+			best_transcripts.push_back(transcript->first);
 		}
 	}
-	if (peak_score[best_transcript] == 0)
-		return NULL;
+	if (peak_score[best_transcripts[0]] == 0)
+		best_transcripts.clear();
 
-	return best_transcript;
+	// sort best transcripts by size and ID for deterministic behavior
+	sort(best_transcripts.begin(), best_transcripts.end(), sort_best_transcripts_by_size);
+
+	// put the best of the best transcripts in the first and the last place, such that it is
+	// guaranteed to be picked regardless of whether an in-frame fusion is found or only out-of-frame ones
+	if (best_transcripts.size() > 1)
+		best_transcripts.push_back(best_transcripts[0]);
 }
 
 void fill_gaps_in_fusion_transcript_sequence(string& transcript_sequence, vector<position_t>& positions, const transcript_t transcript_5, const transcript_t transcript_3, const strand_t strand_5, const strand_t strand_3, const assembly_t& assembly) {
@@ -956,8 +969,7 @@ void write_fusions_to_file(fusions_t& fusions, const string& output_file, const 
 	// make a vector of pointers to all fusions
 	// the vector will hold the fusions in sorted order
 	vector<fusion_t*> sorted_fusions;
-	if (write_discarded_fusions)
-		sorted_fusions.reserve(fusions.size());
+	sorted_fusions.reserve(fusions.size());
 	for (fusions_t::iterator fusion = fusions.begin(); fusion != fusions.end(); ++fusion)
 		if (write_discarded_fusions != (fusion->second.filter == FILTER_none)) // either write filtered or unfiltered fusions
 			sorted_fusions.push_back(&(fusion->second));
@@ -1036,19 +1048,44 @@ void write_fusions_to_file(fusions_t& fusions, const string& output_file, const 
 
 		// compute columns that are only printed in the main output file but omitted in the discarded output file
 		string transcript_sequence = ".";
+		vector<transcript_t> transcripts_5;
+		vector<transcript_t> transcripts_3;
 		transcript_t transcript_5 = NULL;
 		transcript_t transcript_3 = NULL;
 		string fusion_peptide_sequence = ".";
 		string reading_frame = ".";
 		if (print_extra_info) {
+
+			// compute fusion transcript sequence
 			vector<position_t> positions;
 			get_fusion_transcript_sequence(**fusion, assembly, transcript_sequence, positions);
-			transcript_5 = get_transcript(transcript_sequence, positions, gene_5, strand_5, (**fusion).predicted_strands_ambiguous, 5, exon_annotation_index);
-			transcript_3 = get_transcript(transcript_sequence, positions, gene_3, strand_3, (**fusion).predicted_strands_ambiguous, 3, exon_annotation_index);
-			if (fill_sequence_gaps)
-				fill_gaps_in_fusion_transcript_sequence(transcript_sequence, positions, transcript_5, transcript_3, strand_5, strand_3, assembly);
-			fusion_peptide_sequence = get_fusion_peptide_sequence(transcript_sequence, positions, gene_5, gene_3, transcript_5, transcript_3, strand_3, exon_annotation_index, assembly);
-			reading_frame = is_in_frame(fusion_peptide_sequence);
+			const string transcript_sequence_backup = transcript_sequence;
+			const vector<position_t> positions_backup = positions;
+
+			// compute fusion peptide sequence
+			// we need to try all combinations of the 5' and 3' transcript candidates until we have found one that is in-frame
+			get_transcripts(transcript_sequence, positions, gene_5, strand_5, (**fusion).predicted_strands_ambiguous, 5, exon_annotation_index, transcripts_5);
+			get_transcripts(transcript_sequence, positions, gene_3, strand_3, (**fusion).predicted_strands_ambiguous, 3, exon_annotation_index, transcripts_3);
+			for (auto t_5 = transcripts_5.begin(); (transcripts_5.empty() || t_5 != transcripts_5.end()) && reading_frame != "in-frame"; ++t_5) {
+				if (t_5 != transcripts_5.end()) // possibly, we enter this loop when there aren't any 5' transcripts => leave transcript_5 as NULL in this case
+					transcript_5 = *t_5;
+				for (auto t_3 = transcripts_3.begin(); (transcripts_3.empty() || t_3 != transcripts_3.end()) && reading_frame != "in-frame"; ++t_3) {
+					if (t_3 != transcripts_3.end()) // possibly, we enter this loop when there aren't any 5' transcripts => leave transcript_3 as NULL in this case
+						transcript_3 = *t_3;
+					if (fill_sequence_gaps) { // if requested by the user, fill gaps in the transcript (as assembled from the fusion reads) with information from the reference genome
+						transcript_sequence = transcript_sequence_backup; // we may have to do this multiple times (in case of multiple transcripts) => restore the unfilled sequence first
+						positions = positions_backup;
+						fill_gaps_in_fusion_transcript_sequence(transcript_sequence, positions, transcript_5, transcript_3, strand_5, strand_3, assembly);
+					}
+					fusion_peptide_sequence = get_fusion_peptide_sequence(transcript_sequence, positions, gene_5, gene_3, transcript_5, transcript_3, strand_3, exon_annotation_index, assembly);
+					reading_frame = is_in_frame(fusion_peptide_sequence);
+					if (t_3 == transcripts_3.end())
+						break; // we get here when there are no 3' transcripts at all, but we entered the loop nonetheless
+				}
+				if (t_5 == transcripts_5.end() || transcripts_3.empty())
+					break; // we get here when there are no 5' transcripts at all, but we entered the loop nonetheless
+			}
+
 			if (reading_frame == "stop-codon") // discard peptide sequence when there is a stop codon prior to the fusion junction
 				fusion_peptide_sequence = ".";
 		}
