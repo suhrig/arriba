@@ -457,7 +457,7 @@ string gene_to_name(const gene_t gene, const contig_t contig, const position_t b
 	}
 }
 
-string get_fusion_type(const fusion_t& fusion) {
+string get_fusion_type(const fusion_t& fusion, const unsigned int max_itd_length) {
 	if (fusion.contig1 != fusion.contig2) {
 		if (fusion.gene1->is_dummy || fusion.gene2->is_dummy ||
 		    fusion.direction1 == fusion.direction2 && fusion.gene1->strand != fusion.gene2->strand ||
@@ -510,6 +510,10 @@ string get_fusion_type(const fusion_t& fusion) {
 			    (fusion.gene1->strand == fusion.gene2->strand)) {
 				if (fusion.gene1 == fusion.gene2 && fusion.spliced1 && fusion.spliced2) {
 					return "duplication/non-canonical_splicing";
+				} else if (fusion.gene1 == fusion.gene2 &&
+				         fusion.exonic1 && fusion.exonic2 &&
+				         ((unsigned int) fusion.breakpoint2 - fusion.breakpoint1) < max_itd_length) {
+					return "duplication/ITD"; // internal tandem duplication
 				} else {
 					return "duplication";
 				}
@@ -964,7 +968,7 @@ void fill_gaps_in_fusion_transcript_sequence(string& transcript_sequence, vector
 	}
 }
 
-void write_fusions_to_file(fusions_t& fusions, const string& output_file, const coverage_t& coverage, const assembly_t& assembly, gene_annotation_index_t& gene_annotation_index, exon_annotation_index_t& exon_annotation_index, vector<string> original_contig_names, const tags_t& tags, const protein_domain_annotation_index_t& protein_domain_annotation_index, const int max_mate_gap, const bool print_extra_info, const bool fill_sequence_gaps, const bool write_discarded_fusions) {
+void write_fusions_to_file(fusions_t& fusions, const string& output_file, const coverage_t& coverage, const assembly_t& assembly, gene_annotation_index_t& gene_annotation_index, exon_annotation_index_t& exon_annotation_index, vector<string> original_contig_names, const tags_t& tags, const protein_domain_annotation_index_t& protein_domain_annotation_index, const int max_mate_gap, const unsigned int max_itd_length, const bool print_extra_info, const bool fill_sequence_gaps, const bool write_discarded_fusions) {
 
 	// make a vector of pointers to all fusions
 	// the vector will hold the fusions in sorted order
@@ -1095,7 +1099,7 @@ void write_fusions_to_file(fusions_t& fusions, const string& output_file, const 
 		    << get_fusion_strand(strand_5, gene_5, (**fusion).predicted_strands_ambiguous) << "\t" << get_fusion_strand(strand_3, gene_3, (**fusion).predicted_strands_ambiguous) << "\t"
 		    << original_contig_names[contig_5] << ":" << (breakpoint_5+1) << "\t" << original_contig_names[contig_3] << ":" << (breakpoint_3+1) << "\t"
 		    << site_5 << "\t" << site_3 << "\t"
-		    << get_fusion_type(**fusion) << "\t" << split_reads_5 << "\t" << split_reads_3 << "\t" << (**fusion).discordant_mates << "\t"
+		    << get_fusion_type(**fusion, max_itd_length) << "\t" << split_reads_5 << "\t" << split_reads_3 << "\t" << (**fusion).discordant_mates << "\t"
 		    << ((coverage_5 >= 0) ? to_string(static_cast<long long int>(coverage_5)) : ".") << "\t" << ((coverage_3 >= 0) ? to_string(static_cast<long long int>(coverage_3)) : ".") << "\t"
 		    << confidence << "\t"
 		    << reading_frame;
