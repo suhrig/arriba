@@ -200,10 +200,7 @@ void read_annotation_gtf(const string& filename, const string& gtf_features_stri
 
 			// convert string representation of contig to numeric ID
 			pair<contigs_t::iterator,bool> find_contig_by_name = contigs.insert(pair<string,contig_t>(removeChr(contig), contigs.size())); // this adds a new contig only if it does not yet exist
-			if (contigs.size() == USHRT_MAX - 1) {
-				cerr << "ERROR: too many contigs" << endl;
-				exit(1);
-			}
+			crash(contigs.size() == USHRT_MAX - 1, "too many contigs");
 			if (original_contig_names.size() < contigs.size())
 				original_contig_names.resize(contigs.size());
 			original_contig_names[find_contig_by_name.first->second] = contig;
@@ -298,10 +295,7 @@ void read_annotation_gtf(const string& filename, const string& gtf_features_stri
 		}
 	}
 
-	if (gene_annotation.empty()) {
-		cerr << "ERROR: failed to parse GTF file, please consider using -G" << endl;
-		exit(1);
-	}
+	crash(gene_annotation.empty(), "failed to parse GTF file, please consider using -G");
 
 	// map coding regions to exons
 	for (auto coding_region = coding_regions.begin(); coding_region != coding_regions.end(); ++coding_region) {

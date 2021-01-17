@@ -315,4 +315,7 @@ inline bool str_to_float(const char* s, float& f) {
 	return (*s != ' ' && end_of_parsing != s && *end_of_parsing == '\0' && f != HUGE_VALF && f != -HUGE_VALF);
 }
 
+// convenience function to print an error message and exit if given condition is true
+#define crash(condition,message) { if (condition) { cerr << string("ERROR: ") + message << endl; exit(1); }; }
+
 #endif /* _COMMON_H */

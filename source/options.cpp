@@ -253,7 +253,7 @@ void print_usage() {
 	                  "sequence wherever possible.")
 	     << wrap_help("-h", "Print help and exit.")
 	     << "For more information or help, visit: " << HELP_CONTACT << endl
-	     << "The user manual is available at: " << MANUAL_URL << endl;
+	     << "The user manual is available at: " << MANUAL_URL << endl << endl;
 }
 
 options_t parse_arguments(int argc, char **argv) {
@@ -261,10 +261,7 @@ options_t parse_arguments(int argc, char **argv) {
 
 	// throw error when first argument is not prefixed with a dash
 	// for some reason getopt does not detect this error and simply skips the argument
-	if (argc > 1 && (string(argv[1]).empty() || argv[1][0] != '-')) {
-		cerr << "ERROR: cannot interpret the first argument: " << argv[1] << endl;
-		exit(1);
-	}
+	crash(argc > 1 && (string(argv[1]).empty() || argv[1][0] != '-'), "cannot interpret the first argument: " + argv[1]);
 
 	// parse arguments
 	opterr = 0;
@@ -276,111 +273,68 @@ options_t parse_arguments(int argc, char **argv) {
 
 		// throw error if the same argument is specified more than once
 		duplicate_arguments[c]++;
-		if (duplicate_arguments[c] > 1) {
-			cerr << "ERROR: argument -" << ((char) c) << " specified too often" << endl;
-			exit(1);
-		}
+		crash(duplicate_arguments[c] > 1, "option -" + ((char) c) + " specified too often");
 
 		switch (c) {
 			case 'c':
 				options.chimeric_bam_file = optarg;
-				if (access(options.chimeric_bam_file.c_str(), R_OK) != 0) {
-					cerr << "ERROR: file not found/readable: " << options.chimeric_bam_file << endl;
-					exit(1);
-				}
+				crash(access(options.chimeric_bam_file.c_str(), R_OK), "file not found/readable: " + options.chimeric_bam_file);
 				if (options.chimeric_bam_file.size() >= junction_suffix.size() &&
 				    options.chimeric_bam_file.substr(options.chimeric_bam_file.size() - junction_suffix.size()) == junction_suffix) {
 					cerr << "WARNING: it seems you passed the chimeric junction file ('Chimeric.out.junction') to the parameter -c, but this parameter takes the chimeric alignments file ('Chimeric.out.sam') as input" << endl;
-					exit(1);
 				}
 				break;
 			case 'x': {
 				options.rna_bam_file = optarg;
-				if (access(options.rna_bam_file.c_str(), R_OK) != 0) {
-					cerr << "ERROR: file not found/readable: " << options.rna_bam_file << endl;
-					exit(1);
-				}
+				crash(access(options.rna_bam_file.c_str(), R_OK), "file not found/readable: " + options.rna_bam_file);
 				break;
 			}
 			case 'd':
 				options.genomic_breakpoints_file = optarg;
-				if (access(options.genomic_breakpoints_file.c_str(), R_OK) != 0) {
-					cerr << "ERROR: file not found/readable: " << options.genomic_breakpoints_file << endl;
-					exit(1);
-				}
+				crash(access(options.genomic_breakpoints_file.c_str(), R_OK), "file not found/readable: " + options.genomic_breakpoints_file);
 				break;
 			case 'g':
 				options.gene_annotation_file = optarg;
-				if (access(options.gene_annotation_file.c_str(), R_OK) != 0) {
-					cerr << "ERROR: file not found/readable: " << options.gene_annotation_file << endl;
-					exit(1);
-				}
+				crash(access(options.gene_annotation_file.c_str(), R_OK), "file not found/readable: " + options.gene_annotation_file);
 				break;
 			case 'G':
 				options.gtf_features = optarg;
 				{
 					gtf_features_t gtf_features;
-					if (!parse_gtf_features(options.gtf_features, gtf_features)) {
-						cerr << "ERROR: malformed GTF features: " << options.gtf_features << endl;
-						exit(1);
-					}
+					crash(!parse_gtf_features(options.gtf_features, gtf_features), "malformed GTF features: " + options.gtf_features);
 				}
 				break;
 			case 'o':
 				options.output_file = optarg;
-				if (!output_directory_exists(options.output_file)) {
-					cerr << "ERROR: parent directory of output file '" << options.output_file << "' does not exist" << endl;
-					exit(1);
-				}
+				crash(!output_directory_exists(options.output_file), "parent directory of output file '" + options.output_file + "' does not exist");
 				break;
 			case 'O':
 				options.discarded_output_file = optarg;
-				if (!output_directory_exists(options.discarded_output_file)) {
-					cerr << "ERROR: parent directory of output file '" << options.discarded_output_file << "' does not exist" << endl;
-					exit(1);
-				}
+				crash(!output_directory_exists(options.discarded_output_file), "parent directory of output file '" + options.discarded_output_file + "' does not exist");
 				break;
 			case 't':
 				options.tags_file = optarg;
-				if (access(options.tags_file.c_str(), R_OK) != 0) {
-					cerr << "ERROR: file not found/readable: " << options.tags_file << endl;
-					exit(1);
-				}
+				crash(access(options.tags_file.c_str(), R_OK), "file not found/readable: " + options.tags_file);
 				break;
 			case 'p':
 				options.protein_domains_file = optarg;
-				if (access(options.protein_domains_file.c_str(), R_OK) != 0) {
-					cerr << "ERROR: file not found/readable: " << options.protein_domains_file << endl;
-					exit(1);
-				}
+				crash(access(options.protein_domains_file.c_str(), R_OK), "file not found/readable: " + options.protein_domains_file);
 				break;
 
 			case 'a':
 				options.assembly_file = optarg;
-				if (access(options.assembly_file.c_str(), R_OK) != 0) {
-					cerr << "ERROR: file not found/readable: " << options.assembly_file << endl;
-					exit(1);
-				}
+				crash(access(options.assembly_file.c_str(), R_OK), "file not found/readable: " + options.assembly_file);
 				// when CRAM files are used, the FastA file must be indexed
 				if (options.rna_bam_file.size() >= 5 && options.rna_bam_file.substr(options.rna_bam_file.size()-5) == ".cram")
-					if (access((options.assembly_file + ".fai").c_str(), R_OK) != 0) {
-						cerr << "ERROR: index file not found/readable: " << options.assembly_file << ".fai" << endl;
-						exit(1);
-					}
+					crash(access((options.assembly_file + ".fai").c_str(), R_OK), "index file not found/readable: " + options.assembly_file + ".fai");
 				break;
 			case 'b':
 				options.blacklist_file = optarg;
-				if (access(options.blacklist_file.c_str(), R_OK) != 0) {
-					cerr << "ERROR: file not found/readable: " << options.blacklist_file << endl;
-					exit(1);
-				}
+				crash(access(options.blacklist_file.c_str(), R_OK), "file not found/readable: " + options.blacklist_file);
 				break;
 			case 'k':
 				options.known_fusions_file = optarg;
-				if (access(options.known_fusions_file.c_str(), R_OK) != 0) {
-					cerr << "ERROR: file not found/readable: " << options.known_fusions_file << endl;
-					exit(1);
-				}
+				crash(access(options.known_fusions_file.c_str(), R_OK), "file not found/readable: " + options.known_fusions_file);
 				break;
 			case 's':
 				if (string(optarg) == "auto") {
@@ -392,8 +346,7 @@ options_t parse_arguments(int argc, char **argv) {
 				} else if (string(optarg) == "reverse") {
 					options.strandedness = STRANDEDNESS_REVERSE;
 				} else {
-					cerr << "ERROR: invalid type of strandedness: " << optarg << endl;
-					exit(1);
+					crash(true, "invalid type of strandedness: " + string(optarg));
 				}
 				break;
 			case 'i':
@@ -414,121 +367,64 @@ options_t parse_arguments(int argc, char **argv) {
 					while (disabled_filters_ss) {
 						string disabled_filter;
 						disabled_filters_ss >> disabled_filter;
-						if (!disabled_filter.empty() && options.filters.find(disabled_filter) == options.filters.end()) {
-							cerr << "ERROR: invalid argument to option -f: " << disabled_filter << endl;
-							exit(1);
-						} else
-							options.filters[disabled_filter] = false;
+						crash(!disabled_filter.empty() && options.filters.find(disabled_filter) == options.filters.end(), "invalid argument to option -f: " + disabled_filter);
+						options.filters[disabled_filter] = false;
 					}
 				}
 				break;
 			case 'E':
-				if (!validate_float(optarg, options.evalue_cutoff, 0)) {
-					cerr << "ERROR: argument to -" << ((char) c) << " must be greater than 0" << endl;
-					exit(1);
-				}
+				crash(!validate_float(optarg, options.evalue_cutoff, 0), "argument to -" + ((char) c) + " must be greater than 0");
 				break;
 			case 'S':
-				if (!validate_int(optarg, options.min_support, 0)) {
-					cerr << "ERROR: invalid argument to -" << ((char) c) << endl;
-					exit(1);
-				}
+				crash(!validate_int(optarg, options.min_support, 0), "invalid argument to -" + ((char) c));
 				break;
 			case 'm':
-				if (!validate_float(optarg, options.max_mismapper_fraction, 0, 1)) {
-					cerr << "ERROR: argument to -" << ((char) c) << " must be between 0 and 1" << endl;
-					exit(1);
-				}
+				crash(!validate_float(optarg, options.max_mismapper_fraction, 0, 1), "argument to -" + ((char) c) + " must be between 0 and 1");
 				break;
 			case 'L':
-				if (!validate_float(optarg, options.max_homolog_identity, 0, 1)) {
-					cerr << "ERROR: argument to -" << ((char) c) << " must be between 0 and 1" << endl;
-					exit(1);
-				}
+				crash(!validate_float(optarg, options.max_homolog_identity, 0, 1), "argument to -" + ((char) c) + " must be between 0 and 1");
 				break;
 			case 'H':
-				if (!validate_int(optarg, options.homopolymer_length, 2)) {
-					cerr << "ERROR: argument to -" << ((char) c) << " must be greater than 1" << endl;
-					exit(1);
-				}
+				crash(!validate_int(optarg, options.homopolymer_length, 2), "argument to -" + ((char) c) + " must be greater than 1");
 				break;
 			case 'D':
-				if (!validate_int(optarg, options.max_genomic_breakpoint_distance, 0)) {
-					cerr << "ERROR: invalid argument to -" << ((char) c) << endl;
-					exit(1);
-				}
+				crash(!validate_int(optarg, options.max_genomic_breakpoint_distance, 0), "invalid argument to -" + ((char) c));
 				break;
 			case 'R':
-				if (!validate_int(optarg, options.min_read_through_distance, 0)) {
-					cerr << "ERROR: invalid argument to -" << ((char) c) << endl;
-					exit(1);
-				}
+				crash(!validate_int(optarg, options.min_read_through_distance, 0), "invalid argument to -" + ((char) c));
 				break;
 			case 'A':
-				if (!validate_int(optarg, options.min_anchor_length, 0)) {
-					cerr << "ERROR: invalid argument to -" << ((char) c) << endl;
-					exit(1);
-				}
+				crash(!validate_int(optarg, options.min_anchor_length, 0), "invalid argument to -" + ((char) c));
 				break;
 			case 'M':
-				if (!validate_int(optarg, options.min_spliced_events, 0)) {
-					cerr << "ERROR: invalid argument to -" << ((char) c) << endl;
-					exit(1);
-				}
+				crash(!validate_int(optarg, options.min_spliced_events, 0), "invalid argument to -" + ((char) c));
 				break;
 			case 'K':
-				if (!validate_float(optarg, options.max_kmer_content, 0, 1)) {
-					cerr << "ERROR: argument to -" << ((char) c) << " must be between 0 and 1" << endl;
-					exit(1);
-				}
+				crash(!validate_float(optarg, options.max_kmer_content, 0, 1), "argument to -" + ((char) c) + " must be between 0 and 1");
 				break;
 			case 'V':
-				if (!validate_float(optarg, options.mismatch_pvalue_cutoff, 0, 1)) {
-					cerr << "ERROR: argument to -" << ((char) c) << " must be between 0 and 1" << endl;
-					exit(1);
-				}
+				crash(!validate_float(optarg, options.mismatch_pvalue_cutoff, 0, 1), "argument to -" + ((char) c) + " must be between 0 and 1");
 				break;
 			case 'F':
-				if (!validate_int(optarg, options.fragment_length, 1)) {
-					cerr << "ERROR: argument to -" << ((char) c) << " must be an integer greater than 0" << endl;
-					exit(1);
-				}
+				crash(!validate_int(optarg, options.fragment_length, 1), "argument to -" + ((char) c) + " must be an integer greater than 0");
 				break;
 			case 'U':
-				if (!validate_int(optarg, options.subsampling_threshold, 1, SHRT_MAX)) {
-					cerr << "ERROR: argument to -" << ((char) c) << " must be an integer between 1 and " << SHRT_MAX << endl;
-					exit(1);
-				}
+				crash(!validate_int(optarg, options.subsampling_threshold, 1, SHRT_MAX), "argument to -" + ((char) c) + " must be an integer between 1 and " + to_string(SHRT_MAX));
 				break;
 			case 'Q':
-				if (!validate_float(optarg, options.high_expression_quantile, 0, 1)) {
-					cerr << "ERROR: argument to -" << ((char) c) << " must be between 0 and 1" << endl;
-					exit(1);
-				}
+				crash(!validate_float(optarg, options.high_expression_quantile, 0, 1), "argument to -" + ((char) c) + " must be between 0 and 1");
 				break;
 			case 'e':
-				if (!validate_float(optarg, options.exonic_fraction, 0, 1)) {
-					cerr << "ERROR: argument to -" << ((char) c) << " must be between 0 and 1" << endl;
-					exit(1);
-				}
+				crash(!validate_float(optarg, options.exonic_fraction, 0, 1), "argument to -" + ((char) c) + " must be between 0 and 1");
 				break;
 			case 'T':
-				if (!validate_int(optarg, options.top_viral_contigs, 1)) {
-					cerr << "ERROR: invalid argument to -" << ((char) c) << endl;
-					exit(1);
-				}
+				crash(!validate_int(optarg, options.top_viral_contigs, 1), "invalid argument to -" + ((char) c));
 				break;
 			case 'C':
-				if (!validate_float(optarg, options.viral_contig_min_covered_fraction, 0, 1)) {
-					cerr << "ERROR: argument to -" << ((char) c) << " must be between 0 and 1" << endl;
-					exit(1);
-				}
+				crash(!validate_float(optarg, options.viral_contig_min_covered_fraction, 0, 1), "argument to -" + ((char) c) + " must be between 0 and 1");
 				break;
 			case 'l':
-				if (!validate_int(optarg, options.max_itd_length, 1)) {
-					cerr << "ERROR: argument to -" << ((char) c) << " must be an integer greater than 0" << endl;
-					exit(1);
-				}
+				crash(!validate_int(optarg, options.max_itd_length, 1), "argument to -" + ((char) c) + " must be an integer greater than 0");
 				break;
 			case 'u':
 				options.external_duplicate_marking = true;
@@ -544,47 +440,25 @@ options_t parse_arguments(int argc, char **argv) {
 				exit(0);
 				break;
 			default:
-				if (valid_arguments.find(string(1, (char) optopt) + ":") != string::npos)
-					cerr << "ERROR: option -" << ((char) optopt) << " requires an argument" << endl;
-				else
-					cerr << "ERROR: unknown option: -" << ((char) optopt) << endl;
-				exit(1);
+				crash(valid_arguments.find(string(1, (char) optopt) + ":") != string::npos, "option -" + ((char) optopt) + " requires an argument");
+				crash(true, "unknown option: -" + ((char) optopt));
 				break;
 		}
 
-		if (optind < argc && (string(argv[optind]).empty() || argv[optind][0] != '-')) {
-			cerr << "ERROR: option -" << ((char) c) << " has more than one argument (arguments with blanks must be wrapped in quotes)" << endl;
-			exit(1);
-		}
+		crash(optind < argc && (string(argv[optind]).empty() || argv[optind][0] != '-'), "option -" + ((char) c) + " has more than one argument (arguments with blanks must be wrapped in quotes)");
 
 	}
 
 	// check for mandatory arguments
 	if (argc == 1) {
-		cerr << "ERROR: no arguments given" << endl;
 		print_usage();
-		exit(1);
+		crash(true, "no arguments given");
 	}
-	if (options.rna_bam_file.empty()) {
-		cerr << "ERROR: missing mandatory option: -x" << endl;
-		exit(1);
-	}
-	if (options.gene_annotation_file.empty()) {
-		cerr << "ERROR: missing mandatory option: -g" << endl;
-		exit(1);
-	}
-	if (options.output_file.empty()) {
-		cerr << "ERROR: missing mandatory option: -o" << endl;
-		exit(1);
-	}
-	if (options.assembly_file.empty()) {
-        	cerr << "ERROR: missing mandatory option: -a" << endl;
-		exit(1);
-	}
-	if (options.filters["blacklist"] && options.blacklist_file.empty()) {
-		cerr << "ERROR: filter 'blacklist' enabled, but missing option -b (use '-f blacklist' if you want to disable the blacklist)" << endl;
-		exit(1);
-	}
+	crash(options.rna_bam_file.empty(), "missing mandatory option -x");
+	crash(options.gene_annotation_file.empty(), "missing mandatory option -g");
+	crash(options.output_file.empty(), "missing mandatory option -o");
+	crash(options.assembly_file.empty(), "missing mandatory option -a");
+	crash(options.filters["blacklist"] && options.blacklist_file.empty(), "filter 'blacklist' enabled, but missing option -b (use '-f blacklist' if you want to disable the blacklist)");
 
 	return options;
 }

@@ -114,10 +114,7 @@ void load_protein_domains(const string& filename, const contigs_t& contigs, cons
 		}
 	}
 
-	if (protein_domain_annotation.empty()) {
-		cerr << "ERROR: failed to parse GFF3 file" << endl;
-		exit(1);
-	}
+	crash(protein_domain_annotation.empty(), "failed to parse GFF3 file");
 
 	// index domains by coordinate
 	make_annotation_index(protein_domain_annotation, protein_domain_annotation_index);

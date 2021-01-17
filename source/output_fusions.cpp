@@ -1003,10 +1003,7 @@ void write_fusions_to_file(fusions_t& fusions, const string& output_file, const 
 
 	// write sorted list to file
 	ofstream out(output_file);
-	if (!out.is_open()) {
-		cerr << "ERROR: failed to open output file: " << output_file << endl;
-		exit(1);
-	}
+	crash(!out.is_open(), "failed to open output file");
 	out << "#gene1\tgene2\tstrand1(gene/fusion)\tstrand2(gene/fusion)\tbreakpoint1\tbreakpoint2\tsite1\tsite2\ttype\tsplit_reads1\tsplit_reads2\tdiscordant_mates\tcoverage1\tcoverage2\tconfidence\treading_frame\ttags\tretained_protein_domains\tclosest_genomic_breakpoint1\tclosest_genomic_breakpoint2\tgene_id1\tgene_id2\ttranscript_id1\ttranscript_id2\tdirection1\tdirection2\tfilters\tfusion_transcript\tpeptide_sequence\tread_identifiers" << endl;
 	for (auto fusion = sorted_fusions.begin(); fusion != sorted_fusions.end(); ++fusion) {
 
@@ -1187,9 +1184,6 @@ void write_fusions_to_file(fusions_t& fusions, const string& output_file, const 
 		out << endl;
 	}
 	out.close();
-	if (out.bad()) {
-		cerr << "ERROR: failed to write to file" << endl;
-		exit(1);
-	}
+	crash(out.bad(), "failed to write to file");
 }
 
