@@ -98,6 +98,7 @@ options_t get_default_options() {
 	options.exonic_fraction = 0.33;
 	options.external_duplicate_marking = false;
 	options.fill_sequence_gaps = false;
+	options.max_itd_length = 100;
 
 	return options;
 }
@@ -236,6 +237,9 @@ void print_usage() {
 	     << wrap_help("-C COVERED_FRACTION", "Ignore virally associated events if the virus is not "
 	                  "fully expressed, i.e., less than the given fraction of the viral contig is "
 	                  "transcribed. Default: " + to_string(static_cast<long double>(default_options.viral_contig_min_covered_fraction)))
+	     << wrap_help("-l MAX_ITD_LENGTH", "Maximum length of internal tandem duplications. Note:  "
+	                  "Increasing this value beyond the default can impair performance and lead to "
+	                  "many false positives. Default: " + to_string(static_cast<long long unsigned int>(default_options.max_itd_length)))
 	     << wrap_help("-u", "Instead of performing duplicate marking itself, Arriba relies on "
 	                  "duplicate marking by a preceding program using the BAM_FDUP flag. This "
 	                  "makes sense when unique molecular identifiers (UMI) are used.")
@@ -267,7 +271,7 @@ options_t parse_arguments(int argc, char **argv) {
 	int c;
 	string junction_suffix(".junction");
 	unordered_map<char,unsigned int> duplicate_arguments;
-	const string valid_arguments = "c:x:d:g:G:o:O:t:p:a:b:k:s:i:v:f:E:S:m:L:H:D:R:A:M:K:V:F:U:Q:e:T:C:uXIh";
+	const string valid_arguments = "c:x:d:g:G:o:O:t:p:a:b:k:s:i:v:f:E:S:m:L:H:D:R:A:M:K:V:F:U:Q:e:T:C:l:uXIh";
 	while ((c = getopt(argc, argv, valid_arguments.c_str())) != -1) {
 
 		// throw error if the same argument is specified more than once
@@ -517,6 +521,12 @@ options_t parse_arguments(int argc, char **argv) {
 			case 'C':
 				if (!validate_float(optarg, options.viral_contig_min_covered_fraction, 0, 1)) {
 					cerr << "ERROR: argument to -" << ((char) c) << " must be between 0 and 1" << endl;
+					exit(1);
+				}
+				break;
+			case 'l':
+				if (!validate_int(optarg, options.max_itd_length, 1)) {
+					cerr << "ERROR: argument to -" << ((char) c) << " must be an integer greater than 0" << endl;
 					exit(1);
 				}
 				break;

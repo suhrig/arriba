@@ -210,11 +210,11 @@ bool clipped_sequence_is_adapter(const bam1_t* mate1, const bam1_t* mate2) {
 
 // STAR is bad at aligning internal tandem duplications
 // => if we see a clipped read, check manually if it can be aligned as a tandem duplication
-bool is_tandem_duplication(const bam1_t* bam_record, const assembly_t& assembly, alignment_t& tandem_alignment) {
+bool is_tandem_duplication(const bam1_t* bam_record, const assembly_t& assembly, const unsigned int max_itd_length, alignment_t& tandem_alignment) {
 
 	const unsigned int min_clipped_length = 12; // ignore reads with less than this many clipped bases
-	const unsigned int min_duplication_length = 9;
-	const unsigned int max_duplication_length = 100;
+	const unsigned int min_duplication_length = 9; // lowering this value is probably pointless, because STAR aligns as an indel instead of clipped read
+	const unsigned int max_duplication_length = max_itd_length;
 	const unsigned int max_mismatches = 1; // abort alignment after hitting this many mismatches
 	const unsigned int max_non_template_bases = 6; // ignore mismatches at the beginning of the tandem alignment, because this is a frequent occurrence with ITDs
 	const unsigned int min_alignment_length = 15; // at least this many bases must align to consider the alignment valid
@@ -457,7 +457,7 @@ bool is_clipped_at_correct_end(const bam1_t* bam_record) {
 	return clipped_cigar == BAM_CSOFT_CLIP || clipped_cigar == BAM_CHARD_CLIP;
 }
 
-unsigned int read_chimeric_alignments(const string& bam_file_path, const assembly_t& assembly, const string& assembly_file_path, chimeric_alignments_t& chimeric_alignments, unsigned long int& mapped_reads, vector<unsigned long int>& mapped_viral_reads_by_contig, coverage_t& coverage, contigs_t& contigs, vector<string>& original_contig_names, const string& interesting_contigs, const string& viral_contigs, const gene_annotation_index_t& gene_annotation_index, const bool separate_chimeric_bam_file, const bool is_rna_bam_file, const bool external_duplicate_marking) {
+unsigned int read_chimeric_alignments(const string& bam_file_path, const assembly_t& assembly, const string& assembly_file_path, chimeric_alignments_t& chimeric_alignments, unsigned long int& mapped_reads, vector<unsigned long int>& mapped_viral_reads_by_contig, coverage_t& coverage, contigs_t& contigs, vector<string>& original_contig_names, const string& interesting_contigs, const string& viral_contigs, const gene_annotation_index_t& gene_annotation_index, const bool separate_chimeric_bam_file, const bool is_rna_bam_file, const bool external_duplicate_marking, const unsigned int max_itd_length) {
 
 	// open BAM file
 	samFile* bam_file = sam_open(bam_file_path.c_str(), "rb");
@@ -622,8 +622,8 @@ unsigned int read_chimeric_alignments(const string& bam_file_path, const assembl
 					}
 				} else if (!clipped_sequence_is_adapter(bam_record, previously_seen_mate) &&
 				           (previously_seen_mate == NULL || get_strand(bam_record) != get_strand(previously_seen_mate)) && // strands must be different, so we can distinguish mate1 from mate2
-				           (is_tandem_duplication(bam_record, assembly, tandem_alignment) || // is it a tandem duplication that STAR failed to align?
-				            is_tandem_duplication(previously_seen_mate, assembly, tandem_alignment))) {
+				           (is_tandem_duplication(bam_record, assembly, max_itd_length, tandem_alignment) || // is it a tandem duplication that STAR failed to align?
+				            is_tandem_duplication(previously_seen_mate, assembly, max_itd_length, tandem_alignment))) {
 					if (!separate_chimeric_bam_file || is_rna_bam_file && chimeric_alignments.find(read_name) == chimeric_alignments.end()) {
 						mates_t& mates = chimeric_alignments[read_name];
 						add_chimeric_alignment(mates, bam_record, get_strand(bam_record) == tandem_alignment.strand && !tandem_alignment.supplementary);

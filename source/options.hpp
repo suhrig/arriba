@@ -58,6 +58,7 @@ struct options_t {
 	string tags_file;
 	string protein_domains_file;
 	bool fill_sequence_gaps;
+	unsigned int max_itd_length;
 };
 
 options_t parse_arguments(int argc, char **argv);
