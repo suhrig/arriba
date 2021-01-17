@@ -461,9 +461,17 @@ unsigned int read_chimeric_alignments(const string& bam_file_path, const assembl
 
 	// open BAM file
 	samFile* bam_file = sam_open(bam_file_path.c_str(), "rb");
+	if (bam_file == NULL) {
+		cerr << "ERROR: failed to open SAM file" << endl;
+		exit(1);
+	}
 	if (bam_file->is_cram)
 		cram_set_option(bam_file->fp.cram, CRAM_OPT_REFERENCE, assembly_file_path.c_str());
 	bam_hdr_t* bam_header = sam_hdr_read(bam_file);
+	if (bam_header == NULL) {
+		cerr << "ERROR: failed to read SAM header" << endl;
+		exit(1);
+	}
 
 	// add contigs which are not yet listed in <contigs>
 	// and make a map tid -> contig, because the contig IDs in the BAM file need not necessarily match the contig IDs in the GTF file
