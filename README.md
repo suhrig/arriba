@@ -7,8 +7,66 @@ Apart from gene fusions, Arriba can detect other structural rearrangements with 
 
 Arriba is the winner of the [DREAM SMC-RNA Challenge](https://www.synapse.org/SMC_RNA), an international competition organized by ICGC, TCGA, IBM, and Sage Bionetworks to determine the current gold standard for the detection of gene fusions from RNA-Seq data. The final results of the challenge are posted on the [Round 5 Leaderboard](https://www.synapse.org/#!Synapse:syn2813589/wiki/588511).
 
-Installation
-============
+User manual
+===========
 
-Please refer to the [quickstart guide](http://arriba.readthedocs.io/en/latest/quickstart/). **Note: You should not use `git clone` to download Arriba, because the git repository does not include the blacklist!**
+Please refer to the [user manual](http://arriba.readthedocs.io/en/latest/) for installation instructions and information about usage. **Note: You should not use `git clone` to download Arriba, because the git repository does not include the blacklist and other database files!**
+
+1. [Quickstart](https://arriba.readthedocs.io/en/latest/quickstart/)
+
+   - [Manual installation](https://arriba.readthedocs.io/en/latest/quickstart/#manual-installation)
+   - [Installation using Docker](https://arriba.readthedocs.io/en/latest/quickstart/#installation-using-docker)
+   - [Installation using Singularity](https://arriba.readthedocs.io/en/latest/quickstart/#installation-using-singularity)
+   - [Installation using Bioconda](https://arriba.readthedocs.io/en/latest/quickstart/#installation-using-bioconda)
+   - [Output files](https://arriba.readthedocs.io/en/latest/quickstart/#output-files)
+
+2. [Workflow](https://arriba.readthedocs.io/en/latest/workflow/)
+
+   - [Demo script](https://arriba.readthedocs.io/en/latest/workflow/#demo-script)
+
+3. [Input files](https://arriba.readthedocs.io/en/latest/input-files/)
+
+   - [Alignments](https://arriba.readthedocs.io/en/latest/input-files/#alignments)
+   - [Assembly](https://arriba.readthedocs.io/en/latest/input-files/#assembly)
+   - [Annotation](https://arriba.readthedocs.io/en/latest/input-files/#annotation)
+   - [Blacklist](https://arriba.readthedocs.io/en/latest/input-files/#blacklist)
+   - [Known fusions](https://arriba.readthedocs.io/en/latest/input-files/#known-fusions)
+   - [Tags](https://arriba.readthedocs.io/en/latest/input-files/#tags)
+   - [Protein domains](https://arriba.readthedocs.io/en/latest/input-files/#protein-domains)
+   - [Structural variant calls from WGS](https://arriba.readthedocs.io/en/latest/input-files/#structural-variant-calls-from-wgs)
+
+4. [Output files](https://arriba.readthedocs.io/en/latest/output-files/)
+   
+   - [fusions.tsv](https://arriba.readthedocs.io/en/latest/output-files/#fusionstsv)
+   - [fusions.discarded.tsv](https://arriba.readthedocs.io/en/latest/output-files/#fusionsdiscardedtsv)
+
+5. [Visualization](https://arriba.readthedocs.io/en/latest/visualization/)
+
+   - [Publication-quality figures](https://arriba.readthedocs.io/en/latest/visualization/#publication-quality-figures)
+   - [Inspection of events using IGV](https://arriba.readthedocs.io/en/latest/visualization/#inspection-of-events-using-igv)
+
+6. [Command line options](https://arriba.readthedocs.io/en/latest/command-line-options/)
+
+   - [Arriba](https://arriba.readthedocs.io/en/latest/command-line-options/#arriba)
+   - [draw_fusions.R](https://arriba.readthedocs.io/en/latest/command-line-options/#draw_fusionsr)
+
+7. [Interpretation of results](https://arriba.readthedocs.io/en/latest/interpretation-of-results/)
+
+   - [Confidence scoring](https://arriba.readthedocs.io/en/latest/interpretation-of-results/#confidence-scoring)
+   - [Activating fusions](https://arriba.readthedocs.io/en/latest/interpretation-of-results/#activating-fusions)
+   - [Inactivating fusions](https://arriba.readthedocs.io/en/latest/interpretation-of-results/#inactivating-fusions)
+   - [Supporting read count](https://arriba.readthedocs.io/en/latest/interpretation-of-results/#supporting-read-count)
+   - [Frequent types of false positives](https://arriba.readthedocs.io/en/latest/interpretation-of-results/#frequent-types-of-false-positives)
+   - [Multiple transcript variants](https://arriba.readthedocs.io/en/latest/interpretation-of-results/#multiple-transcript-variants)
+   - [Cohort analysis](https://arriba.readthedocs.io/en/latest/interpretation-of-results/#cohort-analysis)
+
+8. [Current limitations](https://arriba.readthedocs.io/en/latest/current-limitations/)
+   
+   - [Intragenic deletions](https://arriba.readthedocs.io/en/latest/current-limitations/#intragenic-deletions)
+   - [Memory consumption](https://arriba.readthedocs.io/en/latest/current-limitations/#memory-consumption)
+
+9. [Internal algorithm](https://arriba.readthedocs.io/en/latest/internal-algorithm/)
+
+   - [Read-level filters](https://arriba.readthedocs.io/en/latest/internal-algorithm/#read-level-filters)
+   - [Event-level filters](https://arriba.readthedocs.io/en/latest/internal-algorithm/#event-level-filters)
 
