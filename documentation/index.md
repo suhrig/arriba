@@ -7,13 +7,23 @@ Apart from gene fusions, Arriba can detect other structural rearrangements with 
 
 Arriba is the winner of the [DREAM SMC-RNA Challenge](https://www.synapse.org/SMC_RNA), an international competition organized by ICGC, TCGA, IBM, and Sage Bionetworks to determine the current gold standard for the detection of gene fusions from RNA-Seq data. The final results of the challenge are posted on the [Round 5 Leaderboard](https://www.synapse.org/#!Synapse:syn2813589/wiki/588511).
 
+Code repository
+---------------
+
+The source code of Arriba is maintained on [GitHub](https://github.com/suhrig/arriba).
+
+Get help
+--------
+
+Use the [GitHub issue tracker](https://github.com/suhrig/arriba/issues) to get help or to report bugs.
+
+Citation
+--------
+
+Sebastian Uhrig, Julia Ellermann, Tatjana Walther, Pauline Burkhardt, Martina Fröhlich, Barbara Hutter, Umut H. Toprak, Olaf Neumann, Albrecht Stenzinger, Claudia Scholl, Stefan Fröhling and Benedikt Brors: *Accurate and efficient detection of gene fusions from RNA sequencing data.* Genome Research. Published in Advance January 13, 2021. doi: [10.1101/gr.257246.119](https://doi.org/10.1101/gr.257246.119)
+
 License
 -------
 
-Apart from the script `draw_fusions.R` all software/code of Arriba is distributed under the MIT/Expat License. The script `draw_fusions.R` is distributed under the GNU GPL v3 due to dependencies on GPL-licensed R packages. The terms and conditions of both licenses can be found in the [LICENSE file](https://raw.githubusercontent.com/suhrig/arriba/master/LICENSE).
+The code, software and database files of Arriba are distributed under the MIT/Expat License, with the exception of the script `draw_fusions.R`, which is distributed under the GNU GPL v3 due to dependencies on GPL-licensed R packages. The terms and conditions of both licenses can be found in the [LICENSE file](https://raw.githubusercontent.com/suhrig/arriba/master/LICENSE).
 
-Citing
-------
-
-A dedicated publication about Arriba has not been released yet. Until then, please refer to Arriba in your methods section as follows (or similar):
-> We used Arriba (https://github.com/suhrig/arriba/) to detect gene fusions from RNA-Seq data.

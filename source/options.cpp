@@ -252,8 +252,10 @@ void print_usage() {
 	                  "reads is incomplete (denoted as '...'), fill the gaps using the assembly "
 	                  "sequence wherever possible.")
 	     << wrap_help("-h", "Print help and exit.")
-	     << "For more information or help, visit: " << HELP_CONTACT << endl
-	     << "The user manual is available at: " << MANUAL_URL << endl << endl;
+	     << "         Code repository: " << CODE_REPOSITORY << endl
+	     << "    Get help/report bugs: " << HELP_CONTACT << endl
+	     << "             User manual: " << USER_MANUAL << endl
+	     << "             Please cite: " << CITATION << endl << endl;
 }
 
 options_t parse_arguments(int argc, char **argv) {
