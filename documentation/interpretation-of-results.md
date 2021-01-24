@@ -97,7 +97,7 @@ S100A6 GAPDH  -/-     +/+     1:153507153 12:6645674  3'UTR UTR   translocation 
 
 **Internal tandem duplications**
 
-Internal tandem duplications (ITDs) are recurrent drivers in some malignancies, affecting genes such as FLT3, ERBB2, EGFR, and BCOR. However, ITDs also occur frequently as (likely benign) germline polymorphisms. Since RNA-Seq data from a germline control sample is usually not available, Arriba cannot reliably distinguish between somatic and germline ITDs. Arriba can only remove germline ITDs that are frequent in the population and thus part of its blacklist. Rare germline ITDs may therefore show up as false positives in Arriba's output. ITDs are flagged with the additional keyword `ITD` in the `type` column in the output file of Arriba.
+Internal tandem duplications (ITDs) are recurrent drivers in some malignancies, affecting genes such as FLT3, ERBB2, EGFR, and BCOR. However, ITDs also occur frequently as (likely benign) germline polymorphisms. Since RNA-Seq data from a germline control sample are usually not available, Arriba cannot reliably distinguish between somatic and germline ITDs. Arriba can only remove germline ITDs that are frequent in the population and thus part of its blacklist. Rare germline ITDs may therefore show up as false positives in Arriba's output. ITDs are flagged with the additional keyword `ITD` in the `type` column in the output file of Arriba.
 
 **Fusions recovered by the known fusions list**
 

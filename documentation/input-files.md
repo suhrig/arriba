@@ -39,7 +39,7 @@ The gene annotation (parameter `-g`) is used for multiple purposes:
 
 GENCODE annotation is recommended over RefSeq annotation, because the former has a more comprehensive annotation of transcripts and splice-sites, which boosts the sensitivity. The file must be provided in GTF format and may be gzip-compressed. It does not need to be sorted.
 
-The script `download_references.sh` can be used to download the annotation. The available annotation files are listed when the script is run without parameters. The user is not restricted to these annotation files, however. Any assembly can be used as long as its coordinates are compatible with one of the supported assemblies (hg19/hs37d5/GRCh37 or hg38/GRCh38 or mm10/GRCm38).
+The script `download_references.sh` can be used to download the annotation. The available annotation files are listed when the script is run without parameters. The user is not restricted to these annotation files, however. Any annotation can be used as long as its coordinates are compatible with one of the supported assemblies (hg19/hs37d5/GRCh37 or hg38/GRCh38 or mm10/GRCm38).
 
 Blacklist
 ---------
