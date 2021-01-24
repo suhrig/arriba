@@ -5,7 +5,7 @@
 
 using namespace std;
 
-unsigned int recover_internal_tandem_duplication(fusions_t& fusions, const chimeric_alignments_t& chimeric_alignments, const coverage_t& coverage, const exon_annotation_index_t& exon_annotation_index) {
+unsigned int recover_internal_tandem_duplication(fusions_t& fusions, const chimeric_alignments_t& chimeric_alignments, const coverage_t& coverage, const exon_annotation_index_t& exon_annotation_index, const unsigned int max_itd_length) {
 
 	unsigned int min_supporting_reads = 10; // only recover fusions with this many supporting reads
 	float min_fraction_of_coverage = 0.05; // the fusion-supporting reads must make up a substantial fraction of the coverage
@@ -30,7 +30,8 @@ unsigned int recover_internal_tandem_duplication(fusions_t& fusions, const chime
 		if (fusion->second.gene1 == fusion->second.gene2 &&
 		    fusion->second.exonic1 && fusion->second.exonic2 &&
 		    fusion->second.direction1 == UPSTREAM && fusion->second.direction2 == DOWNSTREAM &&
-		    fusion->second.gene1->is_protein_coding) {
+		    fusion->second.gene1->is_protein_coding &&
+		    ((unsigned int) fusion->second.breakpoint2 - fusion->second.breakpoint1) < max_itd_length) {
 
 			// both breakpoints must be in the same exon and in a coding region
 			exon_set_t exons;

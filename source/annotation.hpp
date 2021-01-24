@@ -24,7 +24,13 @@ const string DEFAULT_GTF_FEATURES = "gene_name=gene_name|gene_id gene_id=gene_id
 
 bool parse_gtf_features(string gtf_features_string, gtf_features_t& gtf_features);
 
-string removeChr(string contig);
+inline string strip_ensembl_version_number(const string& ensembl_identifier) {
+	string::size_type trim_position = string::npos;
+	if (ensembl_identifier.substr(0, 3) == "ENS" && (trim_position = ensembl_identifier.find_last_of('.')) < ensembl_identifier.size())
+		return ensembl_identifier.substr(0, trim_position);
+	else
+		return ensembl_identifier;
+}
 
 void read_annotation_gtf(const string& filename, const string& gtf_features_string, contigs_t& contigs, vector<string>& original_contig_names, const assembly_t& assembly, gene_annotation_t& gene_annotation, transcript_annotation_t& transcript_annotation, exon_annotation_t& exon_annotation, unordered_map<string,gene_t>& gene_names);
 

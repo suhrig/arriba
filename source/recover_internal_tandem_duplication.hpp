@@ -6,6 +6,6 @@
 
 using namespace std;
 
-unsigned int recover_internal_tandem_duplication(fusions_t& fusions, const chimeric_alignments_t& chimeric_alignments, const coverage_t& coverage, const exon_annotation_index_t& exon_annotation_index);
+unsigned int recover_internal_tandem_duplication(fusions_t& fusions, const chimeric_alignments_t& chimeric_alignments, const coverage_t& coverage, const exon_annotation_index_t& exon_annotation_index, const unsigned int max_itd_length);
 
 #endif /* _RECOVER_INTERNAL_TANDEM_DUPLICATION */

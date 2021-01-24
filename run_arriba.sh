@@ -15,6 +15,7 @@ ANNOTATION_GTF="$2"
 ASSEMBLY_FA="$3"
 BLACKLIST_TSV="$4"
 KNOWN_FUSIONS_TSV="$5"
+TAGS_TSV="$KNOWN_FUSIONS_TSV" # different files can be used for filtering and tagging, but the provided one can be used for both
 PROTEIN_DOMAINS_GFF3="$6"
 THREADS="$7"
 READ1="$8"
@@ -38,7 +39,7 @@ tee Aligned.out.bam |
 "$BASE_DIR/arriba" \
 	-x /dev/stdin \
 	-o fusions.tsv -O fusions.discarded.tsv \
-	-a "$ASSEMBLY_FA" -g "$ANNOTATION_GTF" -b "$BLACKLIST_TSV" -k "$KNOWN_FUSIONS_TSV" -t "$KNOWN_FUSIONS_TSV" -p "$PROTEIN_DOMAINS_GFF3" \
+	-a "$ASSEMBLY_FA" -g "$ANNOTATION_GTF" -b "$BLACKLIST_TSV" -k "$KNOWN_FUSIONS_TSV" -t "$TAGS_TSV" -p "$PROTEIN_DOMAINS_GFF3" \
 #	-d structural_variants_from_WGS.tsv
 
 # sorting and indexing is only required for visualization

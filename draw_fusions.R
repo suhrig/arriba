@@ -93,24 +93,27 @@ if (alignmentsFile != "")
 	if (!suppressPackageStartupMessages(require(GenomicAlignments)))
 		stop("Package 'GenomicAlignments' must be installed when '--alignments' is used")
 
-# get darker variants of colors
-getDarkColor <- function(color) {
+# define colors
+changeColorBrightness <- function(color, delta) {
 	rgb(
-		max(0,col2rgb(color)["red",]-100),
-		max(0,col2rgb(color)["green",]-100),
-		max(0,col2rgb(color)["blue",]-100),
+		min(255,max(0,col2rgb(color)["red",]+delta)),
+		min(255,max(0,col2rgb(color)["green",]+delta)),
+		min(255,max(0,col2rgb(color)["blue",]+delta)),
 		maxColorValue=255
 	)
 }
+getDarkColor <- function(color) { changeColorBrightness(color, -100) }
+getBrightColor <- function(color) { changeColorBrightness(color, +190) }
 darkColor1 <- getDarkColor(color1)
 darkColor2 <- getDarkColor(color2)
+circosColors <- c(translocation="#000000", duplication="#00bb00", deletion="#ff0000", inversion="#0000ff")
 
 # convenience functions to add/remove "chr" prefix
 addChr <- function(contig) {
 	ifelse(contig == "MT", "chrM", paste0("chr", contig))
 }
 removeChr <- function(contig) {
-	sub("^chr", "", sub("^chrM", "MT", contig), perl=T)
+	sub("^chr", "", sub("^chrM", "MT", contig, perl=T), perl=T)
 }
 
 # convenience function to check if a value is between two others
@@ -129,6 +132,7 @@ if (colnames(fusions)[1] == "X.gene1") { # Arriba output
 	fusions$breakpoint1 <- as.numeric(sub(".*:", "", fusions$breakpoint1, perl=T))
 	fusions$breakpoint2 <- as.numeric(sub(".*:", "", fusions$breakpoint2, perl=T))
 	fusions$split_reads <- fusions$split_reads1 + fusions$split_reads2
+	fusions$type <- sub(".*(translocation|duplication|deletion|inversion).*", "\\1", fusions$type, perl=T)
 } else if (colnames(fusions)[1] == "X.FusionName") { # STAR-Fusion
 	fusions$gene1 <- sub("\\^.*", "", fusions$LeftGene, perl=T)
 	fusions$gene2 <- sub("\\^.*", "", fusions$RightGene, perl=T)
@@ -144,13 +148,14 @@ if (colnames(fusions)[1] == "X.gene1") { # Arriba output
 	fusions$direction2 <- ifelse(grepl(":\\+$", fusions$RightBreakpoint, perl=T), "upstream", "downstream")
 	fusions$transcript_id1 <- ifelse(rep(!("CDS_LEFT_ID" %in% colnames(fusions)), nrow(fusions)), ".", fusions$CDS_LEFT_ID)
 	fusions$transcript_id2 <- ifelse(rep(!("CDS_RIGHT_ID" %in% colnames(fusions)), nrow(fusions)), ".", fusions$CDS_RIGHT_ID)
-	fusions$fusion_transcript <- ifelse(rep(!("FUSION_CDS" %in% colnames(fusions)), nrow(fusions)), ".", toupper(sub("([a-z]*)", "\\1|", fusions$FUSION_CDS)))
+	fusions$fusion_transcript <- ifelse(rep(!("FUSION_CDS" %in% colnames(fusions)), nrow(fusions)), ".", toupper(sub("([a-z]*)", "\\1|", fusions$FUSION_CDS, perl=T)))
 	fusions$reading_frame <- ifelse(rep(!("PROT_FUSION_TYPE" %in% colnames(fusions)), nrow(fusions)), ".", ifelse(fusions$PROT_FUSION_TYPE == "INFRAME", "in-frame", ifelse(fusions$PROT_FUSION_TYPE == "FRAMESHIFT", "out-of-frame", ".")))
 	fusions$split_reads <- fusions$JunctionReadCount
 	fusions$discordant_mates <- fusions$SpanningFragCount
 	fusions$site1 <- rep("exon", nrow(fusions))
 	fusions$site2 <- rep("exon", nrow(fusions))
 	fusions$confidence <- rep("high", nrow(fusions))
+	fusions$type <- ifelse(fusions$contig1 != fusions$contig2, "translocation", ifelse(fusions$direction1 == fusions$direction2, "inversion", ifelse((fusions$direction1 == "downstream") == (fusions$breakpoint1 < fusions$breakpoint2), "deletion", "duplication")))
 } else {
 	stop("Unrecognized fusion file format")
 }
@@ -172,15 +177,16 @@ if (cytobandsFile != "") {
 
 # read exon annotation
 message("Loading annotation")
-exons <- read.table(exonsFile, header=F, sep="\t", comment.char="#", quote="", stringsAsFactors=F)[,c(1, 3, 4, 5, 7, 9)]
-colnames(exons) <- c("contig", "type", "start", "end", "strand", "attributes")
-exons <- exons[exons$type %in% c("exon", "CDS"),]
+exons <- scan(exonsFile, what=list(contig="",src="",type="",start=0,end=0,score="",strand="",frame="",attributes=""), sep="\t", comment.char="#", quote='"', multi.line=F)
+attr(exons, "row.names") <- .set_row_names(length(exons[[1]]))
+class(exons) <- "data.frame"
+exons <- exons[exons$type %in% c("exon","CDS"),c("contig","type","start","end","strand","attributes")]
 exons$contig <- removeChr(exons$contig)
-parseGtfAttribute <- function(attribute, exons) {
-	parsed <- gsub(paste0(".*", attribute, " \"?([^;\"]+)\"?;.*"), "\\1", exons$attributes)
-	failedToParse <- parsed == exons$attributes
+parseGtfAttribute <- function(attribute, gtf) {
+	parsed <- sub(paste0(".*", attribute, "[ =]([^;]+).*"), "\\1", gtf$attributes, perl=T)
+	failedToParse <- parsed == gtf$attributes
 	if (any(failedToParse)) {
-		warning(paste0("Failed to parse '", attribute, "' attribute of ", sum(failedToParse), " GTF record(s)."))
+		warning(paste0("Failed to parse '", attribute, "' attribute of ", sum(failedToParse), " record(s)."))
 		parsed <- ifelse(failedToParse, "", parsed)
 	}
 	return(parsed)
@@ -195,12 +201,12 @@ exons$exonNumber <- ifelse(rep(printExonLabels, nrow(exons)), parseGtfAttribute(
 proteinDomains <- NULL
 if (proteinDomainsFile != "") {
 	message("Loading protein domains")
-	proteinDomains <- read.table(proteinDomainsFile, header=F, sep="\t", comment.char="", quote="", stringsAsFactors=F)[,c(1,4,5,7,9)]
-	colnames(proteinDomains) <- c("contig", "start", "end", "strand", "attributes")
-	proteinDomains$color <- sub(";.*", "", sub(".*color=", "", proteinDomains$attributes, perl=T), perl=T)
-	proteinDomains$proteinDomainName <- sapply(sub(";.*", "", sub(".*Name=", "", proteinDomains$attributes, perl=T), perl=T), URLdecode)
-	proteinDomains$proteinDomainID <- sub(";.*", "", sub(".*protein_domain_id=", "", proteinDomains$attributes, perl=T), perl=T)
-	proteinDomains <- proteinDomains[,colnames(proteinDomains) != "attributes"]
+	proteinDomains <- scan(proteinDomainsFile, what=list(contig="",src="",type="",start=0,end=0,score="",strand="",frame="",attributes=""), sep="\t", comment.char="", quote="", multi.line=F)
+	attr(proteinDomains, "row.names") <- .set_row_names(length(proteinDomains[[1]]))
+	class(proteinDomains) <- "data.frame"
+	proteinDomains$color <- parseGtfAttribute("color", proteinDomains)
+	proteinDomains$proteinDomainName <- sapply(parseGtfAttribute("Name", proteinDomains), URLdecode)
+	proteinDomains$proteinDomainID <- parseGtfAttribute("protein_domain_id", proteinDomains)
 }
 
 # insert dummy annotations for intergenic breakpoints
@@ -371,7 +377,7 @@ drawExon <- function(left, right, y, color, title, type) {
 	}
 }
 
-drawCircos <- function(fusion, fusions, cytobands, minConfidenceForCircosPlot) {
+drawCircos <- function(fusion, fusions, cytobands, minConfidenceForCircosPlot, circosColors) {
 	# check if Giemsa staining information is available
 	for (contig in unlist(fusions[fusion,c("contig1", "contig2")])) {
 		if (!any(cytobands$contig==contig)) {
@@ -408,7 +414,7 @@ drawCircos <- function(fusion, fusions, cytobands, minConfidenceForCircosPlot) {
 				circos.link(
 					f$contig1, f$breakpoint1,
 					f$contig2, f$breakpoint2,
-					lwd=2, col=ifelse(i==fusion, rgb(1,0,0), rgb(1,0.7,0.7))
+					lwd=2, col=ifelse(i==fusion, circosColors[f$type], getBrightColor(circosColors[f$type]))
 				)
 	}
 }
@@ -611,7 +617,7 @@ drawProteinDomains <- function(fusion, exons1, exons2, proteinDomains, color1, c
 		for (domain in rownames(domains))
 			domains[domains$start >= domains[domain,"start"] & domains$end <= domains[domain,"end"] & rownames(domains) != domain,"parent"] <- domain
 		# find partially overlapping domains
-		maxOverlappingDomains <- max(coverage(IRanges(domains$start*10e6, domains$end*10e6)))
+		maxOverlappingDomains <- max(1, as.integer(coverage(IRanges(domains$start*10e6, domains$end*10e6))))
 		padding <- 1 / maxOverlappingDomains * 0.4
 		domains$y <- 0
 		domains$height <- 0
@@ -837,6 +843,7 @@ findExons <- function(exons, contig, gene, direction, breakpoint, coverage, tran
 	return(candidateExons)
 }
 
+# main loop starts here
 for (fusion in 1:nrow(fusions)) {
 
 	message(paste0("Drawing fusion #", fusion, ": ", fusions[fusion,"gene1"], ":", fusions[fusion,"gene2"]))
@@ -1009,7 +1016,7 @@ for (fusion in 1:nrow(fusions)) {
 	fusionOffset2 <- fusionOffset1 + ifelse(fusions[fusion,"direction1"] == "downstream", breakpoint1, max(exons1$right)-breakpoint1)
 
 	# layout: fusion on top, circos plot on bottom left, protein domains on bottom center, statistics on bottom right
-	layout(matrix(c(1,1,1,2,3,4), 2, 3, byrow=TRUE), widths=c(0.9, 1.2, 0.9))
+	layout(matrix(c(1,1,1,2,4,5,3,4,5), 3, 3, byrow=TRUE), widths=c(1.1, 1.2, 0.7), heights=c(1.5, 1.2, 0.3))
 	par(mar=c(0, 0, 0, 0))
 	plot(0, 0, type="l", xlim=c(-0.12, 1.12), ylim=c(0.4, 1.1), bty="n", xaxt="n", yaxt="n")
 
@@ -1174,7 +1181,7 @@ for (fusion in 1:nrow(fusions)) {
 		fusion_transcript2 <- gsub(".*\\|", "", fusions[fusion,"fusion_transcript"], perl=T)
 		fusion_transcript2 <- substr(fusion_transcript2, 1, min(nchar(fusion_transcript2), 30))
 		# check for non-template bases
-		non_template_bases <- gsub(".*\\|([^|]*)\\|.*", "\\1", fusions[fusion,"fusion_transcript"])
+		non_template_bases <- gsub(".*\\|([^|]*)\\|.*", "\\1", fusions[fusion,"fusion_transcript"], perl=T)
 		if (non_template_bases == fusions[fusion,"fusion_transcript"]) # no non-template bases found
 			non_template_bases <- ""
 		# divide non-template bases half-and-half for centered alignment
@@ -1213,9 +1220,12 @@ for (fusion in 1:nrow(fusions)) {
 	# draw circos plot
 	if (is.null(cytobands) || !("circlize" %in% names(sessionInfo()$otherPkgs)) || !("GenomicRanges" %in% names(sessionInfo()$otherPkgs))) {
 		plot(0, 0, type="l", xlim=c(0, 1), ylim=c(0, 1), bty="n", xaxt="n", yaxt="n")
+		plot(0, 0, type="l", xlim=c(0, 1), ylim=c(0, 1), bty="n", xaxt="n", yaxt="n")
 	} else {
 		par(mar=c(0, 4, 0, 0))
-		drawCircos(fusion, fusions, cytobands, minConfidenceForCircosPlot)
+		drawCircos(fusion, fusions, cytobands, minConfidenceForCircosPlot, circosColors)
+		plot(0, 0, type="l", xlim=c(0, 1), ylim=c(0, 1), bty="n", xaxt="n", yaxt="n", ylab="", xlab="")
+		legend(x="top", legend=names(circosColors), col=sapply(circosColors, getBrightColor), lwd=3, ncol=2, box.lty=0)
 		par(mar=c(0, 0, 0, 0))
 	}
 
@@ -1234,3 +1244,4 @@ for (fusion in 1:nrow(fusions)) {
 }
 
 devNull <- dev.off()
+message("Done")

@@ -70,7 +70,7 @@ Even when an unstranded library is processed, Arriba can often infer the strand 
 : Comma-/space-separated list of interesting contigs. Fusions between genes on other contigs are ignored. Contigs can be specified with or without the prefix `chr`. Asterisks (`*`) are treated as wild-cards. Default: `1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 X Y AC_* NC_*`
 
 `-v CONTIGS`
-: Comma-/space-separated list of viral contigs for reporting of viral integration sites. Asterisks (`*`) are treated as wild-cards. Default: `AC_* NC_*`
+: Comma-/space-separated list of viral contigs for reporting of viral integration sites. Contigs can be specified with or without the prefix `chr`. Asterisks (`*`) are treated as wild-cards. Default: `AC_* NC_*`
 
 `-f FILTERS`
 : Comma-/space-separated list of filters to disable. By default all filters are enabled. Valid values are: `top_expressed_viral_contigs`, `viral_contigs`, `low_coverage_viral_contigs`, `uninteresting_contigs`, `no_genomic_support`, `short_anchor`, `select_best`, `many_spliced`, `long_gap`, `merge_adjacent`, `hairpin`, `small_insert_size`, `same_gene`, `genomic_support`, `read_through`, `no_coverage`, `mismatches`, `homopolymer`, `low_entropy`, `multimappers`, `inconsistently_clipped`, `duplicates`, `homologs`, `blacklist`, `mismappers`, `spliced`, `relative_support`, `min_support`, `known_fusions`, `end_to_end`, `non_coding_neighbors`, `isoforms`, `intronic`, `in_vitro`, `intragenic_exonic`, `internal_tandem_duplication`
@@ -122,6 +122,9 @@ Even when an unstranded library is processed, Arriba can often infer the strand 
 
 `-C COVERAGE_FRACTION`
 : Ignore virus-associated events if the virus is not fully expressed, i.e., less than the given fraction of the viral contig is transcribed. Default: `0.15`
+
+`-l MAX_ITD_LENGTH`
+: Maximum length of internal tandem duplications (ITDs) in bp. STAR often fails to align ITDs with a length of more than a few bp. However, many known oncogenic ITDs are longer than 20 bp and thus at risk of being overlooked. Arriba can manually search for reads that potentially arise from ITDs by attempting to align clipped reads as an ITD. This parameter defines the search space and also limits the effects of the `internal_tandem_duplications` filter. Note: Increasing this value can impair performance, because Arriba needs to perform an alignment for candidate reads and the alignment complexity depends on the the maximum search space. Moreover, increasing the value beyond the default can lead to many false positives, because the blacklist was trained with the default value and frequent germline variants with a larger length will not be filtered effectively by the blacklist. Default: `100`
 
 `-u`
 : Arriba performs marking of duplicates internally based on identical mapping coordinates. When this switch is set, internal marking of duplicates is disabled and Arriba assumes that duplicates have been marked by a preceding program. In this case, Arriba only discards alignments flagged with the `BAM_FDUP` flag. This makes sense when duplicates cannot be reliably identified solely based on their mapping coordinates, e.g. when unique molecular identifiers (UMIs) are used or when independently generated libraries are merged in a single BAM file and the read group must be interrogated to distinguish duplicates from reads that map to the same coordinates by chance. In addition, when this switch is set, duplicate reads are not considered for the calculation of the coverage at fusion breakpoints (columns `coverage1` and `coverage2` in the output file).

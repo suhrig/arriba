@@ -1,18 +1,18 @@
-FROM ubuntu:bionic
+FROM ubuntu:focal
 MAINTAINER Sebastian Uhrig @ DKFZ
 
 # install dependencies
 RUN export DEBIAN_FRONTEND=noninteractive && \
 apt-get update -y && \
-apt-get install -y --no-install-recommends build-essential samtools r-base wget ca-certificates libcurl4-openssl-dev libxml2-dev && \
-Rscript -e 'install.packages("circlize", repos="http://cran.r-project.org"); install.packages("BiocManager"); BiocManager::install(c("GenomicRanges", "GenomicAlignments"))'
+apt-get install -y --no-install-recommends wget ca-certificates samtools r-base r-cran-circlize r-bioc-genomicalignments r-bioc-genomicranges libxml2 && \
+apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # install version of STAR that supports --chimMultimapNmax and --chimOutType WithinBAM
-RUN wget -q -O - 'https://github.com/alexdobin/STAR/archive/2.7.6a.tar.gz' | tar -xzf - && \
-cp -p STAR-2.7.6a/bin/Linux_x86_64/STAR /usr/local/bin/
+RUN wget -qO - 'https://github.com/alexdobin/STAR/archive/2.7.6a.tar.gz' | \
+tar --strip-components=3 -C /usr/local/bin -xzf - 'STAR-2.7.6a/bin/Linux_x86_64/STAR'
 
 # install arriba
-RUN wget -q -O - "https://github.com/suhrig/arriba/releases/download/v2.0.0/arriba_v2.0.0.tar.gz" | tar -xzf -
+RUN wget -qO - 'https://github.com/suhrig/arriba/releases/download/v2.0.0/arriba_v2.0.0.tar.gz' | tar -xzf - --exclude='arriba*/.git'
 
 # make wrapper script for download_references.sh
 RUN echo '#!/bin/bash\n\

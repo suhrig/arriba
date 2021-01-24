@@ -110,14 +110,6 @@ void remove_transcript(const transcript_t transcript_to_remove, gene_annotation_
 	}
 }
 
-string removeChr(string contig) {
-	if (contig.substr(0, 3) == "chr")
-		contig = contig.substr(3);
-	if (contig == "M")
-		contig = "MT";
-	return contig;
-}
-
 bool get_gtf_attribute(const string& attributes, const vector<string>& attribute_names, string& attribute_value) {
 
 	// find start of attribute
@@ -157,14 +149,6 @@ bool get_gtf_attribute(const string& attributes, const vector<string>& attribute
 
 bool sort_exons_by_coordinate(const exon_annotation_record_t* exon1, const exon_annotation_record_t* exon2) {
 	return *exon1 < *exon2;
-}
-
-inline string strip_ensembl_version_number(const string& ensembl_identifier) {
-	string::size_type trim_position = string::npos;
-	if (ensembl_identifier.substr(0, 3) == "ENS" && (trim_position = ensembl_identifier.find_last_of('.')) < ensembl_identifier.size())
-		return ensembl_identifier.substr(0, trim_position);
-	else
-		return ensembl_identifier;
 }
 
 struct coding_region_t {
@@ -216,10 +200,7 @@ void read_annotation_gtf(const string& filename, const string& gtf_features_stri
 
 			// convert string representation of contig to numeric ID
 			pair<contigs_t::iterator,bool> find_contig_by_name = contigs.insert(pair<string,contig_t>(removeChr(contig), contigs.size())); // this adds a new contig only if it does not yet exist
-			if (contigs.size() == USHRT_MAX - 1) {
-				cerr << "ERROR: too many contigs" << endl;
-				exit(1);
-			}
+			crash(contigs.size() == USHRT_MAX - 1, "too many contigs");
 			if (original_contig_names.size() < contigs.size())
 				original_contig_names.resize(contigs.size());
 			original_contig_names[find_contig_by_name.first->second] = contig;
@@ -314,10 +295,7 @@ void read_annotation_gtf(const string& filename, const string& gtf_features_stri
 		}
 	}
 
-	if (gene_annotation.empty()) {
-		cerr << "ERROR: failed to parse GTF file, please consider using -G" << endl;
-		exit(1);
-	}
+	crash(gene_annotation.empty(), "failed to parse GTF file, please consider using -G");
 
 	// map coding regions to exons
 	for (auto coding_region = coding_regions.begin(); coding_region != coding_regions.end(); ++coding_region) {

@@ -210,11 +210,11 @@ bool clipped_sequence_is_adapter(const bam1_t* mate1, const bam1_t* mate2) {
 
 // STAR is bad at aligning internal tandem duplications
 // => if we see a clipped read, check manually if it can be aligned as a tandem duplication
-bool is_tandem_duplication(const bam1_t* bam_record, const assembly_t& assembly, alignment_t& tandem_alignment) {
+bool is_tandem_duplication(const bam1_t* bam_record, const assembly_t& assembly, const unsigned int max_itd_length, alignment_t& tandem_alignment) {
 
 	const unsigned int min_clipped_length = 12; // ignore reads with less than this many clipped bases
-	const unsigned int min_duplication_length = 9;
-	const unsigned int max_duplication_length = 100;
+	const unsigned int min_duplication_length = 9; // lowering this value is probably pointless, because STAR aligns as an indel instead of clipped read
+	const unsigned int max_duplication_length = max_itd_length;
 	const unsigned int max_mismatches = 1; // abort alignment after hitting this many mismatches
 	const unsigned int max_non_template_bases = 6; // ignore mismatches at the beginning of the tandem alignment, because this is a frequent occurrence with ITDs
 	const unsigned int min_alignment_length = 15; // at least this many bases must align to consider the alignment valid
@@ -457,13 +457,15 @@ bool is_clipped_at_correct_end(const bam1_t* bam_record) {
 	return clipped_cigar == BAM_CSOFT_CLIP || clipped_cigar == BAM_CHARD_CLIP;
 }
 
-unsigned int read_chimeric_alignments(const string& bam_file_path, const assembly_t& assembly, const string& assembly_file_path, chimeric_alignments_t& chimeric_alignments, unsigned long int& mapped_reads, vector<unsigned long int>& mapped_viral_reads_by_contig, coverage_t& coverage, contigs_t& contigs, vector<string>& original_contig_names, const string& interesting_contigs, const string& viral_contigs, const gene_annotation_index_t& gene_annotation_index, const bool separate_chimeric_bam_file, const bool is_rna_bam_file, const bool external_duplicate_marking) {
+unsigned int read_chimeric_alignments(const string& bam_file_path, const assembly_t& assembly, const string& assembly_file_path, chimeric_alignments_t& chimeric_alignments, unsigned long int& mapped_reads, vector<unsigned long int>& mapped_viral_reads_by_contig, coverage_t& coverage, contigs_t& contigs, vector<string>& original_contig_names, const string& interesting_contigs, const string& viral_contigs, const gene_annotation_index_t& gene_annotation_index, const bool separate_chimeric_bam_file, const bool is_rna_bam_file, const bool external_duplicate_marking, const unsigned int max_itd_length) {
 
 	// open BAM file
 	samFile* bam_file = sam_open(bam_file_path.c_str(), "rb");
+	crash(bam_file == NULL, "failed to open SAM file");
 	if (bam_file->is_cram)
 		cram_set_option(bam_file->fp.cram, CRAM_OPT_REFERENCE, assembly_file_path.c_str());
 	bam_hdr_t* bam_header = sam_hdr_read(bam_file);
+	crash(bam_header == NULL, "failed to read SAM header");
 
 	// add contigs which are not yet listed in <contigs>
 	// and make a map tid -> contig, because the contig IDs in the BAM file need not necessarily match the contig IDs in the GTF file
@@ -472,10 +474,7 @@ unsigned int read_chimeric_alignments(const string& bam_file_path, const assembl
 	for (int target = 0; target < bam_header->n_targets; ++target) {
 		string contig_name = removeChr(bam_header->target_name[target]);
 		contigs.insert(pair<string,contig_t>(contig_name, contigs.size())); // this fails (i.e., nothing is inserted), if the contig already exists
-		if (contigs.size() == USHRT_MAX - 1) {
-			cerr << "ERROR: too many contigs" << endl;
-			exit(1);
-		}
+		crash(contigs.size() == USHRT_MAX - 1, "too many contigs");
 		if (contigs.size() > original_contig_names.size())
 			original_contig_names.resize(contigs.size());
 		original_contig_names[contigs[contig_name]] = bam_header->target_name[target];
@@ -489,12 +488,8 @@ unsigned int read_chimeric_alignments(const string& bam_file_path, const assembl
 	coverage.resize(contigs, assembly);
 
 	// make sure we have the sequence of all interesting contigs, otherwise later steps will crash
-	for (contigs_t::iterator contig = contigs.begin(); contig != contigs.end(); ++contig) {
-		if (assembly.find(contig->second) == assembly.end() && is_interesting_contig(contig->first, interesting_contigs)) {
-			cerr << "ERROR: could not find sequence of contig '" << contig->first << "'" << endl;
-			exit(1);
-		}
-	}
+	for (contigs_t::iterator contig = contigs.begin(); contig != contigs.end(); ++contig)
+		crash(assembly.find(contig->second) == assembly.end() && is_interesting_contig(contig->first, interesting_contigs), "could not find sequence of contig '" + contig->first + "'");
 
 	// convert viral contigs to vector of booleans for faster lookup
 	vector<bool> viral_contigs_bool(contigs.size());
@@ -504,10 +499,7 @@ unsigned int read_chimeric_alignments(const string& bam_file_path, const assembl
 
 	// read BAM records
 	bam1_t* bam_record = bam_init1();
-	if (bam_record == NULL) {
-		cerr << "ERROR: failed to allocate memory." << endl;
-		exit(1);
-	}
+	crash(bam_record == NULL, "failed to allocate memory.");
 	collated_bam_records_t collated_bam_records; // holds the first mate until we have found the second
 	bool no_chimeric_reads = true;
 	unsigned int missing_hi_tag = 0;
@@ -591,10 +583,7 @@ unsigned int read_chimeric_alignments(const string& bam_file_path, const assembl
 		if ((bam_record->core.flag & BAM_FPAIRED) && previously_seen_mate == NULL) { // this is the first mate with the given read name, which we encounter
 			
 			bam_record = bam_init1(); // allocate memory for the next record
-			if (bam_record == NULL) {
-				cerr << "ERROR: failed to allocate memory." << endl;
-				exit(1);
-			}
+			crash(bam_record == NULL, "failed to allocate memory");
 
 		} else { // single-end data or we have already read the first mate previously
 
@@ -622,8 +611,8 @@ unsigned int read_chimeric_alignments(const string& bam_file_path, const assembl
 					}
 				} else if (!clipped_sequence_is_adapter(bam_record, previously_seen_mate) &&
 				           (previously_seen_mate == NULL || get_strand(bam_record) != get_strand(previously_seen_mate)) && // strands must be different, so we can distinguish mate1 from mate2
-				           (is_tandem_duplication(bam_record, assembly, tandem_alignment) || // is it a tandem duplication that STAR failed to align?
-				            is_tandem_duplication(previously_seen_mate, assembly, tandem_alignment))) {
+				           (is_tandem_duplication(bam_record, assembly, max_itd_length, tandem_alignment) || // is it a tandem duplication that STAR failed to align?
+				            is_tandem_duplication(previously_seen_mate, assembly, max_itd_length, tandem_alignment))) {
 					if (!separate_chimeric_bam_file || is_rna_bam_file && chimeric_alignments.find(read_name) == chimeric_alignments.end()) {
 						mates_t& mates = chimeric_alignments[read_name];
 						add_chimeric_alignment(mates, bam_record, get_strand(bam_record) == tandem_alignment.strand && !tandem_alignment.supplementary);
@@ -659,10 +648,7 @@ unsigned int read_chimeric_alignments(const string& bam_file_path, const assembl
 		}
 	}
 
-	if (sam_read1_status < -1) {
-		cerr << "ERROR: failed to load alignments" << endl;
-		exit(1);
-	}
+	crash(sam_read1_status < -1, "failed to load alignments");
 
 	// close BAM file
 	bam_destroy1(bam_record);
@@ -670,22 +656,15 @@ unsigned int read_chimeric_alignments(const string& bam_file_path, const assembl
 	sam_close(bam_file);
 
 	// sanity check: input files should not be empty
-	if (is_rna_bam_file && mapped_reads == 0) {
-		cerr << "ERROR: no normal reads found" << endl;
-		exit(1);
-	}
+	crash(is_rna_bam_file && mapped_reads == 0, "no normal reads found");
 	// sanity check: remove malformed alignments
 	malformed_count += remove_malformed_alignments(chimeric_alignments);
 	if (malformed_count > 0)
 		cerr << "WARNING: " << malformed_count << " SAM records were malformed and ignored" << endl;
 	// sanity check: there should be at least 1 chimeric read, or else Arriba is probably not being used properly
 	if (separate_chimeric_bam_file && !is_rna_bam_file || // this is Chimeric.out.sam
-	    !separate_chimeric_bam_file) { // this is Aligned.out.bam and STAR was run with --chimOutType WithinBAM
-		if (no_chimeric_reads) {
-			cerr << "ERROR: no split reads or discordant mates found (STAR must either be run with '--chimOutType WithinBAM' or the file 'Chimeric.out.sam' must be passed to Arriba via the argument -c)" << endl;
-			exit(1);
-		}
-	}
+	    !separate_chimeric_bam_file) // this is Aligned.out.bam and STAR was run with --chimOutType WithinBAM
+		crash(no_chimeric_reads, "no split reads or discordant mates found (STAR must either be run with '--chimOutType WithinBAM' or the file 'Chimeric.out.sam' must be passed to Arriba via the argument -c)");
 	// sanity check: multi-mapping chimeric reads should have the HI tag
 	if (missing_hi_tag > 0)
 		cerr << "WARNING: " << missing_hi_tag << " secondary alignments lack the 'HI' tag and were ignored (STAR must be run with '--outSAMattributes HI' for Arriba to make use of multi-mapping reads for fusion detection)" << endl;

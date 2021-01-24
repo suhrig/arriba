@@ -47,7 +47,7 @@ The number of supporting reads is one of the most helpful attributes to distingu
 True predictions usually have a balanced number of split reads and discordant mates. Events with only discordant mates or without discordant mates and only split reads having anchors in just one gene are frequently artifacts. At least two out of the three columns `split_reads1`, `split_reads2`, and `discordant_mates` should be non-zero and in a similar range. True predictions may have one of the columns set to zero, for example, when one of the breakpoints is difficult to map or when the overall number of supporting reads is low. But having five or more supporting reads all of which are assigned to the same column is dubious. In addition, the supporting reads of true predictions usually make up at least 1% of the coverage at the breakpoints. The coverage can be taken from the columns `coverage1/2`.
 
 Frequent types of false positives
---------------------------------
+---------------------------------
 
 Many of the false positives fall into one of the following categories. For many categories there is a filter that should prevent the incorrect prediction, but the filters are not perfectly accurate and making them more stringent would hurt sensitivity.
 
@@ -94,6 +94,10 @@ MUC5B  GAPDH  +/+     +/+     11:1282959  12:6646126  3'UTR exon  translocation 
 GAPDH  ALDOA  +/+     +/+     12:6647376  16:30077176 3'UTR 5'UTR translocation downstream upstream   0            0            10               medium
 S100A6 GAPDH  -/-     +/+     1:153507153 12:6645674  3'UTR UTR   translocation upstream   upstream   0            0            10               medium
 ```
+
+**Internal tandem duplications**
+
+Internal tandem duplications (ITDs) are recurrent drivers in some malignancies, affecting genes such as FLT3, ERBB2, EGFR, and BCOR. However, ITDs also occur frequently as (likely benign) germline polymorphisms. Since RNA-Seq data from a germline control sample are usually not available, Arriba cannot reliably distinguish between somatic and germline ITDs. Arriba can only remove germline ITDs that are frequent in the population and thus part of its blacklist. Rare germline ITDs may therefore show up as false positives in Arriba's output. ITDs are flagged with the additional keyword `ITD` in the `type` column in the output file of Arriba.
 
 **Fusions recovered by the known fusions list**
 

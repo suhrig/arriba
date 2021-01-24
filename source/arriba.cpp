@@ -119,12 +119,12 @@ int main(int argc, char **argv) {
 	coverage_t coverage;
 	if (!options.chimeric_bam_file.empty()) { // when STAR was run with --chimOutType SeparateSAMold, chimeric alignments must be read from a separate file named Chimeric.out.sam
 		cout << get_time_string() << " Reading chimeric alignments from '" << options.chimeric_bam_file << "' " << flush;
-		cout << "(total=" << read_chimeric_alignments(options.chimeric_bam_file, assembly, options.assembly_file, chimeric_alignments, mapped_reads, mapped_viral_reads_by_contig, coverage, contigs, original_contig_names, options.interesting_contigs, options.viral_contigs, gene_annotation_index, true, false, options.external_duplicate_marking) << ")" << endl;
+		cout << "(total=" << read_chimeric_alignments(options.chimeric_bam_file, assembly, options.assembly_file, chimeric_alignments, mapped_reads, mapped_viral_reads_by_contig, coverage, contigs, original_contig_names, options.interesting_contigs, options.viral_contigs, gene_annotation_index, true, false, options.external_duplicate_marking, options.max_itd_length) << ")" << endl;
 	}
 
 	// extract chimeric alignments and read-through alignments from Aligned.out.bam
 	cout << get_time_string() << " Reading chimeric alignments from '" << options.rna_bam_file << "' " << flush;
-	cout << "(total=" << read_chimeric_alignments(options.rna_bam_file, assembly, options.assembly_file, chimeric_alignments, mapped_reads, mapped_viral_reads_by_contig, coverage, contigs, original_contig_names, options.interesting_contigs, options.viral_contigs, gene_annotation_index, !options.chimeric_bam_file.empty(), true, options.external_duplicate_marking) << ")" << endl;
+	cout << "(total=" << read_chimeric_alignments(options.rna_bam_file, assembly, options.assembly_file, chimeric_alignments, mapped_reads, mapped_viral_reads_by_contig, coverage, contigs, original_contig_names, options.interesting_contigs, options.viral_contigs, gene_annotation_index, !options.chimeric_bam_file.empty(), true, options.external_duplicate_marking, options.max_itd_length) << ")" << endl;
 
 	// convert viral contigs to vector of booleans for faster lookup
 	vector<bool> viral_contigs(contigs.size());
@@ -412,8 +412,8 @@ int main(int argc, char **argv) {
 
 	// this step must come after the 'intragenic_exonic' and 'relative_support' filters
 	if (options.filters.at("internal_tandem_duplication")) {
-		cout << get_time_string() << " Searching for internal tandem duplications " << flush;
-		cout << "(remaining=" << recover_internal_tandem_duplication(fusions, chimeric_alignments, coverage, exon_annotation_index) << ")" << endl;
+		cout << get_time_string() << " Searching for internal tandem duplications <=" << options.max_itd_length << "bp " << flush;
+		cout << "(remaining=" << recover_internal_tandem_duplication(fusions, chimeric_alignments, coverage, exon_annotation_index, options.max_itd_length) << ")" << endl;
 	}
 
 	// this step must come before all filters that are potentially undone by the 'genomic_support' filter
@@ -547,11 +547,11 @@ int main(int argc, char **argv) {
 	}
 
 	cout << get_time_string() << " Writing fusions to file '" << options.output_file << "' " << endl;
-	write_fusions_to_file(fusions, options.output_file, coverage, assembly, gene_annotation_index, exon_annotation_index, original_contig_names, tags, protein_domain_annotation_index, max_mate_gap, true, options.fill_sequence_gaps, false);
+	write_fusions_to_file(fusions, options.output_file, coverage, assembly, gene_annotation_index, exon_annotation_index, original_contig_names, tags, protein_domain_annotation_index, max_mate_gap, options.max_itd_length, true, options.fill_sequence_gaps, false);
 
 	if (options.discarded_output_file != "") {
 		cout << get_time_string() << " Writing discarded fusions to file '" << options.discarded_output_file << "' " << endl;
-		write_fusions_to_file(fusions, options.discarded_output_file, coverage, assembly, gene_annotation_index, exon_annotation_index, original_contig_names, tags, protein_domain_annotation_index, max_mate_gap, options.print_extra_info_for_discarded_fusions, options.fill_sequence_gaps, true);
+		write_fusions_to_file(fusions, options.discarded_output_file, coverage, assembly, gene_annotation_index, exon_annotation_index, original_contig_names, tags, protein_domain_annotation_index, max_mate_gap, options.max_itd_length, options.print_extra_info_for_discarded_fusions, options.fill_sequence_gaps, true);
 	}
 
 	// print resource usage stats end exit

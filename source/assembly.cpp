@@ -36,10 +36,7 @@ void load_assembly(assembly_t& assembly, const string& fasta_file_path, contigs_
 
 			// get contig name
 			if (line[0] == '>') {
-				if (contigs.size() == USHRT_MAX - 1) {
-					cerr << "ERROR: too many contigs" << endl;
-					exit(1);
-				}
+				crash(contigs.size() == USHRT_MAX - 1, "too many contigs");
 				istringstream iss(line.substr(1));
 				string contig_name;
 				iss >> contig_name;
@@ -48,7 +45,7 @@ void load_assembly(assembly_t& assembly, const string& fasta_file_path, contigs_
 				if (original_contig_names.size() < contigs.size())
 					original_contig_names.resize(contigs.size());
 				original_contig_names[current_contig] = contig_name;
-				if (!is_interesting_contig(removeChr(contig_name), interesting_contigs))
+				if (!is_interesting_contig(contig_name, interesting_contigs))
 					current_contig = USHRT_MAX; // skip uninteresting contigs
 
 			// get sequence

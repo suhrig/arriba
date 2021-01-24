@@ -8,8 +8,10 @@
 
 using namespace std;
 
-const string HELP_CONTACT = "https://github.com/suhrig/arriba/";
-const string MANUAL_URL = "https://arriba.readthedocs.io/";
+const string HELP_CONTACT = "https://github.com/suhrig/arriba/issues";
+const string USER_MANUAL = "https://arriba.readthedocs.io/";
+const string CODE_REPOSITORY = "https://github.com/suhrig/arriba";
+const string CITATION = "https://doi.org/10.1101/gr.257246.119";
 const string ARRIBA_VERSION = "2.0.0";
 
 string wrap_help(const string& option, const string& text, const unsigned short int max_line_width = 80);
@@ -58,6 +60,7 @@ struct options_t {
 	string tags_file;
 	string protein_domains_file;
 	bool fill_sequence_gaps;
+	unsigned int max_itd_length;
 };
 
 options_t parse_arguments(int argc, char **argv);

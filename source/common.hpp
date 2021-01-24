@@ -69,12 +69,22 @@ const filter_t FILTER_homologs = FILTERS.define("homologs");
 typedef int position_t;
 typedef short unsigned int contig_t;
 typedef map<string,contig_t> contigs_t; // must be ordered to find closest match
+// function to remove chr prefix from contig names
+inline string removeChr(string contig) {
+	if (contig.substr(0, 3) == "chr")
+		contig = contig.substr(3);
+	if (contig == "M")
+		contig = "MT";
+	return contig;
+}
 // function to check if contig matches pattern, e.g., NC_*, AC_*, 1, 2, 3, 4, X, Y, M, ...
-inline bool is_interesting_contig(const string& contig, const string& interesting_contigs) {
+inline bool is_interesting_contig(string contig, const string& interesting_contigs) {
+	contig = removeChr(contig);
 	istringstream iss(interesting_contigs);
 	while (iss) {
 		string pattern;
 		iss >> pattern;
+		pattern = removeChr(pattern);
 		if (!pattern.empty()) {
 			bool is_prefix = pattern[pattern.size()-1] == '*';
 			bool is_suffix = pattern[0] == '*';
@@ -304,5 +314,8 @@ inline bool str_to_float(const char* s, float& f) {
 	f = strtof(s, &end_of_parsing);
 	return (*s != ' ' && end_of_parsing != s && *end_of_parsing == '\0' && f != HUGE_VALF && f != -HUGE_VALF);
 }
+
+// convenience function to print an error message and exit if given condition is true
+#define crash(condition,message) { if (condition) { cerr << string("ERROR: ") + message << endl; exit(1); }; }
 
 #endif /* _COMMON_H */
