@@ -406,7 +406,7 @@ string get_fusion_peptide_sequence(const string& transcript_sequence, const vect
 			frame_shift = (3 + reading_frame_3 + 1 - codon.size()) % 3;
 	}
 
-	return peptide_sequence;
+	return peptide_sequence.empty() ? "." : peptide_sequence;
 }
 
 string is_in_frame(const string& fusion_peptide_sequence) {
