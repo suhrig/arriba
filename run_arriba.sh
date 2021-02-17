@@ -1,5 +1,7 @@
 #!/bin/bash
 
+# For more information about this demo workflow, visit: https://arriba.readthedocs.io/en/latest/workflow/
+
 if [ $# -lt 8 -o $# -gt 9 ]; then
 	echo "Usage: $(basename $0) STAR_genomeDir/ annotation.gtf assembly.fa blacklist.tsv known_fusions.tsv protein_domains.gff3 threads read1.fastq.gz [read2.fastq.gz]" 1>&2
 	exit 1
