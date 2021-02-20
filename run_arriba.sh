@@ -50,6 +50,6 @@ if [[ $(samtools --version-only 2> /dev/null) =~ ^1\. ]]; then
 	rm -f Aligned.out.bam
 	samtools index Aligned.sortedByCoord.out.bam
 else
-	echo "samtools >= 1.0 required for sorting of alignments"
+	echo "samtools >= 1.0 required for sorting of alignments" 1>&2
 fi
 
