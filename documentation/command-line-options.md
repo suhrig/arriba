@@ -144,7 +144,7 @@ draw_fusions.R
 **Usage**
 
 ```bash
-draw_fusions.R --annotation=annotation.gtf --fusions=fusions.tsv --output=output.pdf \
+draw_fusions.R --fusions=fusions.tsv --annotation=annotation.gtf --output=output.pdf \
                [--alignments=Aligned.sortedByCoord.out.bam] \
                [--cytobands=cytobands.tsv] [--proteinDomains=protein_domains.gff3] \
                [OPTIONS]
@@ -164,14 +164,23 @@ draw_fusions.R --annotation=annotation.gtf --fusions=fusions.tsv --output=output
 `--cytobands=FILE`
 : Coordinates of the Giemsa staining bands. This information is used to draw ideograms. If the argument is omitted, then no ideograms are rendered. The file must have the following columns: `contig`, `start`, `end`, `name`, `giemsa`. Recognized values for the Giemsa staining intensity are: `gneg`, `gpos` followed by a percentage, `acen`, `stalk`. Distributions of Arriba provide Giemsa staining annotation for all supported assemblies in the `database` directory.
 
-`--minConfidenceForCircosPlot=none|low|medium|high`
-: The fusion of interest is drawn as a solid line in the circos plot. To give an impression of the overall degree of rearrangement, all other fusions are drawn as semi-transparent lines in the background. This option determines which other fusions should be included in the circos plot. `none` means only the fusion of interest is drawn; all other values specify the minimum confidence a fusion must have to be included. It usually makes no sense to include low-confidence fusions in circos plots, because they are abundant and unreliable, and would clutter up the circos plot. Default: `medium`
-
 `--alignments=FILE`
 : BAM file containing normal alignments from STAR (`Aligned.sortedByCoord.out.bam`). The file must be sorted by coordinates and indexed. If this argument is given, the script generates coverage plots. This argument requires the Bioconductor package `GenomicAlignments`.
 
+`--proteinDomains=FILE`
+: GFF3 file containing the genomic coordinates of protein domains. Distributions of Arriba offer protein domain annotations for all supported assemblies in the `database` directory. When this file is given, a plot is generated, which shows the protein domains retained in the fusion transcript. This option requires the Bioconductor package `GenomicRanges`.
+
+`--mergeDomainsOverlappingBy=FRACTION`
+: Occasionally, domains are annotated redundantly. For example, tyrosine kinase domains are frequently annotated as `Protein tyrosine kinase` and `Protein kinase domain`. In order to simplify the visualization, such domains can be merged into one, given that they overlap by the given fraction. The description of the larger domain is used. Default: `0.9`
+
+`--optimizeDomainColors=TRUE|FALSE`
+: By default, the script colorizes domains according to the colors specified in the file given in `--annotation`. This way, coloring of domains is consistent across all proteins. But since there are more distinct domains than colors, this can lead to different domains having the same color. If this option is set to `TRUE`, the colors are recomputed for each fusion separately. This ensures that the colors have the maximum distance for each individual fusion, but they are no longer consistent across different fusions. Default: `FALSE`
+
 `--sampleName=NAME`
 : The name of the sample is printed as the title on every page.
+
+`--minConfidenceForCircosPlot=none|low|medium|high`
+: The fusion of interest is drawn as a solid line in the circos plot. To give an impression of the overall degree of rearrangement, all other fusions are drawn as semi-transparent lines in the background. This option determines which other fusions should be included in the circos plot. `none` means only the fusion of interest is drawn; all other values specify the minimum confidence a fusion must have to be included. It usually makes no sense to include low-confidence fusions in circos plots, because they are abundant and unreliable, and would clutter up the circos plot. Default: `medium`
 
 `--pdfWidth=INCHES`
 : Width of the pages of the PDF output file in inches. Default: `11.692`
@@ -193,15 +202,6 @@ draw_fusions.R --annotation=annotation.gtf --fusions=fusions.tsv --output=output
 
 `--render3dEffect=TRUE|FALSE`
 : Whether light and shadow should be rendered to give objects a 3D effect. Default: `TRUE`
-
-`--proteinDomains=FILE`
-: GFF3 file containing the genomic coordinates of protein domains. Distributions of Arriba offer protein domain annotations for all supported assemblies in the `database` directory. When this file is given, a plot is generated, which shows the protein domains retained in the fusion transcript. This option requires the Bioconductor package `GenomicRanges`.
-
-`--mergeDomainsOverlappingBy=FRACTION`
-: Occasionally, domains are annotated redundantly. For example, tyrosine kinase domains are frequently annotated as `Protein tyrosine kinase` and `Protein kinase domain`. In order to simplify the visualization, such domains can be merged into one, given that they overlap by the given fraction. The description of the larger domain is used. Default: `0.9`
-
-`--optimizeDomainColors=TRUE|FALSE`
-: By default, the script colorizes domains according to the colors specified in the file given in `--annotation`. This way, coloring of domains is consistent across all proteins. But since there are more distinct domains than colors, this can lead to different domains having the same color. If this option is set to `TRUE`, the colors are recomputed for each fusion separately. This ensures that the colors have the maximum distance for each individual fusion, but they are no longer consistent across different fusions. Default: `FALSE`
 
 `--fontSize=SIZE`
 : Decimal value to scale the size of text. Default: `1`
