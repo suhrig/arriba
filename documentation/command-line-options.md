@@ -170,6 +170,9 @@ draw_fusions.R --annotation=annotation.gtf --fusions=fusions.tsv --output=output
 `--alignments=FILE`
 : BAM file containing normal alignments from STAR (`Aligned.sortedByCoord.out.bam`). The file must be sorted by coordinates and indexed. If this argument is given, the script generates coverage plots. This argument requires the Bioconductor package `GenomicAlignments`.
 
+`--sampleName=NAME`
+: The name of the sample is printed as the title on every page.
+
 `--pdfWidth=INCHES`
 : Width of the pages of the PDF output file in inches. Default: `11.692`
 

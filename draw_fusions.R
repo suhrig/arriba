@@ -9,6 +9,7 @@ parameters <- list(
 	cytobands=list("cytobandsFile", "file", "cytobands.tsv"),
 	minConfidenceForCircosPlot=list("minConfidenceForCircosPlot", "string", "medium"),
 	proteinDomains=list("proteinDomainsFile", "file", "protein_domains.gff3"),
+	sampleName=list("sampleName", "string", ""),
 	squishIntrons=list("squishIntrons", "bool", T),
 	printExonLabels=list("printExonLabels", "bool", T),
 	render3dEffect=list("render3dEffect", "bool", T),
@@ -1016,11 +1017,12 @@ for (fusion in 1:nrow(fusions)) {
 	fusionOffset2 <- fusionOffset1 + ifelse(fusions[fusion,"direction1"] == "downstream", breakpoint1, max(exons1$right)-breakpoint1)
 
 	# layout: fusion on top, circos plot on bottom left, protein domains on bottom center, statistics on bottom right
-	layout(matrix(c(1,1,1,2,4,5,3,4,5), 3, 3, byrow=TRUE), widths=c(1.1, 1.2, 0.7), heights=c(1.5, 1.2, 0.3))
+	layout(matrix(c(1,1,1,2,4,5,3,4,5), 3, 3, byrow=TRUE), widths=c(1.1, 1.2, 0.7), heights=c(1.55, 1.2, 0.25))
 	par(mar=c(0, 0, 0, 0))
 	plot(0, 0, type="l", xlim=c(-0.12, 1.12), ylim=c(0.4, 1.1), bty="n", xaxt="n", yaxt="n")
 
 	# vertical coordinates of layers
+	ySampleName <- 1.04
 	yIdeograms <- ifelse(alignmentsFile != "", 0.94, 0.84)
 	yBreakpointLabels <- ifelse(alignmentsFile != "", 0.86, 0.76)
 	yCoverage <- 0.72
@@ -1033,6 +1035,9 @@ for (fusion in 1:nrow(fusions)) {
 	yTrajectoryExonTop <- yExons + 0.03
 	yTrajectoryExonBottom <- yExons - 0.055
 	yTrajectoryFusion <- yFusion + 0.03
+
+	# print sample name (title of page)
+	text(0.5, ySampleName, sampleName, font=2, cex=fontSize*1.5, adj=c(0.5,0))
 
 	# draw ideograms
 	if (!is.null(cytobands)) {
