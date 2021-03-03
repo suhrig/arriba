@@ -2,8 +2,8 @@
 
 # define valid parameters
 parameters <- list(
-	annotation=list("exonsFile", "file", "annotation.gtf", T),
 	fusions=list("fusionsFile", "file", "fusions.tsv", T),
+	annotation=list("exonsFile", "file", "annotation.gtf", T),
 	output=list("outputFile", "string", "output.pdf", T),
 	alignments=list("alignmentsFile", "file", "Aligned.sortedByCoord.out.bam"),
 	cytobands=list("cytobandsFile", "file", "cytobands.tsv"),
@@ -21,7 +21,8 @@ parameters <- list(
 	optimizeDomainColors=list("optimizeDomainColors", "bool", F),
 	fontSize=list("fontSize", "numeric", 1),
 	showIntergenicVicinity=list("showVicinity", "numeric", 0),
-	transcriptSelection=list("transcriptSelection", "string", "coverage")
+	transcriptSelection=list("transcriptSelection", "string", "coverage"),
+	fixedScale=list("fixedScale", "numeric", 0)
 )
 
 # print help if necessary
@@ -84,6 +85,8 @@ if (showVicinity > 0 && squishIntrons)
 	stop("--squishIntrons must be disabled, when --showIntergenicVicinity is > 0")
 if (!(transcriptSelection %in% c("coverage", "provided", "canonical")))
 	stop("Invalid argument to --transcriptSelection")
+if (fixedScale < 0)
+	stop("Invalid argument to --fixedScale")
 
 # check if required packages are installed
 if (!suppressPackageStartupMessages(require(GenomicRanges)))
@@ -1000,8 +1003,15 @@ for (fusion in 1:nrow(fusions)) {
 		exons2$left <- exons2$left - min(exons2$left)
 	}
 
-	# scale exon sizes to 1
+	# scale exon sizes to fit on page
 	scalingFactor <- max(exons1$right) + max(exons2$right)
+	if (fixedScale > 0) {
+		if (fixedScale >= scalingFactor) {
+			scalingFactor <- fixedScale
+		} else {
+			warning(paste("fallback to automatic scaling, because value for --fixedScale is too small to fit transcripts on canvas (increase it to", scalingFactor, "to avoid this)"))
+		}
+	}
 	exons1$left <- exons1$left / scalingFactor
 	exons1$right <- exons1$right / scalingFactor
 	exons2$left <- exons2$left / scalingFactor
@@ -1009,8 +1019,8 @@ for (fusion in 1:nrow(fusions)) {
 	breakpoint1 <- breakpoint1 / scalingFactor
 	breakpoint2 <- breakpoint2 / scalingFactor
 
-	# shift gene2 to the right of gene1 with a little bit of padding
-	gene2Offset <- max(exons1$right)+0.05
+	# shift gene2 to the right border of the page
+	gene2Offset <- 1 + 0.05 - max(exons2$right)
 
 	# center fusion horizontally
 	fusionOffset1 <- (max(exons1$right)+gene2Offset)/2 - ifelse(fusions[fusion,"direction1"] == "downstream", breakpoint1, max(exons1$right)-breakpoint1)
