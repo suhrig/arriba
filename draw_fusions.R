@@ -1,5 +1,8 @@
 #!/usr/bin/env Rscript
 
+# print warnings as they happen instead of collecting them for after a loop ends
+options(warn=1)
+
 # define valid parameters
 parameters <- list(
 	fusions=list("fusionsFile", "file", "fusions.tsv", T),
