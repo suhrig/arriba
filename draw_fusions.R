@@ -911,12 +911,12 @@ for (fusion in 1:nrow(fusions)) {
 			for (gene in unique(exons[exons$contig == fusions[fusion,"contig1"] & exons$exonNumber != "intergenic" &
 			     (between(exons$end, fusions[fusion,"breakpoint1"]-showVicinity, fusions[fusion,"breakpoint1"]+showVicinity) |
 			      between(exons$start, fusions[fusion,"breakpoint1"]-showVicinity, fusions[fusion,"breakpoint1"]+showVicinity)),"geneName"]))
-				exons1 <- rbind(exons1, findExons(exons, fusions[fusion,"contig1"], gene, fusions[fusion,"direction1"], fusions[fusion,"breakpoint1"], coverage1))
+				exons1 <- rbind(exons1, findExons(exons, fusions[fusion,"contig1"], gene, fusions[fusion,"direction1"], fusions[fusion,"breakpoint1"], coverage1, fusions[fusion,"transcript_id1"], transcriptSelection))
 		if (fusions[fusion,"site2"] == "intergenic")
 			for (gene in unique(exons[exons$contig == fusions[fusion,"contig2"] & exons$exonNumber != "intergenic" &
 			     (between(exons$end, fusions[fusion,"breakpoint2"]-showVicinity, fusions[fusion,"breakpoint2"]+showVicinity) |
 			      between(exons$start, fusions[fusion,"breakpoint2"]-showVicinity, fusions[fusion,"breakpoint2"]+showVicinity)),"geneName"]))
-				exons2 <- rbind(exons2, findExons(exons, fusions[fusion,"contig2"], gene, fusions[fusion,"direction2"], fusions[fusion,"breakpoint2"], coverage2))
+				exons2 <- rbind(exons2, findExons(exons, fusions[fusion,"contig2"], gene, fusions[fusion,"direction2"], fusions[fusion,"breakpoint2"], coverage2, fusions[fusion,"transcript_id2"], transcriptSelection))
 	}
 
 	# normalize coverage
