@@ -61,16 +61,16 @@ for (arg in args) {
 	if (!(argName %in% names(parameters)) || !grepl("^--", arg, perl=T))
 		stop(paste("Unknown parameter:", arg))
 	if (parameters[[argName]][[2]] == "bool") {
-		if (argValue %in% c("TRUE", "T")) {
-			assign(parameters[[argName]][[1]], T)
-		} else if (argValue %in% c("FALSE", "F")) {
-			assign(parameters[[argName]][[1]], F)
+		if (argValue %in% c("TRUE", "T", "FALSE", "F")) {
+			assign(parameters[[argName]][[1]], as.logical(argValue))
 		} else {
 			stop(paste0("Invalid argument to --", argName))
 		}
 	} else if (parameters[[argName]][[2]] == "string") {
 		assign(parameters[[argName]][[1]], argValue)
 	} else if (parameters[[argName]][[2]] == "numeric") {
+		if (is.na(suppressWarnings(as.numeric(argValue))))
+			stop(paste0("Invalid argument to --", argName))
 		assign(parameters[[argName]][[1]], as.numeric(argValue))
 	} else if (parameters[[argName]][[2]] == "file") {
 		if (file.access(argValue) == -1)
