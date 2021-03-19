@@ -46,7 +46,7 @@ tee Aligned.out.bam |
 
 # sorting and indexing is only required for visualization
 if [[ $(samtools --version-only 2> /dev/null) =~ ^1\. ]]; then
-	samtools sort -@ "$THREADS" -m 4G -T tmp -O bam Aligned.out.bam > Aligned.sortedByCoord.out.bam
+	samtools sort -@ "$THREADS" -m $((40000/THREADS))M -T tmp -O bam Aligned.out.bam > Aligned.sortedByCoord.out.bam
 	rm -f Aligned.out.bam
 	samtools index Aligned.sortedByCoord.out.bam
 else
