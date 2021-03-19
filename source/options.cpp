@@ -447,7 +447,7 @@ options_t parse_arguments(int argc, char **argv) {
 				break;
 		}
 
-		crash(optind < argc && (string(argv[optind]).empty() || argv[optind][0] != '-'), "option -" + ((char) c) + " has more than one argument (arguments with blanks must be wrapped in quotes)");
+		crash(optind < argc && (string(argv[optind]).empty() || argv[optind][0] != '-'), "option -" + ((char) c) + " has too many arguments (arguments with blanks must be wrapped in quotes)");
 
 	}
 
