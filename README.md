@@ -75,12 +75,16 @@ Please refer to the [user manual](http://arriba.readthedocs.io/en/latest/) for i
    - [Multiple transcript variants](https://arriba.readthedocs.io/en/latest/interpretation-of-results/#multiple-transcript-variants)
    - [Cohort analysis](https://arriba.readthedocs.io/en/latest/interpretation-of-results/#cohort-analysis)
 
-8. [Current limitations](https://arriba.readthedocs.io/en/latest/current-limitations/)
+8. [Utility scripts](https://arriba.readthedocs.io/en/latest/utility-scripts/)
+
+   - [Extracting fusion-supporting alignments](https://arriba.readthedocs.io/en/latest/utility-scripts/#extracting-fusion-supporting-alignments)
+
+9. [Current limitations](https://arriba.readthedocs.io/en/latest/current-limitations/)
    
    - [Intragenic deletions](https://arriba.readthedocs.io/en/latest/current-limitations/#intragenic-deletions)
    - [Memory consumption](https://arriba.readthedocs.io/en/latest/current-limitations/#memory-consumption)
 
-9. [Internal algorithm](https://arriba.readthedocs.io/en/latest/internal-algorithm/)
+10. [Internal algorithm](https://arriba.readthedocs.io/en/latest/internal-algorithm/)
 
    - [Read-level filters](https://arriba.readthedocs.io/en/latest/internal-algorithm/#read-level-filters)
    - [Event-level filters](https://arriba.readthedocs.io/en/latest/internal-algorithm/#event-level-filters)
