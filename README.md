@@ -78,6 +78,7 @@ Please refer to the [user manual](http://arriba.readthedocs.io/en/latest/) for i
 8. [Utility scripts](https://arriba.readthedocs.io/en/latest/utility-scripts/)
 
    - [Extracting fusion-supporting alignments](https://arriba.readthedocs.io/en/latest/utility-scripts/#extracting-fusion-supporting-alignments)
+   - [Converting fusions.tsv to VCF format](https://arriba.readthedocs.io/en/latest/utility-scripts/#converting-fusionstsv-to-vcf-format)
 
 9. [Current limitations](https://arriba.readthedocs.io/en/latest/current-limitations/)
    
