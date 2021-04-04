@@ -79,6 +79,7 @@ Please refer to the [user manual](http://arriba.readthedocs.io/en/latest/) for i
 
    - [Extracting fusion-supporting alignments](https://arriba.readthedocs.io/en/latest/utility-scripts/#extracting-fusion-supporting-alignments)
    - [Converting fusions.tsv to VCF format](https://arriba.readthedocs.io/en/latest/utility-scripts/#converting-fusionstsv-to-vcf-format)
+   - [Run Arriba on prealigned BAM file](https://arriba.readthedocs.io/en/latest/utility-scripts/#run-arriba-on-prealigned-bam-file)
 
 9. [Current limitations](https://arriba.readthedocs.io/en/latest/current-limitations/)
    
