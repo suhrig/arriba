@@ -389,6 +389,9 @@ drawCircos <- function(fusion, fusions, cytobands, minConfidenceForCircosPlot, c
 	for (contig in unlist(fusions[fusion,c("contig1", "contig2")])) {
 		if (!any(cytobands$contig==contig)) {
 			warning(paste0("Circos plot cannot be drawn, because no Giemsa staining information is available for contig ", contig, "."))
+			# draw empty plots as placeholder
+			plot(0, 0, type="l", xlim=c(0, 1), ylim=c(0, 1), bty="n", xaxt="n", yaxt="n")
+			plot(0, 0, type="l", xlim=c(0, 1), ylim=c(0, 1), bty="n", xaxt="n", yaxt="n")
 			return(NULL)
 		}
 	}
@@ -424,6 +427,9 @@ drawCircos <- function(fusion, fusions, cytobands, minConfidenceForCircosPlot, c
 					lwd=2, col=ifelse(i==fusion, circosColors[f$type], getBrightColor(circosColors[f$type]))
 				)
 	}
+	# draw legend
+	plot(0, 0, type="l", xlim=c(0, 1), ylim=c(0, 1), bty="n", xaxt="n", yaxt="n", ylab="", xlab="")
+	legend(x="top", legend=names(circosColors), col=sapply(circosColors, getBrightColor), lwd=3, ncol=2, box.lty=0)
 }
 
 drawProteinDomains <- function(fusion, exons1, exons2, proteinDomains, color1, color2, mergeDomainsOverlappingBy, optimizeDomainColors) {
@@ -1242,8 +1248,6 @@ for (fusion in 1:nrow(fusions)) {
 	} else {
 		par(mar=c(0, 4, 0, 0))
 		drawCircos(fusion, fusions, cytobands, minConfidenceForCircosPlot, circosColors)
-		plot(0, 0, type="l", xlim=c(0, 1), ylim=c(0, 1), bty="n", xaxt="n", yaxt="n", ylab="", xlab="")
-		legend(x="top", legend=names(circosColors), col=sapply(circosColors, getBrightColor), lwd=3, ncol=2, box.lty=0)
 		par(mar=c(0, 0, 0, 0))
 	}
 
