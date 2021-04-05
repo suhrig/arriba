@@ -3,6 +3,11 @@ Intragenic deletions
 
 Arriba can detect intragenic inversions and duplications, but not deletions. This is because deletions within a gene are difficult to distinguish from ordinary splicing in RNA-Seq data. Moreover, Arriba's statistical model to find significant events is not applicable to the identification of a significant lack of exon coverage. These questions are better answered by indel callers, whole-genome sequencing, or algorithms to identify differential exon expression. For these reasons, Arriba does not report any intragenic deletions.
 
+RefSeq annotation
+-----------------
+
+It is recommended to use annotation from GENCODE or ENSEMBL to run Arriba. RefSeq annotation has less comprehensive annotation of splice sites. Moreover, RefSeq does not annotate the immunoglobulin/T-cell receptor loci. These shortcomings reduce the sensitivity of fusion detection. Users who want to use RefSeq nonetheless are advised to copy the immunoglobulin/T-cell receptor loci annotation from GENCODE/ENSEMBL as a workaround.
+
 Memory consumption
 ------------------
 
