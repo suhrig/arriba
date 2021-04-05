@@ -15,7 +15,7 @@ Use the [GitHub issue tracker](https://github.com/suhrig/arriba/issues) to get h
 Citation
 --------
 
-Sebastian Uhrig, Julia Ellermann, Tatjana Walther, Pauline Burkhardt, Martina Fröhlich, Barbara Hutter, Umut H. Toprak, Olaf Neumann, Albrecht Stenzinger, Claudia Scholl, Stefan Fröhling and Benedikt Brors: *Accurate and efficient detection of gene fusions from RNA sequencing data.* Genome Research. Published in Advance January 13, 2021. doi: [10.1101/gr.257246.119](https://doi.org/10.1101/gr.257246.119)
+Sebastian Uhrig, Julia Ellermann, Tatjana Walther, Pauline Burkhardt, Martina Fröhlich, Barbara Hutter, Umut H. Toprak, Olaf Neumann, Albrecht Stenzinger, Claudia Scholl, Stefan Fröhling and Benedikt Brors: *Accurate and efficient detection of gene fusions from RNA sequencing data.* Genome Research. March 2021 31: 448-460; Published in Advance January 13, 2021. doi: [10.1101/gr.257246.119](https://doi.org/10.1101/gr.257246.119)
 
 License
 -------
