@@ -934,9 +934,11 @@ for (fusion in 1:nrow(fusions)) {
 			squishIntrons, # => ignore intronic coverage
 			max(
 				as.numeric(coverage1[IRanges(sapply(exons1$start,max,min(start(coverage1))),sapply(exons1$end,min,max(end(coverage1))))]),
-				as.numeric(coverage2[IRanges(sapply(exons2$start,max,min(start(coverage2))),sapply(exons2$end,min,max(end(coverage2))))])),
+				as.numeric(coverage2[IRanges(sapply(exons2$start,max,min(start(coverage2))),sapply(exons2$end,min,max(end(coverage2))))])
+			),
 			max(max(coverage1), max(coverage2))
 		)
+		coverageNormalization <- max(1, coverageNormalization)
 		coverage1 <- coverage1/coverageNormalization
 		coverage2 <- coverage2/coverageNormalization
 	}
