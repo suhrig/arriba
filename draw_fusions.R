@@ -230,7 +230,7 @@ if (any(fusions$site1 == "intergenic" | fusions$site2 == "intergenic")) {
 		strand=".",
 		attributes="",
 		geneName=intergenicBreakpoints$gene,
-		geneID=intergenicBreakpoints$gene,
+		geneID=paste0(intergenicBreakpoints$contig, ":", intergenicBreakpoints$breakpoint),
 		transcript=intergenicBreakpoints$gene,
 		exonNumber="intergenic"
 	))
@@ -1065,10 +1065,12 @@ for (fusion in 1:nrow(fusions)) {
 	}
 
 	# draw gene & transcript names
-	text(max(exons1$right)/2, yGeneNames, fusions[fusion,"gene1"], font=2, cex=fontSize, adj=c(0.5,0))
+	if (fusions[fusion,"gene1"] != ".")
+		text(max(exons1$right)/2, yGeneNames, fusions[fusion,"gene1"], font=2, cex=fontSize, adj=c(0.5,0))
 	if (fusions[fusion,"site1"] != "intergenic")
 		text(max(exons1$right)/2, yGeneNames-0.01, head(exons1$transcript,1), cex=0.9*fontSize, adj=c(0.5,1))
-	text(gene2Offset+max(exons2$right)/2, yGeneNames, fusions[fusion,"gene2"], font=2, cex=fontSize, adj=c(0.5,0))
+	if (fusions[fusion,"gene2"] != ".")
+		text(gene2Offset+max(exons2$right)/2, yGeneNames, fusions[fusion,"gene2"], font=2, cex=fontSize, adj=c(0.5,0))
 	if (fusions[fusion,"site2"] != "intergenic")
 		text(gene2Offset+max(exons2$right)/2, yGeneNames-0.01, head(exons2$transcript,1), cex=0.9*fontSize, adj=c(0.5,1))
 
