@@ -916,16 +916,22 @@ for (fusion in 1:nrow(fusions)) {
 
 	# in case of intergenic breakpoints, show the vicinity
 	if (showVicinity > 0) {
-		if (fusions[fusion,"site1"] == "intergenic")
+		if (fusions[fusion,"site1"] == "intergenic") {
 			for (gene in unique(exons[exons$contig == fusions[fusion,"contig1"] & exons$exonNumber != "intergenic" &
-			     (between(exons$end, fusions[fusion,"breakpoint1"]-showVicinity, fusions[fusion,"breakpoint1"]+showVicinity) |
-			      between(exons$start, fusions[fusion,"breakpoint1"]-showVicinity, fusions[fusion,"breakpoint1"]+showVicinity)),"geneName"]))
+			                          (between(exons$end, fusions[fusion,"breakpoint1"]-showVicinity, fusions[fusion,"breakpoint1"]+showVicinity) |
+			                           between(exons$start, fusions[fusion,"breakpoint1"]-showVicinity, fusions[fusion,"breakpoint1"]+showVicinity)),"geneName"]))
 				exons1 <- rbind(exons1, findExons(exons, fusions[fusion,"contig1"], gene, fusions[fusion,"direction1"], fusions[fusion,"breakpoint1"], coverage1, fusions[fusion,"transcript_id1"], transcriptSelection))
-		if (fusions[fusion,"site2"] == "intergenic")
+			# crop genes that are only partially within user-defined vicinity, because the coverage data is incomplete for those
+			exons1 <- exons1[exons1$start >= fusions[fusion,"breakpoint1"]-showVicinity & exons1$end <= fusions[fusion,"breakpoint1"]+showVicinity,]
+		}
+		if (fusions[fusion,"site2"] == "intergenic") {
 			for (gene in unique(exons[exons$contig == fusions[fusion,"contig2"] & exons$exonNumber != "intergenic" &
-			     (between(exons$end, fusions[fusion,"breakpoint2"]-showVicinity, fusions[fusion,"breakpoint2"]+showVicinity) |
-			      between(exons$start, fusions[fusion,"breakpoint2"]-showVicinity, fusions[fusion,"breakpoint2"]+showVicinity)),"geneName"]))
+			                          (between(exons$end, fusions[fusion,"breakpoint2"]-showVicinity, fusions[fusion,"breakpoint2"]+showVicinity) |
+			                           between(exons$start, fusions[fusion,"breakpoint2"]-showVicinity, fusions[fusion,"breakpoint2"]+showVicinity)),"geneName"]))
 				exons2 <- rbind(exons2, findExons(exons, fusions[fusion,"contig2"], gene, fusions[fusion,"direction2"], fusions[fusion,"breakpoint2"], coverage2, fusions[fusion,"transcript_id2"], transcriptSelection))
+			# crop genes that are only partially within user-defined vicinity, because the coverage data is incomplete for those
+			exons2 <- exons2[exons2$start >= fusions[fusion,"breakpoint2"]-showVicinity & exons2$end <= fusions[fusion,"breakpoint2"]+showVicinity,]
+		}
 	}
 
 	# normalize coverage
