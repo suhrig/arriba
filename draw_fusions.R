@@ -390,8 +390,8 @@ drawCircos <- function(fusion, fusions, cytobands, minConfidenceForCircosPlot, c
 		if (!any(cytobands$contig==contig)) {
 			warning(paste0("Circos plot cannot be drawn, because no Giemsa staining information is available for contig ", contig, "."))
 			# draw empty plots as placeholder
-			plot(0, 0, type="l", xlim=c(0, 1), ylim=c(0, 1), bty="n", xaxt="n", yaxt="n")
-			plot(0, 0, type="l", xlim=c(0, 1), ylim=c(0, 1), bty="n", xaxt="n", yaxt="n")
+			plot(0, 0, type="l", xlim=c(0, 1), ylim=c(0, 1), bty="n", xaxt="n", yaxt="n", xlab="", ylab="")
+			plot(0, 0, type="l", xlim=c(0, 1), ylim=c(0, 1), bty="n", xaxt="n", yaxt="n", xlab="", ylab="")
 			return(NULL)
 		}
 	}
@@ -1051,7 +1051,7 @@ for (fusion in 1:nrow(fusions)) {
 	# layout: fusion on top, circos plot on bottom left, protein domains on bottom center, statistics on bottom right
 	layout(matrix(c(1,1,1,2,4,5,3,4,5), 3, 3, byrow=TRUE), widths=c(1.1, 1.2, 0.7), heights=c(1.55, 1.2, 0.25))
 	par(mar=c(0, 0, 0, 0))
-	plot(0, 0, type="l", xlim=c(-0.12, 1.12), ylim=c(0.4, 1.1), bty="n", xaxt="n", yaxt="n")
+	plot(0, 0, type="l", xlim=c(-0.12, 1.12), ylim=c(0.4, 1.1), bty="n", xaxt="n", yaxt="n", xlab="", ylab="")
 
 	# vertical coordinates of layers
 	ySampleName <- 1.04
@@ -1258,8 +1258,8 @@ for (fusion in 1:nrow(fusions)) {
 
 	# draw circos plot
 	if (is.null(cytobands) || !("circlize" %in% names(sessionInfo()$otherPkgs)) || !("GenomicRanges" %in% names(sessionInfo()$otherPkgs))) {
-		plot(0, 0, type="l", xlim=c(0, 1), ylim=c(0, 1), bty="n", xaxt="n", yaxt="n")
-		plot(0, 0, type="l", xlim=c(0, 1), ylim=c(0, 1), bty="n", xaxt="n", yaxt="n")
+		plot(0, 0, type="l", xlim=c(0, 1), ylim=c(0, 1), bty="n", xaxt="n", yaxt="n", xlab="", ylab="")
+		plot(0, 0, type="l", xlim=c(0, 1), ylim=c(0, 1), bty="n", xaxt="n", yaxt="n", xlab="", ylab="")
 	} else {
 		par(mar=c(0, 4, 0, 0))
 		drawCircos(fusion, fusions, cytobands, minConfidenceForCircosPlot, circosColors)
@@ -1267,14 +1267,14 @@ for (fusion in 1:nrow(fusions)) {
 	}
 
 	# draw protein domains
-	plot(0, 0, type="l", xlim=c(-0.1, 1.1), ylim=c(0, 1), bty="n", xaxt="n", yaxt="n")
+	plot(0, 0, type="l", xlim=c(-0.1, 1.1), ylim=c(0, 1), bty="n", xaxt="n", yaxt="n", xlab="", ylab="")
 	par(xpd=NA)
 	if (!is.null(proteinDomains))
 		drawProteinDomains(fusions[fusion,], exons1, exons2, proteinDomains, color1, color2, mergeDomainsOverlappingBy, optimizeDomainColors)
 	par(xpd=F)
 
 	# print statistics about supporting alignments
-	plot(0, 0, type="l", xlim=c(0, 1), ylim=c(0, 1), bty="n", xaxt="n", yaxt="n")
+	plot(0, 0, type="l", xlim=c(0, 1), ylim=c(0, 1), bty="n", xaxt="n", yaxt="n", xlab="", ylab="")
 	text(0, 0.575, "SUPPORTING READ COUNT", font=2, adj=c(0,0), cex=fontSize)
 	text(0, 0.525, paste0("Split reads = ", fusions[fusion,"split_reads"], "\n", "Discordant mates = ", fusions[fusion,"discordant_mates"]), adj=c(0,1), cex=fontSize)
 
