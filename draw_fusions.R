@@ -896,6 +896,9 @@ for (fusion in 1:nrow(fusions)) {
 		# get coverage track
 		coverage1 <- readCoverage(alignmentsFile, fusions[fusion,"contig1"], coverageRange1)
 		coverage2 <- readCoverage(alignmentsFile, fusions[fusion,"contig2"], coverageRange2)
+		# shrink coverage range to chromosome boundaries to avoid subscript out of bounds errors
+		coverageRange1 <- IRanges(max(start(coverageRange1), min(start(coverage1))), min(end(coverageRange1), max(end(coverage1))))
+		coverageRange2 <- IRanges(max(start(coverageRange2), min(start(coverage2))), min(end(coverageRange2), max(end(coverage2))))
 	}
 
 	# find all exons belonging to the fused genes
@@ -942,11 +945,13 @@ for (fusion in 1:nrow(fusions)) {
 				as.numeric(coverage1[IRanges(sapply(exons1$start,max,min(start(coverage1))),sapply(exons1$end,min,max(end(coverage1))))]),
 				as.numeric(coverage2[IRanges(sapply(exons2$start,max,min(start(coverage2))),sapply(exons2$end,min,max(end(coverage2))))])
 			),
-			max(max(coverage1), max(coverage2))
+			round(quantile(c(coverage1[coverageRange1], coverage2[coverageRange2]), 0.9999)) # ignore coverage spikes from read-attracting regions
 		)
 		coverageNormalization <- max(1, coverageNormalization)
 		coverage1 <- coverage1/coverageNormalization
 		coverage2 <- coverage2/coverageNormalization
+		coverage1[coverage1 > 1] <- 1
+		coverage2[coverage2 > 1] <- 1
 	}
 
 	# sort coding exons last, such that they are drawn over the border of non-coding exons
