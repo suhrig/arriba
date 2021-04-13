@@ -876,8 +876,8 @@ for (fusion in 1:nrow(fusions)) {
 			}
 			return(IRanges(min(closestExons$start, breakpoint-showVicinity), max(closestExons$end, breakpoint+showVicinity)))
 		}
-		coverageRange1 <- determineCoverageRange(exons, fusions[fusion,"gene1"], fusions[fusion,"contig1"], fusions[fusion,"breakpoint1"], showVicinity)
-		coverageRange2 <- determineCoverageRange(exons, fusions[fusion,"gene2"], fusions[fusion,"contig2"], fusions[fusion,"breakpoint2"], showVicinity)
+		coverageRange1 <- determineCoverageRange(exons, fusions[fusion,"gene1"], fusions[fusion,"contig1"], fusions[fusion,"breakpoint1"], ifelse(fusions[fusion,"site1"] == "intergenic", showVicinity, 0))
+		coverageRange2 <- determineCoverageRange(exons, fusions[fusion,"gene2"], fusions[fusion,"contig2"], fusions[fusion,"breakpoint2"], ifelse(fusions[fusion,"site2"] == "intergenic", showVicinity, 0))
 		# function which reads alignments from BAM file with & without "chr" prefix
 		readCoverage <- function(alignmentsFile, contig, coverageRange) {
 			coverageData <- tryCatch(
