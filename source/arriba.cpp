@@ -370,7 +370,7 @@ int main(int argc, char **argv) {
 
 	if (options.filters.at("merge_adjacent")) {
 		cout << get_time_string() << " Merging adjacent fusion breakpoints " << flush;
-		cout << "(remaining=" << merge_adjacent_fusions(fusions, 5) << ")" << endl;
+		cout << "(remaining=" << merge_adjacent_fusions(fusions, 5, options.max_itd_length) << ")" << endl;
 	}
 
 	// this step must come before the e-value calculation, or else multi-mapping reads are counted redundantly

@@ -510,10 +510,8 @@ string get_fusion_type(const fusion_t& fusion, const unsigned int max_itd_length
 			    (fusion.gene1->strand == fusion.gene2->strand)) {
 				if (fusion.gene1 == fusion.gene2 && fusion.spliced1 && fusion.spliced2) {
 					return "duplication/non-canonical_splicing";
-				} else if (fusion.gene1 == fusion.gene2 &&
-				         fusion.exonic1 && fusion.exonic2 &&
-				         ((unsigned int) fusion.breakpoint2 - fusion.breakpoint1) < max_itd_length) {
-					return "duplication/ITD"; // internal tandem duplication
+				} else if (fusion.is_internal_tandem_duplication(max_itd_length)) {
+					return "duplication/ITD";
 				} else {
 					return "duplication";
 				}

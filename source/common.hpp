@@ -254,19 +254,28 @@ struct fusion_t {
 	gene_t gene1, gene2;
 	vector<chimeric_alignments_t::iterator> split_read1_list, split_read2_list, discordant_mate_list;
 	fusion_t(): transcript_start_ambiguous(true), split_reads1(0), transcript_start(TRANSCRIPT_START_GENE1), split_reads2(0), spliced1(false), spliced2(false), exonic1(false), exonic2(false), predicted_strand1(FORWARD), predicted_strand2(FORWARD), direction1(DOWNSTREAM), direction2(DOWNSTREAM), confidence(CONFIDENCE_LOW), filter(FILTER_none), predicted_strands_ambiguous(true), discordant_mates(0), contig1(USHRT_MAX), contig2(USHRT_MAX), evalue(0), breakpoint1(-1), breakpoint2(-1), anchor_start1(0), anchor_start2(0), closest_genomic_breakpoint1(-1), closest_genomic_breakpoint2(-1), gene1(NULL), gene2(NULL) {};
-	unsigned int supporting_reads() const { return split_reads1 + split_reads2 + discordant_mates; };
+	inline unsigned int supporting_reads() const { return split_reads1 + split_reads2 + discordant_mates; };
 	bool breakpoint_overlaps_both_genes(const unsigned int which_breakpoint = 0) const {
 		if (which_breakpoint == 1) return breakpoint1 >= gene2->start && breakpoint1 <= gene2->end;
 		if (which_breakpoint == 2) return breakpoint2 >= gene1->start && breakpoint2 <= gene1->end;
 		return breakpoint_overlaps_both_genes(1) || breakpoint_overlaps_both_genes(2);
 	};
-	bool is_read_through() const { return contig1 == contig2 && breakpoint2 - breakpoint1 < 400000 && direction1 == DOWNSTREAM && direction2 == UPSTREAM; };
+	inline bool is_read_through() const {
+		return contig1 == contig2 &&
+		       breakpoint2 - breakpoint1 < 400000 &&
+		       direction1 == DOWNSTREAM && direction2 == UPSTREAM;
+	};
+	inline bool is_internal_tandem_duplication(const unsigned int max_itd_length) const {
+		return gene1 == gene2 &&
+		       ((unsigned int) breakpoint2 - breakpoint1) < max_itd_length &&
+		       direction1 == UPSTREAM && direction2 == DOWNSTREAM;
+	};
 	inline bool is_intragenic() const {
 		return gene1 == gene2 ||
 		       breakpoint1 >= gene2->start - 10000 && breakpoint1 <= gene2->end + 10000 &&
 		       breakpoint2 >= gene1->start - 10000 && breakpoint2 <= gene1->end + 10000;
 	};
-	bool both_breakpoints_spliced() {
+	inline bool both_breakpoints_spliced() const {
 		return spliced1 && spliced2 &&
 		       (gene1->strand == gene2->strand && direction1 != direction2 ||
 		        gene1->strand != gene2->strand && direction1 == direction2);
