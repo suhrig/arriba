@@ -597,10 +597,28 @@ unsigned int read_chimeric_alignments(const string& bam_file_path, const assembl
 
 			} else { // this is Aligned.out.bam => load only discordant mates and split reads, and only when there is no Chimeric.out.sam
 
-				bool is_read_through_alignment = false;
+				// STAR is bad at aligning internal tandem duplications (ITD)
+				// it often does not align them at all or maps the clipped segment to a different chromosome with poor alignment quality
+				// => for every clipped alignment, check if it can be aligned as an ITD
+				bool is_tandem_alignment = false;
 				alignment_t tandem_alignment;
+				if (!clipped_sequence_is_adapter(bam_record, previously_seen_mate) &&
+			           (previously_seen_mate == NULL || get_strand(bam_record) != get_strand(previously_seen_mate)) && // strands must be different, so we can distinguish mate1 from mate2
+			           (is_tandem_duplication(bam_record, assembly, max_itd_length, tandem_alignment) || // is it a tandem duplication that STAR failed to align?
+			            is_tandem_duplication(previously_seen_mate, assembly, max_itd_length, tandem_alignment))) {
+					if (is_rna_bam_file) {
+						mates_t& mates = chimeric_alignments[read_name + "ITD"]; // imitate a multimapping alignment by adding another alignment for the ITD
+						add_chimeric_alignment(mates, bam_record, get_strand(bam_record) == tandem_alignment.strand && !tandem_alignment.supplementary);
+						if (previously_seen_mate != NULL)
+							add_chimeric_alignment(mates, previously_seen_mate, get_strand(previously_seen_mate) == tandem_alignment.strand && !tandem_alignment.supplementary);
+						mates.push_back(tandem_alignment);
+					}
+					is_tandem_alignment = true;
+				}
 
-				if (bam_aux_get(bam_record, "SA") != NULL && is_clipped_at_correct_end(bam_record) ||
+				// we extract two types of alignments here: chimeric alignments (having an SA tag) and read-through alignments (crossing gene boundaries)
+				bool is_read_through_alignment = false;
+				if (bam_aux_get(bam_record, "SA") != NULL && is_clipped_at_correct_end(bam_record) || // split-read with SA tag
 				    previously_seen_mate != NULL && bam_aux_get(previously_seen_mate, "SA") != NULL && is_clipped_at_correct_end(previously_seen_mate)) { // split-read with SA tag
 					if (!separate_chimeric_bam_file) {
 						mates_t& mates = chimeric_alignments[read_name];
@@ -609,18 +627,7 @@ unsigned int read_chimeric_alignments(const string& bam_file_path, const assembl
 							add_chimeric_alignment(mates, previously_seen_mate);
 						no_chimeric_reads = false;
 					}
-				} else if (!clipped_sequence_is_adapter(bam_record, previously_seen_mate) &&
-				           (previously_seen_mate == NULL || get_strand(bam_record) != get_strand(previously_seen_mate)) && // strands must be different, so we can distinguish mate1 from mate2
-				           (is_tandem_duplication(bam_record, assembly, max_itd_length, tandem_alignment) || // is it a tandem duplication that STAR failed to align?
-				            is_tandem_duplication(previously_seen_mate, assembly, max_itd_length, tandem_alignment))) {
-					if (!separate_chimeric_bam_file || is_rna_bam_file && chimeric_alignments.find(read_name) == chimeric_alignments.end()) {
-						mates_t& mates = chimeric_alignments[read_name];
-						add_chimeric_alignment(mates, bam_record, get_strand(bam_record) == tandem_alignment.strand && !tandem_alignment.supplementary);
-						if (previously_seen_mate != NULL)
-							add_chimeric_alignment(mates, previously_seen_mate, get_strand(previously_seen_mate) == tandem_alignment.strand && !tandem_alignment.supplementary);
-						mates.push_back(tandem_alignment);
-					}
-				} else { // could be a read-through alignment
+				} else if (!is_tandem_alignment) { // could be a read-through alignment
 					is_read_through_alignment = extract_read_through_alignment(chimeric_alignments, read_name, bam_record, previously_seen_mate, gene_annotation_index, separate_chimeric_bam_file);
 
 					// count mapped reads on viral contigs to detect viral infection
