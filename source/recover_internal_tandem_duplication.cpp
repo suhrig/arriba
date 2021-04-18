@@ -5,10 +5,8 @@
 
 using namespace std;
 
-unsigned int recover_internal_tandem_duplication(fusions_t& fusions, const chimeric_alignments_t& chimeric_alignments, const coverage_t& coverage, const exon_annotation_index_t& exon_annotation_index, const unsigned int max_itd_length) {
+unsigned int recover_internal_tandem_duplication(fusions_t& fusions, const chimeric_alignments_t& chimeric_alignments, const coverage_t& coverage, const exon_annotation_index_t& exon_annotation_index, const unsigned int max_itd_length, const unsigned int min_supporting_reads, const float min_fraction_of_coverage) {
 
-	const unsigned int min_supporting_reads = 10; // only recover fusions with this many supporting reads
-	const float min_fraction_of_coverage = 0.05; // the fusion-supporting reads must make up a substantial fraction of the coverage
 	const int protrude_into_introns = 7; // ITDs should be in exonic regions, but they may protrude into introns by this many bases
 
 	// estimate duplication rate, because the calculated coverage includes duplicates

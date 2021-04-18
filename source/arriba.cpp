@@ -412,8 +412,8 @@ int main(int argc, char **argv) {
 
 	// this step must come after the 'intragenic_exonic' and 'relative_support' filters
 	if (options.filters.at("internal_tandem_duplication")) {
-		cout << get_time_string() << " Searching for internal tandem duplications <=" << options.max_itd_length << "bp " << flush;
-		cout << "(remaining=" << recover_internal_tandem_duplication(fusions, chimeric_alignments, coverage, exon_annotation_index, options.max_itd_length) << ")" << endl;
+		cout << get_time_string() << " Searching for internal tandem duplications <=" << options.max_itd_length << "bp with >=" << options.min_itd_support << " supporting reads and >=" << (options.min_itd_allele_fraction*100) << "% allele fraction " << flush;
+		cout << "(remaining=" << recover_internal_tandem_duplication(fusions, chimeric_alignments, coverage, exon_annotation_index, options.max_itd_length, options.min_itd_support, options.min_itd_allele_fraction) << ")" << endl;
 	}
 
 	// this step must come before all filters that are potentially undone by the 'genomic_support' filter

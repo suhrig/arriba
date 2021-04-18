@@ -61,6 +61,8 @@ struct options_t {
 	string protein_domains_file;
 	bool fill_sequence_gaps;
 	unsigned int max_itd_length;
+	float min_itd_allele_fraction;
+	unsigned int min_itd_support;
 };
 
 options_t parse_arguments(int argc, char **argv);
