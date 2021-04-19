@@ -356,7 +356,7 @@ int main(int argc, char **argv) {
 
 	if (options.filters.at("low_entropy")) {
 		cout << get_time_string() << " Filtering reads with low entropy (k-mer content >=" << (options.max_kmer_content*100) << "%) " << flush;
-		cout << "(remaining=" << filter_low_entropy(chimeric_alignments, 3, options.max_kmer_content) << ")" << endl;
+		cout << "(remaining=" << filter_low_entropy(chimeric_alignments, 3, options.max_kmer_content, options.max_itd_length) << ")" << endl;
 	}
 
 	cout << get_time_string() << " Finding fusions and counting supporting reads " << flush;

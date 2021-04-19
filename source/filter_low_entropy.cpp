@@ -6,12 +6,29 @@
 
 using namespace std;
 
-unsigned int filter_low_entropy(chimeric_alignments_t& chimeric_alignments, const unsigned int kmer_length, const float kmer_content) {
+unsigned int filter_low_entropy(chimeric_alignments_t& chimeric_alignments, const unsigned int kmer_length, const float kmer_content, const unsigned int max_itd_length) {
 	unsigned int remaining = 0;
 	for (chimeric_alignments_t::iterator chimeric_alignment = chimeric_alignments.begin(); chimeric_alignment != chimeric_alignments.end(); ++chimeric_alignment) {
 
-		if (chimeric_alignment->second.filter != FILTER_none)
-			continue; // read has already been filtered
+		// all alignments that look like internal tandem duplications are checked for low entropy,
+		// even if they have already been removed by previous filters, because low entropy regions
+		// give rise to artifactual ITD alignments and the ITD filter would recover them, unless
+		// they are marked as artifacts by the low_entropy filter
+		bool is_internal_tandem_duplication = chimeric_alignment->second.size() == 3 && // split read
+		                                      chimeric_alignment->second[SPLIT_READ].strand == chimeric_alignment->second[SUPPLEMENTARY].strand &&
+		                                      chimeric_alignment->second[SPLIT_READ].contig == chimeric_alignment->second[SUPPLEMENTARY].contig &&
+		                                      (
+		                                      	chimeric_alignment->second[SPLIT_READ].strand == FORWARD &&
+		                                      	chimeric_alignment->second[SPLIT_READ].start < chimeric_alignment->second[SUPPLEMENTARY].end &&
+		                                      	chimeric_alignment->second[SPLIT_READ].start + ((int) max_itd_length) >= chimeric_alignment->second[SUPPLEMENTARY].end ||
+		                                      	chimeric_alignment->second[SPLIT_READ].strand == REVERSE &&
+		                                      	chimeric_alignment->second[SPLIT_READ].end > chimeric_alignment->second[SUPPLEMENTARY].start &&
+		                                      	chimeric_alignment->second[SPLIT_READ].end <= chimeric_alignment->second[SUPPLEMENTARY].start + ((int) max_itd_length)
+		                                      ); // alignments are oriented like a duplication
+
+		if (!is_internal_tandem_duplication || chimeric_alignment->second.filter == FILTER_duplicates)
+                	if (chimeric_alignment->second.filter != FILTER_none)
+	                        continue; // read has already been filtered
 
 		// look for recurrent k-mers in read sequence
 		// if there are too many, discard the reads
