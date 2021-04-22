@@ -34,8 +34,13 @@ void pileup_chimeric_alignments(vector<chimeric_alignments_t::iterator>& chimeri
 
 		if ((**chimeric_alignment).second.size() == 2) // discordant mate
 			if (!(direction == DOWNSTREAM && read.strand == FORWARD && read.end   <= breakpoint+2 && read.end   >= breakpoint-200 ||
-			      direction == UPSTREAM   && read.strand == REVERSE && read.start >= breakpoint-2 && read.start <= breakpoint+200)) // only consider discordant mates close to the breakpoints (we don't care about the ones in other exons)
-				continue;
+			      direction == UPSTREAM   && read.strand == REVERSE && read.start >= breakpoint-2 && read.start <= breakpoint+200))
+				continue; // only consider discordant mates close to the breakpoints, because distant ones might belong to other transcript isoforms
+
+		if ((**chimeric_alignment).second.size() == 3) // split read
+			if (mate == SPLIT_READ || mate == SUPPLEMENTARY)
+				if (read.start != breakpoint && read.end != breakpoint)
+					continue; // ignore split reads with slightly different breakpoints due to alternative alignments, since they would mess up the pileup
 
 		string read_sequence = (mate == SUPPLEMENTARY) ? (**chimeric_alignment).second[SPLIT_READ].sequence : read.sequence;
 		if (reverse_complement)
@@ -279,19 +284,19 @@ void get_fusion_transcript_sequence(fusion_t& fusion, const assembly_t& assembly
 			std::transform(clipped_sequence1.begin(), clipped_sequence1.end(), clipped_sequence1.begin(), (int (*)(int))std::tolower);
 			if (fusion.direction1 == UPSTREAM) {
 				sequence1 = clipped_sequence1.substr(clipped_sequence1.size() - non_template_bases) + sequence1;
-				positions1.insert(positions1.begin(), clipped_sequence1.size() - non_template_bases, -1);
+				positions1.insert(positions1.begin(), non_template_bases, -1);
 			} else {
 				sequence1 += clipped_sequence1.substr(0, non_template_bases);
-				positions1.resize(positions1.size()+non_template_bases, -1);
+				positions1.resize(positions1.size() + non_template_bases, -1);
 			}
 		} else if (clipped_sequence2.size() >= non_template_bases) {
 			std::transform(clipped_sequence2.begin(), clipped_sequence2.end(), clipped_sequence2.begin(), (int (*)(int))std::tolower);
 			if (fusion.direction2 == UPSTREAM) {
 				sequence2 = clipped_sequence2.substr(clipped_sequence2.size() - non_template_bases) + sequence2;
-				positions2.insert(positions2.begin(), clipped_sequence2.size() - non_template_bases, -1);
+				positions2.insert(positions2.begin(), non_template_bases, -1);
 			} else {
 				sequence2 += clipped_sequence2.substr(0, non_template_bases);
-				positions2.resize(positions2.size()+non_template_bases, -1);
+				positions2.resize(positions2.size() + non_template_bases, -1);
 			}
 		}
 	}
@@ -369,6 +374,39 @@ void get_fusion_transcript_sequence(fusion_t& fusion, const assembly_t& assembly
 			reverse(positions1.begin(), positions1.end());
 		positions.insert(positions.end(), positions1.begin(), positions1.end());
 	}
+
+	// simplify regions like "...A...", "...AA...", "...AAA..." etc. to just "..."
+	const size_t max_bases_between_ellipses = 10;
+	size_t first_ellipsis = 0;
+	size_t second_ellipsis = string::npos;
+	while ((first_ellipsis = sequence.find("...", first_ellipsis)) < sequence.size()) {
+		if ((second_ellipsis = sequence.find("...", first_ellipsis + 3)) < first_ellipsis + max_bases_between_ellipses + 3 && // next ellipsis is within range
+		    sequence.find('|', first_ellipsis + 3) > second_ellipsis) { // don't accidentally remove the junction (e.g., "...|...")
+			sequence.replace(first_ellipsis + 3, second_ellipsis - first_ellipsis, ""); // remove everything after first ellipsis up until (and including) second ellipsis
+			positions.erase(positions.begin() + first_ellipsis + 3, positions.begin() + second_ellipsis + 3); // do the same for positions
+		} else {
+			first_ellipsis += 3;
+		}
+	}
+
+	// simplify regions with uncertainty
+	map<string,string> sequences_to_simplify;
+	sequences_to_simplify["___|"] = "...|";
+	sequences_to_simplify["|___"] = "|...";
+	sequences_to_simplify["______"] = "___";
+	sequences_to_simplify["___...___"] = "___";
+	sequences_to_simplify["......"] = "...";
+	size_t needs_simplification = string::npos;
+	do {
+		for (auto sequence_to_simplify = sequences_to_simplify.begin(); sequence_to_simplify != sequences_to_simplify.end(); ++sequence_to_simplify) {
+			if ((needs_simplification = sequence.find(sequence_to_simplify->first)) < sequence.size()) {
+				sequence.replace(needs_simplification, sequence_to_simplify->first.size(), sequence_to_simplify->second);
+				if (sequence_to_simplify->first.size() > sequence_to_simplify->second.size())
+					positions.erase(positions.begin() + needs_simplification, positions.begin() + needs_simplification + sequence_to_simplify->first.size() - sequence_to_simplify->second.size());
+				break;
+			}
+		}
+	} while (needs_simplification != string::npos);
 
 	// Arriba uses question marks to denote ambiguous bases;
 	// sequencers typically use 'N's
