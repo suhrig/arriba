@@ -269,7 +269,7 @@ bool is_tandem_duplication(const bam1_t* bam_record, const assembly_t& assembly,
 		unsigned int mismatches = 0;
 		tandem_alignment.start = contig_sequence.size();
 		tandem_alignment.end = -1;
-		for (unsigned int i = 0; i < clipped_sequence_length && mismatches <= max_mismatches; i++) {
+		for (unsigned int i = 0; i < clipped_sequence_length; i++) {
 			int read_pos = (alignment_direction == +1) ? i : clipped_sequence_length - 1 - i;
 			if (contig_sequence[contig_pos+read_pos] == clipped_sequence[read_pos]) {
 				matches++;
@@ -279,6 +279,8 @@ bool is_tandem_duplication(const bam1_t* bam_record, const assembly_t& assembly,
 					tandem_alignment.end = contig_pos + read_pos;
 			} else if (i >= max_non_template_bases) {
 				mismatches++;
+				if (mismatches > max_mismatches)
+					break;
 			}
 		}
 
