@@ -411,7 +411,9 @@ string get_fusion_peptide_sequence(const string& transcript_sequence, const vect
 
 string is_in_frame(const string& fusion_peptide_sequence) {
 
-	if (fusion_peptide_sequence == ".")
+	if (fusion_peptide_sequence == "." ||
+	    fusion_peptide_sequence.empty() ||
+	    fusion_peptide_sequence[fusion_peptide_sequence.size()-1] == '|') // no peptide sequence for gene2
 		return ".";
 
 	// declare fusion as out-of-frame, if there is a stop codon before the junction
