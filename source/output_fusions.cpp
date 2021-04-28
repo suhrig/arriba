@@ -781,7 +781,7 @@ void get_transcripts(const string& transcript_sequence, const vector<position_t>
 		best_transcripts.push_back(best_transcripts[0]);
 }
 
-void fill_gaps_in_fusion_transcript_sequence(string& transcript_sequence, vector<position_t>& positions, const transcript_t transcript_5, const transcript_t transcript_3, const strand_t strand_5, const strand_t strand_3, const assembly_t& assembly) {
+void fill_gaps_in_fusion_transcript_sequence(string& transcript_sequence, vector<position_t>& positions, const transcript_t transcript_5, const transcript_t transcript_3, const strand_t strand_5, const strand_t strand_3, const bool is_internal_tandem_duplication, const assembly_t& assembly) {
 
 
 	// fill gaps in 5' end of transcript
@@ -838,11 +838,11 @@ void fill_gaps_in_fusion_transcript_sequence(string& transcript_sequence, vector
 					break;
 			}
 
-			// don't use the start of the first exon or the end of the last exon as a splice site
-			if (imprecise_breakpoint &&
-			    (strand_5 == FORWARD && overlapping_exon == transcript_5->last_exon ||
-			     strand_5 == REVERSE && overlapping_exon == transcript_5->first_exon))
-				overlap_found = false;
+			if (imprecise_breakpoint)
+				if (strand_5 == FORWARD && overlapping_exon == transcript_5->last_exon || // don't use start of first exon as splice site
+				    strand_5 == REVERSE && overlapping_exon == transcript_5->first_exon || // don't use end of last exon as splice site
+				    is_internal_tandem_duplication) // don't use splice sites for ITDs
+					overlap_found = false;
 
 			if (overlap_found) {
 
@@ -948,11 +948,11 @@ void fill_gaps_in_fusion_transcript_sequence(string& transcript_sequence, vector
 					break;
 			}
 
-			// don't use the start of the first exon or the end of the last exon as a splice site
-			if (imprecise_breakpoint &&
-			    (strand_3 == FORWARD && overlapping_exon == transcript_3->first_exon ||
-			     strand_3 == REVERSE && overlapping_exon == transcript_3->last_exon))
-				overlap_found = false;
+			if (imprecise_breakpoint)
+				if (strand_3 == FORWARD && overlapping_exon == transcript_3->last_exon || // don't use start of first exon as splice site
+				    strand_3 == REVERSE && overlapping_exon == transcript_3->first_exon || // don't use end of last exon as splice site
+				    is_internal_tandem_duplication) // don't use splice sites for ITDs
+					overlap_found = false;
 
 			if (overlap_found) {
 
@@ -1112,7 +1112,7 @@ void write_fusions_to_file(fusions_t& fusions, const string& output_file, const 
 					if (fill_sequence_gaps) { // if requested by the user, fill gaps in the transcript (as assembled from the fusion reads) with information from the reference genome
 						transcript_sequence = transcript_sequence_backup; // we may have to do this multiple times (in case of multiple transcripts) => restore the unfilled sequence first
 						positions = positions_backup;
-						fill_gaps_in_fusion_transcript_sequence(transcript_sequence, positions, transcript_5, transcript_3, strand_5, strand_3, assembly);
+						fill_gaps_in_fusion_transcript_sequence(transcript_sequence, positions, transcript_5, transcript_3, strand_5, strand_3, (**fusion).is_internal_tandem_duplication(max_itd_length), assembly);
 					}
 					fusion_peptide_sequence = get_fusion_peptide_sequence(transcript_sequence, positions, gene_5, gene_3, transcript_5, transcript_3, strand_3, exon_annotation_index, assembly);
 					reading_frame = is_in_frame(fusion_peptide_sequence);
