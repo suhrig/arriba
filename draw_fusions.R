@@ -186,7 +186,7 @@ if (colnames(fusions)[1] == "X.gene1") { # Arriba output
 	stop("Unrecognized fusion file format")
 }
 
-pdf(outputFile, onefile=T, width=pdfWidth, height=pdfHeight, title=fusionsFile)
+pdf(outputFile, onefile=T, width=pdfWidth, height=pdfHeight, title=ifelse(sampleName != "", sampleName, fusionsFile))
 if (nrow(fusions) == 0) {
 	plot(0, 0, type="l", xaxt="n", yaxt="n", xlab="", ylab="")
 	text(0, 0, "Error: empty input file\n")
