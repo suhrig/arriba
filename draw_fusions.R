@@ -23,7 +23,7 @@ parameters <- list(
 	mergeDomainsOverlappingBy=list("mergeDomainsOverlappingBy", "numeric", 0.9),
 	optimizeDomainColors=list("optimizeDomainColors", "bool", F),
 	fontSize=list("fontSize", "numeric", 1),
-	showIntergenicVicinity=list("showVicinity", "numeric", 0),
+	showIntergenicVicinity=list("showIntergenicVicinity", "string", "0"),
 	transcriptSelection=list("transcriptSelection", "string", "coverage"),
 	fixedScale=list("fixedScale", "numeric", 0)
 )
@@ -84,8 +84,25 @@ if (cytobandsFile == "")
 	warning("Missing parameter '--cytobands'. No ideograms and circos plots will be drawn.")
 if (!(minConfidenceForCircosPlot %in% c("none", "low", "medium", "high")))
 	stop("Invalid argument to --minConfidenceForCircosPlot")
-if (showVicinity > 0 && squishIntrons)
-	stop("--squishIntrons must be disabled, when --showIntergenicVicinity is > 0")
+showIntergenicVicinity <- as.list(unlist(strsplit(showIntergenicVicinity, ",", fixed=T)))
+if (!(length(showIntergenicVicinity) %in% c(1,4)))
+	stop(paste0("Invalid argument to --showIntergenicVicinity"))
+showIntergenicVicinity <- lapply(showIntergenicVicinity, function(x) {
+	if (x == "closestGene") {
+		return("exon")
+	} else if (x == "closestProteinCodingGene") {
+		return("CDS")
+	} else if (is.na(suppressWarnings(as.numeric(x))) || as.numeric(x) < 0) {
+		stop(paste0("Invalid argument to --showIntergenicVicinity"))
+	} else {
+		return(as.numeric(x))
+	}
+})
+if (length(showIntergenicVicinity) == 1)
+	showIntergenicVicinity <- rep(showIntergenicVicinity, 4)
+if (squishIntrons)
+	if (any(!is.numeric(unlist(showIntergenicVicinity))) || any(showIntergenicVicinity > 0))
+		stop("--squishIntrons must be disabled, when --showIntergenicVicinity is > 0")
 if (!(transcriptSelection %in% c("coverage", "provided", "canonical")))
 	stop("Invalid argument to --transcriptSelection")
 if (fixedScale < 0)
@@ -153,6 +170,8 @@ if (colnames(fusions)[1] == "X.gene1") { # Arriba output
 	fusions$breakpoint2 <- as.numeric(sub(".*:([^:]*):[^:]*$", "\\1", fusions$RightBreakpoint, perl=T))
 	fusions$direction1 <- ifelse(grepl(":\\+$", fusions$LeftBreakpoint, perl=T), "downstream", "upstream")
 	fusions$direction2 <- ifelse(grepl(":\\+$", fusions$RightBreakpoint, perl=T), "upstream", "downstream")
+	fusions$gene_id1 <- sub(".*\\^", "", fusions$LeftGene, perl=T)
+	fusions$gene_id2 <- sub(".*\\^", "", fusions$RightGene, perl=T)
 	fusions$transcript_id1 <- ifelse(rep(!("CDS_LEFT_ID" %in% colnames(fusions)), nrow(fusions)), ".", fusions$CDS_LEFT_ID)
 	fusions$transcript_id2 <- ifelse(rep(!("CDS_RIGHT_ID" %in% colnames(fusions)), nrow(fusions)), ".", fusions$CDS_RIGHT_ID)
 	fusions$fusion_transcript <- ifelse(rep(!("FUSION_CDS" %in% colnames(fusions)), nrow(fusions)), ".", toupper(sub("([a-z]*)", "\\1|", fusions$FUSION_CDS, perl=T)))
@@ -225,15 +244,17 @@ if (any(fusions$site1 == "intergenic" | fusions$site2 == "intergenic")) {
 	exons <- rbind(exons, data.frame(
 		contig=intergenicBreakpoints$contig,
 		type="intergenic",
-		start=intergenicBreakpoints$breakpoint-1000,
+		start=sapply(intergenicBreakpoints$breakpoint-1000, max, 1),
 		end=intergenicBreakpoints$breakpoint+1000,
 		strand=".",
 		attributes="",
 		geneName=intergenicBreakpoints$gene,
 		geneID=paste0(intergenicBreakpoints$contig, ":", intergenicBreakpoints$breakpoint),
-		transcript=intergenicBreakpoints$gene,
+		transcript=paste0(intergenicBreakpoints$contig, ":", intergenicBreakpoints$breakpoint),
 		exonNumber="intergenic"
 	))
+	fusions[fusions$site1 == "intergenic","gene_id1"] <- paste0(fusions[fusions$site1 == "intergenic","contig1"], ":", fusions[fusions$site1 == "intergenic","breakpoint1"])
+	fusions[fusions$site2 == "intergenic","gene_id2"] <- paste0(fusions[fusions$site2 == "intergenic","contig2"], ":", fusions[fusions$site2 == "intergenic","breakpoint2"])
 }
 
 drawVerticalGradient <- function(left, right, y, color, selection=NULL) {
@@ -759,7 +780,7 @@ drawProteinDomains <- function(fusion, exons1, exons2, proteinDomains, color1, c
 
 }
 
-findExons <- function(exons, contig, gene, direction, breakpoint, coverage, transcriptId, transcriptSelection) {
+findExons <- function(exons, contig, geneID, direction, breakpoint, coverage, transcriptId, transcriptSelection) {
 	# use the provided transcript if desired
 	if (transcriptSelection == "provided" && transcriptId != "." && transcriptId != "") {
 		candidateExons <- exons[exons$transcript == transcriptId,]
@@ -771,20 +792,14 @@ findExons <- function(exons, contig, gene, direction, breakpoint, coverage, tran
 	}
 
 	if (transcriptSelection == "canonical") {
-		candidateExons <- exons[exons$geneName == gene & exons$contig == contig,]
+		candidateExons <- exons[exons$geneID == geneID & exons$contig == contig,]
 	} else {
 		# look for exon with breakpoint as splice site
-		transcripts <- exons[exons$geneName == gene & exons$contig == contig & exons$type == "exon" & (direction == "downstream" & abs(exons$end - breakpoint) <= 2 | direction == "upstream" & abs(exons$start - breakpoint) <= 2),"transcript"]
+		transcripts <- exons[exons$geneID == geneID & exons$contig == contig & exons$type == "exon" & (direction == "downstream" & abs(exons$end - breakpoint) <= 2 | direction == "upstream" & abs(exons$start - breakpoint) <= 2),"transcript"]
 		candidateExons <- exons[exons$transcript %in% transcripts,]
 		# if none was found, use all exons of the gene closest to the breakpoint
-		if (nrow(candidateExons) == 0) {
-			candidateExons <- exons[exons$geneName == gene & exons$contig == contig,]
-			if (length(unique(candidateExons$geneID)) > 0) { # more than one gene found with the given name => use the closest one
-				distanceToBreakpoint <- aggregate(1:nrow(candidateExons), by=list(candidateExons$geneID), function(x) { min(abs(candidateExons[x,"start"]-breakpoint), abs(candidateExons[x,"end"]-breakpoint)) })
-				closestGene <- head(distanceToBreakpoint[distanceToBreakpoint[,2] == min(distanceToBreakpoint[,2]),1], 1)
-				candidateExons <- candidateExons[candidateExons$geneID == closestGene,]
-			}
-		}
+		if (nrow(candidateExons) == 0)
+			candidateExons <- exons[exons$geneID == geneID & exons$contig == contig,]
 		# if we have coverage information, use the transcript with the highest coverage if there are multiple hits
 		if (!is.null(coverage)) {
 			highestCoverage <- -1
@@ -856,28 +871,71 @@ findExons <- function(exons, contig, gene, direction, breakpoint, coverage, tran
 	return(candidateExons)
 }
 
+findClosestGene <- function(exons, contig, breakpoint, extraConditions) {
+
+	# find exons near breakpoint (extraConditions must define what is considered "near")
+	closestExons <- exons[exons$contig == contig & extraConditions,] # find closest exon
+	closestExons <- exons[exons$contig == contig & exons$geneID %in% closestExons$geneID,] # select all exons of closest gene
+
+	# when more than one gene found with the given name, use the closest one
+	if (length(unique(closestExons$geneID)) > 1) { # more than one gene found with the given name => use the closest one
+		distanceToBreakpoint <- aggregate(1:nrow(closestExons), by=list(closestExons$geneID), function(x) { min(abs(closestExons[x,"start"]-breakpoint), abs(closestExons[x,"end"]-breakpoint)) })
+		closestGene <- head(distanceToBreakpoint[distanceToBreakpoint[,2] == min(distanceToBreakpoint[,2]),1], 1)
+		closestExons <- closestExons[closestExons$geneID == closestGene,]
+	}
+
+	# when no gene was found, return default values
+	if (nrow(closestExons) == 0) {
+		return(IRanges(max(1, breakpoint-1000), breakpoint+1000))
+	} else {
+		return(IRanges(min(closestExons$start), max(closestExons$end)))
+	}
+}
+
 # main loop starts here
 for (fusion in 1:nrow(fusions)) {
 
 	message(paste0("Drawing fusion #", fusion, ": ", fusions[fusion,"gene1"], ":", fusions[fusion,"gene2"]))
+
+	# if showIntergenicVicinity is a number, take it as is
+	# if it is a keyword (closestGene/closestProteinCodingGene), determine the range dynamically
+	showVicinity <- rep(0, 4)
+	if (fusions[fusion,"site1"] == "intergenic") {
+		showVicinity[1] <- ifelse(
+			is.numeric(showIntergenicVicinity[[1]]),
+			showIntergenicVicinity[[1]],
+			fusions[fusion,"breakpoint1"] - start(findClosestGene(exons, fusions[fusion,"contig1"], fusions[fusion,"breakpoint1"], exons$end < fusions[fusion,"breakpoint1"] & exons$type == showIntergenicVicinity[[1]]))
+		)
+		showVicinity[2] <- ifelse(
+			is.numeric(showIntergenicVicinity[[2]]),
+			showIntergenicVicinity[[2]],
+			end(findClosestGene(exons, fusions[fusion,"contig1"], fusions[fusion,"breakpoint1"], exons$start > fusions[fusion,"breakpoint1"] & exons$type == showIntergenicVicinity[[2]])) - fusions[fusion,"breakpoint1"]
+		)
+	}
+	if (fusions[fusion,"site2"] == "intergenic") {
+		showVicinity[3] <- ifelse(
+			is.numeric(showIntergenicVicinity[[3]]),
+			showIntergenicVicinity[[3]],
+			fusions[fusion,"breakpoint2"] - start(findClosestGene(exons, fusions[fusion,"contig2"], fusions[fusion,"breakpoint2"], exons$end < fusions[fusion,"breakpoint2"] & exons$type == showIntergenicVicinity[[3]]))
+		)
+		showVicinity[4] <- ifelse(
+			is.numeric(showIntergenicVicinity[[4]]),
+			showIntergenicVicinity[[4]],
+			end(findClosestGene(exons, fusions[fusion,"contig2"], fusions[fusion,"breakpoint2"], exons$start > fusions[fusion,"breakpoint2"] & exons$type == showIntergenicVicinity[[4]])) - fusions[fusion,"breakpoint2"]
+		)
+	}
 
 	# compute coverage from alignments file
 	coverage1 <- NULL
 	coverage2 <- NULL
 	if (alignmentsFile != "") {
 		# determine range in which we need to compute the coverage
-		determineCoverageRange <- function(exons, gene, contig, breakpoint, showVicinity) {
-			# find gene with given name closest to the breakpoint
-			closestExons <- exons[exons$geneName == gene & exons$contig == contig,]
-			if (length(unique(closestExons$geneID)) > 0) { # more than one gene found with the given name => use the closest one
-				distanceToBreakpoint <- aggregate(1:nrow(closestExons), by=list(closestExons$geneID), function(x) { min(abs(closestExons[x,"start"]-breakpoint), abs(closestExons[x,"end"]-breakpoint)) })
-				closestGene <- head(distanceToBreakpoint[distanceToBreakpoint[,2] == min(distanceToBreakpoint[,2]),1], 1)
-				closestExons <- closestExons[closestExons$geneID == closestGene,]
-			}
-			return(IRanges(min(closestExons$start, breakpoint-showVicinity), max(closestExons$end, breakpoint+showVicinity)))
+		determineCoverageRange <- function(exons, geneID, contig, breakpoint, showVicinityLeft, showVicinityRight) {
+			closestGene <- findClosestGene(exons, contig, breakpoint, exons$geneID == geneID)
+			return(IRanges(min(start(closestGene), breakpoint-showVicinityLeft), max(end(closestGene), breakpoint+showVicinityRight)))
 		}
-		coverageRange1 <- determineCoverageRange(exons, fusions[fusion,"gene1"], fusions[fusion,"contig1"], fusions[fusion,"breakpoint1"], ifelse(fusions[fusion,"site1"] == "intergenic", showVicinity, 0))
-		coverageRange2 <- determineCoverageRange(exons, fusions[fusion,"gene2"], fusions[fusion,"contig2"], fusions[fusion,"breakpoint2"], ifelse(fusions[fusion,"site2"] == "intergenic", showVicinity, 0))
+		coverageRange1 <- determineCoverageRange(exons, fusions[fusion,"gene_id1"], fusions[fusion,"contig1"], fusions[fusion,"breakpoint1"], showVicinity[1], showVicinity[2])
+		coverageRange2 <- determineCoverageRange(exons, fusions[fusion,"gene_id2"], fusions[fusion,"contig2"], fusions[fusion,"breakpoint2"], showVicinity[3], showVicinity[4])
 		# function which reads alignments from BAM file with & without "chr" prefix
 		readCoverage <- function(alignmentsFile, contig, coverageRange) {
 			coverageData <- tryCatch(
@@ -902,14 +960,14 @@ for (fusion in 1:nrow(fusions)) {
 	}
 
 	# find all exons belonging to the fused genes
-	exons1 <- findExons(exons, fusions[fusion,"contig1"], fusions[fusion,"gene1"], fusions[fusion,"direction1"], fusions[fusion,"breakpoint1"], coverage1, fusions[fusion,"transcript_id1"], transcriptSelection)
+	exons1 <- findExons(exons, fusions[fusion,"contig1"], fusions[fusion,"gene_id1"], fusions[fusion,"direction1"], fusions[fusion,"breakpoint1"], coverage1, fusions[fusion,"transcript_id1"], transcriptSelection)
 	if (nrow(exons1) == 0) {
 		par(mfrow=c(1,1))
 		plot(0, 0, type="l", xaxt="n", yaxt="n", xlab="", ylab="")
 		text(0, 0, paste0("Error: exon coordinates of ", fusions[fusion,"gene1"], " not found in\n", exonsFile))
 		next
 	}
-	exons2 <- findExons(exons, fusions[fusion,"contig2"], fusions[fusion,"gene2"], fusions[fusion,"direction2"], fusions[fusion,"breakpoint2"], coverage2, fusions[fusion,"transcript_id2"], transcriptSelection)
+	exons2 <- findExons(exons, fusions[fusion,"contig2"], fusions[fusion,"gene_id2"], fusions[fusion,"direction2"], fusions[fusion,"breakpoint2"], coverage2, fusions[fusion,"transcript_id2"], transcriptSelection)
 	if (nrow(exons2) == 0) {
 		par(mfrow=c(1,1))
 		plot(0, 0, type="l", xaxt="n", yaxt="n", xlab="", ylab="")
@@ -918,22 +976,22 @@ for (fusion in 1:nrow(fusions)) {
 	}
 
 	# in case of intergenic breakpoints, show the vicinity
-	if (showVicinity > 0) {
+	if (sum(showVicinity) > 0) {
 		if (fusions[fusion,"site1"] == "intergenic") {
-			for (gene in unique(exons[exons$contig == fusions[fusion,"contig1"] & exons$exonNumber != "intergenic" &
-			                          (between(exons$end, fusions[fusion,"breakpoint1"]-showVicinity, fusions[fusion,"breakpoint1"]+showVicinity) |
-			                           between(exons$start, fusions[fusion,"breakpoint1"]-showVicinity, fusions[fusion,"breakpoint1"]+showVicinity)),"geneName"]))
-				exons1 <- rbind(exons1, findExons(exons, fusions[fusion,"contig1"], gene, fusions[fusion,"direction1"], fusions[fusion,"breakpoint1"], coverage1, fusions[fusion,"transcript_id1"], transcriptSelection))
+			for (geneID in unique(exons[exons$contig == fusions[fusion,"contig1"] & exons$exonNumber != "intergenic" &
+			                            (between(exons$end, fusions[fusion,"breakpoint1"]-showVicinity[1], fusions[fusion,"breakpoint1"]+showVicinity[2]) |
+			                             between(exons$start, fusions[fusion,"breakpoint1"]-showVicinity[1], fusions[fusion,"breakpoint1"]+showVicinity[2])),"geneID"]))
+				exons1 <- rbind(exons1, findExons(exons, fusions[fusion,"contig1"], geneID, fusions[fusion,"direction1"], fusions[fusion,"breakpoint1"], coverage1, fusions[fusion,"transcript_id1"], transcriptSelection))
 			# crop genes that are only partially within user-defined vicinity, because the coverage data is incomplete for those
-			exons1 <- exons1[exons1$start >= fusions[fusion,"breakpoint1"]-showVicinity & exons1$end <= fusions[fusion,"breakpoint1"]+showVicinity,]
+			exons1 <- exons1[exons1$start >= fusions[fusion,"breakpoint1"]-showVicinity[1] & exons1$end <= fusions[fusion,"breakpoint1"]+showVicinity[2] | exons1$exonNumber == "intergenic",]
 		}
 		if (fusions[fusion,"site2"] == "intergenic") {
-			for (gene in unique(exons[exons$contig == fusions[fusion,"contig2"] & exons$exonNumber != "intergenic" &
-			                          (between(exons$end, fusions[fusion,"breakpoint2"]-showVicinity, fusions[fusion,"breakpoint2"]+showVicinity) |
-			                           between(exons$start, fusions[fusion,"breakpoint2"]-showVicinity, fusions[fusion,"breakpoint2"]+showVicinity)),"geneName"]))
-				exons2 <- rbind(exons2, findExons(exons, fusions[fusion,"contig2"], gene, fusions[fusion,"direction2"], fusions[fusion,"breakpoint2"], coverage2, fusions[fusion,"transcript_id2"], transcriptSelection))
+			for (geneID in unique(exons[exons$contig == fusions[fusion,"contig2"] & exons$exonNumber != "intergenic" &
+			                            (between(exons$end, fusions[fusion,"breakpoint2"]-showVicinity[3], fusions[fusion,"breakpoint2"]+showVicinity[4]) |
+			                             between(exons$start, fusions[fusion,"breakpoint2"]-showVicinity[3], fusions[fusion,"breakpoint2"]+showVicinity[4])),"geneID"]))
+				exons2 <- rbind(exons2, findExons(exons, fusions[fusion,"contig2"], geneID, fusions[fusion,"direction2"], fusions[fusion,"breakpoint2"], coverage2, fusions[fusion,"transcript_id2"], transcriptSelection))
 			# crop genes that are only partially within user-defined vicinity, because the coverage data is incomplete for those
-			exons2 <- exons2[exons2$start >= fusions[fusion,"breakpoint2"]-showVicinity & exons2$end <= fusions[fusion,"breakpoint2"]+showVicinity,]
+			exons2 <- exons2[exons2$start >= fusions[fusion,"breakpoint2"]-showVicinity[3] & exons2$end <= fusions[fusion,"breakpoint2"]+showVicinity[4] | exons2$exonNumber == "intergenic",]
 		}
 	}
 
@@ -963,12 +1021,12 @@ for (fusion in 1:nrow(fusions)) {
 	breakpoint1 <- fusions[fusion,"breakpoint1"]
 	breakpoint2 <- fusions[fusion,"breakpoint2"]
 	if (breakpoint1 < min(exons1$start)) {
-		exons1 <- rbind(c(exons1[1,"contig"], "dummy", breakpoint1-1000, breakpoint1-1000, exons1[1,"strand"], "", "dummy", exons1[1,"geneID"], exons1[1,"transcript"], ""), exons1)
+		exons1 <- rbind(c(exons1[1,"contig"], "dummy", max(1,breakpoint1-1000), max(1,breakpoint1-1000), exons1[1,"strand"], "", "dummy", exons1[1,"geneID"], exons1[1,"transcript"], ""), exons1)
 	} else if (breakpoint1 > max(exons1$end)) {
 		exons1 <- rbind(exons1, c(exons1[1,"contig"], "dummy", breakpoint1+1000, breakpoint1+1000, exons1[1,"strand"], "", "dummy", exons1[1,"geneID"], exons1[1,"transcript"], ""))
 	}
 	if (breakpoint2 < min(exons2$start)) {
-		exons2 <- rbind(c(exons2[1,"contig"], "dummy", breakpoint2-1000, breakpoint2-1000, exons2[1,"strand"], "", "dummy", exons2[1,"geneID"], exons2[1,"transcript"], ""), exons2)
+		exons2 <- rbind(c(exons2[1,"contig"], "dummy", max(1,breakpoint2-1000), max(1,breakpoint2-1000), exons2[1,"strand"], "", "dummy", exons2[1,"geneID"], exons2[1,"transcript"], ""), exons2)
 	} else if (breakpoint2 > max(exons2$end)) {
 		exons2 <- rbind(exons2, c(exons2[1,"contig"], "dummy", breakpoint2+1000, breakpoint2+1000, exons2[1,"strand"], "", "dummy", exons2[1,"geneID"], exons2[1,"transcript"], ""))
 	}
