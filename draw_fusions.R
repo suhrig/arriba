@@ -157,6 +157,7 @@ if (colnames(fusions)[1] == "X.gene1") { # Arriba output
 	fusions$breakpoint2 <- as.numeric(sub(".*:", "", fusions$breakpoint2, perl=T))
 	fusions$split_reads <- fusions$split_reads1 + fusions$split_reads2
 	fusions$type <- sub(".*(translocation|duplication|deletion|inversion).*", "\\1", fusions$type, perl=T)
+	fusions$fusion_transcript <- gsub("[()^$]", "", fusions$fusion_transcript)
 } else if (colnames(fusions)[1] == "X.FusionName") { # STAR-Fusion
 	fusions$gene1 <- sub("\\^.*", "", fusions$LeftGene, perl=T)
 	fusions$gene2 <- sub("\\^.*", "", fusions$RightGene, perl=T)
