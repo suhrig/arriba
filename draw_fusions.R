@@ -585,7 +585,7 @@ drawProteinDomains <- function(fusion, exons1, exons2, proteinDomains, color1, c
 		merged <- domains[F,] # create empty data frame
 		domains <- domains[order(domains$end - domains$start, decreasing=T),] # start with bigger domains => bigger domains are retained
 		for (domain in rownames(domains)) {
-			if (!any((abs(merged$start - domains[domain,"start"]) + abs(merged$end - domains[domain,"end"])) / (domains[domain,"end"] - domains[domain,"start"]) <= 1-mergeDomainsOverlappingBy))
+			if (!any((abs(merged$start - domains[domain,"start"]) + abs(merged$end - domains[domain,"end"])) / (domains[domain,"end"] - domains[domain,"start"] + 1) <= 1-mergeDomainsOverlappingBy))
 				merged <- rbind(merged, domains[domain,])
 		}
 		return(merged)
