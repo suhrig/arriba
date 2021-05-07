@@ -850,7 +850,7 @@ void fill_gaps_in_fusion_transcript_sequence(string& transcript_sequence, vector
 				if (imprecise_breakpoint) {
 					gap = breakpoint - 1;
 					positions[gap] = (strand_5 == FORWARD) ? overlapping_exon->end : overlapping_exon->start;
-					transcript_sequence[gap] = contig_sequence->second[positions[gap]];
+					transcript_sequence[gap] = (strand_5 == FORWARD) ? contig_sequence->second[positions[gap]] : dna_to_complement(contig_sequence->second[positions[gap]]);
 				}
 
 				// copy assembly sequence from exons of transcript
@@ -960,7 +960,7 @@ void fill_gaps_in_fusion_transcript_sequence(string& transcript_sequence, vector
 				if (imprecise_breakpoint) {
 					gap = breakpoint + 1;
 					positions[gap] = (strand_3 == FORWARD) ? overlapping_exon->start : overlapping_exon->end;
-					transcript_sequence[gap] = contig_sequence->second[positions[gap]];
+					transcript_sequence[gap] = (strand_3 == FORWARD) ? contig_sequence->second[positions[gap]] : dna_to_complement(contig_sequence->second[positions[gap]]);
 				}
 
 				// copy assembly sequence from exons of transcript
