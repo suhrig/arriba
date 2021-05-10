@@ -190,7 +190,8 @@ if (colnames(fusions)[1] == "X.gene1") { # Arriba output
 pdf(outputFile, onefile=T, width=pdfWidth, height=pdfHeight, title=ifelse(sampleName != "", sampleName, fusionsFile))
 if (nrow(fusions) == 0) {
 	plot(0, 0, type="l", xaxt="n", yaxt="n", xlab="", ylab="")
-	text(0, 0, "Error: empty input file\n")
+	text(0, 0, "empty input file")
+	warning("empty input file")
 	dev.off()
 	quit("no")
 }
@@ -965,14 +966,16 @@ for (fusion in 1:nrow(fusions)) {
 	if (nrow(exons1) == 0) {
 		par(mfrow=c(1,1))
 		plot(0, 0, type="l", xaxt="n", yaxt="n", xlab="", ylab="")
-		text(0, 0, paste0("Error: exon coordinates of ", fusions[fusion,"gene1"], " not found in\n", exonsFile))
+		text(0, 0, paste0("exon coordinates of ", fusions[fusion,"gene1"], " not found in\n", exonsFile))
+		warning(paste("exon coordinates of", fusions[fusion,"gene1"], "not found"))
 		next
 	}
 	exons2 <- findExons(exons, fusions[fusion,"contig2"], fusions[fusion,"gene_id2"], fusions[fusion,"direction2"], fusions[fusion,"breakpoint2"], coverage2, fusions[fusion,"transcript_id2"], transcriptSelection)
 	if (nrow(exons2) == 0) {
 		par(mfrow=c(1,1))
 		plot(0, 0, type="l", xaxt="n", yaxt="n", xlab="", ylab="")
-		text(0, 0, paste0("Error: exon coordinates of ", fusions[fusion,"gene2"], " not found in\n", exonsFile))
+		text(0, 0, paste0("exon coordinates of ", fusions[fusion,"gene2"], " not found in\n", exonsFile))
+		warning(paste("exon coordinates of", fusions[fusion,"gene1"], "not found"))
 		next
 	}
 
