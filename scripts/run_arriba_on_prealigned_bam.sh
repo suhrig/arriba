@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # parse command-line arguments
-if [ $# -ne 8 ]; then
+if [ $# -ne 7 ]; then
 	echo Usage: $(basename "$0") STAR_genomeDir/ annotation.gtf assembly.fa blacklist.tsv known_fusions.tsv protein_domains.gff3 alignments.bam
 	echo
 	echo "Description: This script has a similar function as the main script 'run_arriba.sh'. But instead of FastQ files, it takes existing alignments as input (alignments.bam) and realigns only those reads that are potentially relevant to fusion detection, namely unmapped and clipped reads. All other alignments are taken as they are. Since usually only a minor fraction of reads is unmapped or clipped, much of the computation time can be saved. The relevant reads are realigned using STAR, because Arriba needs SAM-compliant chimeric alignments and STAR is the only aligner that generates chimeric alignments in SAM-compliant format. This script is most useful if you want to reprocess existing alignments from an old version of STAR with a more recent version of STAR for the purpose of fusion detection in an efficient way, or if you have alignments from an entirely different aligner that does not support chimeric alignments in SAM-compliant format (e.g., HISAT2) and want to use Arriba in conjunction with it."
@@ -18,7 +18,7 @@ KNOWN_FUSIONS_TSV="$5"
 TAGS_TSV="$KNOWN_FUSIONS_TSV" # different files can be used for filtering and tagging, but the provided one can be used for both
 PROTEIN_DOMAINS_GFF3="$6"
 THREADS=2 # there is no point in using more, because STAR never gets enough input to use more
-ALIGNMENTS="$8"
+ALIGNMENTS="$7"
 
 # tell bash to abort on error
 set -e -u -o pipefail
