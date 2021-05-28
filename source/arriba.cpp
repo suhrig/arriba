@@ -238,7 +238,7 @@ int main(int argc, char **argv) {
 		gene_annotation_record.is_protein_coding = false;
 		gene_contig_annotation_index_t::iterator next_known_gene = gene_annotation_index[unmapped_alignments.begin()->contig].lower_bound(unmapped_alignments.begin()->end);
 		for (gene_annotation_t::iterator unmapped_alignment = next(unmapped_alignments.begin()); ; ++unmapped_alignment) {
-			// subsume all unmapped alignments in a range of 10kb into a dummy gene with the generic name "contig:start-end"
+			// subsume all unmapped alignments in a range of 10kb into a dummy gene
 			if (unmapped_alignment == unmapped_alignments.end() || // all unmapped alignments have been processed => add last record
 			    gene_annotation_record.end+10000 < unmapped_alignment->start || // current alignment is too far away
 			    (next_known_gene != gene_annotation_index[gene_annotation_record.contig].end() && next_known_gene->first <= unmapped_alignment->start) || // dummy gene must not overlap known genes
@@ -260,13 +260,59 @@ int main(int argc, char **argv) {
 	gene_annotation_index.clear();
 	make_annotation_index(gene_annotation, gene_annotation_index); // index needs to be regenerated after adding dummy genes
 	for (chimeric_alignments_t::iterator chimeric_alignment = chimeric_alignments.begin(); chimeric_alignment != chimeric_alignments.end(); ++chimeric_alignment) {
-		for (mates_t::iterator mate = chimeric_alignment->second.begin(); mate != chimeric_alignment->second.end(); ++mate) {
-			if (mate->genes.empty())
-				get_annotation_by_coordinate(mate->contig, mate->start, mate->end, mate->genes, gene_annotation_index);
-		}
-		if (chimeric_alignment->second.size() == 3) // split-read
-			if (chimeric_alignment->second[MATE1].genes.empty()) // copy dummy gene from split-read, if mate1 still has no annotation
+		if (chimeric_alignment->second.size() == 3) { // split read
+			if (chimeric_alignment->second[MATE1].genes.empty() || chimeric_alignment->second[SPLIT_READ].genes.empty()) {
+				const position_t breakpoint = (chimeric_alignment->second[SPLIT_READ].strand == FORWARD) ? chimeric_alignment->second[SPLIT_READ].start : chimeric_alignment->second[SPLIT_READ].end;
+				get_annotation_by_coordinate(chimeric_alignment->second[SPLIT_READ].contig, breakpoint, breakpoint, chimeric_alignment->second[SPLIT_READ].genes, gene_annotation_index);
 				chimeric_alignment->second[MATE1].genes = chimeric_alignment->second[SPLIT_READ].genes;
+			}
+			if (chimeric_alignment->second[SUPPLEMENTARY].genes.empty()) {
+				const position_t breakpoint = (chimeric_alignment->second[SUPPLEMENTARY].strand == FORWARD) ? chimeric_alignment->second[SUPPLEMENTARY].end : chimeric_alignment->second[SUPPLEMENTARY].start;
+				get_annotation_by_coordinate(chimeric_alignment->second[SUPPLEMENTARY].contig, breakpoint, breakpoint, chimeric_alignment->second[SUPPLEMENTARY].genes, gene_annotation_index);
+			}
+		} else { // discordant mates
+			for (mates_t::iterator mate = chimeric_alignment->second.begin(); mate != chimeric_alignment->second.end(); ++mate) {
+				if (mate->genes.empty()) {
+					const position_t breakpoint = (mate->strand == FORWARD) ? mate->end : mate->start;
+					get_annotation_by_coordinate(mate->contig, breakpoint, breakpoint, mate->genes, gene_annotation_index);
+				}
+			}
+		}
+	}
+
+	// if an alignment was annotated with multiple dummy genes, because it spans a long distance and thus multiple dummy genes,
+	// pick the dummy gene which encompasses the breakpoint
+	for (chimeric_alignments_t::iterator chimeric_alignment = chimeric_alignments.begin(); chimeric_alignment != chimeric_alignments.end(); ++chimeric_alignment) {
+		for (mates_t::iterator mate = chimeric_alignment->second.begin(); mate != chimeric_alignment->second.end(); ++mate) {
+			if (mate->genes.size() > 1 && mate->genes[0]->is_dummy) {
+				position_t breakpoint = (mate->strand == FORWARD) ? mate->start : mate->end;
+				gene_annotation_record_t* encompassing_dummy_gene = chimeric_alignment->second[MATE1].genes[0];
+				for (auto dummy_gene = mate->genes.begin(); dummy_gene != mate->genes.end(); ++dummy_gene)
+					if ((**dummy_gene).start <= breakpoint && (**dummy_gene).end >= breakpoint)
+						encompassing_dummy_gene = *dummy_gene;
+				mate->genes.clear();
+				mate->genes.push_back(encompassing_dummy_gene);
+			}
+		}
+		// split-reads require special treatment, because mate1 and mate2 may be annotated with different dummy genes
+		// => we must compare across mates to find fragments annotated with two dummy genes
+		if (chimeric_alignment->second.size() == 3) { // split-read
+			if (chimeric_alignment->second[MATE1].genes[0] != chimeric_alignment->second[SPLIT_READ].genes[0] && // annotated genes differ for mate1 and mate2
+			    chimeric_alignment->second[MATE1].genes[0]->is_dummy && chimeric_alignment->second[SPLIT_READ].genes[0]->is_dummy) { // both mates are intergenic
+				const position_t breakpoint = (chimeric_alignment->second[SPLIT_READ].strand == FORWARD) ? chimeric_alignment->second[SPLIT_READ].start : chimeric_alignment->second[SPLIT_READ].end;
+				gene_annotation_record_t* encompassing_dummy_gene = chimeric_alignment->second[MATE1].genes[0];
+				for (auto dummy_gene = chimeric_alignment->second[MATE1].genes.begin(); dummy_gene != chimeric_alignment->second[MATE1].genes.end(); ++dummy_gene)
+					if ((**dummy_gene).start <= breakpoint && (**dummy_gene).end >= breakpoint)
+						encompassing_dummy_gene = *dummy_gene;
+				for (auto dummy_gene = chimeric_alignment->second[SPLIT_READ].genes.begin(); dummy_gene != chimeric_alignment->second[SPLIT_READ].genes.end(); ++dummy_gene)
+					if ((**dummy_gene).start <= breakpoint && (**dummy_gene).end >= breakpoint)
+						encompassing_dummy_gene = *dummy_gene;
+				chimeric_alignment->second[MATE1].genes.clear();
+				chimeric_alignment->second[SPLIT_READ].genes.clear();
+				chimeric_alignment->second[MATE1].genes.push_back(encompassing_dummy_gene);
+				chimeric_alignment->second[SPLIT_READ].genes.push_back(encompassing_dummy_gene);
+			}
+		}
 	}
 
 	// assign IDs to genes
