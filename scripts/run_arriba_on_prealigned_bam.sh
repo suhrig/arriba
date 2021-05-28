@@ -62,7 +62,7 @@ awk -F '\t' -v ASSEMBLY_FA="$ASSEMBLY_FA" -v LAYOUT="$LAYOUT" '
 		# get list of contig names from assembly
 		while (getline line < ASSEMBLY_FA)
 			if (line~/^>/) {
-				sub(/^>/, "", line); contig=line
+				gsub(/^>|[ \t].*/, "", line); contig=line
 			} else {
 				contigs[contig]+=length($0)
 			}
