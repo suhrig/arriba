@@ -430,7 +430,7 @@ drawCircos <- function(fusion, fusions, cytobands, minConfidenceForCircosPlot, c
 	geneLabels$gene <- c(fusions[fusion,"gene1"], fusions[fusion,"gene2"])
 	geneLabels$gene <- ifelse(c(fusions[fusion,"site1"], fusions[fusion,"site2"]) == "intergenic", paste0(c(fusions[fusion,"display_contig1"], fusions[fusion,"display_contig2"]), ":", geneLabels$start), geneLabels$gene)
 	# draw gene labels
-	circos.genomicLabels(geneLabels, labels.column=4, side="outside", cex=fontSize)
+	circos.genomicLabels(geneLabels, labels.column=4, side="outside", cex=fontSize, labels_height=0.27)
 	# draw chromosome labels in connector plot
 	for (contig in unique(cytobands$contig)) {
 		set.current.cell(track.index=2, sector.index=contig) # draw in gene label connector track (track.index=2)
@@ -1307,25 +1307,25 @@ for (fusion in 1:nrow(fusions)) {
 	realScaleOptimalFit <- signif(realScale, 1) # round to most significant digit
 	mapScaleOptimalFit <- realScaleOptimalFit / realScale * mapScale
 	# draw scale line
-	lines(c(0, mapScaleOptimalFit), c(yScale, yScale)) # scale line
-	lines(c(0, 0), c(yScale-0.007, yScale+0.007)) # left whisker
-	lines(c(mapScaleOptimalFit, mapScaleOptimalFit), c(yScale-0.007, yScale+0.007)) # right whisker
+	lines(c(1-mapScaleOptimalFit, 1), c(yScale, yScale)) # scale line
+	lines(c(1-mapScaleOptimalFit, 1-mapScaleOptimalFit), c(yScale-0.007, yScale+0.007)) # left whisker
+	lines(c(1, 1), c(yScale-0.007, yScale+0.007)) # right whisker
 	# draw units above scale line
 	realScaleThousands <- max(0, min(3, floor(log10(realScaleOptimalFit)/3)))
 	scaleUnits <- c("bp", "kbp", "Mbp", "Gbp")
 	scaleLabel <- paste(realScaleOptimalFit/max(1,1000^realScaleThousands), scaleUnits[realScaleThousands+1])
-	text(mapScaleOptimalFit/2, yScale+0.005, scaleLabel, adj=c(0.5,0), cex=fontSize*0.9)
+	text(1-mapScaleOptimalFit/2, yScale+0.005, scaleLabel, adj=c(0.5,0), cex=fontSize*0.9)
 	if (squishIntrons)
-		text(mapScaleOptimalFit, yScale, "  introns not to scale", adj=c(0,0.5), cex=fontSize*0.9, font=3)
+		text(1-mapScaleOptimalFit/2, yScale-0.005, "introns not to scale", adj=c(0.5,1), cex=fontSize*0.9, font=3)
 
 	# draw circos plot
 	if (is.null(cytobands) || !("circlize" %in% names(sessionInfo()$otherPkgs)) || !("GenomicRanges" %in% names(sessionInfo()$otherPkgs))) {
 		plot(0, 0, type="l", xlim=c(0, 1), ylim=c(0, 1), bty="n", xaxt="n", yaxt="n", xlab="", ylab="")
 		plot(0, 0, type="l", xlim=c(0, 1), ylim=c(0, 1), bty="n", xaxt="n", yaxt="n", xlab="", ylab="")
 	} else {
-		par(mar=c(0, 4, 0, 0))
+		par(mar=c(2,4,0,0), xpd=NA)
 		drawCircos(fusion, fusions, cytobands, minConfidenceForCircosPlot, circosColors)
-		par(mar=c(0, 0, 0, 0))
+		par(mar=c(0,0,0,0), xpd=F)
 	}
 
 	# draw protein domains
