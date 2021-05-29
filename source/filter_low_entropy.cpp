@@ -7,7 +7,7 @@
 using namespace std;
 
 unsigned int filter_low_entropy(chimeric_alignments_t& chimeric_alignments, const unsigned int kmer_length, const float kmer_content, const unsigned int max_itd_length) {
-	unsigned int remaining = 0;
+
 	for (chimeric_alignments_t::iterator chimeric_alignment = chimeric_alignments.begin(); chimeric_alignment != chimeric_alignments.end(); ++chimeric_alignment) {
 
 		// all alignments that look like internal tandem duplications are checked for low entropy,
@@ -27,7 +27,7 @@ unsigned int filter_low_entropy(chimeric_alignments_t& chimeric_alignments, cons
 		                                      ); // alignments are oriented like a duplication
 
 		if (!is_internal_tandem_duplication || chimeric_alignment->second.filter == FILTER_duplicates)
-                	if (chimeric_alignment->second.filter != FILTER_none)
+			if (chimeric_alignment->second.filter != FILTER_none)
 	                        continue; // read has already been filtered
 
 		// look for recurrent k-mers in read sequence
@@ -101,11 +101,13 @@ unsigned int filter_low_entropy(chimeric_alignments_t& chimeric_alignments, cons
 			}
 		}
 
-		++remaining;
-
 		next_read: continue;
 	}
 
+	unsigned int remaining = 0;
+	for (chimeric_alignments_t::iterator chimeric_alignment = chimeric_alignments.begin(); chimeric_alignment != chimeric_alignments.end(); ++chimeric_alignment)
+		if (chimeric_alignment->second.filter == FILTER_none)
+			++remaining;
 	return remaining;
 }
 
