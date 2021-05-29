@@ -82,6 +82,8 @@ int main(int argc, char **argv) {
 	time(&start_time);
 	cout << get_time_string() << " Launching Arriba " << ARRIBA_VERSION << endl << flush;
 
+	{ // the runtime of everything in this block is measured
+
 	// parse command-line options
 	options_t options = parse_arguments(argc, argv);
 
@@ -596,9 +598,12 @@ int main(int argc, char **argv) {
 	write_fusions_to_file(fusions, options.output_file, coverage, assembly, gene_annotation_index, exon_annotation_index, original_contig_names, tags, protein_domain_annotation_index, max_mate_gap, options.max_itd_length, true, options.fill_sequence_gaps, false);
 
 	if (options.discarded_output_file != "") {
-		cout << get_time_string() << " Writing discarded fusions to file '" << options.discarded_output_file << "' " << endl;
+		cout << get_time_string() << " Writing discarded fusions to file '" << options.discarded_output_file << "'" << endl;
 		write_fusions_to_file(fusions, options.discarded_output_file, coverage, assembly, gene_annotation_index, exon_annotation_index, original_contig_names, tags, protein_domain_annotation_index, max_mate_gap, options.max_itd_length, options.print_extra_info_for_discarded_fusions, options.fill_sequence_gaps, true);
 	}
+
+	cout << get_time_string() << " Freeing resources" << endl;
+	} // end of runtime measurement
 
 	// print resource usage stats end exit
 	time_t end_time;
