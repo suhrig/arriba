@@ -19,12 +19,14 @@ Converting fusions.tsv to VCF format
 **Usage:**
 
 ```
-convert_fusions_to_vcf.sh input_fusions.tsv output_fusions.vcf
+convert_fusions_to_vcf.sh assembly.fa input_fusions.tsv output_fusions.vcf
 ```
 
 **Description:**
 
 This script converts fusion predictions from Arriba's custom tab-separated format to the standards-compliant [VCF 4.3 format](https://samtools.github.io/hts-specs/VCFv4.3.pdf).
+
+If a FastA index (.fai) does not exist for the given assembly file, it will be created on-the-fly.
 
 Run Arriba on prealigned BAM file
 ---------------------------------

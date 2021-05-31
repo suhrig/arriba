@@ -1,17 +1,25 @@
 #!/bin/bash
 
 # parse command-line arguments
-if [ $# -ne 2 ]; then
-	echo Usage: $(basename "$0") input_fusions.tsv output_fusions.vcf
+if [ $# -ne 3 ]; then
+	echo Usage: $(basename "$0") assembly.fa input_fusions.tsv output_fusions.vcf
 	echo
 	echo "Description: This script converts fusion predictions from Arriba's custom tab-separated format to the standards-compliant VCF 4.3 format."
+	echo "Note: If a FastA index (.fai) does not exist for the given assembly file, it will be created on-the-fly."
 	exit 1
 fi 1>&2
-INPUT="$1"
-OUTPUT="$2"
+ASSEMBLY="$1"
+INPUT="$2"
+OUTPUT="$3"
 
 # tell bash to abort on error
 set -e -u -o pipefail
+
+# make sure required software is installed
+if ! [[ $(samtools --version-only 2> /dev/null) =~ ^1\. ]]; then
+	echo "samtools >= 1.0 must be installed" 1>&2
+	exit 1
+fi
 
 # print VCF header
 echo '##fileformat=VCFv4.3
@@ -27,12 +35,11 @@ tail -n +2 "$INPUT" | while read LINE; do
 	BREAKPOINT1=$(cut -f5 <<<"$LINE"); CHROMOSOME1="${BREAKPOINT1%:*}"; POSITION1="${BREAKPOINT1##*:}"
 	BREAKPOINT2=$(cut -f6 <<<"$LINE"); CHROMOSOME2="${BREAKPOINT2%:*}"; POSITION2="${BREAKPOINT2##*:}"
 	QUAL=$(cut -f15 <<<"$LINE" | sed -e 's/low/0.5/' -e 's/medium/2/' -e 's/high/5/')
-	FUSION_TRANSCRIPT=$(cut -f28 <<<"$LINE")
-	REF1=$(sed -e 's/|.*//' -e 's/[^ACGT]//g' -e 's/.*\(.\)$/\1/' -e 's/./\U&/g' <<<"$FUSION_TRANSCRIPT") # get last base before fusion junction
-	REF2=$(sed -e 's/.*|//' -e 's/[^ACGT]//g' -e 's/^\(.\).*/\1/' -e 's/./\U&/g' <<<"$FUSION_TRANSCRIPT") # get first base after fusion junction
-	if [ -z "$REF1" ]; then REF1="."; fi
-	if [ -z "$REF2" ]; then REF2="."; fi
-	NON_TEMPLATE_BASES=$(sed -n -e 's/./\U&/g' -e 's/.*|\([^|]*\)|.*/\1/p' <<<"$FUSION_TRANSCRIPT") # get bases between two pipes
+	REF1=$(samtools faidx "$ASSEMBLY" "$BREAKPOINT1-$POSITION1" | tail -n1 | sed 's/./\U&/g')
+	REF2=$(samtools faidx "$ASSEMBLY" "$BREAKPOINT2-$POSITION2" | tail -n1 | sed 's/./\U&/g')
+	NON_TEMPLATE_BASES=$(cut -f28 <<<"$LINE" | sed -n -e 's/./\U&/g' -e 's/.*|\([^|]*\)|.*/\1/p') # get bases between two pipes in transcript sequence
+	STRAND1=$(cut -f3 <<<"$LINE" | cut -f2 -d/)
+	if [ "$STRAND1" = "-" ]; then NON_TEMPLATE_BASES=$(tr ATCG TAGC <<<"$NON_TEMPLATE_BASES"); fi # complement bases on reverse strand
 	DIRECTION1=$(cut -f25 <<<"$LINE")
 	DIRECTION2=$(cut -f26 <<<"$LINE")
 	ALT1="$REF1$NON_TEMPLATE_BASES"
