@@ -34,7 +34,7 @@ Run Arriba on prealigned BAM file
 **Usage:**
 
 ```
-run_arriba_on_prealigned_bam.sh STAR_genomeDir/ annotation.gtf assembly.fa blacklist.tsv known_fusions.tsv protein_domains.gff3 alignments.bam
+run_arriba_on_prealigned_bam.sh STAR_genomeDir/ annotation.gtf assembly.fa blacklist.tsv known_fusions.tsv protein_domains.gff3 threads alignments.bam
 ```
 
 **Description:**

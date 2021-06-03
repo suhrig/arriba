@@ -1,8 +1,8 @@
 #!/bin/bash
 
 # parse command-line arguments
-if [ $# -ne 7 ]; then
-	echo Usage: $(basename "$0") STAR_genomeDir/ annotation.gtf assembly.fa blacklist.tsv known_fusions.tsv protein_domains.gff3 alignments.bam
+if [ $# -ne 8 ]; then
+	echo Usage: $(basename "$0") STAR_genomeDir/ annotation.gtf assembly.fa blacklist.tsv known_fusions.tsv protein_domains.gff3 threads alignments.bam
 	echo
 	echo "Description: This script has a similar function as the main script 'run_arriba.sh'. But instead of FastQ files, it takes existing alignments as input (alignments.bam) and realigns only those reads that are potentially relevant to fusion detection, namely unmapped and clipped reads. All other alignments are taken as they are. Since usually only a minor fraction of reads is unmapped or clipped, much of the computation time can be saved. The relevant reads are realigned using STAR, because Arriba needs SAM-compliant chimeric alignments and STAR is the only aligner that generates chimeric alignments in SAM-compliant format. This script is most useful if you want to reprocess existing alignments from an old version of STAR with a more recent version of STAR for the purpose of fusion detection in an efficient way, or if you have alignments from an entirely different aligner that does not support chimeric alignments in SAM-compliant format (e.g., HISAT2) and want to use Arriba in conjunction with it."
 	echo "Note: It is not possible to mix assemblies with incompatible coordinates. For example, this script cannot be used if the prealigned BAM file (alignments.bam) is based on hg19 and the STAR index passed as argument 'STAR_genomeDir/' is based on hg38. However, it is safe to use assemblies with somewhat different contigs (as long as the main contigs are the same). For example, if the prealigned BAM file lacks viral contigs which are part of the STAR index, this script is applicable. Likewise, if the prealigned BAM file has some extra contigs which are not part of the STAR index, it is safe to use this script, because the script will simply treat reads mapping to such contigs as unmapped and will realign them."
@@ -17,8 +17,8 @@ BLACKLIST_TSV="$4"
 KNOWN_FUSIONS_TSV="$5"
 TAGS_TSV="$KNOWN_FUSIONS_TSV" # different files can be used for filtering and tagging, but the provided one can be used for both
 PROTEIN_DOMAINS_GFF3="$6"
-THREADS=2 # there is no point in using more, because STAR never gets enough input to use more
-ALIGNMENTS="$7"
+THREADS="$7"
+ALIGNMENTS="$8"
 
 # tell bash to abort on error
 set -e -u -o pipefail
