@@ -51,8 +51,8 @@ mkfifo realign
 if [ "$LAYOUT" = "SE" ]; then
 	samtools view -F 2304 "$ALIGNMENTS"
 elif [ "$LAYOUT" = "PE" ]; then
-	samtools collate -u -f -r 1000000 -O "$ALIGNMENTS" | samtools view - |
-	awk -F '\t' '$1==name { print prev; print $0 } { name=$1; prev=$0 }' # skip singletons
+	samtools collate -u -f -r 1000000 -O "$ALIGNMENTS" |
+	samtools view -
 fi |
 
 cut -f 1-11 | # drop SAM attributes
