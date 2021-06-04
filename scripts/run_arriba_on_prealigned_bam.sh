@@ -77,9 +77,10 @@ awk -F '\t' -v ASSEMBLY_FA="$ASSEMBLY_FA" -v LAYOUT="$LAYOUT" -v ARRIBA_PIPE="/d
 	# find reads that need to be realigned
 	function realign() {
 		return (flag(4) || # unmapped
-		        LAYOUT=="SE" && $6~/[0-9]{2,}S/ || # single-end and clipped
-		        !flag(16) && $6~/^[0-9]{2,}S/ || # paired-end and forward strand and preclipped
-		        flag(16) && $6~/[0-9]{2,}S$/ || # paired-end and reverse strand and postclipped
+		        !flag(16) && $6~/^[0-9]{2,}S/ || # forward strand and preclipped
+		        flag(16) && $6~/[0-9]{2,}S$/ || # reverse strand and postclipped
+		        LAYOUT=="SE" && $6~/[0-9]{2,}S/ || # single-end and clipped anywhere
+			LAYOUT=="PE" && !flag(2) || # discordant mates
 		        !($3 in contigs)) # contig not part of assembly
 	}
 
