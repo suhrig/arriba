@@ -47,7 +47,6 @@ LAYOUT=$(samtools view "$ALIGNMENTS" | head -n1 | awk '{print ($2 % 2) ? "PE" : 
 
 (
 
-mkfifo realign
 if [ "$LAYOUT" = "SE" ]; then
 	samtools view -F 2304 "$ALIGNMENTS"
 elif [ "$LAYOUT" = "PE" ]; then
@@ -57,7 +56,7 @@ fi |
 
 cut -f 1-11 | # drop SAM attributes
 
-awk -F '\t' -v ASSEMBLY_FA="$ASSEMBLY_FA" -v LAYOUT="$LAYOUT" '
+awk -F '\t' -v ASSEMBLY_FA="$ASSEMBLY_FA" -v LAYOUT="$LAYOUT" -v ARRIBA_PIPE="/dev/fd/3" -v STAR_PIPE="/dev/stdout" '
 	BEGIN{
 		# get list of contig names from assembly
 		while (getline line < ASSEMBLY_FA)
@@ -67,9 +66,9 @@ awk -F '\t' -v ASSEMBLY_FA="$ASSEMBLY_FA" -v LAYOUT="$LAYOUT" '
 				contigs[contig]+=length($0)
 			}
 		# generate SAM header
-		print "@HD\tVN:1.4\tSO:coordinate"
+		print "@HD\tVN:1.4\tSO:coordinate" > ARRIBA_PIPE
 		for (contig in contigs)
-			print "@SQ\tSN:"contig"\tLN:"contigs[contig]
+			print "@SQ\tSN:"contig"\tLN:"contigs[contig] > ARRIBA_PIPE
 	}
 
 	# helper function to check if SAM flag is set
@@ -88,9 +87,9 @@ awk -F '\t' -v ASSEMBLY_FA="$ASSEMBLY_FA" -v LAYOUT="$LAYOUT" '
 	LAYOUT=="PE" {
 		if ($1==name1) { # we have encountered both mates
 			if (realign1 || realign()) {
-				print mate1 "\n" $0 > "realign"
+				print mate1 "\n" $0 > STAR_PIPE
 			} else {
-				print mate1 "\n" $0
+				print mate1 "\n" $0 > ARRIBA_PIPE
 			}
 		} else {
 			# cache mate1
@@ -101,27 +100,24 @@ awk -F '\t' -v ASSEMBLY_FA="$ASSEMBLY_FA" -v LAYOUT="$LAYOUT" '
 	# extract single-end reads for realignment
 	LAYOUT=="SE" {
 		if (realign()) {
-			print > "realign"
+			print > STAR_PIPE
 		} else {
-			print
+			print > ARRIBA_PIPE
 		}
 	}
-
-' & EXTRACTION=$!
+' |
 
 # realign unmapped and clipped reads
 STAR \
 	--runThreadN "$THREADS" \
 	--genomeDir "$STAR_INDEX_DIR" --genomeLoad NoSharedMemory \
-	--readFilesIn realign --readFilesType SAM $LAYOUT \
+	--readFilesIn /dev/stdin --readFilesType SAM $LAYOUT \
 	--outStd BAM_Unsorted --outSAMtype BAM Unsorted --outBAMcompression 0 \
 	--outFilterMultimapNmax 50 --peOverlapNbasesMin 10 --alignSplicedMateMapLminOverLmate 0.5 --alignSJstitchMismatchNmax 5 -1 5 5 \
 	--chimSegmentMin 10 --chimOutType WithinBAM HardClip --chimJunctionOverhangMin 10 --chimScoreDropMax 30 --chimScoreJunctionNonGTAG 0 --chimScoreSeparation 1 --chimSegmentReadGapMax 3 --chimMultimapNmax 50 > realigned.bam
-
-wait $EXTRACTION
 samtools view realigned.bam
 
-) |
+) 3>&1 |
 
 # call arriba
 "$ARRIBA" \
@@ -129,5 +125,5 @@ samtools view realigned.bam
         -o fusions.tsv -O fusions.discarded.tsv \
         -a "$ASSEMBLY_FA" -g "$ANNOTATION_GTF" -b "$BLACKLIST_TSV" -k "$KNOWN_FUSIONS_TSV" -t "$TAGS_TSV" -p "$PROTEIN_DOMAINS_GFF3"
 
-rm -f realign realigned.bam SJ.out.tab
+rm -f realigned.bam SJ.out.tab
 
