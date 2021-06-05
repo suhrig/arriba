@@ -459,6 +459,42 @@ bool is_clipped_at_correct_end(const bam1_t* bam_record) {
 	return clipped_cigar == BAM_CSOFT_CLIP || clipped_cigar == BAM_CHARD_CLIP;
 }
 
+// viral reads are only counted if their alignment is of high quality
+// doing so yields more accurate quantification of viral expression, because it eliminates alignment artifacts
+bool is_pristine_alignment(const bam1_t* bam_record) {
+
+	// alignment must not contain indels and must not be clipped
+	for (unsigned int i = 0; i < bam_record->core.n_cigar; i++) {
+		uint32_t cigar_op = bam_cigar_op(bam_get_cigar(bam_record)[i]);
+		if (cigar_op != BAM_CREF_SKIP && cigar_op != BAM_CMATCH && cigar_op != BAM_CDIFF)
+			return false;
+	}
+
+	// get sequence of read as string to look for tandem repeats
+	string sequence;
+	sequence.resize(bam_record->core.l_qseq);
+	for (int i = 0; i < bam_record->core.l_qseq; ++i)
+		sequence[i] = seq_nt16_str[bam_seqi(bam_get_seq(bam_record), i)];
+
+	// walk over sequence looking for tandem repeats of dimers or triplets
+	for (unsigned int i = 2, repeat = 0, count = 1; i + 2 < sequence.size(); i += 2) {
+		if (sequence[i] == sequence[repeat] && sequence[i+1] == sequence[repeat+1]) { // tandem repeat of dimers
+			count++;
+		} else if (sequence[i+1] == sequence[repeat+1] && sequence[i+2] == sequence[repeat+2]) { // tandem repeat of triplets
+			count++;
+			i++;
+		} else { // series of tandem repeats is broken => start over with sequence at current position
+			count = 1;
+			repeat = i;
+		}
+		if (count >= 8)
+			return false;
+	}
+
+	// nothing to criticize
+	return true;
+}
+
 unsigned int read_chimeric_alignments(const string& bam_file_path, const assembly_t& assembly, const string& assembly_file_path, chimeric_alignments_t& chimeric_alignments, unsigned long int& mapped_reads, vector<unsigned long int>& mapped_viral_reads_by_contig, coverage_t& coverage, contigs_t& contigs, vector<string>& original_contig_names, const string& interesting_contigs, const string& viral_contigs, const gene_annotation_index_t& gene_annotation_index, const bool separate_chimeric_bam_file, const bool is_rna_bam_file, const bool external_duplicate_marking, const unsigned int max_itd_length) {
 
 	// open BAM file
@@ -633,19 +669,10 @@ unsigned int read_chimeric_alignments(const string& bam_file_path, const assembl
 					is_read_through_alignment = extract_read_through_alignment(chimeric_alignments, read_name, bam_record, previously_seen_mate, gene_annotation_index, separate_chimeric_bam_file);
 
 					// count mapped reads on viral contigs to detect viral infection
-					if (viral_contigs_bool[bam_record->core.tid]) {
-						// only count perfectly matching alignments to ignore alignment artifacts
-						for (bam1_t* mate = bam_record; mate != NULL; mate = (mate == previously_seen_mate) ? NULL : previously_seen_mate) {
-							bool pristine_alignment = true;
-							for (unsigned int i = 0; i < mate->core.n_cigar && pristine_alignment; i++) {
-								uint32_t cigar_op = bam_cigar_op(bam_get_cigar(mate)[i]);
-								if (cigar_op != BAM_CREF_SKIP && cigar_op != BAM_CMATCH && cigar_op != BAM_CDIFF)
-									pristine_alignment = false;
-							}
-							if (pristine_alignment)
+					if (viral_contigs_bool[bam_record->core.tid])
+						for (bam1_t* mate = bam_record; mate != NULL; mate = (mate == previously_seen_mate) ? NULL : previously_seen_mate)
+							if (is_pristine_alignment(mate)) // only count perfectly matching alignments to ignore alignment artifacts
 								mapped_viral_reads_by_contig[mate->core.tid]++;
-						}
-					}
 				}
 
 				if (!external_duplicate_marking || !(bam_record->core.flag & BAM_FDUP))
