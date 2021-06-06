@@ -404,6 +404,14 @@ void get_fusion_transcript_sequence(fusion_t& fusion, const assembly_t& assembly
 		}
 	} while (needs_simplification != string::npos);
 
+	// simplify failed attempts to assemble the fusion transcript
+	if (sequence == "|" || sequence == "...|" || sequence == "|..." || sequence == "...|...") {
+		sequence = ".";
+		positions.clear();
+		positions.push_back(-1);
+		return;
+	}
+
 	// Arriba uses question marks to denote ambiguous bases;
 	// sequencers typically use 'N's
 	// => convert 'N's to '?'
