@@ -230,28 +230,24 @@ void get_fusion_transcript_sequence(fusion_t& fusion, const assembly_t& assembly
 
 	// look for non-template bases inserted between the fused genes
 	unsigned int non_template_bases = 0;
-	if (!fusion.spliced1 && !fusion.spliced2) {
+	map<unsigned int/*number of non-template bases*/, unsigned int/*number of reads with given number of non-template bases*/> non_template_bases_count;
+	for (auto read = fusion.split_read1_list.begin(); read != fusion.split_read2_list.end(); ++read) {
 
-		map<unsigned int/*number of non-template bases*/, unsigned int/*number of reads with given number of non-template bases*/> non_template_bases_count;
-		for (auto read = fusion.split_read1_list.begin(); read != fusion.split_read2_list.end(); ++read) {
-
-			// continue with split_read2_list if we have processed the split_read1_list
-			if (read == fusion.split_read1_list.end()) {
-				read = fusion.split_read2_list.begin();
-				if (read == fusion.split_read2_list.end())
-					break;
-			}
-
-			// there are non-template bases, if the sum of the clipped bases of split read and supplementary alignment are greater than the read length
-			unsigned int clipped_split_read = ((**read).second[SPLIT_READ].strand == FORWARD) ? (**read).second[SPLIT_READ].preclipping() : (**read).second[SPLIT_READ].postclipping();
-			unsigned int clipped_supplementary = ((**read).second[SUPPLEMENTARY].strand == FORWARD) ? (**read).second[SUPPLEMENTARY].postclipping() : (**read).second[SUPPLEMENTARY].preclipping();
-			if (clipped_split_read + clipped_supplementary >= (**read).second[SPLIT_READ].sequence.size()) {
-				unsigned int unmapped_bases = clipped_split_read + clipped_supplementary - (**read).second[SPLIT_READ].sequence.size();
-				if (++non_template_bases_count[unmapped_bases] > non_template_bases_count[non_template_bases])
-					non_template_bases = unmapped_bases;
-			}
+		// continue with split_read2_list if we have processed the split_read1_list
+		if (read == fusion.split_read1_list.end()) {
+			read = fusion.split_read2_list.begin();
+			if (read == fusion.split_read2_list.end())
+				break;
 		}
 
+		// there are non-template bases if the sum of the clipped bases of split read and supplementary alignment are greater than the read length
+		unsigned int clipped_split_read = ((**read).second[SPLIT_READ].strand == FORWARD) ? (**read).second[SPLIT_READ].preclipping() : (**read).second[SPLIT_READ].postclipping();
+		unsigned int clipped_supplementary = ((**read).second[SUPPLEMENTARY].strand == FORWARD) ? (**read).second[SUPPLEMENTARY].postclipping() : (**read).second[SUPPLEMENTARY].preclipping();
+		if (clipped_split_read + clipped_supplementary >= (**read).second[SPLIT_READ].sequence.size()) {
+			unsigned int unmapped_bases = clipped_split_read + clipped_supplementary - (**read).second[SPLIT_READ].sequence.size();
+			if (++non_template_bases_count[unmapped_bases] > non_template_bases_count[non_template_bases])
+				non_template_bases = unmapped_bases;
+		}
 	}
 
 	// determine most frequent bases in pileup
