@@ -386,12 +386,15 @@ void get_fusion_transcript_sequence(fusion_t& fusion, const assembly_t& assembly
 	}
 
 	// simplify regions with uncertainty
-	map<string,string> sequences_to_simplify;
-	sequences_to_simplify["___|"] = "...|";
-	sequences_to_simplify["|___"] = "|...";
-	sequences_to_simplify["______"] = "___";
-	sequences_to_simplify["___...___"] = "___";
-	sequences_to_simplify["......"] = "...";
+	vector< pair<string/*search*/,string/*replace*/> > sequences_to_simplify;
+	sequences_to_simplify.push_back(make_pair("...___|", "|")); // happens occasionally with ITDs and is harmless
+	sequences_to_simplify.push_back(make_pair("|___...", "|")); // happens occasionally with ITDs and is harmless
+	sequences_to_simplify.push_back(make_pair("___|", "...|"));
+	sequences_to_simplify.push_back(make_pair("|___", "|..."));
+	sequences_to_simplify.push_back(make_pair("______", "___"));
+	sequences_to_simplify.push_back(make_pair("___...___", "___"));
+	sequences_to_simplify.push_back(make_pair("...___...", "..."));
+	sequences_to_simplify.push_back(make_pair("......", "..."));
 	size_t needs_simplification = string::npos;
 	do {
 		for (auto sequence_to_simplify = sequences_to_simplify.begin(); sequence_to_simplify != sequences_to_simplify.end(); ++sequence_to_simplify) {
