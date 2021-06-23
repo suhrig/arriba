@@ -74,7 +74,7 @@ options_t get_default_options() {
 	options.interesting_contigs = "1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 X Y AC_* NC_*";
 	options.viral_contigs = "AC_* NC_*";
 	options.top_viral_contigs = 5;
-	options.viral_contig_min_covered_fraction = 0.15;
+	options.viral_contig_min_covered_fraction = 0.05;
 	for (size_t i = 0; i < FILTERS.size(); ++i)
 		if (i != FILTER_none)
 			options.filters[FILTERS[i]] = true;

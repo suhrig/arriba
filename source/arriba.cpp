@@ -344,8 +344,8 @@ int main(int argc, char **argv) {
 	}
 
 	if (options.filters.at("low_coverage_viral_contigs")) {
-		cout << get_time_string() << " Filtering viral contigs with less than " << options.top_viral_contigs << "% coverage " << flush;
-		cout << "(remaining=" << filter_low_coverage_viral_contigs(chimeric_alignments, coverage, viral_contigs, options.viral_contig_min_covered_fraction) << ")" << endl;
+		cout << get_time_string() << " Filtering viral contigs with less than " << (options.viral_contig_min_covered_fraction*100) << "% coverage " << flush;
+		cout << "(remaining=" << filter_low_coverage_viral_contigs(chimeric_alignments, coverage, viral_contigs, options.viral_contig_min_covered_fraction, 100) << ")" << endl;
 	}
 
 	cout << get_time_string() << " Estimating fragment length " << flush;
