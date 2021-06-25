@@ -155,7 +155,8 @@ if (colnames(fusions)[1] == "X.gene1") { # Arriba output
 	fusions$contig2 <- removeChr(fusions$display_contig2)
 	fusions$breakpoint1 <- as.numeric(sub(".*:", "", fusions$breakpoint1, perl=T))
 	fusions$breakpoint2 <- as.numeric(sub(".*:", "", fusions$breakpoint2, perl=T))
-	fusions$split_reads <- fusions$split_reads1 + fusions$split_reads2
+	fusions$split_reads1 <- fusions$split_reads1
+	fusions$split_reads2 <- fusions$split_reads2
 	fusions$type <- sub(".*(translocation|duplication|deletion|inversion).*", "\\1", fusions$type, perl=T)
 	fusions$fusion_transcript <- gsub("[()^$]", "", fusions$fusion_transcript)
 } else if (colnames(fusions)[1] == "X.FusionName") { # STAR-Fusion
@@ -1164,8 +1165,8 @@ for (fusion in 1:nrow(fusions)) {
 		}
 
 	# label breakpoints
-	text(breakpoint1+0.01, yBreakpointLabels-0.03, paste0("breakpoint\n", fusions[fusion,"display_contig1"], ":", fusions[fusion,"breakpoint1"]), adj=c(1,0), cex=fontSize)
-	text(gene2Offset+breakpoint2-0.01, yBreakpointLabels-0.03, paste0("breakpoint\n", fusions[fusion,"display_contig2"], ":", fusions[fusion,"breakpoint2"]), adj=c(0,0), cex=fontSize)
+	text(breakpoint1+0.01, yBreakpointLabels-0.03, paste0("breakpoint1\n", fusions[fusion,"display_contig1"], ":", fusions[fusion,"breakpoint1"]), adj=c(1,0), cex=fontSize)
+	text(gene2Offset+breakpoint2-0.01, yBreakpointLabels-0.03, paste0("breakpoint2\n", fusions[fusion,"display_contig2"], ":", fusions[fusion,"breakpoint2"]), adj=c(0,0), cex=fontSize)
 
 	# draw coverage axis
 	if (alignmentsFile != "") {
@@ -1338,7 +1339,19 @@ for (fusion in 1:nrow(fusions)) {
 	# print statistics about supporting alignments
 	plot(0, 0, type="l", xlim=c(0, 1), ylim=c(0, 1), bty="n", xaxt="n", yaxt="n", xlab="", ylab="")
 	text(0, 0.575, "SUPPORTING READ COUNT", font=2, adj=c(0,0), cex=fontSize)
-	text(0, 0.525, paste0("Split reads = ", fusions[fusion,"split_reads"], "\n", "Discordant mates = ", fusions[fusion,"discordant_mates"]), adj=c(0,1), cex=fontSize)
+	if ("split_reads" %in% colnames(fusions)) { # STAR-Fusion reports split reads from both breakpoints combined
+		text(0, 0.525, paste0("Split reads = ", fusions[fusion,"split_reads"], "\n", "Discordant mates = ", fusions[fusion,"discordant_mates"]), adj=c(0,1), cex=fontSize)
+	} else { # Arriba reports split reads separately for the two breakpoints
+		text(
+			0, 0.525,
+			paste0(
+				"Split reads at breakpoint1 = ", fusions[fusion,"split_reads1"], "\n",
+				"Split reads at breakpoint2 = ", fusions[fusion,"split_reads2"], "\n",
+				"Discordant mates = ", fusions[fusion,"discordant_mates"]
+			),
+			adj=c(0,1), cex=fontSize
+		)
+	}
 
 }
 
