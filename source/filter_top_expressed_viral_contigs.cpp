@@ -95,8 +95,10 @@ unsigned int filter_top_expressed_viral_contigs(chimeric_alignments_t& chimeric_
 		// at least one mate must map to host genome
 		for (mates_t::iterator mate = chimeric_alignment->second.begin(); mate != chimeric_alignment->second.end(); ++mate) {
 			if (viral_contigs[mate->contig]) {
-				if (expression_by_contig[mate->contig] <= min_expression_threshold) {
-					if (fraction_of_intergenic_integration_sites_by_virus[mate->contig] < min_fraction_of_intergenic_integration_sites || expression_by_contig[mate->contig] <= min_expression_threshold_for_viruses_with_high_fraction_of_intergenic_integration_sites) {
+				if (expression_by_contig[mate->contig] == 0 || expression_by_contig[mate->contig] < min_expression_threshold) {
+					if (fraction_of_intergenic_integration_sites_by_virus[mate->contig] < min_fraction_of_intergenic_integration_sites ||
+					    expression_by_contig[mate->contig] == 0 ||
+					    expression_by_contig[mate->contig] < min_expression_threshold_for_viruses_with_high_fraction_of_intergenic_integration_sites) {
 						chimeric_alignment->second.filter = FILTER_top_expressed_viral_contigs;
 						goto next_read;
 					}
