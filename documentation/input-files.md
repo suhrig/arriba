@@ -20,7 +20,7 @@ Assembly
 
 Arriba takes the assembly as input (parameter `-a`) to find mismatches between the chimeric reads and the reference genome, as well as to find alignment artifacts and homologous genes.
 
-The script `download_references.sh` can be used to download the assembly. The available assemblies are listed when the script is run without parameters. The user is not restricted to these assemblies, however. Any assembly can be used as long as its coordinates are compatible with one of the supported assemblies (hg19/hs37d5/GRCh37 or hg38/GRCh38 or mm10/GRCm38).
+The script `download_references.sh` can be used to download the assembly. The available assemblies are listed when the script is run without parameters. The user is not restricted to these assemblies, however. Any assembly can be used as long as its coordinates are compatible with one of the supported assemblies (hg19/hs37d5/GRCh37 or hg38/GRCh38 or mm10/GRCm38 or mm39/GRCm39).
 
 The assembly must be provided in FastA format and may be gzip-compressed. An index with the file extension `.fai` must exist only if CRAM files are processed.
 
