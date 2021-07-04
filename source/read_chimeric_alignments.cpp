@@ -323,8 +323,6 @@ unsigned int remove_malformed_alignments(chimeric_alignments_t& chimeric_alignme
 	unsigned int malformed_count = 0;
 	for (chimeric_alignments_t::iterator chimeric_alignment = chimeric_alignments.begin(); chimeric_alignment != chimeric_alignments.end();) {
 
-		bool malformed = false;
-
 		if (chimeric_alignment->second.single_end) {
 			if (chimeric_alignment->second.size() == 2 &&
 			    (chimeric_alignment->second[MATE1].supplementary !=/*xor*/ chimeric_alignment->second[MATE2].supplementary)) { // there must be exactly one supplementary flag
@@ -379,12 +377,12 @@ unsigned int remove_malformed_alignments(chimeric_alignments_t& chimeric_alignme
 				unsigned int clipped_bases_supplementary = (chimeric_alignment->second[SUPPLEMENTARY].strand == FORWARD) ? chimeric_alignment->second[SUPPLEMENTARY].postclipping() : chimeric_alignment->second[SUPPLEMENTARY].preclipping();
 				if (clipped_bases_split_read < chimeric_alignment->second[SPLIT_READ].sequence.size() - clipped_bases_supplementary ||
 				    clipped_bases_supplementary < chimeric_alignment->second[SPLIT_READ].sequence.size() - clipped_bases_split_read)
-					malformed = true;
+					goto malformed_alignment;
 
 			} else {
 				// if we get here, there are either too many alignments with the same name or too few
 				// or something is wrong with the supplementary flags
-				malformed = true;
+				goto malformed_alignment;
 			}
 
 		} else { // paired-end
@@ -406,12 +404,12 @@ unsigned int remove_malformed_alignments(chimeric_alignments_t& chimeric_alignme
 				if (chimeric_alignment->second[MATE1].supplementary ||
 				    chimeric_alignment->second[SPLIT_READ].supplementary ||
 				    !chimeric_alignment->second[SUPPLEMENTARY].supplementary)
-					malformed = true;
+					goto malformed_alignment;
 
 				// mate1 and mate2 should align in a colinear fashion
 				if (chimeric_alignment->second[MATE1].contig != chimeric_alignment->second[SPLIT_READ].contig ||
 				    chimeric_alignment->second[MATE1].strand == chimeric_alignment->second[SPLIT_READ].strand)
-					malformed = true;
+					goto malformed_alignment;
 
 				// the split read must be clipped at the end, the supplementary alignment at the beginning
 				// and the clipped segment of the split read must encompass the supplementary and vice versa
@@ -419,25 +417,25 @@ unsigned int remove_malformed_alignments(chimeric_alignments_t& chimeric_alignme
 				unsigned int clipped_bases_supplementary = (chimeric_alignment->second[SUPPLEMENTARY].strand == FORWARD) ? chimeric_alignment->second[SUPPLEMENTARY].postclipping() : chimeric_alignment->second[SUPPLEMENTARY].preclipping();
 				if (clipped_bases_split_read < chimeric_alignment->second[SPLIT_READ].sequence.size() - clipped_bases_supplementary ||
 				    clipped_bases_supplementary < chimeric_alignment->second[SPLIT_READ].sequence.size() - clipped_bases_split_read)
-					malformed = true;
+					goto malformed_alignment;
 
 			} else if (chimeric_alignment->second.size() == 2) { // discordant mate
 				// none of the mates should have the supplementary bit set, or else something is wrong
 				if (chimeric_alignment->second[MATE1].supplementary || chimeric_alignment->second[MATE2].supplementary)
-					malformed = true;
+					goto malformed_alignment;
 			} else {
 				// if we get here, there are either too many alignments with the same name or too few
-				malformed = true;
+				goto malformed_alignment;
 			}
 
 		}
 
-		if (malformed) {
+		++chimeric_alignment;
+		continue;
+
+		malformed_alignment:
 			malformed_count++;
 			chimeric_alignment = chimeric_alignments.erase(chimeric_alignment);
-		} else {
-			++chimeric_alignment;
-		}
 	}
 
 	return malformed_count;
