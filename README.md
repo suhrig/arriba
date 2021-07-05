@@ -77,14 +77,19 @@ Please refer to the [user manual](http://arriba.readthedocs.io/en/latest/) for i
 
 8. [Utility scripts](https://arriba.readthedocs.io/en/latest/utility-scripts/)
 
-   - [Extracting fusion-supporting alignments](https://arriba.readthedocs.io/en/latest/utility-scripts/#extracting-fusion-supporting-alignments)
-   - [Converting fusions.tsv to VCF format](https://arriba.readthedocs.io/en/latest/utility-scripts/#converting-fusionstsv-to-vcf-format)
+   - [Extract fusion-supporting alignments](https://arriba.readthedocs.io/en/latest/utility-scripts/#extract-fusion-supporting-alignments)
+   - [Convert fusions.tsv to VCF format](https://arriba.readthedocs.io/en/latest/utility-scripts/#convert-fusionstsv-to-vcf-format)
    - [Run Arriba on prealigned BAM file](https://arriba.readthedocs.io/en/latest/utility-scripts/#run-arriba-on-prealigned-bam-file)
 
 9. [Current limitations](https://arriba.readthedocs.io/en/latest/current-limitations/)
    
    - [Intragenic deletions](https://arriba.readthedocs.io/en/latest/current-limitations/#intragenic-deletions)
+   - [RefSeq annotation](https://arriba.readthedocs.io/en/latest/current-limitations/#refseq-annotation)
    - [Memory consumption](https://arriba.readthedocs.io/en/latest/current-limitations/#memory-consumption)
+   - [Adapter trimming](https://arriba.readthedocs.io/en/latest/current-limitations/#adapter-trimming)
+   - [Small insert size](https://arriba.readthedocs.io/en/latest/current-limitations/#small-insert-size)
+   - [Viral detection](https://arriba.readthedocs.io/en/latest/current-limitations/#viral-detection)
+   - [Targeted sequencing](https://arriba.readthedocs.io/en/latest/current-limitations/#targeted-sequencing)
 
 10. [Internal algorithm](https://arriba.readthedocs.io/en/latest/internal-algorithm/)
 
