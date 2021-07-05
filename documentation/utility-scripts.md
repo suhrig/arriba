@@ -49,3 +49,18 @@ Note: There can be slight differences in the fusion calls when using this script
 
 Note: This script should not be used if you have generated a BAM file according to Arriba's [recommended workflow](workflow.md). In this case, you can run Arriba directly on the BAM file. There is no need to realign any reads, because they are already aligned optimally.
 
+Quantify virus expression
+-------------------------
+
+**Usage:**
+
+```
+quantify_virus_expression.sh alignments.bam virus_expression.tsv
+```
+
+**Description:**
+
+This script takes alignments in BAM format as input and counts the number of high-quality alignments mapping to viral contigs. It assumes that viral contigs start with the prefix `AC_` or `NC_`. An alignment is considered high-quality if it does not contain repeats, if it spans the complete read from start to end, and - in case of paired-end data - if both mates map in proper pair orientation. When reads map equally well to multiple related viral strains, only the highest expressed viral strain is reported (as measured by RPKM). Only viruses having at least 5% and at least 100bp of their genome expressed are reported.
+
+Note: When a BAM file index exists, only the relevant contigs are read from the BAM file and processing is substantially faster.
+

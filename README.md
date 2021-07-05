@@ -80,6 +80,7 @@ Please refer to the [user manual](http://arriba.readthedocs.io/en/latest/) for i
    - [Extract fusion-supporting alignments](https://arriba.readthedocs.io/en/latest/utility-scripts/#extract-fusion-supporting-alignments)
    - [Convert fusions.tsv to VCF format](https://arriba.readthedocs.io/en/latest/utility-scripts/#convert-fusionstsv-to-vcf-format)
    - [Run Arriba on prealigned BAM file](https://arriba.readthedocs.io/en/latest/utility-scripts/#run-arriba-on-prealigned-bam-file)
+   - [Quantify virus expression](https://arriba.readthedocs.io/en/latest/utility-scripts/#quantify-virus-expression)
 
 9. [Current limitations](https://arriba.readthedocs.io/en/latest/current-limitations/)
    
