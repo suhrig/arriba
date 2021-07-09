@@ -121,7 +121,7 @@ Even when an unstranded library is processed, Arriba can often infer the strand 
 : If a tumor is truly infected with a virus, a substantial number of reads should map to the respective viral contig. Only report viral integration sites of the top N most highly expressed viral contigs. Default: `5`
 
 `-C COVERAGE_FRACTION`
-: Ignore virus-associated events if the virus is not fully expressed, i.e., less than the given fraction of the viral contig is transcribed. Default: `0.15`
+: Ignore virus-associated events if the virus is not fully expressed, i.e., less than the given fraction of the viral contig is transcribed. Default: `0.05`
 
 `-l MAX_ITD_LENGTH`
 : Maximum length of internal tandem duplications (ITDs) in bp. STAR often fails to align ITDs with a length of more than a few bp. However, many known oncogenic ITDs are longer than 20 bp and thus at risk of being overlooked. Arriba can manually search for reads that potentially arise from ITDs by attempting to align clipped reads as an ITD. This parameter defines the search space and also limits the effects of the `internal_tandem_duplications` filter. Note: Increasing this value can impair performance, because Arriba needs to perform an alignment for candidate reads and the alignment complexity depends on the the maximum search space. Moreover, increasing the value beyond the default can lead to many false positives, because the blacklist was trained with the default value and frequent germline variants with a larger length will not be filtered effectively by the blacklist. Default: `100`
