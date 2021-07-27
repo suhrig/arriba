@@ -212,6 +212,9 @@ draw_fusions.R --fusions=fusions.tsv --annotation=annotation.gtf --output=output
 `--fontSize=SIZE`
 : Decimal value to scale the size of text. Default: `1`
 
+`--fontFamily=FONT`
+: Font to use for all labels in the plots. To see a list of available fonts, pass an empty value to this parameter. Default: `Helvetica`
+
 `--showIntergenicVicinity=DISTANCE|LEFT_DISTANCE_1,RIGHT_DISTANCE_1,LEFT_DISTANCE_2,RIGHT_DISTANCE_2`
 : This option only applies to intergenic breakpoints. If it is set to a value greater than 0, then the script draws the genes which are no more than the given distance away from an intergenic breakpoint. The keywords `closestGene` and `closestProteinCodingGene` instruct the script to dynamically determine the distance to the next (protein-coding) gene for each breakpoint. Alternatively, instead of specifying a single distance that is applied upstream and downstream of both breakpoints alike, more fine-grained control over the region to be shown is possible by specifying four comma-separated values. The first two values determine the region to the left and to the right of breakpoint 1; the third and fourth values determine the region to the left and to the right of breakpoint 2. Note that this option is incompatible with `--squishIntrons`. Default: `0`
 

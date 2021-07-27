@@ -23,6 +23,7 @@ parameters <- list(
 	mergeDomainsOverlappingBy=list("mergeDomainsOverlappingBy", "numeric", 0.9),
 	optimizeDomainColors=list("optimizeDomainColors", "bool", F),
 	fontSize=list("fontSize", "numeric", 1),
+	fontFamily=list("fontFamily", "string", "Helvetica"),
 	showIntergenicVicinity=list("showIntergenicVicinity", "string", "0"),
 	transcriptSelection=list("transcriptSelection", "string", "coverage"),
 	fixedScale=list("fixedScale", "numeric", 0)
@@ -107,6 +108,8 @@ if (!(transcriptSelection %in% c("coverage", "provided", "canonical")))
 	stop("Invalid argument to --transcriptSelection")
 if (fixedScale < 0)
 	stop("Invalid argument to --fixedScale")
+if (!(fontFamily %in% names(pdfFonts())))
+	stop(paste0("Unknown font: ", fontFamily, ". Available fonts: ", paste(names(pdfFonts()), collapse=", ")))
 
 # check if required packages are installed
 if (!suppressPackageStartupMessages(require(GenomicRanges)))
@@ -189,6 +192,8 @@ if (colnames(fusions)[1] == "X.gene1") { # Arriba output
 }
 
 pdf(outputFile, onefile=T, width=pdfWidth, height=pdfHeight, title=ifelse(sampleName != "", sampleName, fusionsFile))
+par(family=fontFamily)
+
 if (nrow(fusions) == 0) {
 	plot(0, 0, type="l", xaxt="n", yaxt="n", xlab="", ylab="")
 	text(0, 0, "empty input file")
