@@ -981,7 +981,7 @@ for (fusion in 1:nrow(fusions)) {
 		par(mfrow=c(1,1))
 		plot(0, 0, type="l", xaxt="n", yaxt="n", xlab="", ylab="")
 		text(0, 0, paste0("exon coordinates of ", fusions[fusion,"gene2"], " not found in\n", exonsFile))
-		warning(paste("exon coordinates of", fusions[fusion,"gene1"], "not found"))
+		warning(paste("exon coordinates of", fusions[fusion,"gene2"], "not found"))
 		next
 	}
 
