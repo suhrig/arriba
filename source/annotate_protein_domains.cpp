@@ -405,6 +405,25 @@ string is_in_frame(const string& fusion_peptide_sequence) {
 	if (last_stop_codon_before_junction < fusion_junction && first_start_codon_after_stop_codon >= fusion_junction)
 		return "stop-codon";
 
+	// if there are in-frame amino acids before a stop codon, there must be in-frame amino acids after the stop codon
+	// otherwise, the breakpoint is probably in the 3' UTR
+	if (last_stop_codon_before_junction < fusion_junction) {
+		// look for in-frame amino acid before stop codon
+		bool in_frame_amino_acid_before_stop_codon = false;
+		for (size_t amino_acid = 0; amino_acid < last_stop_codon_before_junction && !in_frame_amino_acid_before_stop_codon; ++amino_acid)
+			if (fusion_peptide_sequence[amino_acid] >= 'A' && fusion_peptide_sequence[amino_acid] <= 'Z')
+				in_frame_amino_acid_before_stop_codon = true;
+		// look for in-frame amino acid after stop codon
+		if (in_frame_amino_acid_before_stop_codon) {
+			bool in_frame_amino_acid_after_stop_codon = false;
+			for (size_t amino_acid = last_stop_codon_before_junction+1; amino_acid < fusion_junction && !in_frame_amino_acid_after_stop_codon; ++amino_acid)
+				if (fusion_peptide_sequence[amino_acid] >= 'A' && fusion_peptide_sequence[amino_acid] <= 'Z')
+					in_frame_amino_acid_after_stop_codon = true;
+			if (!in_frame_amino_acid_after_stop_codon)
+				return "stop-codon";
+		}
+	}
+
 	// a fusion is in-frame if there is at least one amino acid in either gene matching the reading frame;
 	// such amino acids can easily be identified, because they are uppercase in the fusion sequence
 	bool in_frame_5 = false;
