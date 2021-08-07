@@ -396,29 +396,29 @@ string is_in_frame(const string& fusion_peptide_sequence) {
 	    fusion_peptide_sequence[fusion_peptide_sequence.size()-1] == '|') // no peptide sequence for gene2
 		return ".";
 
-	// declare fusion as out-of-frame, if there is a stop codon before the junction
-	// unless there are in-frame codons between this stop codon and the junction
+	// declare fusion as out-of-frame if there is a stop codon before the junction and no start codon in between
 	size_t fusion_junction = fusion_peptide_sequence.rfind('|');
-	size_t stop_codon_before_junction = fusion_peptide_sequence.rfind('*', fusion_junction);
-	bool in_frame_codons_before_junction = false;
-	for (size_t amino_acid = (stop_codon_before_junction < fusion_junction) ? stop_codon_before_junction+1 : 0; amino_acid < fusion_junction; ++amino_acid)
-		if (fusion_peptide_sequence[amino_acid] >= 'A' && fusion_peptide_sequence[amino_acid] <= 'Z') {
-			in_frame_codons_before_junction = true;
-			break;
-		}
-	if (!in_frame_codons_before_junction)
-		if (stop_codon_before_junction < fusion_junction)
-			return "stop-codon";
-		else
-			return "out-of-frame";
+	size_t last_stop_codon_before_junction = fusion_peptide_sequence.rfind('*', fusion_junction);
+	size_t first_start_codon_after_stop_codon = fusion_peptide_sequence.find('m', last_stop_codon_before_junction);
+	if (first_start_codon_after_stop_codon >= fusion_junction)
+		first_start_codon_after_stop_codon = fusion_peptide_sequence.find('M', last_stop_codon_before_junction);
+	if (last_stop_codon_before_junction < fusion_junction && first_start_codon_after_stop_codon >= fusion_junction)
+		return "stop-codon";
 
-	// a fusion is in-frame, if there is at least one amino acid in the 3' end of the fusion
-	// that matches an amino acid of the 3' gene
+	// a fusion is in-frame if there is at least one amino acid in either gene matching the reading frame;
 	// such amino acids can easily be identified, because they are uppercase in the fusion sequence
-	for (size_t amino_acid = fusion_peptide_sequence.size() - 1; amino_acid > fusion_junction; --amino_acid)
+	bool in_frame_5 = false;
+	for (size_t amino_acid = (last_stop_codon_before_junction < fusion_junction) ? last_stop_codon_before_junction+1 : 0; amino_acid < fusion_junction && !in_frame_5; ++amino_acid)
 		if (fusion_peptide_sequence[amino_acid] >= 'A' && fusion_peptide_sequence[amino_acid] <= 'Z')
-			return "in-frame";
+			in_frame_5 = true;
+	bool in_frame_3 = false;
+	for (size_t amino_acid = fusion_junction+1; amino_acid < fusion_peptide_sequence.size() && !in_frame_3; ++amino_acid)
+		if (fusion_peptide_sequence[amino_acid] >= 'A' && fusion_peptide_sequence[amino_acid] <= 'Z')
+			in_frame_3 = true;
 
-	return "out-of-frame";
+	if (in_frame_5 && in_frame_3)
+		return "in-frame";
+	else
+		return "out-of-frame";
 }
 
