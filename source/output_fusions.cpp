@@ -107,12 +107,43 @@ void pileup_chimeric_alignments(vector<chimeric_alignments_t::iterator>& chimeri
 
 void get_sequence_from_pileup(const pileup_t& pileup, const position_t breakpoint, const direction_t direction, const gene_t gene, const assembly_t& assembly, string& sequence, vector<position_t>& positions, string& clipped_sequence) {
 
+	// determine peak coverage
+	unsigned int peak_coverage = 0;
+	for (pileup_t::const_iterator position = pileup.begin(); position != pileup.end(); ++position) {
+		unsigned int coverage = 0;
+		for (auto base = position->second.begin(); base != position->second.end(); ++base)
+			coverage += base->second;
+		if (coverage > peak_coverage)
+			peak_coverage = coverage;
+	}
+
+	// ignore low-coverage regions distal to the breakpoint, because they probably belong to other transcript isoforms
+	const float low_coverage_fraction = 0.10; // consider less than this fraction of the peak coverage as low
+	pileup_t::const_iterator start_sufficient_coverage = pileup.begin();
+	pileup_t::const_iterator end_sufficient_coverage = pileup.end();
+	for (pileup_t::const_iterator position = pileup.begin(); position != pileup.end(); ++position) {
+		unsigned int coverage = 0;
+		for (auto base = position->second.begin(); base != position->second.end(); ++base)
+			coverage += base->second;
+		if (direction == DOWNSTREAM) {
+			if (coverage < peak_coverage * low_coverage_fraction)
+				start_sufficient_coverage = position;
+			else
+				break;
+		} else if (direction == UPSTREAM) {
+			if (coverage > peak_coverage * low_coverage_fraction)
+				end_sufficient_coverage = position;
+		}
+	}
+	if (end_sufficient_coverage != pileup.end())
+		++end_sufficient_coverage;
+
 	// for each position, find the most frequent allele in the pileup
 	bool intron_open = false; // keep track of whether the current position is in an intron
 	bool intron_closed = true; // keep track of whether the current position is in an intron
-	for (pileup_t::const_iterator position = pileup.begin(); position != pileup.end(); ++position) {
+	for (pileup_t::const_iterator position = start_sufficient_coverage; position != end_sufficient_coverage; ++position) {
 
-		if (position != pileup.begin() && prev(position)->first < position->first - 1 && !intron_open) {
+		if (position != start_sufficient_coverage && prev(position)->first < position->first - 1 && !intron_open) {
 			sequence += "..."; // indicate uncovered stretches with an ellipsis
 			positions.resize(positions.size() + 3, -1);
 		}
