@@ -438,8 +438,18 @@ void get_fusion_transcript_sequence(fusion_t& fusion, const assembly_t& assembly
 		}
 	} while (needs_simplification != string::npos);
 
+	// remove terminal "..." and "___"
+	while (sequence.substr(0, 3) == "..." || sequence.substr(0, 3) == "___") {
+		sequence = sequence.substr(3);
+		positions.erase(positions.begin(), positions.begin() + 3);
+	}
+	while (sequence.size() >= 3 && (sequence.substr(sequence.size() - 3) == "..." || sequence.substr(sequence.size() - 3) == "___")) {
+		sequence = sequence.substr(0, sequence.size() - 3);
+		positions.erase(positions.begin() + positions.size() - 3, positions.end());
+	}
+
 	// simplify failed attempts to assemble the fusion transcript
-	if (sequence == "|" || sequence == "...|" || sequence == "|..." || sequence == "...|...") {
+	if (sequence == "" || sequence == "|" || sequence == "...|" || sequence == "|..." || sequence == "...|...") {
 		sequence = ".";
 		positions.clear();
 		positions.push_back(-1);
