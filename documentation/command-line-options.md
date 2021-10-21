@@ -109,7 +109,7 @@ Even when an unstranded library is processed, Arriba can often infer the strand 
 : When paired-end data is given, the fragment length is estimated automatically and this parameter has no effect. But when single-end data is given, the mean fragment length should be specified to effectively filter fusions that arise from hairpin structures. Default: `200`
 
 `-U MAX_READS`
-: Subsample fusions with more than the given number of supporting reads. This improves performance without compromising sensitivity, as long as the threshold is high. Counting of supporting reads beyond the threshold is inaccurate, obviously. Default: `300`
+: Subsample fusions with more than the given number of supporting reads. This improves performance without compromising sensitivity, as long as the threshold is high. Counting of supporting reads beyond the threshold is inaccurate, obviously. Arriba issues a `WARNING: some fusions were subsampled, because they have more than 300 supporting reads`, when the threshold has been hit. Default: `300`
 
 `-Q QUANTILE`
 : Highly expressed genes are prone to produce artifacts during library preparation. Genes with an expression above the given quantile are eligible for filtering by the filter `in_vitro`. Default: `0.998`
