@@ -25,13 +25,20 @@ fi
 echo '##fileformat=VCFv4.3
 ##INFO=<ID=SVTYPE,Number=1,Type=String,Description="Type of structural variant">
 ##INFO=<ID=MATEID,Number=.,Type=String,Description="ID of mate breakends">
+##INFO=<ID=GENE_NAME,Number=.,Type=String,Description="Name of gene hit by breakpoint.">
+##INFO=<ID=GENE_ID,Number=.,Type=String,Description="ID of gene hit by breakpoint.">
 #CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO' > "$OUTPUT"
 
 # read TSV file and convert it to VCF line-by-line
 FUSION=0
 tail -n +2 "$INPUT" | while read LINE; do
 	FUSION=$((FUSION+1))
-
+	SITE1=$(cut -f7 <<<"$LINE")
+	SITE2=$(cut -f8 <<<"$LINE")
+	GENE_NAME1=$([ "$SITE1" = "intergenic" ] || cut -f1 <<<"$LINE")
+	GENE_NAME2=$([ "$SITE2" = "intergenic" ] || cut -f2 <<<"$LINE")
+	GENE_ID1=$([ "$SITE1" = "intergenic" ] || cut -f21 <<<"$LINE")
+	GENE_ID2=$([ "$SITE2" = "intergenic" ] || cut -f22 <<<"$LINE")
 	BREAKPOINT1=$(cut -f5 <<<"$LINE"); CHROMOSOME1="${BREAKPOINT1%:*}"; POSITION1="${BREAKPOINT1##*:}"
 	BREAKPOINT2=$(cut -f6 <<<"$LINE"); CHROMOSOME2="${BREAKPOINT2%:*}"; POSITION2="${BREAKPOINT2##*:}"
 	QUAL=$(cut -f15 <<<"$LINE" | sed -e 's/low/0.5/' -e 's/medium/2/' -e 's/high/5/')
@@ -51,8 +58,9 @@ tail -n +2 "$INPUT" | while read LINE; do
 	if [ "$DIRECTION1" = "downstream" ]; then ALT1="$ALT1$ALT1_BREAKPOINT"; else ALT1="$ALT1_BREAKPOINT$ALT1"; fi
 	if [ "$DIRECTION2" = "downstream" ]; then ALT2="$ALT2$ALT2_BREAKPOINT"; else ALT2="$ALT2_BREAKPOINT$ALT2"; fi
 	FILTER="PASS"
-	INFO="SVTYPE=BND"
-	echo "$CHROMOSOME1	$POSITION1	${FUSION}a	$REF1	$ALT1	$QUAL	$FILTER	$INFO;MATEID=${FUSION}b" >> "$OUTPUT"
-	echo "$CHROMOSOME2	$POSITION2	${FUSION}b	$REF2	$ALT2	$QUAL	$FILTER	$INFO;MATEID=${FUSION}a" >> "$OUTPUT"
+	INFO1="SVTYPE=BND;MATEID=${FUSION}b;GENE_NAME=$GENE_NAME1;GENE_ID=$GENE_ID1"
+	INFO2="SVTYPE=BND;MATEID=${FUSION}a;GENE_NAME=$GENE_NAME2;GENE_ID=$GENE_ID2"
+	echo "$CHROMOSOME1	$POSITION1	${FUSION}a	$REF1	$ALT1	$QUAL	$FILTER	$INFO1" >> "$OUTPUT"
+	echo "$CHROMOSOME2	$POSITION2	${FUSION}b	$REF2	$ALT2	$QUAL	$FILTER	$INFO2" >> "$OUTPUT"
 done
 
