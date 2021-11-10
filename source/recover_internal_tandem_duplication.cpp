@@ -5,7 +5,7 @@
 
 using namespace std;
 
-unsigned int recover_internal_tandem_duplication(fusions_t& fusions, const chimeric_alignments_t& chimeric_alignments, const coverage_t& coverage, const exon_annotation_index_t& exon_annotation_index, const unsigned int max_itd_length, const unsigned int min_supporting_reads, const float min_fraction_of_coverage) {
+unsigned int recover_internal_tandem_duplication(fusions_t& fusions, const chimeric_alignments_t& chimeric_alignments, const coverage_t& coverage, const exon_annotation_index_t& exon_annotation_index, const unsigned int max_itd_length, const unsigned int min_supporting_reads, const float min_fraction_of_coverage, const unsigned int subsampling_threshold) {
 
 	const int protrude_into_introns = 7; // ITDs should be in exonic regions, but they may protrude into introns by this many bases
 
@@ -56,7 +56,9 @@ unsigned int recover_internal_tandem_duplication(fusions_t& fusions, const chime
 				if ((**split_read).second.filter == FILTER_none || (**split_read).second.filter == FILTER_hairpin || (**split_read).second.filter == FILTER_inconsistently_clipped || (**split_read).second.filter == FILTER_mismatches)
 					split_reads++;
 
-			if (split_reads > min_supporting_reads && 1.0 * split_reads/max(coverage1,coverage2)/(1-duplication_rate) > min_fraction_of_coverage) {
+			if (split_reads >= min_supporting_reads &&
+			    (1.0 * split_reads/max(coverage1,coverage2)/(1-duplication_rate) > min_fraction_of_coverage ||
+			     split_reads >= subsampling_threshold)) {
 				// clear filters of fusion candidate and of supporting reads
 				fusion->second.filter = FILTER_none;
 				for (auto split_read = fusion->second.split_read1_list.begin(); split_read != fusion->second.split_read1_list.end(); ++split_read)
