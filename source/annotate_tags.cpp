@@ -1,3 +1,4 @@
+#include <iostream>
 #include <string>
 #include <unordered_map>
 #include "common.hpp"
@@ -17,6 +18,10 @@ void load_tags(const string& tags_file_path, const contigs_t& contigs, const uno
 			tsv_stream_t tsv(line);
 			string range1, range2, tag;
 			tsv >> range1 >> range2 >> tag;
+			if (tag.empty()) {
+				cerr << "WARNING: encountered a line with an empty tag => skipped" << endl;
+				continue;
+			}
 			blacklist_item_t item1, item2;
 			if (!parse_blacklist_item(range1, item1, contigs, genes, false) ||
 			    !parse_blacklist_item(range2, item2, contigs, genes, false))
