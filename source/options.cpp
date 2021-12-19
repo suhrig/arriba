@@ -99,7 +99,7 @@ options_t get_default_options() {
 	options.external_duplicate_marking = false;
 	options.fill_sequence_gaps = false;
 	options.max_itd_length = 100;
-	options.min_itd_allele_fraction = 0.08;
+	options.min_itd_allele_fraction = 0.07;
 	options.min_itd_support = 10;
 
 	return options;
