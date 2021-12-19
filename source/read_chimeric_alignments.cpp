@@ -229,6 +229,7 @@ bool is_tandem_duplication(const bam1_t* bam_record, const assembly_t& assembly,
 	int alignment_direction = +1;
 	int alignment_window_start = 0;
 	int alignment_window_end = 0;
+	int extended_read_start = 0;
 	if (bam_cigar_op(bam_get_cigar(bam_record)[0]) == BAM_CSOFT_CLIP && bam_cigar_oplen(bam_get_cigar(bam_record)[0]) >= min_clipped_length) {
 		// read is clipped at start
 		clipped_sequence_length = bam_cigar_oplen(bam_get_cigar(bam_record)[0]);
@@ -236,6 +237,7 @@ bool is_tandem_duplication(const bam1_t* bam_record, const assembly_t& assembly,
 		alignment_direction = -1;
 		alignment_window_start = bam_record->core.pos + min_duplication_length - clipped_sequence_length;
 		alignment_window_end = bam_record->core.pos + max_duplication_length - clipped_sequence_length;
+		extended_read_start = bam_record->core.pos - clipped_sequence_length;
 		clipped_start = true;
 	}
 	if (bam_cigar_op(bam_get_cigar(bam_record)[bam_record->core.n_cigar-1]) == BAM_CSOFT_CLIP && bam_cigar_oplen(bam_get_cigar(bam_record)[bam_record->core.n_cigar-1]) >= max(min_clipped_length, clipped_sequence_length)) {
@@ -245,11 +247,13 @@ bool is_tandem_duplication(const bam1_t* bam_record, const assembly_t& assembly,
 		alignment_direction = +1;
 		alignment_window_start = bam_endpos(bam_record) - max_duplication_length;
 		alignment_window_end = bam_endpos(bam_record) - min_duplication_length;
+		extended_read_start = bam_endpos(bam_record);
 		clipped_start = false;
 	}
 	if (clipped_sequence_length == 0)
 		return false; // read is not clipped
 
+	// make sure assembly sequence is available
 	if (assembly.find(bam_record->core.tid) == assembly.end())
 		return false; // contig sequence unavailable and thus no way to make an alignment
 	const string& contig_sequence = assembly.at(bam_record->core.tid);
@@ -257,11 +261,24 @@ bool is_tandem_duplication(const bam1_t* bam_record, const assembly_t& assembly,
 	    alignment_window_start <= (int) (max_duplication_length + clipped_sequence_length + 1))
 		return false; // ignore alignments close to contig boundaries to avoid array out-of-bounds errors
 
-	// try to align clipped sequence in a window of size <max_duplication_length>
+	// convert read sequence to string
 	string clipped_sequence;
 	clipped_sequence.resize(clipped_sequence_length);
 	for (unsigned int i = 0; i < clipped_sequence_length; ++i)
 		clipped_sequence[i] = seq_nt16_str[bam_seqi(bam_get_seq(bam_record), clipped_sequence_position + i)];
+
+
+	// first, try extended alignment to check if read was clipped prematurely by STAR (often due to a cluster of SNPs)
+	const float min_extended_align_fraction = 0.7;
+	unsigned int extended_matches = 0;
+	for (unsigned int read_pos = 0; read_pos < clipped_sequence_length; ++read_pos)
+		if (extended_read_start+read_pos >= 0 && extended_read_start+read_pos < contig_sequence.size())
+			if (contig_sequence[extended_read_start+read_pos] == clipped_sequence[read_pos])
+				extended_matches++;
+	if (1.0 * extended_matches / clipped_sequence_length >= min_extended_align_fraction)
+		return false; // the split read can simply be extended linearly, no need to try a tandem alignment
+
+	// try to align clipped sequence in a window of size <max_duplication_length>
 	for (int contig_pos = alignment_window_start; contig_pos <= alignment_window_end; ++contig_pos) {
 
 		// align at given position and abort when too many mismatches have been encountered
