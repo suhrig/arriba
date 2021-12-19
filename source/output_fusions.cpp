@@ -635,87 +635,69 @@ string get_fusion_strand(const strand_t strand, const gene_t gene, const bool pr
 
 string get_fusion_site(const gene_t gene, const bool spliced, const bool exonic, const contig_t contig, const position_t breakpoint, const exon_annotation_index_t& exon_annotation_index) {
 	string site;
-	if (gene->is_dummy) {
+	if (gene->is_dummy || breakpoint < gene->start || breakpoint > gene->end) {
 		site = "intergenic";
 	} else if (exonic) {
-		// re-annotate exonic breakpoints
-		if (breakpoint < gene->start) {
-			if (gene->is_protein_coding) {
-				if (gene->strand == FORWARD)
-					site = "5'UTR";
-				else
-					site = "3'UTR";
-			} else
-				site = "exon";
-		} else if (breakpoint > gene->end) {
-			if (gene->is_protein_coding) {
-				if (gene->strand == FORWARD)
-					site = "3'UTR";
-				else
-					site = "5'UTR";
-			} else
-				site = "exon";
-		} else {
-			exon_set_t exons;
-			get_annotation_by_coordinate(contig, breakpoint, breakpoint, exons, exon_annotation_index);
-			bool has_overlapping_exon = false;
-			bool is_utr = true;
-			unsigned int is_3_end = 0;
-			unsigned int is_5_end = 0;
-			for (exon_set_t::iterator exon = exons.begin(); exon != exons.end(); ++exon) {
-				if ((**exon).gene == gene) {
-					has_overlapping_exon = true;
-					if ((**exon).coding_region_start <= breakpoint && (**exon).coding_region_end >= breakpoint)
-						is_utr = false;
-					if (is_utr && gene->is_protein_coding) {
-						// detect if we are in a 5' or 3' UTR by going upstream/downstream and
-						// checking whether we first hit a protein-coding exon or the transcript end
-						if ((**exon).coding_region_start != -1 && (**exon).coding_region_start > breakpoint) {
-							if (gene->strand == FORWARD)
-								++is_5_end;
-							else
+		// re-annotate exonic breakpoints, because internally a read that overlaps even just partially with an exon is annotated as exonic
+		exon_set_t exons;
+		get_annotation_by_coordinate(contig, breakpoint, breakpoint, exons, exon_annotation_index);
+		bool has_overlapping_exon = false;
+		bool is_utr = true;
+		unsigned int is_3_end = 0;
+		unsigned int is_5_end = 0;
+		for (exon_set_t::iterator exon = exons.begin(); exon != exons.end(); ++exon) {
+			if ((**exon).gene == gene) {
+				has_overlapping_exon = true;
+				if ((**exon).coding_region_start <= breakpoint && (**exon).coding_region_end >= breakpoint)
+					is_utr = false;
+				if (is_utr && gene->is_protein_coding) {
+					// detect if we are in a 5' or 3' UTR by going upstream/downstream and
+					// checking whether we first hit a protein-coding exon or the transcript end
+					if ((**exon).coding_region_start != -1 && (**exon).coding_region_start > breakpoint) {
+						if (gene->strand == FORWARD)
+							++is_5_end;
+						else
+							++is_3_end;
+					} else if ((**exon).coding_region_end != -1 && (**exon).coding_region_end < breakpoint) {
+						if (gene->strand == REVERSE)
+							++is_5_end;
+						else
+							++is_3_end;
+					} else {
+						exon_annotation_record_t* next_exon = (**exon).next_exon;
+						while (next_exon != NULL && next_exon->coding_region_start == -1)
+							next_exon = next_exon->next_exon;
+						exon_annotation_record_t* previous_exon = (**exon).previous_exon;
+						while (previous_exon != NULL && previous_exon->coding_region_start == -1)
+							previous_exon = previous_exon->previous_exon;
+						if (previous_exon != NULL || next_exon != NULL) { // is true, if the transcript contains a coding region
+							if ((next_exon == NULL) != /*xor*/ (gene->strand == REVERSE))
 								++is_3_end;
-						} else if ((**exon).coding_region_end != -1 && (**exon).coding_region_end < breakpoint) {
-							if (gene->strand == REVERSE)
-								++is_5_end;
 							else
-								++is_3_end;
-						} else {
-							exon_annotation_record_t* next_exon = (**exon).next_exon;
-							while (next_exon != NULL && next_exon->coding_region_start == -1)
-								next_exon = next_exon->next_exon;
-							exon_annotation_record_t* previous_exon = (**exon).previous_exon;
-							while (previous_exon != NULL && previous_exon->coding_region_start == -1)
-								previous_exon = previous_exon->previous_exon;
-							if (previous_exon != NULL || next_exon != NULL) { // is true, if the transcript contains a coding region
-								if ((next_exon == NULL) != /*xor*/ (gene->strand == REVERSE))
-									++is_3_end;
-								else
-									++is_5_end;
-							}
+								++is_5_end;
 						}
 					}
 				}
 			}
-			if (!has_overlapping_exon) {
-				site = "intron";
-			} else if (gene->is_protein_coding) {
-				if (is_utr) {
-					if (is_3_end > is_5_end) {
-						site = "3'UTR";
-					} else if (is_3_end < is_5_end) {
-						site = "5'UTR";
-					} else if (is_3_end + is_5_end == 0) {
-						site = "exon";
-					} else {
-						site = "UTR";
-					}
+		}
+		if (!has_overlapping_exon) {
+			site = "intron";
+		} else if (gene->is_protein_coding) {
+			if (is_utr) {
+				if (is_3_end > is_5_end) {
+					site = "3'UTR";
+				} else if (is_3_end < is_5_end) {
+					site = "5'UTR";
+				} else if (is_3_end + is_5_end == 0) {
+					site = "exon";
 				} else {
-					site = "CDS";
+					site = "UTR";
 				}
 			} else {
-				site = "exon";
+				site = "CDS";
 			}
+		} else {
+			site = "exon";
 		}
 		if (spliced && site != "intron")
 			site += "/splice-site";
