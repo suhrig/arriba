@@ -1,5 +1,5 @@
-#ifndef _OPTIONS_H
-#define _OPTIONS_H 1
+#ifndef OPTIONS_H
+#define OPTIONS_H 1
 
 #include <cfloat>
 #include <climits>
@@ -67,4 +67,4 @@ struct options_t {
 
 options_t parse_arguments(int argc, char **argv);
 
-#endif /* _OPTIONS_H */
+#endif /* OPTIONS_H */

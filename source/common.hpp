@@ -1,5 +1,5 @@
-#ifndef _COMMON_H
-#define _COMMON_H 1
+#ifndef COMMON_H
+#define COMMON_H 1
 
 #include <algorithm>
 #include <climits>
@@ -327,4 +327,4 @@ inline bool str_to_float(const char* s, float& f) {
 // convenience function to print an error message and exit if given condition is true
 #define crash(condition,message) { if (condition) { cerr << string("ERROR: ") + message << endl; exit(1); }; }
 
-#endif /* _COMMON_H */
+#endif /* COMMON_H */

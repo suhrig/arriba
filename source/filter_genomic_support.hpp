@@ -1,5 +1,5 @@
-#ifndef _FILTER_GENOMIC_SUPPORT_H
-#define _FILTER_GENOMIC_SUPPORT_H 1
+#ifndef FILTER_GENOMIC_SUPPORT_H
+#define FILTER_GENOMIC_SUPPORT_H 1
 
 #include <string>
 #include "common.hpp"
@@ -15,4 +15,4 @@ unsigned int filter_no_genomic_support(fusions_t& fusions);
 
 unsigned int recover_genomic_support(fusions_t& fusions);
 
-#endif /* _FILTER_GENOMIC_SUPPORT_H */
+#endif /* FILTER_GENOMIC_SUPPORT_H */

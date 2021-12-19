@@ -1,5 +1,5 @@
-#ifndef _FILTER_MISMAPPER_H
-#define _FILTER_MISMAPPER_H 1
+#ifndef FILTER_MISMAPPER_H
+#define FILTER_MISMAPPER_H 1
 
 #include <string>
 #include <unordered_map>
@@ -19,4 +19,4 @@ void make_kmer_index(const fusions_t& fusions, const assembly_t& assembly, int p
 
 unsigned int filter_mismappers(fusions_t& fusions, const kmer_indices_t& kmer_indices, const char kmer_length, const assembly_t& assembly, const exon_annotation_index_t& exon_annotation_index, const float max_mismapper_fraction, const int max_mate_gap);
 
-#endif /* _FILTER_MISMAPPERS_H */
+#endif /* FILTER_MISMAPPERS_H */

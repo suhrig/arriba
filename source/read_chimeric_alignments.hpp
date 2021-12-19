@@ -1,5 +1,5 @@
-#ifndef _READ_CHIMERIC_ALIGNMENTS_H
-#define _READ_CHIMERIC_ALIGNMENTS_H 1
+#ifndef READ_CHIMERIC_ALIGNMENTS_H
+#define READ_CHIMERIC_ALIGNMENTS_H 1
 
 #include <string>
 #include <vector>
@@ -14,5 +14,5 @@ void assign_strands_from_strandedness(chimeric_alignments_t& chimeric_alignments
 
 unsigned int mark_multimappers(chimeric_alignments_t& chimeric_alignments);
 
-#endif /* _READ_CHIMERIC_ALIGNMENTS_H */
+#endif /* READ_CHIMERIC_ALIGNMENTS_H */
 

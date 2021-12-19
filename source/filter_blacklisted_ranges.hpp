@@ -1,5 +1,5 @@
-#ifndef _FILTER_BLACKLISTED_RANGES_H
-#define _FILTER_BLACKLISTED_RANGES_H 1
+#ifndef FILTER_BLACKLISTED_RANGES_H
+#define FILTER_BLACKLISTED_RANGES_H 1
 
 #include <string>
 #include <tuple>
@@ -32,4 +32,4 @@ void get_genome_bins_from_range(const contig_t contig, const position_t start, c
 
 unsigned int filter_blacklisted_ranges(fusions_t& fusions, const string& blacklist_file_path, const contigs_t& contigs, const unordered_map<string,gene_t>& genes, const float evalue_cutoff, const int max_mate_gap);
 
-#endif /* _FILTER_BLACKLISTED_RANGES_H */
+#endif /* FILTER_BLACKLISTED_RANGES_H */

@@ -1,5 +1,5 @@
-#ifndef _ANNOTATION_H
-#define _ANNOTATION_H 1
+#ifndef ANNOTATION_H
+#define ANNOTATION_H 1
 
 #include <unordered_map>
 #include <map>
@@ -65,4 +65,4 @@ inline strand_t complement_strand_if(const strand_t strand, const bool condition
 // include template functions
 #include "annotation.t.hpp"
 
-#endif /*_ANNOTATION_H*/
+#endif /* ANNOTATION_H */

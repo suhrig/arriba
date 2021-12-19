@@ -1,5 +1,5 @@
-#ifndef _ASSEMBLY_H
-#define _ASSEMBLY_H 1
+#ifndef ASSEMBLY_H
+#define ASSEMBLY_H 1
 
 #include <string>
 #include "common.hpp"
@@ -26,4 +26,4 @@ string dna_to_reverse_complement(const string& dna);
 
 void load_assembly(assembly_t& assembly, const string& fasta_file_path, contigs_t& contigs, vector<string>& original_contig_names, const string& interesting_contigs);
 
-#endif /* _ASSEMBLY_H */
+#endif /* ASSEMBLY_H */
