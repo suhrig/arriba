@@ -20,7 +20,7 @@ Assembly
 
 Arriba takes the assembly as input (parameter `-a`) to find mismatches between the chimeric reads and the reference genome, as well as to find alignment artifacts and homologous genes.
 
-The script `download_references.sh` can be used to download the assembly. The available assemblies are listed when the script is run without parameters. The user is not restricted to these assemblies, however. Any assembly can be used as long as its coordinates are compatible with one of the supported assemblies (hg19/hs37d5/GRCh37 or hg38/GRCh38 or mm10/GRCm38 or mm39/GRCm39).
+The script `download_references.sh` can be used to download the assembly. The available assemblies are listed when the script is run without parameters. The user is not restricted to these assemblies, however. Any assembly can be used as long as its coordinates are compatible with one of the supported assemblies (hg19/hs37d5/GRCh37, hg38/GRCh38, mm10/GRCm38, mm39/GRCm39).
 
 The assembly must be provided in FastA format and may be gzip-compressed. An index with the file extension `.fai` must exist only if CRAM files are processed.
 
@@ -62,13 +62,13 @@ In addition, special keywords are allowed for the second column:
 
 - `any`: Discard all events if one of the breakpoints matches the given region.
 
-- `split_read_donor`: Discard fusions only supported by split reads, if all of them have their anchor in the gene given in the first column. This filter is useful for highly mutable loci, which frequently trigger clipped alignments, such as the immunoglobulin loci or the T-cell receptor loci.
+- `split_read_donor`: Discard fusions only supported by split reads if all of them have their anchor in the gene given in the first column. This filter is useful for highly mutable loci, which frequently trigger clipped alignments, such as the immunoglobulin loci or the T-cell receptor loci.
 
-- `split_read_acceptor`: Discard events only supported by split reads, if all of them have their clipped segment in the given region.
+- `split_read_acceptor`: Discard events only supported by split reads if all of them have their clipped segment in the given region.
 
 - `split_read_any`: Discard events only supported by split reads, regardless of where the anchor is.
 
-- `discordant_mates`: Discard fusions, if they are only supported by discordant mates (no split reads).
+- `discordant_mates`: Discard fusions if they are only supported by discordant mates (no split reads).
 
 - `low_support`: Discard events, which have few supporting reads relative to expression (as determined by the filter `relative_support`), even if there is other evidence that the fusion might be a true positive, nonetheless. This keyword effectively prevents recovery of speculative events by filters such as `spliced` or `many_spliced`.
 
@@ -76,7 +76,7 @@ In addition, special keywords are allowed for the second column:
 
 - `not_both_spliced`: This keyword discards events, unless both breakpoints are at splice-sites. This is a strict blacklist criterion, which makes sense to apply to genes which are prone to produce artifacts, because they are highly expressed, for example hemoglobins, collagens, or ribosomal genes.
 
-- `read_through`: This keyword discards events, if they could arise from read-through transcription, i.e., the supporting reads are oriented like a deletion and are at most 400 kb apart.
+- `read_through`: This keyword discards events if they could arise from read-through transcription, i.e., the supporting reads are oriented like a deletion and are at most 400 kb apart.
 
 Known fusions
 -------------
@@ -132,7 +132,7 @@ Structural variant calls from WGS
 
 If whole-genome sequencing (WGS) data is available, the sensitivity and specificity of Arriba can be improved by passing a list of structural variants detected from WGS to Arriba via the parameter `-d`. This has the following effects:
 
-- Certain filters are overruled or run with extra sensitive settings, when an event is confirmed by WGS data.
+- Certain filters are overruled or run with extra sensitive settings when an event is confirmed by WGS data.
 
 - To reduce the false positive rate, Arriba does not report low-confidence events unless they can be matched with a structural variant found in the WGS data.
 

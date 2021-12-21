@@ -23,7 +23,7 @@ If there are still multiple eligible transcripts, then the one with the longest 
 
 **Manual execution**
 
-In order to use the script, [R Project](http://r-project.org/) must be installed. Optionally, a few additional R packages need to be installed, if ideograms, circos plots, and coverage tracks should be drawn. Use the following R commands to install these packages:
+In order to use the script, [R Project](http://r-project.org/) must be installed. Optionally, a few additional R packages need to be installed if ideograms, circos plots, and coverage tracks should be drawn. Use the following R commands to install these packages:
 
 ```R
 install.packages("circlize")
@@ -32,7 +32,7 @@ if (!requireNamespace("BiocManager", quietly = TRUE))
 BiocManager::install(c("GenomicRanges", "GenomicAlignments"))
 ```
 
-Moreover, [samtools](http://www.htslib.org/) must be installed, if a coverage track should be drawn, because for this purpose the main output file of STAR (`Aligned.out.bam`) needs to be sorted by coordinate and indexed.
+Moreover, [samtools](http://www.htslib.org/) must be installed if a coverage track should be drawn, because for this purpose the main output file of STAR (`Aligned.out.bam`) needs to be sorted by coordinate and indexed.
 
 The script takes the following inputs:
 
@@ -40,9 +40,9 @@ The script takes the following inputs:
 
 - the annotation in GTF format
 
-- (optionally) the normal alignments (`Aligned.sortedByCoord.out.bam`), if a coverage track should be drawn
+- (optionally) the normal alignments (`Aligned.sortedByCoord.out.bam`) if a coverage track should be drawn
 
-- (optionally) a file with cytobands, if ideograms or circos plots should be drawn
+- (optionally) a file with cytobands if ideograms or circos plots should be drawn
 
 The following command demonstrates the usage. Please refer to section [Command-line options](command-line-options.md#draw_fusionsr) for a complete list of options.
 
