@@ -28,10 +28,12 @@ fi
 # if there is a BAM index, make use of it by counting reads on non-viral contigs and collecting the names of expressed viruses
 if [ -e "$INPUT.bai" ]; then
 	TOTAL_MAPPED_READS=$(samtools idxstats "$INPUT" | awk -v viral_contigs="$VIRAL_CONTIGS" '!match($1,viral_contigs){sum+=$3} END{print sum}')
-	EXPRESSED_VIRAL_CONTIGS=$(samtools idxstats "$INPUT" | awk -v viral_contigs="$VIRAL_CONTIGS" 'match($1,viral_contigs){print $1}')
+	EXPRESSED_VIRAL_CONTIGS=$(samtools idxstats "$INPUT" | awk -v OFS='\t' -v viral_contigs="$VIRAL_CONTIGS" '$3>0 && match($1,viral_contigs){print $1,0,$2}')
+	EXAMINE_ONLY_VIRAL_CONTIGS="-M -L /dev/stdin"
 fi
 
-samtools view -F 4 -h "$INPUT" ${EXPRESSED_VIRAL_CONTIGS-} |
+echo "${EXPRESSED_VIRAL_CONTIGS-}" |
+samtools view -F 4 -h ${EXAMINE_ONLY_VIRAL_CONTIGS-} "$INPUT" |
 
 # quantify expression of viral contigs
 awk -F '\t' -v OFS='\t' -v kmer_length="$KMER_LENGTH" -v max_shared_kmers_pct="$MAX_SHARED_KMERS_PCT" -v viral_contigs="$VIRAL_CONTIGS" -v min_covered_genome_pct="$MIN_COVERED_GENOME_PCT" -v min_covered_genome_bases="$MIN_COVERED_GENOME_BASES" -v total_mapped_reads="${TOTAL_MAPPED_READS-0}" '
