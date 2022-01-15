@@ -8,8 +8,8 @@ apt-get install -y --no-install-recommends wget ca-certificates samtools r-base 
 apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # install version of STAR that supports --chimMultimapNmax and --chimOutType WithinBAM
-RUN wget -qO - 'https://github.com/alexdobin/STAR/archive/2.7.6a.tar.gz' | \
-tar --strip-components=3 -C /usr/local/bin -xzf - 'STAR-2.7.6a/bin/Linux_x86_64/STAR'
+RUN wget -qO - 'https://github.com/alexdobin/STAR/archive/2.7.10a.tar.gz' | \
+tar --strip-components=3 -C /usr/local/bin -xzf - 'STAR-2.7.10a/bin/Linux_x86_64/STAR'
 
 # install arriba
 RUN wget -qO - 'https://github.com/suhrig/arriba/releases/download/v2.1.0/arriba_v2.1.0.tar.gz' | tar -xzf - --exclude='arriba*/.git'

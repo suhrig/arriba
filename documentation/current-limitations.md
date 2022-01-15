@@ -20,11 +20,6 @@ Adapter trimming
 
 In most cases, it is not necessary to trim adapters, because STAR is capable of performing clipped alignments, such that reads with adapters will simply be aligned partially. For this reason, the demo script `run_arriba.sh` does not perform adapter trimming. However, if many reads contain a substantial fraction of adapter sequence, it can be beneficial to remove adapters for improved sensitivity, because STAR dismisses chimeric alignments when a big fraction of a read cannot be aligned (as controlled by the parameter `--outFilterMatchNminOverLread`). To this end, the STAR parameter `--clip3pAdapterSeq` can be used or a specialized adapter trimming tool.
 
-Small insert size
------------------
-
-Due to a [bug in STAR](https://github.com/alexdobin/STAR/issues/1135), when the insert size is small, such that paired-end mates fully overlap, STAR may produce malformed chimeric alignments. This is a bug in the paired-end overlap merge feature of STAR (see parameter `--peOverlapNbasesMin`) and only manifests when this feature is enabled. Despite this bug, it is highly recommended to enable the feature, because otherwise chimeric reads of fully (or partially) overlapping paired-end mates will not be aligned at all. The bug only affects fully overlapping paired-end mates (but not partially overlapping mates) and of those only 50% at random, such that even in view of the bug, there still is a major benefit in enabling the paired-end overlap merge feature. However, when the majority of the reads overlaps fully, this means that up to 50% of the chimeric alignments cannot be used by Arriba, which obviously impairs fusion detection. In such cases, it is recommended to align just one of the mates of fully overlapping reads in single-end mode, where the bug does not apply. More importantly, users should seek to improve their library preparation protocol to produce longer insert sizes, because there is no point in performing paired-end sequencing when the information of the paired-end mates is identical. This is effectively the same as performing single-end sequencing. For optimal fusion detection, the insert size should be just about big enough that the paired-end mates do not overlap.
-
 Viral detection
 ---------------
 

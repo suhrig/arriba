@@ -1,7 +1,7 @@
 Manual installation
 -------------------
 
-Arriba has only a single prerequisite: [STAR](https://github.com/alexdobin/STAR) (version >=2.7.6a recommended). Download and install the tool according to the developers' instructions and make it available in your `$PATH`. If you want to make use of Arriba's [visualization tools](visualization.md), a few additional software components [need to be installed](visualization.md#publication-quality-figures).
+Arriba has only a single prerequisite: [STAR](https://github.com/alexdobin/STAR) (version >=2.7.10a recommended). Download and install the tool according to the developers' instructions and make it available in your `$PATH`. If you want to make use of Arriba's [visualization tools](visualization.md), a few additional software components [need to be installed](visualization.md#publication-quality-figures).
 
 Compile the latest stable version of Arriba or use the precompiled binaries in the download file. **Note: You should not use `git clone` to download Arriba, because the git repository does not include the blacklist! Instead, download the latest tarball from the [releases page](https://github.com/suhrig/arriba/releases/) as shown here:**
 

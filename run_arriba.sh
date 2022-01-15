@@ -26,7 +26,7 @@ READ2="${9-}"
 # find installation directory of arriba
 BASE_DIR=$(dirname "$0")
 
-# align FastQ files (STAR >=2.7.6a recommended)
+# align FastQ files (STAR >=2.7.10a recommended)
 STAR \
 	--runThreadN "$THREADS" \
 	--genomeDir "$STAR_INDEX_DIR" --genomeLoad NoSharedMemory \
