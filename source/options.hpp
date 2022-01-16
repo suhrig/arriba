@@ -1,5 +1,5 @@
-#ifndef _OPTIONS_H
-#define _OPTIONS_H 1
+#ifndef OPTIONS_H
+#define OPTIONS_H 1
 
 #include <cfloat>
 #include <climits>
@@ -61,8 +61,10 @@ struct options_t {
 	string protein_domains_file;
 	bool fill_sequence_gaps;
 	unsigned int max_itd_length;
+	float min_itd_allele_fraction;
+	unsigned int min_itd_support;
 };
 
 options_t parse_arguments(int argc, char **argv);
 
-#endif /* _OPTIONS_H */
+#endif /* OPTIONS_H */

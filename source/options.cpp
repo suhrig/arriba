@@ -74,7 +74,7 @@ options_t get_default_options() {
 	options.interesting_contigs = "1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 X Y AC_* NC_*";
 	options.viral_contigs = "AC_* NC_*";
 	options.top_viral_contigs = 5;
-	options.viral_contig_min_covered_fraction = 0.15;
+	options.viral_contig_min_covered_fraction = 0.05;
 	for (size_t i = 0; i < FILTERS.size(); ++i)
 		if (i != FILTER_none)
 			options.filters[FILTERS[i]] = true;
@@ -99,6 +99,8 @@ options_t get_default_options() {
 	options.external_duplicate_marking = false;
 	options.fill_sequence_gaps = false;
 	options.max_itd_length = 100;
+	options.min_itd_allele_fraction = 0.07;
+	options.min_itd_support = 10;
 
 	return options;
 }
@@ -240,6 +242,10 @@ void print_usage() {
 	     << wrap_help("-l MAX_ITD_LENGTH", "Maximum length of internal tandem duplications. Note:  "
 	                  "Increasing this value beyond the default can impair performance and lead to "
 	                  "many false positives. Default: " + to_string(static_cast<long long unsigned int>(default_options.max_itd_length)))
+	     << wrap_help("-z MIN_ITD_ALLELE_FRACTION", "Required fraction of supporting reads to "
+	                  "report an internal tandem duplication. Default: " + to_string(static_cast<long double>(default_options.min_itd_allele_fraction)))
+	     << wrap_help("-Z MIN_ITD_SUPPORTING_READS", "Required absolute number of supporting reads "
+	                  "to report an internal tandem duplication. Default: " + to_string(static_cast<long long unsigned int>(default_options.min_itd_support)))
 	     << wrap_help("-u", "Instead of performing duplicate marking itself, Arriba relies on "
 	                  "duplicate marking by a preceding program using the BAM_FDUP flag. This "
 	                  "makes sense when unique molecular identifiers (UMI) are used.")
@@ -270,7 +276,7 @@ options_t parse_arguments(int argc, char **argv) {
 	int c;
 	string junction_suffix(".junction");
 	unordered_map<char,unsigned int> duplicate_arguments;
-	const string valid_arguments = "c:x:d:g:G:o:O:t:p:a:b:k:s:i:v:f:E:S:m:L:H:D:R:A:M:K:V:F:U:Q:e:T:C:l:uXIh";
+	const string valid_arguments = "c:x:d:g:G:o:O:t:p:a:b:k:s:i:v:f:E:S:m:L:H:D:R:A:M:K:V:F:U:Q:e:T:C:l:z:Z:uXIh";
 	while ((c = getopt(argc, argv, valid_arguments.c_str())) != -1) {
 
 		// throw error if the same argument is specified more than once
@@ -428,6 +434,12 @@ options_t parse_arguments(int argc, char **argv) {
 			case 'l':
 				crash(!validate_int(optarg, options.max_itd_length, 1), "argument to -" + ((char) c) + " must be an integer greater than 0");
 				break;
+			case 'z':
+				crash(!validate_float(optarg, options.min_itd_allele_fraction, 0, 1), "argument to -" + ((char) c) + " must be between 0 and 1");
+				break;
+			case 'Z':
+				crash(!validate_int(optarg, options.min_itd_support, 1), "argument to -" + ((char) c) + " must be an integer greater than 0");
+				break;
 			case 'u':
 				options.external_duplicate_marking = true;
 				break;
@@ -447,7 +459,7 @@ options_t parse_arguments(int argc, char **argv) {
 				break;
 		}
 
-		crash(optind < argc && (string(argv[optind]).empty() || argv[optind][0] != '-'), "option -" + ((char) c) + " has more than one argument (arguments with blanks must be wrapped in quotes)");
+		crash(optind < argc && (string(argv[optind]).empty() || argv[optind][0] != '-'), "option -" + ((char) c) + " has too many arguments (arguments with blanks must be wrapped in quotes)");
 
 	}
 

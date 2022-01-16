@@ -19,24 +19,24 @@ arriba: $(SOURCE)/arriba.cpp $(SOURCE)/annotation.o $(SOURCE)/assembly.o $(SOURC
 	$(CXX) -c $(CXXFLAGS) $(CPPFLAGS) -I$(STATIC_LIBS)/htslib -I$(STATIC_LIBS)/tsl -o $@ $<
 
 # download and compile dependencies for a static build
-WGET := $(shell (which wget && echo " -O -") || echo "curl -L")
+WGET := $(shell (which wget && echo "--no-check-certificate -O -") || echo "curl -k -L")
 $(STATIC_LIBS)/tsl/htrie_map.h:
 	$(WGET) 'https://github.com/Tessil/hat-trie/archive/v0.6.0.tar.gz' | tar -xzf - -C $(STATIC_LIBS) && \
 	cp -r $(STATIC_LIBS)/hat-trie-*/include/tsl $(STATIC_LIBS)
 $(STATIC_LIBS)/libdeflate.a:
-	$(WGET) 'https://github.com/ebiggers/libdeflate/archive/v1.7.tar.gz' | tar -xzf - -C $(STATIC_LIBS) && \
+	$(WGET) 'https://github.com/ebiggers/libdeflate/archive/v1.8.tar.gz' | tar -xzf - -C $(STATIC_LIBS) && \
 	cd $(STATIC_LIBS)/libdeflate-*/ && $(MAKE) libdeflate.a && cp libdeflate.a libdeflate.h ..
 $(STATIC_LIBS)/libz.a:
 	$(WGET) 'https://zlib.net/zlib-1.2.11.tar.gz' | tar -xzf - -C $(STATIC_LIBS) && \
 	cd $(STATIC_LIBS)/zlib-*/ && ./configure && $(MAKE) libz.a && cp zlib.h zconf.h libz.a ..
 $(STATIC_LIBS)/libbz2.a:
 	$(WGET) 'https://sourceware.org/pub/bzip2/bzip2-1.0.8.tar.gz' | tar -xzf - -C $(STATIC_LIBS) && \
-	cd $(STATIC_LIBS)/bzip2-*/ && $(MAKE) libbz2.a && cp libbz2.a bzlib.h ..
+	cd $(STATIC_LIBS)/bzip2-*/ && $(MAKE) libbz2.a bzip2 && cp libbz2.a bzlib.h ..
 $(STATIC_LIBS)/liblzma.a:
 	$(WGET) 'https://sourceforge.net/projects/lzmautils/files/xz-5.2.5.tar.gz' | tar -xzf - -C $(STATIC_LIBS) && \
 	cd $(STATIC_LIBS)/xz-*/ && ./configure && $(MAKE) && cp -r src/liblzma/.libs/liblzma.a src/liblzma/api/lzma src/liblzma/api/lzma.h ..
 $(STATIC_LIBS)/libhts.a: $(STATIC_LIBS)/libdeflate.a $(STATIC_LIBS)/libz.a $(STATIC_LIBS)/libbz2.a $(STATIC_LIBS)/liblzma.a
-	$(WGET) 'https://github.com/samtools/htslib/archive/1.11.tar.gz' | tar -xzf - -C $(STATIC_LIBS) && \
+	$(WGET) 'https://github.com/samtools/htslib/releases/download/1.14/htslib-1.14.tar.bz2' | $(STATIC_LIBS)/bzip2-*/bzip2 -d -c - | tar -xf - -C $(STATIC_LIBS) && \
 	cd $(STATIC_LIBS)/htslib-*/ && $(MAKE) config.h && sed -i -e 's/CURL/DEFLATE/' config.h && $(MAKE) NONCONFIGURE_OBJS="" CPPFLAGS="$(CPPFLAGS) -I.." libhts.a && cp -r libhts.a htslib ..
 
 # cleanup routine

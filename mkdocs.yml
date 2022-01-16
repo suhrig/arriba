@@ -14,5 +14,6 @@ pages:
   - 'visualization.md'
   - 'command-line-options.md'
   - 'interpretation-of-results.md'
+  - 'utility-scripts.md'
   - 'current-limitations.md'
   - 'internal-algorithm.md'

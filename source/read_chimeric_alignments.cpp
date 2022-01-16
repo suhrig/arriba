@@ -229,6 +229,7 @@ bool is_tandem_duplication(const bam1_t* bam_record, const assembly_t& assembly,
 	int alignment_direction = +1;
 	int alignment_window_start = 0;
 	int alignment_window_end = 0;
+	int extended_read_start = 0;
 	if (bam_cigar_op(bam_get_cigar(bam_record)[0]) == BAM_CSOFT_CLIP && bam_cigar_oplen(bam_get_cigar(bam_record)[0]) >= min_clipped_length) {
 		// read is clipped at start
 		clipped_sequence_length = bam_cigar_oplen(bam_get_cigar(bam_record)[0]);
@@ -236,6 +237,7 @@ bool is_tandem_duplication(const bam1_t* bam_record, const assembly_t& assembly,
 		alignment_direction = -1;
 		alignment_window_start = bam_record->core.pos + min_duplication_length - clipped_sequence_length;
 		alignment_window_end = bam_record->core.pos + max_duplication_length - clipped_sequence_length;
+		extended_read_start = bam_record->core.pos - clipped_sequence_length;
 		clipped_start = true;
 	}
 	if (bam_cigar_op(bam_get_cigar(bam_record)[bam_record->core.n_cigar-1]) == BAM_CSOFT_CLIP && bam_cigar_oplen(bam_get_cigar(bam_record)[bam_record->core.n_cigar-1]) >= max(min_clipped_length, clipped_sequence_length)) {
@@ -245,11 +247,13 @@ bool is_tandem_duplication(const bam1_t* bam_record, const assembly_t& assembly,
 		alignment_direction = +1;
 		alignment_window_start = bam_endpos(bam_record) - max_duplication_length;
 		alignment_window_end = bam_endpos(bam_record) - min_duplication_length;
+		extended_read_start = bam_endpos(bam_record);
 		clipped_start = false;
 	}
 	if (clipped_sequence_length == 0)
 		return false; // read is not clipped
 
+	// make sure assembly sequence is available
 	if (assembly.find(bam_record->core.tid) == assembly.end())
 		return false; // contig sequence unavailable and thus no way to make an alignment
 	const string& contig_sequence = assembly.at(bam_record->core.tid);
@@ -257,11 +261,24 @@ bool is_tandem_duplication(const bam1_t* bam_record, const assembly_t& assembly,
 	    alignment_window_start <= (int) (max_duplication_length + clipped_sequence_length + 1))
 		return false; // ignore alignments close to contig boundaries to avoid array out-of-bounds errors
 
-	// try to align clipped sequence in a window of size <max_duplication_length>
+	// convert read sequence to string
 	string clipped_sequence;
 	clipped_sequence.resize(clipped_sequence_length);
 	for (unsigned int i = 0; i < clipped_sequence_length; ++i)
 		clipped_sequence[i] = seq_nt16_str[bam_seqi(bam_get_seq(bam_record), clipped_sequence_position + i)];
+
+
+	// first, try extended alignment to check if read was clipped prematurely by STAR (often due to a cluster of SNPs)
+	const float min_extended_align_fraction = 0.7;
+	unsigned int extended_matches = 0;
+	for (unsigned int read_pos = 0; read_pos < clipped_sequence_length; ++read_pos)
+		if (extended_read_start+read_pos >= 0 && extended_read_start+read_pos < contig_sequence.size())
+			if (contig_sequence[extended_read_start+read_pos] == clipped_sequence[read_pos])
+				extended_matches++;
+	if (1.0 * extended_matches / clipped_sequence_length >= min_extended_align_fraction)
+		return false; // the split read can simply be extended linearly, no need to try a tandem alignment
+
+	// try to align clipped sequence in a window of size <max_duplication_length>
 	for (int contig_pos = alignment_window_start; contig_pos <= alignment_window_end; ++contig_pos) {
 
 		// align at given position and abort when too many mismatches have been encountered
@@ -269,7 +286,7 @@ bool is_tandem_duplication(const bam1_t* bam_record, const assembly_t& assembly,
 		unsigned int mismatches = 0;
 		tandem_alignment.start = contig_sequence.size();
 		tandem_alignment.end = -1;
-		for (unsigned int i = 0; i < clipped_sequence_length && mismatches <= max_mismatches; i++) {
+		for (unsigned int i = 0; i < clipped_sequence_length; i++) {
 			int read_pos = (alignment_direction == +1) ? i : clipped_sequence_length - 1 - i;
 			if (contig_sequence[contig_pos+read_pos] == clipped_sequence[read_pos]) {
 				matches++;
@@ -279,6 +296,8 @@ bool is_tandem_duplication(const bam1_t* bam_record, const assembly_t& assembly,
 					tandem_alignment.end = contig_pos + read_pos;
 			} else if (i >= max_non_template_bases) {
 				mismatches++;
+				if (mismatches > max_mismatches)
+					break;
 			}
 		}
 
@@ -320,8 +339,6 @@ unsigned int remove_malformed_alignments(chimeric_alignments_t& chimeric_alignme
 
 	unsigned int malformed_count = 0;
 	for (chimeric_alignments_t::iterator chimeric_alignment = chimeric_alignments.begin(); chimeric_alignment != chimeric_alignments.end();) {
-
-		bool malformed = false;
 
 		if (chimeric_alignment->second.single_end) {
 			if (chimeric_alignment->second.size() == 2 &&
@@ -377,12 +394,12 @@ unsigned int remove_malformed_alignments(chimeric_alignments_t& chimeric_alignme
 				unsigned int clipped_bases_supplementary = (chimeric_alignment->second[SUPPLEMENTARY].strand == FORWARD) ? chimeric_alignment->second[SUPPLEMENTARY].postclipping() : chimeric_alignment->second[SUPPLEMENTARY].preclipping();
 				if (clipped_bases_split_read < chimeric_alignment->second[SPLIT_READ].sequence.size() - clipped_bases_supplementary ||
 				    clipped_bases_supplementary < chimeric_alignment->second[SPLIT_READ].sequence.size() - clipped_bases_split_read)
-					malformed = true;
+					goto malformed_alignment;
 
 			} else {
 				// if we get here, there are either too many alignments with the same name or too few
 				// or something is wrong with the supplementary flags
-				malformed = true;
+				goto malformed_alignment;
 			}
 
 		} else { // paired-end
@@ -404,12 +421,12 @@ unsigned int remove_malformed_alignments(chimeric_alignments_t& chimeric_alignme
 				if (chimeric_alignment->second[MATE1].supplementary ||
 				    chimeric_alignment->second[SPLIT_READ].supplementary ||
 				    !chimeric_alignment->second[SUPPLEMENTARY].supplementary)
-					malformed = true;
+					goto malformed_alignment;
 
 				// mate1 and mate2 should align in a colinear fashion
 				if (chimeric_alignment->second[MATE1].contig != chimeric_alignment->second[SPLIT_READ].contig ||
 				    chimeric_alignment->second[MATE1].strand == chimeric_alignment->second[SPLIT_READ].strand)
-					malformed = true;
+					goto malformed_alignment;
 
 				// the split read must be clipped at the end, the supplementary alignment at the beginning
 				// and the clipped segment of the split read must encompass the supplementary and vice versa
@@ -417,25 +434,25 @@ unsigned int remove_malformed_alignments(chimeric_alignments_t& chimeric_alignme
 				unsigned int clipped_bases_supplementary = (chimeric_alignment->second[SUPPLEMENTARY].strand == FORWARD) ? chimeric_alignment->second[SUPPLEMENTARY].postclipping() : chimeric_alignment->second[SUPPLEMENTARY].preclipping();
 				if (clipped_bases_split_read < chimeric_alignment->second[SPLIT_READ].sequence.size() - clipped_bases_supplementary ||
 				    clipped_bases_supplementary < chimeric_alignment->second[SPLIT_READ].sequence.size() - clipped_bases_split_read)
-					malformed = true;
+					goto malformed_alignment;
 
 			} else if (chimeric_alignment->second.size() == 2) { // discordant mate
 				// none of the mates should have the supplementary bit set, or else something is wrong
 				if (chimeric_alignment->second[MATE1].supplementary || chimeric_alignment->second[MATE2].supplementary)
-					malformed = true;
+					goto malformed_alignment;
 			} else {
 				// if we get here, there are either too many alignments with the same name or too few
-				malformed = true;
+				goto malformed_alignment;
 			}
 
 		}
 
-		if (malformed) {
+		++chimeric_alignment;
+		continue;
+
+		malformed_alignment:
 			malformed_count++;
 			chimeric_alignment = chimeric_alignments.erase(chimeric_alignment);
-		} else {
-			++chimeric_alignment;
-		}
 	}
 
 	return malformed_count;
@@ -455,6 +472,42 @@ bool is_clipped_at_correct_end(const bam1_t* bam_record) {
 		clipped_end = (get_strand(bam_record) == FORWARD) ? 0 : bam_record->core.n_cigar-1;
 	uint32_t clipped_cigar = bam_cigar_op(bam_get_cigar(bam_record)[clipped_end]);
 	return clipped_cigar == BAM_CSOFT_CLIP || clipped_cigar == BAM_CHARD_CLIP;
+}
+
+// viral reads are only counted if their alignment is of high quality
+// doing so yields more accurate quantification of viral expression, because it eliminates alignment artifacts
+bool is_pristine_alignment(const bam1_t* bam_record) {
+
+	// alignment must not contain indels and must not be clipped
+	for (unsigned int i = 0; i < bam_record->core.n_cigar; i++) {
+		uint32_t cigar_op = bam_cigar_op(bam_get_cigar(bam_record)[i]);
+		if (cigar_op != BAM_CREF_SKIP && cigar_op != BAM_CMATCH && cigar_op != BAM_CDIFF)
+			return false;
+	}
+
+	// get sequence of read as string to look for tandem repeats
+	string sequence;
+	sequence.resize(bam_record->core.l_qseq);
+	for (int i = 0; i < bam_record->core.l_qseq; ++i)
+		sequence[i] = seq_nt16_str[bam_seqi(bam_get_seq(bam_record), i)];
+
+	// walk over sequence looking for tandem repeats of dimers or triplets
+	for (unsigned int i = 2, repeat = 0, count = 1; i + 2 < sequence.size(); i += 2) {
+		if (sequence[i] == sequence[repeat] && sequence[i+1] == sequence[repeat+1]) { // tandem repeat of dimers
+			count++;
+		} else if (sequence[i+1] == sequence[repeat+1] && sequence[i+2] == sequence[repeat+2]) { // tandem repeat of triplets
+			count++;
+			i++;
+		} else { // series of tandem repeats is broken => start over with sequence at current position
+			count = 1;
+			repeat = i;
+		}
+		if (count >= 8)
+			return false;
+	}
+
+	// nothing to criticize
+	return true;
 }
 
 unsigned int read_chimeric_alignments(const string& bam_file_path, const assembly_t& assembly, const string& assembly_file_path, chimeric_alignments_t& chimeric_alignments, unsigned long int& mapped_reads, vector<unsigned long int>& mapped_viral_reads_by_contig, coverage_t& coverage, contigs_t& contigs, vector<string>& original_contig_names, const string& interesting_contigs, const string& viral_contigs, const gene_annotation_index_t& gene_annotation_index, const bool separate_chimeric_bam_file, const bool is_rna_bam_file, const bool external_duplicate_marking, const unsigned int max_itd_length) {
@@ -597,10 +650,28 @@ unsigned int read_chimeric_alignments(const string& bam_file_path, const assembl
 
 			} else { // this is Aligned.out.bam => load only discordant mates and split reads, and only when there is no Chimeric.out.sam
 
-				bool is_read_through_alignment = false;
+				// STAR is bad at aligning internal tandem duplications (ITD)
+				// it often does not align them at all or maps the clipped segment to a different chromosome with poor alignment quality
+				// => for every clipped alignment, check if it can be aligned as an ITD
+				bool is_tandem_alignment = false;
 				alignment_t tandem_alignment;
+				if (!clipped_sequence_is_adapter(bam_record, previously_seen_mate) &&
+			           (previously_seen_mate == NULL || get_strand(bam_record) != get_strand(previously_seen_mate)) && // strands must be different, so we can distinguish mate1 from mate2
+			           (is_tandem_duplication(bam_record, assembly, max_itd_length, tandem_alignment) || // is it a tandem duplication that STAR failed to align?
+			            is_tandem_duplication(previously_seen_mate, assembly, max_itd_length, tandem_alignment))) {
+					if (is_rna_bam_file) {
+						mates_t& mates = chimeric_alignments[read_name + "ITD"]; // imitate a multimapping alignment by adding another alignment for the ITD
+						add_chimeric_alignment(mates, bam_record, get_strand(bam_record) == tandem_alignment.strand && !tandem_alignment.supplementary);
+						if (previously_seen_mate != NULL)
+							add_chimeric_alignment(mates, previously_seen_mate, get_strand(previously_seen_mate) == tandem_alignment.strand && !tandem_alignment.supplementary);
+						mates.push_back(tandem_alignment);
+					}
+					is_tandem_alignment = true;
+				}
 
-				if (bam_aux_get(bam_record, "SA") != NULL && is_clipped_at_correct_end(bam_record) ||
+				// we extract two types of alignments here: chimeric alignments (having an SA tag) and read-through alignments (crossing gene boundaries)
+				bool is_read_through_alignment = false;
+				if (bam_aux_get(bam_record, "SA") != NULL && is_clipped_at_correct_end(bam_record) || // split-read with SA tag
 				    previously_seen_mate != NULL && bam_aux_get(previously_seen_mate, "SA") != NULL && is_clipped_at_correct_end(previously_seen_mate)) { // split-read with SA tag
 					if (!separate_chimeric_bam_file) {
 						mates_t& mates = chimeric_alignments[read_name];
@@ -609,34 +680,14 @@ unsigned int read_chimeric_alignments(const string& bam_file_path, const assembl
 							add_chimeric_alignment(mates, previously_seen_mate);
 						no_chimeric_reads = false;
 					}
-				} else if (!clipped_sequence_is_adapter(bam_record, previously_seen_mate) &&
-				           (previously_seen_mate == NULL || get_strand(bam_record) != get_strand(previously_seen_mate)) && // strands must be different, so we can distinguish mate1 from mate2
-				           (is_tandem_duplication(bam_record, assembly, max_itd_length, tandem_alignment) || // is it a tandem duplication that STAR failed to align?
-				            is_tandem_duplication(previously_seen_mate, assembly, max_itd_length, tandem_alignment))) {
-					if (!separate_chimeric_bam_file || is_rna_bam_file && chimeric_alignments.find(read_name) == chimeric_alignments.end()) {
-						mates_t& mates = chimeric_alignments[read_name];
-						add_chimeric_alignment(mates, bam_record, get_strand(bam_record) == tandem_alignment.strand && !tandem_alignment.supplementary);
-						if (previously_seen_mate != NULL)
-							add_chimeric_alignment(mates, previously_seen_mate, get_strand(previously_seen_mate) == tandem_alignment.strand && !tandem_alignment.supplementary);
-						mates.push_back(tandem_alignment);
-					}
-				} else { // could be a read-through alignment
+				} else if (!is_tandem_alignment) { // could be a read-through alignment
 					is_read_through_alignment = extract_read_through_alignment(chimeric_alignments, read_name, bam_record, previously_seen_mate, gene_annotation_index, separate_chimeric_bam_file);
 
 					// count mapped reads on viral contigs to detect viral infection
-					if (viral_contigs_bool[bam_record->core.tid]) {
-						// only count perfectly matching alignments to ignore alignment artifacts
-						for (bam1_t* mate = bam_record; mate != NULL; mate = (mate == previously_seen_mate) ? NULL : previously_seen_mate) {
-							bool pristine_alignment = true;
-							for (unsigned int i = 0; i < mate->core.n_cigar && pristine_alignment; i++) {
-								uint32_t cigar_op = bam_cigar_op(bam_get_cigar(mate)[i]);
-								if (cigar_op != BAM_CREF_SKIP && cigar_op != BAM_CMATCH && cigar_op != BAM_CDIFF)
-									pristine_alignment = false;
-							}
-							if (pristine_alignment)
+					if (viral_contigs_bool[bam_record->core.tid])
+						for (bam1_t* mate = bam_record; mate != NULL; mate = (mate == previously_seen_mate) ? NULL : previously_seen_mate)
+							if (is_pristine_alignment(mate)) // only count perfectly matching alignments to ignore alignment artifacts
 								mapped_viral_reads_by_contig[mate->core.tid]++;
-						}
-					}
 				}
 
 				if (!external_duplicate_marking || !(bam_record->core.flag & BAM_FDUP))

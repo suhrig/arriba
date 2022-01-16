@@ -190,6 +190,29 @@ char dna_to_protein(const string& triplet) {
 	else { return '?'; }
 }
 
+// given a coding transcript, return its entire protein sequence
+void translate_reference_protein(const exon_t exon_with_start_codon, const assembly_t& assembly, map<position_t,char>& reference_protein) {
+	if (exon_with_start_codon == NULL)
+		return;
+	bool forward_strand = exon_with_start_codon->gene->strand == FORWARD;
+	string codon;
+string foo;
+	bool already_reported_annotation_error = false;
+	for (exon_t exon = exon_with_start_codon; exon != NULL; exon = (forward_strand) ? exon->next_exon : exon->previous_exon) {
+		for (position_t position = (forward_strand) ? exon->coding_region_start : exon->coding_region_end; position != -1 && position >= exon->coding_region_start && position <= exon->coding_region_end; position += (forward_strand) ? +1 : -1) {
+			codon += (forward_strand) ? assembly.at(exon->gene->contig)[position] : dna_to_complement(assembly.at(exon->gene->contig)[position]);
+			if (codon.size() == 3) {
+				reference_protein[position] = dna_to_protein(codon);
+				codon.clear();
+				if (!already_reported_annotation_error && position < exon->coding_region_end && position > exon->coding_region_start && reference_protein[position] == '*') {
+					cerr << "WARNING: encountered early stop codon in transcript " << exon->transcript->name << " at amino acid " << reference_protein.size() << " (error in GTF file?) => predicted peptide sequence may be wrong" << endl;
+					already_reported_annotation_error = true;
+				}
+			}
+		}
+	}
+}
+
 // determines reading frame of first base of given transcript based on coding exons overlapping the transcript
 int get_reading_frame(const vector<position_t>& transcribed_bases, const int from, const int to, const transcript_t transcript, const gene_t gene, const assembly_t& assembly, exon_t& exon_with_start_codon) {
 
@@ -215,7 +238,7 @@ int get_reading_frame(const vector<position_t>& transcribed_bases, const int fro
 	// find a coding exon that is transcribed to determine reading frame
 	int reading_frame = -1;
 	position_t transcribed_coding_base = -1;
-	for (exon_t exon = exon_with_start_codon; exon != NULL && transcribed_coding_base == -1; exon = (gene->strand == FORWARD) ? exon->next_exon : exon->previous_exon) {
+	for (exon_t exon = exon_with_start_codon; exon != NULL && exon->coding_region_start != -1 && transcribed_coding_base == -1; exon = (gene->strand == FORWARD) ? exon->next_exon : exon->previous_exon) {
 		for (int position = from; position <= to && transcribed_coding_base == -1; position++)
 			if (exon->coding_region_start <= transcribed_bases[position] && exon->coding_region_end >= transcribed_bases[position])
 				transcribed_coding_base = position;
@@ -257,12 +280,15 @@ string get_fusion_peptide_sequence(const string& transcript_sequence, const vect
 	if (transcription_5_start >= transcript_sequence.size())
 		transcription_5_start = 0;
 	else
-		transcription_5_start += 3; // skip "..."
+		while (positions[transcription_5_start] == -1 && transcript_sequence[transcription_5_start] != '|')
+			transcription_5_start++; // skip "..." and other control characters
+
 	size_t non_template_bases_length = transcript_sequence.find('|', transcription_5_end + 2);
 	if (non_template_bases_length >= transcript_sequence.size())
 		non_template_bases_length = 0;
 	else
 		non_template_bases_length -= transcription_5_end + 2;
+
 	size_t transcription_3_start = transcription_5_end + 2;
 	if (non_template_bases_length > 0)
 		transcription_3_start += non_template_bases_length + 1;
@@ -286,17 +312,19 @@ string get_fusion_peptide_sequence(const string& transcript_sequence, const vect
 	if (gene_3->strand == predicted_strand_3) // it makes no sense to determine the reading frame in case of anti-sense transcription
 		reading_frame_3 = get_reading_frame(positions, transcription_3_start, transcription_3_end, transcript_3, gene_3, assembly, start_exon_3);
 
+	// translate wild-type protein to check for non-silent SNPs/somatic SNVs
+	map<position_t,char> reference_protein_5;
+	translate_reference_protein(start_exon_5, assembly, reference_protein_5);
+	map<position_t,char> reference_protein_3;
+	translate_reference_protein(start_exon_3, assembly, reference_protein_3);
+
 	// translate DNA to protein
 	string peptide_sequence;
 	peptide_sequence.reserve(transcript_sequence.size()/3+2);
-	bool inside_indel = false; // needed to keep track of frame shifts (=> if so, convert to lowercase)
-	bool inside_intron = false; // keep track of whether one or more bases of the current codon are in an intron (=> convert to lowercase)
-	int frame_shift = 0; // keeps track of whether the current reading frame is shifted (=> convert to lowercase)
 	int codon_5_bases = 0; // keeps track of how many bases of a codon come from the 5' gene to check if the codon spans the breakpoint
 	int codon_3_bases = 0; // keeps track of how many bases of a codon come from the 3' gene to check if the codon spans the breakpoint
 	bool found_start_codon = false;
 	string codon;
-	string reference_codon;
 	for (size_t position = transcription_5_start + reading_frame_5; position < transcription_3_end; ++position) {
 
 		// don't begin before start codon
@@ -326,67 +354,29 @@ string get_fusion_peptide_sequence(const string& transcript_sequence, const vect
 
 			codon += transcript_sequence[position];
 
-			// compare reference base at given position to check for non-silent SNPs/somatic SNVs
-			if (positions[position] != -1) { // is not a control character or an insertion
-				reference_codon += assembly.at((position <= transcription_5_end) ? gene_5->contig : gene_3->contig)[positions[position]];
-				if (position <= transcription_5_end && gene_5->strand == REVERSE || position >= transcription_3_start && gene_3->strand == REVERSE)
-					reference_codon[reference_codon.size()-1] = dna_to_complement(reference_codon[reference_codon.size()-1]);
-			}
-
-			if (inside_indel)
-				frame_shift = (frame_shift + 1) % 3;
-
-		} else if (transcript_sequence[position] == '[') {
-			inside_indel = true;
-		} else if (transcript_sequence[position] == ']') {
-			inside_indel = false;
-		} else if (transcript_sequence[position] == '-') {
-			frame_shift = (frame_shift == 0) ? 2 : frame_shift - 1;
-		}
-
-		// check if we are in an intron/intergenic region or an exon
-		if (positions[position] != -1) {
-			inside_intron = true;
-			exon_t next_exon = (position <= transcription_5_end) ? start_exon_5 : start_exon_3;
-			while (next_exon != NULL) {
-				if (positions[position] >= next_exon->start && positions[position] <= next_exon->end) {
-					if (positions[position] >= next_exon->coding_region_start && positions[position] <= next_exon->coding_region_end)
-						inside_intron = false;
-					break;
-				}
-				if (position <= transcription_5_end && gene_5->strand == FORWARD || position >= transcription_3_start && gene_3->strand == FORWARD)
-					next_exon = next_exon->next_exon;
-				else
-					next_exon = next_exon->previous_exon;
-			}
 		}
 
 		if (codon.size() == 3) { // codon completed => translate to amino acid
 
 			// translate codon to amino acid and check whether it differs from the reference assembly
 			char amino_acid = dna_to_protein(codon);
-			char reference_amino_acid = dna_to_protein(reference_codon);
+			map<position_t,char>& reference_protein = (position <= transcription_5_end) ? reference_protein_5 : reference_protein_3;
 
 			// convert aberrant amino acids to lowercase
 			if (position > transcription_5_end && position < transcription_3_start || // non-template base
-			    amino_acid != reference_amino_acid || // non-silent mutation
-			    inside_indel || // indel
-			    inside_intron || // intron
+			    reference_protein.find(positions[position]) == reference_protein.end() || amino_acid != reference_protein.at(positions[position]) || // non-silent mutation
 			    codon_5_bases != 3 && position <= transcription_5_end || // codon overlaps 5' breakpoint
 			    codon_3_bases != 3 && position >= transcription_3_start || // codon overlaps 3' breakpoint
-			    frame_shift != 0 || // out-of-frame base
 			    position >= transcription_3_start && reading_frame_3 == -1) // 3' end is not a coding region
 				amino_acid = tolower(amino_acid);
 
 			peptide_sequence += amino_acid;
 			codon.clear();
-			reference_codon.clear();
 
 			// terminate, if we hit a stop codon in the 3' gene
 			if (codon_3_bases >= 2 && amino_acid == '*')
 				break;
 		}
-
 
 		// mark end of 5' end as pipe
 		if (position == transcription_5_end && codon.size() <= 1 ||
@@ -400,43 +390,60 @@ string get_fusion_peptide_sequence(const string& transcript_sequence, const vect
 			    codon_3_bases == 1 && codon.size() == 0)
 				if (peptide_sequence.empty() || peptide_sequence[peptide_sequence.size()-1] != '|')
 					peptide_sequence += '|';
-
-		// check if fusion shifts frame of 3' gene
-		if (position == transcription_3_start && reading_frame_3 != -1)
-			frame_shift = (3 + reading_frame_3 + 1 - codon.size()) % 3;
 	}
 
-	return peptide_sequence;
+	return peptide_sequence.empty() ? "." : peptide_sequence;
 }
 
 string is_in_frame(const string& fusion_peptide_sequence) {
 
-	if (fusion_peptide_sequence == ".")
+	if (fusion_peptide_sequence == "." ||
+	    fusion_peptide_sequence.empty() ||
+	    fusion_peptide_sequence[fusion_peptide_sequence.size()-1] == '|') // no peptide sequence for gene2
 		return ".";
 
-	// declare fusion as out-of-frame, if there is a stop codon before the junction
-	// unless there are in-frame codons between this stop codon and the junction
+	// declare fusion as out-of-frame if there is a stop codon before the junction and no start codon in between
 	size_t fusion_junction = fusion_peptide_sequence.rfind('|');
-	size_t stop_codon_before_junction = fusion_peptide_sequence.rfind('*', fusion_junction);
-	bool in_frame_codons_before_junction = false;
-	for (size_t amino_acid = (stop_codon_before_junction < fusion_junction) ? stop_codon_before_junction+1 : 0; amino_acid < fusion_junction; ++amino_acid)
-		if (fusion_peptide_sequence[amino_acid] >= 'A' && fusion_peptide_sequence[amino_acid] <= 'Z') {
-			in_frame_codons_before_junction = true;
-			break;
+	size_t last_stop_codon_before_junction = fusion_peptide_sequence.rfind('*', fusion_junction);
+	size_t first_start_codon_after_stop_codon = fusion_peptide_sequence.find('m', last_stop_codon_before_junction);
+	if (first_start_codon_after_stop_codon >= fusion_junction)
+		first_start_codon_after_stop_codon = fusion_peptide_sequence.find('M', last_stop_codon_before_junction);
+	if (last_stop_codon_before_junction < fusion_junction && first_start_codon_after_stop_codon >= fusion_junction)
+		return "stop-codon";
+
+	// if there are in-frame amino acids before a stop codon, there must be in-frame amino acids after the stop codon
+	// otherwise, the breakpoint is probably in the 3' UTR
+	if (last_stop_codon_before_junction < fusion_junction) {
+		// look for in-frame amino acid before stop codon
+		bool in_frame_amino_acid_before_stop_codon = false;
+		for (size_t amino_acid = 0; amino_acid < last_stop_codon_before_junction && !in_frame_amino_acid_before_stop_codon; ++amino_acid)
+			if (fusion_peptide_sequence[amino_acid] >= 'A' && fusion_peptide_sequence[amino_acid] <= 'Z')
+				in_frame_amino_acid_before_stop_codon = true;
+		// look for in-frame amino acid after stop codon
+		if (in_frame_amino_acid_before_stop_codon) {
+			bool in_frame_amino_acid_after_stop_codon = false;
+			for (size_t amino_acid = last_stop_codon_before_junction+1; amino_acid < fusion_junction && !in_frame_amino_acid_after_stop_codon; ++amino_acid)
+				if (fusion_peptide_sequence[amino_acid] >= 'A' && fusion_peptide_sequence[amino_acid] <= 'Z')
+					in_frame_amino_acid_after_stop_codon = true;
+			if (!in_frame_amino_acid_after_stop_codon)
+				return "stop-codon";
 		}
-	if (!in_frame_codons_before_junction)
-		if (stop_codon_before_junction < fusion_junction)
-			return "stop-codon";
-		else
-			return "out-of-frame";
+	}
 
-	// a fusion is in-frame, if there is at least one amino acid in the 3' end of the fusion
-	// that matches an amino acid of the 3' gene
+	// a fusion is in-frame if there is at least one amino acid in either gene matching the reading frame;
 	// such amino acids can easily be identified, because they are uppercase in the fusion sequence
-	for (size_t amino_acid = fusion_peptide_sequence.size() - 1; amino_acid > fusion_junction; --amino_acid)
+	bool in_frame_5 = false;
+	for (size_t amino_acid = (last_stop_codon_before_junction < fusion_junction) ? last_stop_codon_before_junction+1 : 0; amino_acid < fusion_junction && !in_frame_5; ++amino_acid)
 		if (fusion_peptide_sequence[amino_acid] >= 'A' && fusion_peptide_sequence[amino_acid] <= 'Z')
-			return "in-frame";
+			in_frame_5 = true;
+	bool in_frame_3 = false;
+	for (size_t amino_acid = fusion_junction+1; amino_acid < fusion_peptide_sequence.size() && !in_frame_3; ++amino_acid)
+		if (fusion_peptide_sequence[amino_acid] >= 'A' && fusion_peptide_sequence[amino_acid] <= 'Z')
+			in_frame_3 = true;
 
-	return "out-of-frame";
+	if (in_frame_5 && in_frame_3)
+		return "in-frame";
+	else
+		return "out-of-frame";
 }
 

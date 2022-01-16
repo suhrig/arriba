@@ -116,14 +116,14 @@ unsigned int filter_mismatches(chimeric_alignments_t& chimeric_alignments, const
 		// discard chimeric alignments which have too many mismatches
 		if (chimeric_alignment->second.size() == 2) { // discordant mates
 			
-			if (!viral_contigs[chimeric_alignment->second[MATE1].contig] && test_mismatch_probability(chimeric_alignment->second[MATE1], chimeric_alignment->second[MATE1].sequence, assembly, mismatch_probability, genome_size, pvalue_cutoff, chimeric_alignment->second.multimapper) ||
-			    !viral_contigs[chimeric_alignment->second[MATE2].contig] && test_mismatch_probability(chimeric_alignment->second[MATE2], chimeric_alignment->second[MATE2].sequence, assembly, mismatch_probability, genome_size, pvalue_cutoff, chimeric_alignment->second.multimapper)) {
+			if (!viral_contigs[chimeric_alignment->second[MATE1].contig] && test_mismatch_probability(chimeric_alignment->second[MATE1], chimeric_alignment->second[MATE1].sequence, assembly, mismatch_probability, genome_size, pvalue_cutoff, chimeric_alignment->second.multimapper && !viral_contigs[chimeric_alignment->second[MATE2].contig]) ||
+			    !viral_contigs[chimeric_alignment->second[MATE2].contig] && test_mismatch_probability(chimeric_alignment->second[MATE2], chimeric_alignment->second[MATE2].sequence, assembly, mismatch_probability, genome_size, pvalue_cutoff, chimeric_alignment->second.multimapper && !viral_contigs[chimeric_alignment->second[MATE1].contig])) {
 				chimeric_alignment->second.filter = FILTER_mismatches;
 				continue;
 			}
 		} else { // split read
-			if (!viral_contigs[chimeric_alignment->second[MATE1].contig] && test_mismatch_probability(chimeric_alignment->second[MATE1], chimeric_alignment->second[MATE1].sequence, assembly, mismatch_probability, genome_size, pvalue_cutoff, chimeric_alignment->second.multimapper) ||
-			    !viral_contigs[chimeric_alignment->second[SUPPLEMENTARY].contig] && test_mismatch_probability(chimeric_alignment->second[SUPPLEMENTARY], (chimeric_alignment->second[SUPPLEMENTARY].strand == chimeric_alignment->second[SPLIT_READ].strand) ? chimeric_alignment->second[SPLIT_READ].sequence : dna_to_reverse_complement(chimeric_alignment->second[SPLIT_READ].sequence), assembly, mismatch_probability, genome_size, pvalue_cutoff, chimeric_alignment->second.multimapper)) {
+			if (!viral_contigs[chimeric_alignment->second[MATE1].contig] && test_mismatch_probability(chimeric_alignment->second[MATE1], chimeric_alignment->second[MATE1].sequence, assembly, mismatch_probability, genome_size, pvalue_cutoff, chimeric_alignment->second.multimapper && !viral_contigs[chimeric_alignment->second[SUPPLEMENTARY].contig]) ||
+			    !viral_contigs[chimeric_alignment->second[SUPPLEMENTARY].contig] && test_mismatch_probability(chimeric_alignment->second[SUPPLEMENTARY], (chimeric_alignment->second[SUPPLEMENTARY].strand == chimeric_alignment->second[SPLIT_READ].strand) ? chimeric_alignment->second[SPLIT_READ].sequence : dna_to_reverse_complement(chimeric_alignment->second[SPLIT_READ].sequence), assembly, mismatch_probability, genome_size, pvalue_cutoff, chimeric_alignment->second.multimapper && !viral_contigs[chimeric_alignment->second[MATE1].contig])) {
 				chimeric_alignment->second.filter = FILTER_mismatches;
 				continue;
 			}

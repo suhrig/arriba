@@ -1,5 +1,5 @@
-#ifndef _RECOVER_ISOFORMS_H
-#define _RECOVER_ISOFORMS_H 1
+#ifndef RECOVER_ISOFORMS_H
+#define RECOVER_ISOFORMS_H 1
 
 #include "common.hpp"
 
@@ -7,4 +7,4 @@ using namespace std;
 
 unsigned int recover_isoforms(fusions_t& fusions);
 
-#endif /* _RECOVER_ISOFORMS_H */
+#endif /* RECOVER_ISOFORMS_H */

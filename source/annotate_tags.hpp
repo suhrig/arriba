@@ -1,5 +1,5 @@
-#ifndef _ANNOTATE_TAGS_H
-#define _ANNOTATE_TAGS_H 1
+#ifndef ANNOTATE_TAGS_H
+#define ANNOTATE_TAGS_H 1
 
 #include <string>
 #include <tuple>
@@ -16,4 +16,4 @@ void load_tags(const string& tags_file_path, const contigs_t& contigs, const uno
 
 string annotate_tags(const fusion_t& fusion, const tags_t& tags, const int max_mate_gap);
 
-#endif /* _ANNOTATE_TAGS_H */
+#endif /* ANNOTATE_TAGS_H */

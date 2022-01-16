@@ -1,5 +1,5 @@
-#ifndef _H_READ_COMPRESSED_FILE_H
-#define _H_READ_COMPRESSED_FILE_H 1
+#ifndef H_READ_COMPRESSED_FILE_H
+#define H_READ_COMPRESSED_FILE_H 1
 
 #include <fstream>
 #include <string>
@@ -31,4 +31,4 @@ class tsv_stream_t {
 		bool failbit;
 };
 
-#endif /* _H_READ_COMPRESSED_FILE_H */
+#endif /* H_READ_COMPRESSED_FILE_H */

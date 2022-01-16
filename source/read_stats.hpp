@@ -1,5 +1,5 @@
-#ifndef _READ_STATS_H
-#define _READ_STATS_H 1
+#ifndef READ_STATS_H
+#define READ_STATS_H 1
 
 #include <vector>
 #include "common.hpp"
@@ -26,4 +26,4 @@ class coverage_t {
 		int get_coverage(const contig_t contig, const position_t position, const direction_t direction) const;
 };
 
-#endif /* _READ_STATS_H */
+#endif /* READ_STATS_H */

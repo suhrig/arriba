@@ -2,6 +2,7 @@
 #include <vector>
 #include "common.hpp"
 #include "filter_top_expressed_viral_contigs.hpp"
+#include "filter_mismappers.hpp"
 
 using namespace std;
 
@@ -11,12 +12,41 @@ struct sort_contigs_by_expression_t {
 		float expression_x = expression->at(x);
 		float expression_y = expression->at(y);
 		if (expression_x != expression_y) {
-			return expression_x < expression_y;
+			return expression_x > expression_y;
 		} else {
-			return x < y; // ensures deterministic behavior in case of ties
+			return x > y; // ensures deterministic behavior in case of ties
 		}
 	}
 };
+
+// determine if viruses are related based on fraction of shared kmers in their genome
+bool related_viral_strains(const string& virus1, const string& virus2) {
+
+	// choose smaller of the two viruses for making a list of its kmers
+	const string* small_virus = &virus1;
+	const string* big_virus = &virus2;
+	if (small_virus->size() > big_virus->size())
+		swap(small_virus, big_virus);
+
+	// get all kmers of smaller virus
+	const char kmer_length = 12;
+	map<kmer_as_int_t, unsigned int/*non-zero if shared*/> small_virus_kmers;
+	for (size_t i = 0; i + kmer_length <= small_virus->size(); i++)
+		small_virus_kmers[kmer_to_int(*small_virus, i, kmer_length)] = 0;
+
+	// calculate fraction of kmers of small virus also found in big virus
+	unsigned int shared_kmers = 0;
+	const unsigned int min_shared_kmers = small_virus_kmers.size() / 10; // consider viruses related if at least this fraction of kmers is shared
+	for (size_t i = 0; i + kmer_length <= big_virus->size(); i++) {
+		auto small_virus_kmer_count = small_virus_kmers.find(kmer_to_int(*big_virus, i, kmer_length));
+		if (small_virus_kmer_count != small_virus_kmers.end() && small_virus_kmer_count->second++ == 0) // don't count repetitive kmers more than once
+			if (++shared_kmers >= min_shared_kmers)
+				return true;
+	}
+
+	// we only get here if the viruses don't share many kmers
+	return false;
+}
 
 unsigned int filter_top_expressed_viral_contigs(chimeric_alignments_t& chimeric_alignments, unsigned int top_count, const vector<bool>& viral_contigs, const vector<bool>& interesting_contigs, const vector<unsigned long int>& mapped_viral_reads_by_contig, const assembly_t& assembly) {
 
@@ -35,14 +65,23 @@ unsigned int filter_top_expressed_viral_contigs(chimeric_alignments_t& chimeric_
 	for (size_t contig = 0; contig < expression_by_contig.size(); ++contig)
 		contigs_sorted_by_expression.push_back(contig);
 
-	// partially sort using nth_element
+	// sort viral contigs by expression
 	sort_contigs_by_expression_t sort_contigs_by_expression;
 	sort_contigs_by_expression.expression = &expression_by_contig;
-	if (top_count > mapped_viral_reads_by_contig.size())
-		top_count = mapped_viral_reads_by_contig.size();
-	top_count = mapped_viral_reads_by_contig.size() - top_count;
 	sort(contigs_sorted_by_expression.begin(), contigs_sorted_by_expression.end(), sort_contigs_by_expression);
-	float min_expression_threshold = expression_by_contig[contigs_sorted_by_expression[top_count]];
+
+	// merge related viral strains and count them as one when selecting the top N expressed viruses
+	unsigned int corrected_top_count = 0;
+	for (unsigned int i = 1; i < contigs_sorted_by_expression.size() && expression_by_contig[contigs_sorted_by_expression[i]] > 0 && top_count > 0; ++i) {
+		corrected_top_count++;
+		if (assembly.find(contigs_sorted_by_expression[i]) == assembly.end() ||
+		    assembly.find(contigs_sorted_by_expression[i-1]) == assembly.end() ||
+		    !related_viral_strains(assembly.at(contigs_sorted_by_expression[i]), assembly.at(contigs_sorted_by_expression[i-1])))
+			top_count--;
+	}
+	if (corrected_top_count != 0)
+		corrected_top_count--;
+	float min_expression_threshold = expression_by_contig[contigs_sorted_by_expression[corrected_top_count]];
 
 	// viral integration into the host genome is mostly random and many integration sites are intergenic
 	// therefore, the ratio of intergenic to genic integration sites should be high for infiltrating viruses (in contrast to alignment artifacts)
@@ -95,8 +134,10 @@ unsigned int filter_top_expressed_viral_contigs(chimeric_alignments_t& chimeric_
 		// at least one mate must map to host genome
 		for (mates_t::iterator mate = chimeric_alignment->second.begin(); mate != chimeric_alignment->second.end(); ++mate) {
 			if (viral_contigs[mate->contig]) {
-				if (expression_by_contig[mate->contig] <= min_expression_threshold) {
-					if (fraction_of_intergenic_integration_sites_by_virus[mate->contig] < min_fraction_of_intergenic_integration_sites || expression_by_contig[mate->contig] <= min_expression_threshold_for_viruses_with_high_fraction_of_intergenic_integration_sites) {
+				if (expression_by_contig[mate->contig] == 0 || expression_by_contig[mate->contig] < min_expression_threshold) {
+					if (fraction_of_intergenic_integration_sites_by_virus[mate->contig] < min_fraction_of_intergenic_integration_sites ||
+					    expression_by_contig[mate->contig] == 0 ||
+					    expression_by_contig[mate->contig] < min_expression_threshold_for_viruses_with_high_fraction_of_intergenic_integration_sites) {
 						chimeric_alignment->second.filter = FILTER_top_expressed_viral_contigs;
 						goto next_read;
 					}

@@ -34,8 +34,13 @@ void pileup_chimeric_alignments(vector<chimeric_alignments_t::iterator>& chimeri
 
 		if ((**chimeric_alignment).second.size() == 2) // discordant mate
 			if (!(direction == DOWNSTREAM && read.strand == FORWARD && read.end   <= breakpoint+2 && read.end   >= breakpoint-200 ||
-			      direction == UPSTREAM   && read.strand == REVERSE && read.start >= breakpoint-2 && read.start <= breakpoint+200)) // only consider discordant mates close to the breakpoints (we don't care about the ones in other exons)
-				continue;
+			      direction == UPSTREAM   && read.strand == REVERSE && read.start >= breakpoint-2 && read.start <= breakpoint+200))
+				continue; // only consider discordant mates close to the breakpoints, because distant ones might belong to other transcript isoforms
+
+		if ((**chimeric_alignment).second.size() == 3) // split read
+			if (mate == SPLIT_READ || mate == SUPPLEMENTARY)
+				if (read.start != breakpoint && read.end != breakpoint)
+					continue; // ignore split reads with slightly different breakpoints due to alternative alignments, since they would mess up the pileup
 
 		string read_sequence = (mate == SUPPLEMENTARY) ? (**chimeric_alignment).second[SPLIT_READ].sequence : read.sequence;
 		if (reverse_complement)
@@ -102,12 +107,43 @@ void pileup_chimeric_alignments(vector<chimeric_alignments_t::iterator>& chimeri
 
 void get_sequence_from_pileup(const pileup_t& pileup, const position_t breakpoint, const direction_t direction, const gene_t gene, const assembly_t& assembly, string& sequence, vector<position_t>& positions, string& clipped_sequence) {
 
+	// determine peak coverage
+	unsigned int peak_coverage = 0;
+	for (pileup_t::const_iterator position = pileup.begin(); position != pileup.end(); ++position) {
+		unsigned int coverage = 0;
+		for (auto base = position->second.begin(); base != position->second.end(); ++base)
+			coverage += base->second;
+		if (coverage > peak_coverage)
+			peak_coverage = coverage;
+	}
+
+	// ignore low-coverage regions distal to the breakpoint, because they probably belong to other transcript isoforms
+	const float low_coverage_fraction = 0.10; // consider less than this fraction of the peak coverage as low
+	pileup_t::const_iterator start_sufficient_coverage = pileup.begin();
+	pileup_t::const_iterator end_sufficient_coverage = pileup.end();
+	for (pileup_t::const_iterator position = pileup.begin(); position != pileup.end(); ++position) {
+		unsigned int coverage = 0;
+		for (auto base = position->second.begin(); base != position->second.end(); ++base)
+			coverage += base->second;
+		if (direction == DOWNSTREAM) {
+			if (coverage < peak_coverage * low_coverage_fraction)
+				start_sufficient_coverage = position;
+			else
+				break;
+		} else if (direction == UPSTREAM) {
+			if (coverage > peak_coverage * low_coverage_fraction)
+				end_sufficient_coverage = position;
+		}
+	}
+	if (end_sufficient_coverage != pileup.end())
+		++end_sufficient_coverage;
+
 	// for each position, find the most frequent allele in the pileup
 	bool intron_open = false; // keep track of whether the current position is in an intron
 	bool intron_closed = true; // keep track of whether the current position is in an intron
-	for (pileup_t::const_iterator position = pileup.begin(); position != pileup.end(); ++position) {
+	for (pileup_t::const_iterator position = start_sufficient_coverage; position != end_sufficient_coverage; ++position) {
 
-		if (position != pileup.begin() && prev(position)->first < position->first - 1 && !intron_open) {
+		if (position != start_sufficient_coverage && prev(position)->first < position->first - 1 && !intron_open) {
 			sequence += "..."; // indicate uncovered stretches with an ellipsis
 			positions.resize(positions.size() + 3, -1);
 		}
@@ -225,28 +261,24 @@ void get_fusion_transcript_sequence(fusion_t& fusion, const assembly_t& assembly
 
 	// look for non-template bases inserted between the fused genes
 	unsigned int non_template_bases = 0;
-	if (!fusion.spliced1 && !fusion.spliced2) {
+	map<unsigned int/*number of non-template bases*/, unsigned int/*number of reads with given number of non-template bases*/> non_template_bases_count;
+	for (auto read = fusion.split_read1_list.begin(); read != fusion.split_read2_list.end(); ++read) {
 
-		map<unsigned int/*number of non-template bases*/, unsigned int/*number of reads with given number of non-template bases*/> non_template_bases_count;
-		for (auto read = fusion.split_read1_list.begin(); read != fusion.split_read2_list.end(); ++read) {
-
-			// continue with split_read2_list if we have processed the split_read1_list
-			if (read == fusion.split_read1_list.end()) {
-				read = fusion.split_read2_list.begin();
-				if (read == fusion.split_read2_list.end())
-					break;
-			}
-
-			// there are non-template bases, if the sum of the clipped bases of split read and supplementary alignment are greater than the read length
-			unsigned int clipped_split_read = ((**read).second[SPLIT_READ].strand == FORWARD) ? (**read).second[SPLIT_READ].preclipping() : (**read).second[SPLIT_READ].postclipping();
-			unsigned int clipped_supplementary = ((**read).second[SUPPLEMENTARY].strand == FORWARD) ? (**read).second[SUPPLEMENTARY].postclipping() : (**read).second[SUPPLEMENTARY].preclipping();
-			if (clipped_split_read + clipped_supplementary >= (**read).second[SPLIT_READ].sequence.size()) {
-				unsigned int unmapped_bases = clipped_split_read + clipped_supplementary - (**read).second[SPLIT_READ].sequence.size();
-				if (++non_template_bases_count[unmapped_bases] > non_template_bases_count[non_template_bases])
-					non_template_bases = unmapped_bases;
-			}
+		// continue with split_read2_list if we have processed the split_read1_list
+		if (read == fusion.split_read1_list.end()) {
+			read = fusion.split_read2_list.begin();
+			if (read == fusion.split_read2_list.end())
+				break;
 		}
 
+		// there are non-template bases if the sum of the clipped bases of split read and supplementary alignment are greater than the read length
+		unsigned int clipped_split_read = ((**read).second[SPLIT_READ].strand == FORWARD) ? (**read).second[SPLIT_READ].preclipping() : (**read).second[SPLIT_READ].postclipping();
+		unsigned int clipped_supplementary = ((**read).second[SUPPLEMENTARY].strand == FORWARD) ? (**read).second[SUPPLEMENTARY].postclipping() : (**read).second[SUPPLEMENTARY].preclipping();
+		if (clipped_split_read + clipped_supplementary >= (**read).second[SPLIT_READ].sequence.size()) {
+			unsigned int unmapped_bases = clipped_split_read + clipped_supplementary - (**read).second[SPLIT_READ].sequence.size();
+			if (++non_template_bases_count[unmapped_bases] > non_template_bases_count[non_template_bases])
+				non_template_bases = unmapped_bases;
+		}
 	}
 
 	// determine most frequent bases in pileup
@@ -279,19 +311,19 @@ void get_fusion_transcript_sequence(fusion_t& fusion, const assembly_t& assembly
 			std::transform(clipped_sequence1.begin(), clipped_sequence1.end(), clipped_sequence1.begin(), (int (*)(int))std::tolower);
 			if (fusion.direction1 == UPSTREAM) {
 				sequence1 = clipped_sequence1.substr(clipped_sequence1.size() - non_template_bases) + sequence1;
-				positions1.insert(positions1.begin(), clipped_sequence1.size() - non_template_bases, -1);
+				positions1.insert(positions1.begin(), non_template_bases, -1);
 			} else {
 				sequence1 += clipped_sequence1.substr(0, non_template_bases);
-				positions1.resize(positions1.size()+non_template_bases, -1);
+				positions1.resize(positions1.size() + non_template_bases, -1);
 			}
 		} else if (clipped_sequence2.size() >= non_template_bases) {
 			std::transform(clipped_sequence2.begin(), clipped_sequence2.end(), clipped_sequence2.begin(), (int (*)(int))std::tolower);
 			if (fusion.direction2 == UPSTREAM) {
 				sequence2 = clipped_sequence2.substr(clipped_sequence2.size() - non_template_bases) + sequence2;
-				positions2.insert(positions2.begin(), clipped_sequence2.size() - non_template_bases, -1);
+				positions2.insert(positions2.begin(), non_template_bases, -1);
 			} else {
 				sequence2 += clipped_sequence2.substr(0, non_template_bases);
-				positions2.resize(positions2.size()+non_template_bases, -1);
+				positions2.resize(positions2.size() + non_template_bases, -1);
 			}
 		}
 	}
@@ -368,6 +400,60 @@ void get_fusion_transcript_sequence(fusion_t& fusion, const assembly_t& assembly
 		if (fusion.direction1 != UPSTREAM)
 			reverse(positions1.begin(), positions1.end());
 		positions.insert(positions.end(), positions1.begin(), positions1.end());
+	}
+
+	// simplify regions like "...A...", "...AA...", "...AAA..." etc. to just "..."
+	const size_t max_bases_between_ellipses = 10;
+	size_t first_ellipsis = 0;
+	size_t second_ellipsis = string::npos;
+	while ((first_ellipsis = sequence.find("...", first_ellipsis)) < sequence.size()) {
+		if ((second_ellipsis = sequence.find("...", first_ellipsis + 3)) < first_ellipsis + max_bases_between_ellipses + 3 && // next ellipsis is within range
+		    sequence.find('|', first_ellipsis + 3) > second_ellipsis) { // don't accidentally remove the junction (e.g., "...|...")
+			sequence.replace(first_ellipsis + 3, second_ellipsis - first_ellipsis, ""); // remove everything after first ellipsis up until (and including) second ellipsis
+			positions.erase(positions.begin() + first_ellipsis + 3, positions.begin() + second_ellipsis + 3); // do the same for positions
+		} else {
+			first_ellipsis += 3;
+		}
+	}
+
+	// simplify regions with uncertainty
+	vector< pair<string/*search*/,string/*replace*/> > sequences_to_simplify;
+	sequences_to_simplify.push_back(make_pair("...___|", "|")); // happens occasionally with ITDs and is harmless
+	sequences_to_simplify.push_back(make_pair("|___...", "|")); // happens occasionally with ITDs and is harmless
+	sequences_to_simplify.push_back(make_pair("___|", "...|"));
+	sequences_to_simplify.push_back(make_pair("|___", "|..."));
+	sequences_to_simplify.push_back(make_pair("______", "___"));
+	sequences_to_simplify.push_back(make_pair("___...___", "___"));
+	sequences_to_simplify.push_back(make_pair("...___...", "..."));
+	sequences_to_simplify.push_back(make_pair("......", "..."));
+	size_t needs_simplification = string::npos;
+	do {
+		for (auto sequence_to_simplify = sequences_to_simplify.begin(); sequence_to_simplify != sequences_to_simplify.end(); ++sequence_to_simplify) {
+			if ((needs_simplification = sequence.find(sequence_to_simplify->first)) < sequence.size()) {
+				sequence.replace(needs_simplification, sequence_to_simplify->first.size(), sequence_to_simplify->second);
+				if (sequence_to_simplify->first.size() > sequence_to_simplify->second.size())
+					positions.erase(positions.begin() + needs_simplification, positions.begin() + needs_simplification + sequence_to_simplify->first.size() - sequence_to_simplify->second.size());
+				break;
+			}
+		}
+	} while (needs_simplification != string::npos);
+
+	// remove terminal "..." and "___"
+	while (sequence.substr(0, 3) == "..." || sequence.substr(0, 3) == "___") {
+		sequence = sequence.substr(3);
+		positions.erase(positions.begin(), positions.begin() + 3);
+	}
+	while (sequence.size() >= 3 && (sequence.substr(sequence.size() - 3) == "..." || sequence.substr(sequence.size() - 3) == "___")) {
+		sequence = sequence.substr(0, sequence.size() - 3);
+		positions.erase(positions.begin() + positions.size() - 3, positions.end());
+	}
+
+	// simplify failed attempts to assemble the fusion transcript
+	if (sequence == "" || sequence == "|" || sequence == "...|" || sequence == "|..." || sequence == "...|...") {
+		sequence = ".";
+		positions.clear();
+		positions.push_back(-1);
+		return;
 	}
 
 	// Arriba uses question marks to denote ambiguous bases;
@@ -510,10 +596,8 @@ string get_fusion_type(const fusion_t& fusion, const unsigned int max_itd_length
 			    (fusion.gene1->strand == fusion.gene2->strand)) {
 				if (fusion.gene1 == fusion.gene2 && fusion.spliced1 && fusion.spliced2) {
 					return "duplication/non-canonical_splicing";
-				} else if (fusion.gene1 == fusion.gene2 &&
-				         fusion.exonic1 && fusion.exonic2 &&
-				         ((unsigned int) fusion.breakpoint2 - fusion.breakpoint1) < max_itd_length) {
-					return "duplication/ITD"; // internal tandem duplication
+				} else if (fusion.is_internal_tandem_duplication(max_itd_length)) {
+					return "duplication/ITD";
 				} else {
 					return "duplication";
 				}
@@ -551,87 +635,69 @@ string get_fusion_strand(const strand_t strand, const gene_t gene, const bool pr
 
 string get_fusion_site(const gene_t gene, const bool spliced, const bool exonic, const contig_t contig, const position_t breakpoint, const exon_annotation_index_t& exon_annotation_index) {
 	string site;
-	if (gene->is_dummy) {
+	if (gene->is_dummy || breakpoint < gene->start || breakpoint > gene->end) {
 		site = "intergenic";
 	} else if (exonic) {
-		// re-annotate exonic breakpoints
-		if (breakpoint < gene->start) {
-			if (gene->is_protein_coding) {
-				if (gene->strand == FORWARD)
-					site = "5'UTR";
-				else
-					site = "3'UTR";
-			} else
-				site = "exon";
-		} else if (breakpoint > gene->end) {
-			if (gene->is_protein_coding) {
-				if (gene->strand == FORWARD)
-					site = "3'UTR";
-				else
-					site = "5'UTR";
-			} else
-				site = "exon";
-		} else {
-			exon_set_t exons;
-			get_annotation_by_coordinate(contig, breakpoint, breakpoint, exons, exon_annotation_index);
-			bool has_overlapping_exon = false;
-			bool is_utr = true;
-			unsigned int is_3_end = 0;
-			unsigned int is_5_end = 0;
-			for (exon_set_t::iterator exon = exons.begin(); exon != exons.end(); ++exon) {
-				if ((**exon).gene == gene) {
-					has_overlapping_exon = true;
-					if ((**exon).coding_region_start <= breakpoint && (**exon).coding_region_end >= breakpoint)
-						is_utr = false;
-					if (is_utr && gene->is_protein_coding) {
-						// detect if we are in a 5' or 3' UTR by going upstream/downstream and
-						// checking whether we first hit a protein-coding exon or the transcript end
-						if ((**exon).coding_region_start != -1 && (**exon).coding_region_start > breakpoint) {
-							if (gene->strand == FORWARD)
-								++is_5_end;
-							else
+		// re-annotate exonic breakpoints, because internally a read that overlaps even just partially with an exon is annotated as exonic
+		exon_set_t exons;
+		get_annotation_by_coordinate(contig, breakpoint, breakpoint, exons, exon_annotation_index);
+		bool has_overlapping_exon = false;
+		bool is_utr = true;
+		unsigned int is_3_end = 0;
+		unsigned int is_5_end = 0;
+		for (exon_set_t::iterator exon = exons.begin(); exon != exons.end(); ++exon) {
+			if ((**exon).gene == gene) {
+				has_overlapping_exon = true;
+				if ((**exon).coding_region_start <= breakpoint && (**exon).coding_region_end >= breakpoint)
+					is_utr = false;
+				if (is_utr && gene->is_protein_coding) {
+					// detect if we are in a 5' or 3' UTR by going upstream/downstream and
+					// checking whether we first hit a protein-coding exon or the transcript end
+					if ((**exon).coding_region_start != -1 && (**exon).coding_region_start > breakpoint) {
+						if (gene->strand == FORWARD)
+							++is_5_end;
+						else
+							++is_3_end;
+					} else if ((**exon).coding_region_end != -1 && (**exon).coding_region_end < breakpoint) {
+						if (gene->strand == REVERSE)
+							++is_5_end;
+						else
+							++is_3_end;
+					} else {
+						exon_annotation_record_t* next_exon = (**exon).next_exon;
+						while (next_exon != NULL && next_exon->coding_region_start == -1)
+							next_exon = next_exon->next_exon;
+						exon_annotation_record_t* previous_exon = (**exon).previous_exon;
+						while (previous_exon != NULL && previous_exon->coding_region_start == -1)
+							previous_exon = previous_exon->previous_exon;
+						if (previous_exon != NULL || next_exon != NULL) { // is true, if the transcript contains a coding region
+							if ((next_exon == NULL) != /*xor*/ (gene->strand == REVERSE))
 								++is_3_end;
-						} else if ((**exon).coding_region_end != -1 && (**exon).coding_region_end < breakpoint) {
-							if (gene->strand == REVERSE)
-								++is_5_end;
 							else
-								++is_3_end;
-						} else {
-							exon_annotation_record_t* next_exon = (**exon).next_exon;
-							while (next_exon != NULL && next_exon->coding_region_start == -1)
-								next_exon = next_exon->next_exon;
-							exon_annotation_record_t* previous_exon = (**exon).previous_exon;
-							while (previous_exon != NULL && previous_exon->coding_region_start == -1)
-								previous_exon = previous_exon->previous_exon;
-							if (previous_exon != NULL || next_exon != NULL) { // is true, if the transcript contains a coding region
-								if ((next_exon == NULL) != /*xor*/ (gene->strand == REVERSE))
-									++is_3_end;
-								else
-									++is_5_end;
-							}
+								++is_5_end;
 						}
 					}
 				}
 			}
-			if (!has_overlapping_exon) {
-				site = "intron";
-			} else if (gene->is_protein_coding) {
-				if (is_utr) {
-					if (is_3_end > is_5_end) {
-						site = "3'UTR";
-					} else if (is_3_end < is_5_end) {
-						site = "5'UTR";
-					} else if (is_3_end + is_5_end == 0) {
-						site = "exon";
-					} else {
-						site = "UTR";
-					}
+		}
+		if (!has_overlapping_exon) {
+			site = "intron";
+		} else if (gene->is_protein_coding) {
+			if (is_utr) {
+				if (is_3_end > is_5_end) {
+					site = "3'UTR";
+				} else if (is_3_end < is_5_end) {
+					site = "5'UTR";
+				} else if (is_3_end + is_5_end == 0) {
+					site = "exon";
 				} else {
-					site = "CDS";
+					site = "UTR";
 				}
 			} else {
-				site = "exon";
+				site = "CDS";
 			}
+		} else {
+			site = "exon";
 		}
 		if (spliced && site != "intron")
 			site += "/splice-site";
@@ -745,7 +811,7 @@ void get_transcripts(const string& transcript_sequence, const vector<position_t>
 		best_transcripts.push_back(best_transcripts[0]);
 }
 
-void fill_gaps_in_fusion_transcript_sequence(string& transcript_sequence, vector<position_t>& positions, const transcript_t transcript_5, const transcript_t transcript_3, const strand_t strand_5, const strand_t strand_3, const assembly_t& assembly) {
+void fill_gaps_in_fusion_transcript_sequence(string& transcript_sequence, vector<position_t>& positions, const transcript_t transcript_5, const transcript_t transcript_3, const strand_t strand_5, const strand_t strand_3, const bool is_internal_tandem_duplication, const assembly_t& assembly) {
 
 
 	// fill gaps in 5' end of transcript
@@ -802,11 +868,11 @@ void fill_gaps_in_fusion_transcript_sequence(string& transcript_sequence, vector
 					break;
 			}
 
-			// don't use the start of the first exon or the end of the last exon as a splice site
-			if (imprecise_breakpoint &&
-			    (strand_5 == FORWARD && overlapping_exon == transcript_5->last_exon ||
-			     strand_5 == REVERSE && overlapping_exon == transcript_5->first_exon))
-				overlap_found = false;
+			if (imprecise_breakpoint)
+				if (strand_5 == FORWARD && overlapping_exon == transcript_5->last_exon || // don't use start of first exon as splice site
+				    strand_5 == REVERSE && overlapping_exon == transcript_5->first_exon || // don't use end of last exon as splice site
+				    is_internal_tandem_duplication) // don't use splice sites for ITDs
+					overlap_found = false;
 
 			if (overlap_found) {
 
@@ -814,7 +880,7 @@ void fill_gaps_in_fusion_transcript_sequence(string& transcript_sequence, vector
 				if (imprecise_breakpoint) {
 					gap = breakpoint - 1;
 					positions[gap] = (strand_5 == FORWARD) ? overlapping_exon->end : overlapping_exon->start;
-					transcript_sequence[gap] = contig_sequence->second[positions[gap]];
+					transcript_sequence[gap] = (strand_5 == FORWARD) ? contig_sequence->second[positions[gap]] : dna_to_complement(contig_sequence->second[positions[gap]]);
 				}
 
 				// copy assembly sequence from exons of transcript
@@ -912,11 +978,11 @@ void fill_gaps_in_fusion_transcript_sequence(string& transcript_sequence, vector
 					break;
 			}
 
-			// don't use the start of the first exon or the end of the last exon as a splice site
-			if (imprecise_breakpoint &&
-			    (strand_3 == FORWARD && overlapping_exon == transcript_3->first_exon ||
-			     strand_3 == REVERSE && overlapping_exon == transcript_3->last_exon))
-				overlap_found = false;
+			if (imprecise_breakpoint)
+				if (strand_3 == FORWARD && overlapping_exon == transcript_3->last_exon || // don't use start of first exon as splice site
+				    strand_3 == REVERSE && overlapping_exon == transcript_3->first_exon || // don't use end of last exon as splice site
+				    is_internal_tandem_duplication) // don't use splice sites for ITDs
+					overlap_found = false;
 
 			if (overlap_found) {
 
@@ -924,7 +990,7 @@ void fill_gaps_in_fusion_transcript_sequence(string& transcript_sequence, vector
 				if (imprecise_breakpoint) {
 					gap = breakpoint + 1;
 					positions[gap] = (strand_3 == FORWARD) ? overlapping_exon->start : overlapping_exon->end;
-					transcript_sequence[gap] = contig_sequence->second[positions[gap]];
+					transcript_sequence[gap] = (strand_3 == FORWARD) ? contig_sequence->second[positions[gap]] : dna_to_complement(contig_sequence->second[positions[gap]]);
 				}
 
 				// copy assembly sequence from exons of transcript
@@ -1076,7 +1142,7 @@ void write_fusions_to_file(fusions_t& fusions, const string& output_file, const 
 					if (fill_sequence_gaps) { // if requested by the user, fill gaps in the transcript (as assembled from the fusion reads) with information from the reference genome
 						transcript_sequence = transcript_sequence_backup; // we may have to do this multiple times (in case of multiple transcripts) => restore the unfilled sequence first
 						positions = positions_backup;
-						fill_gaps_in_fusion_transcript_sequence(transcript_sequence, positions, transcript_5, transcript_3, strand_5, strand_3, assembly);
+						fill_gaps_in_fusion_transcript_sequence(transcript_sequence, positions, transcript_5, transcript_3, strand_5, strand_3, (**fusion).is_internal_tandem_duplication(max_itd_length), assembly);
 					}
 					fusion_peptide_sequence = get_fusion_peptide_sequence(transcript_sequence, positions, gene_5, gene_3, transcript_5, transcript_3, strand_3, exon_annotation_index, assembly);
 					reading_frame = is_in_frame(fusion_peptide_sequence);

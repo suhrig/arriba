@@ -11,7 +11,7 @@ Implementing Arriba is done in two steps:
 Demo script
 -----------
 
-Arriba comes with a script `run_arriba.sh` that illustrates the usage of all components of the workflow and how they are meant to interact with each other. The script is deliberately kept simple and lacks error checking and input validation. The script is meant only as a guide which demonstrates how to integrate Arriba into your own STAR-based workflow. The following paragraphs explain the steps of the demo script:
+Arriba comes with a script `run_arriba.sh` that illustrates the usage of all components of the workflow and how they are meant to interact with each other. The script is deliberately kept simple and lacks error checking, input validation, adapter/quality trimming etc. The script is meant only as a guide which demonstrates how to integrate Arriba into your own STAR-based workflow. The following paragraphs explain the steps of the demo script:
 
 In order for STAR to search for chimeric alignments, the parameter `--chimSegmentMin` must be specified and the parameter `--chimOutType` must be set to `WithinBAM` or `SeparateSAMold`. In addition, the following parameters related to chimeric alignment are recommended for improved sensitivity (requires STAR version 2.7.6a or higher):
 

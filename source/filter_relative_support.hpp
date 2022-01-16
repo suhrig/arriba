@@ -1,5 +1,5 @@
-#ifndef _FILTER_RELATIVE_SUPPORT_H
-#define _FILTER_RELATIVE_SUPPORT_H 1
+#ifndef FILTER_RELATIVE_SUPPORT_H
+#define FILTER_RELATIVE_SUPPORT_H 1
 
 #include "common.hpp"
 #include "annotation.hpp"
@@ -10,4 +10,4 @@ void estimate_expected_fusions(fusions_t& fusions, const unsigned long int mappe
 
 unsigned int filter_relative_support(fusions_t& fusions, const float evalue_cutoff);
 
-#endif /* _FILTER_RELATIVE_SUPPORT_H */
+#endif /* FILTER_RELATIVE_SUPPORT_H */

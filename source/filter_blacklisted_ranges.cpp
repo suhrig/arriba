@@ -82,6 +82,11 @@ bool parse_range(string range, const contigs_t& contigs, blacklist_item_t& black
 // parse string representation of a blacklist rule
 bool parse_blacklist_item(const string& text, blacklist_item_t& blacklist_item, const contigs_t& contigs, const unordered_map<string,gene_t>& genes, const bool allow_keyword) {
 
+	if (text.empty()) {
+		cerr << "WARNING: encountered a line with an empty column => skipped" << endl;
+		return false;
+	}
+
 	if (allow_keyword) {
 		if (text == "any") { blacklist_item.type = BLACKLIST_ANY; return true; }
 		else if (text == "split_read_donor") { blacklist_item.type = BLACKLIST_SPLIT_READ_DONOR; return true; }

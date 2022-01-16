@@ -1,5 +1,5 @@
-#ifndef _ANNOTATE_PROTEIN_DOMAINS_H
-#define _ANNOTATE_PROTEIN_DOMAINS_H 1
+#ifndef ANNOTATE_PROTEIN_DOMAINS_H
+#define ANNOTATE_PROTEIN_DOMAINS_H 1
 
 #include <string>
 #include <unordered_map>
@@ -30,4 +30,4 @@ string get_fusion_peptide_sequence(const string& transcript_sequence, const vect
 
 string is_in_frame(const string& fusion_peptide_sequence);
 
-#endif /* _ANNOTATE_PROTEIN_DOMAINS_H */
+#endif /* ANNOTATE_PROTEIN_DOMAINS_H */

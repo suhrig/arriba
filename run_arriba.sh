@@ -1,5 +1,7 @@
 #!/bin/bash
 
+# For more information about this demo workflow, visit: https://arriba.readthedocs.io/en/latest/workflow/
+
 if [ $# -lt 8 -o $# -gt 9 ]; then
 	echo "Usage: $(basename $0) STAR_genomeDir/ annotation.gtf assembly.fa blacklist.tsv known_fusions.tsv protein_domains.gff3 threads read1.fastq.gz [read2.fastq.gz]" 1>&2
 	exit 1
@@ -24,7 +26,7 @@ READ2="${9-}"
 # find installation directory of arriba
 BASE_DIR=$(dirname "$0")
 
-# align FastQ files (STAR >=2.7.6a recommended)
+# align FastQ files (STAR >=2.7.10a recommended)
 STAR \
 	--runThreadN "$THREADS" \
 	--genomeDir "$STAR_INDEX_DIR" --genomeLoad NoSharedMemory \
@@ -44,10 +46,10 @@ tee Aligned.out.bam |
 
 # sorting and indexing is only required for visualization
 if [[ $(samtools --version-only 2> /dev/null) =~ ^1\. ]]; then
-	samtools sort -@ "$THREADS" -m 4G -T tmp -O bam Aligned.out.bam > Aligned.sortedByCoord.out.bam
+	samtools sort -@ "$THREADS" -m $((40000/THREADS))M -T tmp -O bam Aligned.out.bam > Aligned.sortedByCoord.out.bam
 	rm -f Aligned.out.bam
 	samtools index Aligned.sortedByCoord.out.bam
 else
-	echo "samtools >= 1.0 required for sorting of alignments"
+	echo "samtools >= 1.0 required for sorting of alignments" 1>&2
 fi
 
