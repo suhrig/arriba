@@ -88,7 +88,6 @@ Please refer to the [user manual](http://arriba.readthedocs.io/en/latest/) for i
    - [RefSeq annotation](https://arriba.readthedocs.io/en/latest/current-limitations/#refseq-annotation)
    - [Memory consumption](https://arriba.readthedocs.io/en/latest/current-limitations/#memory-consumption)
    - [Adapter trimming](https://arriba.readthedocs.io/en/latest/current-limitations/#adapter-trimming)
-   - [Small insert size](https://arriba.readthedocs.io/en/latest/current-limitations/#small-insert-size)
    - [Viral detection](https://arriba.readthedocs.io/en/latest/current-limitations/#viral-detection)
    - [Targeted sequencing](https://arriba.readthedocs.io/en/latest/current-limitations/#targeted-sequencing)
 
