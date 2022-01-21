@@ -5,7 +5,7 @@ ASSEMBLIES[hs37d5]="ftp://ftp.1000genomes.ebi.ac.uk/vol1/ftp/technical/reference
 ASSEMBLIES[hg19]="http://hgdownload.cse.ucsc.edu/goldenpath/hg19/bigZips/chromFa.tar.gz"
 ASSEMBLIES[GRCh37]="ftp://ftp.ensembl.org/pub/grch37/release-87/fasta/homo_sapiens/dna/Homo_sapiens.GRCh37.dna.primary_assembly.fa.gz"
 ASSEMBLIES[hg38]="http://hgdownload.cse.ucsc.edu/goldenpath/hg38/bigZips/hg38.chromFa.tar.gz"
-ASSEMBLIES[GRCh38]="ftp://ftp.sanger.ac.uk/pub/cancer/dockstore/human/GRCh38_hla_decoy_ebv/core_ref_GRCh38_hla_decoy_ebv.tar.gz"
+ASSEMBLIES[GRCh38]="http://ftp.ensembl.org/pub/release-93/fasta/homo_sapiens/dna/Homo_sapiens.GRCh38.dna.primary_assembly.fa.gz"
 ASSEMBLIES[mm10]="http://hgdownload.cse.ucsc.edu/goldenpath/mm10/bigZips/chromFa.tar.gz"
 ASSEMBLIES[GRCm38]="ftp://ftp.ensembl.org/pub/release-99/fasta/mus_musculus/dna/Mus_musculus.GRCm38.dna.primary_assembly.fa.gz"
 ASSEMBLIES[mm39]="http://hgdownload.cse.ucsc.edu/goldenpath/mm39/bigZips/mm39.chromFa.tar.gz"
@@ -82,7 +82,7 @@ else
 fi |
 if [ "$VIRAL" = "viral" ]; then
 	# drop viral contigs from assembly
-	awk '/^>/{ contig=$1 } contig!~/^>NC_|^>AC_|^>chrEBV/{ print }'
+	awk '/^>/{ contig=$1 } contig!~/^>NC_|^>AC_/{ print }'
 else
 	cat
 fi > "$ASSEMBLY$VIRAL.fa"
