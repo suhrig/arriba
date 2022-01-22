@@ -6,9 +6,9 @@ Arriba has only a single prerequisite: [STAR](https://github.com/alexdobin/STAR)
 Compile the latest stable version of Arriba or use the precompiled binaries in the download file. **Note: You should not use `git clone` to download Arriba, because the git repository does not include the blacklist! Instead, download the latest tarball from the [releases page](https://github.com/suhrig/arriba/releases/) as shown here:**
 
 ```bash
-wget https://github.com/suhrig/arriba/releases/download/v2.2.0/arriba_v2.2.0.tar.gz
-tar -xzf arriba_v2.2.0.tar.gz
-cd arriba_v2.2.0 && make # or use precompiled binaries
+wget https://github.com/suhrig/arriba/releases/download/v2.2.1/arriba_v2.2.1.tar.gz
+tar -xzf arriba_v2.2.1.tar.gz
+cd arriba_v2.2.1 && make # or use precompiled binaries
 ```
 
 Arriba requires an assembly in FastA format, gene annotation in GTF format, and a STAR index built from the two. You can use your preferred assembly and annotation, as long as their coordinates are compatible with hg19/hs37d5/GRCh37 or hg38/GRCh38 or mm10/GRCm38 or mm39/GRCm39. If you use another assembly, then the coordinates in the blacklist will not match and the predictions will contain many false positives. GENCODE annotation is recommended over RefSeq due to more comprehensive annotation of immunoglobulin/T-cell receptor loci and splice sites, which improves sensitivity. If you do not already have the files and a STAR index, you can use the script `download_references.sh`. It downloads the files to the current working directory and builds a STAR index. Run the script without arguments to see a list of available files. Choose a file with the keyword `viral` if Arriba is supposed to detect viral integration sites. Note that this step requires ~45 GB of RAM and 8 cores (can be adjusted by setting the environment variable `THREADS`).
@@ -22,7 +22,7 @@ The download file contains a script `run_arriba.sh`, which demonstrates the usag
 Run the demo script with 8 threads. In case of single-end data, the second FastQ file is omitted.
 
 ```bash
-./run_arriba.sh STAR_index_hs37d5viral_GENCODE19/ GENCODE19.gtf hs37d5viral.fa database/blacklist_hg19_hs37d5_GRCh37_v2.2.0.tsv.gz database/known_fusions_hg19_hs37d5_GRCh37_v2.2.0.tsv.gz database/protein_domains_hg19_hs37d5_GRCh37_v2.2.0.gff3 8 test/read1.fastq.gz test/read2.fastq.gz
+./run_arriba.sh STAR_index_hs37d5viral_GENCODE19/ GENCODE19.gtf hs37d5viral.fa database/blacklist_hg19_hs37d5_GRCh37_v2.2.1.tsv.gz database/known_fusions_hg19_hs37d5_GRCh37_v2.2.1.tsv.gz database/protein_domains_hg19_hs37d5_GRCh37_v2.2.1.gff3 8 test/read1.fastq.gz test/read2.fastq.gz
 ```
 
 Installation using Docker
@@ -33,7 +33,7 @@ Install [Docker](https://www.docker.com/) according to the developers' instructi
 Run the script `download_references.sh` inside the Docker container. It downloads the assembly and gene annotation to the directory `/path/to/references` and builds a STAR index. Run the script without arguments to see a list of available files. Choose a file with the keyword `viral` if Arriba is supposed to detect viral integration sites. Note that this step requires ~45 GB of RAM and 8 cores (can be adjusted by passing the parameter `--env=THREADS=...`).
 
 ```bash
-docker run --rm -v /path/to/references:/references uhrigs/arriba:2.2.0 download_references.sh hs37d5viral+GENCODE19
+docker run --rm -v /path/to/references:/references uhrigs/arriba:2.2.1 download_references.sh hs37d5viral+GENCODE19
 ```
 
 Use the following Docker command to run Arriba from the container. Replace `/path/to/` with the path to the respective input file. Leave the paths after the colons unmodified - these are the paths inside the Docker container. In case of single-end data, the second FastQ file is omitted. Running Arriba requires ~45 GB of RAM and 8 cores (can be adjusted by passing the parameter `--env=THREADS=...`).
@@ -44,7 +44,7 @@ docker run --rm \
        -v /path/to/references:/references:ro \
        -v /path/to/read1.fastq.gz:/read1.fastq.gz:ro \
        -v /path/to/read2.fastq.gz:/read2.fastq.gz:ro \
-       uhrigs/arriba:2.2.0 \
+       uhrigs/arriba:2.2.1 \
        arriba.sh
 ```
 
@@ -57,7 +57,7 @@ The Docker container is compatible with Singularity. If desired, it can be conve
 
 ```bash
 mkdir /path/to/references
-singularity exec -B /path/to/references:/references docker://uhrigs/arriba:2.2.0 download_references.sh hs37d5viral+GENCODE19
+singularity exec -B /path/to/references:/references docker://uhrigs/arriba:2.2.1 download_references.sh hs37d5viral+GENCODE19
 ```
 
 Use the following Singularity command to run Arriba from the container. Replace `/path/to/` with the path to the respective input file. Leave the paths after the colons unmodified - these are the paths inside the Singularity container. In case of single-end data, the second FastQ file is omitted. Running Arriba requires ~45 GB of RAM and 8 cores (can be adjusted by setting the environment variable `SINGULARITYENV_THREADS`).
@@ -68,7 +68,7 @@ singularity exec \
        -B /path/to/references:/references:ro \
        -B /path/to/read1.fastq.gz:/read1.fastq.gz:ro \
        -B /path/to/read2.fastq.gz:/read2.fastq.gz:ro \
-       docker://uhrigs/arriba:2.2.0 \
+       docker://uhrigs/arriba:2.2.1 \
        arriba.sh
 ```
 
@@ -80,7 +80,7 @@ Install [Miniconda](https://conda.io/) according to the developers' instructions
 Install the `arriba` package:
 
 ```bash
-conda install -c conda-forge -c bioconda arriba=2.2.0
+conda install -c conda-forge -c bioconda arriba=2.2.1
 ```
 
 Run the script `download_references.sh`, which is installed inside the conda environment. It downloads the assembly and gene annotation to the current working directory and builds a STAR index. Run the script without arguments to see a list of available files. Choose a file with the keyword `viral` if Arriba is supposed to detect viral integration sites. Note that this step requires ~45 GB of RAM and 8 cores (can be adjusted by setting the environment variable `THREADS`). Replace `$CONDA_PREFIX` with the path to your conda environment.
@@ -93,7 +93,7 @@ To process FastQ files, run the script `run_arriba.sh`, which is installed insid
 
 ```bash
 ARRIBA_FILES=$CONDA_PREFIX/var/lib/arriba
-run_arriba.sh STAR_index_hs37d5viral_GENCODE19/ GENCODE19.gtf hs37d5viral.fa $ARRIBA_FILES/blacklist_hg19_hs37d5_GRCh37_v2.2.0.tsv.gz $ARRIBA_FILES/known_fusions_hg19_hs37d5_GRCh37_v2.2.0.tsv.gz $ARRIBA_FILES/protein_domains_hg19_hs37d5_GRCh37_v2.2.0.gff3 8 $ARRIBA_FILES/read1.fastq.gz $ARRIBA_FILES/read2.fastq.gz
+run_arriba.sh STAR_index_hs37d5viral_GENCODE19/ GENCODE19.gtf hs37d5viral.fa $ARRIBA_FILES/blacklist_hg19_hs37d5_GRCh37_v2.2.1.tsv.gz $ARRIBA_FILES/known_fusions_hg19_hs37d5_GRCh37_v2.2.1.tsv.gz $ARRIBA_FILES/protein_domains_hg19_hs37d5_GRCh37_v2.2.1.gff3 8 $ARRIBA_FILES/read1.fastq.gz $ARRIBA_FILES/read2.fastq.gz
 ```
 
 Output files

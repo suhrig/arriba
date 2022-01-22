@@ -89,9 +89,9 @@ fi > "$ASSEMBLY$VIRAL.fa"
 
 if [ "$VIRAL" = "viral" ]; then
 	echo "Appending RefSeq viral genomes"
-	REFSEQ_VIRAL_GENOMES=$(dirname "$0")/RefSeq_viral_genomes_v2.2.0.fa.gz
+	REFSEQ_VIRAL_GENOMES=$(dirname "$0")/RefSeq_viral_genomes_v2.2.1.fa.gz
 	if [ ! -e "$REFSEQ_VIRAL_GENOMES" ]; then
-		REFSEQ_VIRAL_GENOMES=$(dirname "$0")/database/RefSeq_viral_genomes_v2.2.0.fa.gz
+		REFSEQ_VIRAL_GENOMES=$(dirname "$0")/database/RefSeq_viral_genomes_v2.2.1.fa.gz
 	fi
 	gunzip -c "$REFSEQ_VIRAL_GENOMES" >> "$ASSEMBLY$VIRAL.fa"
 fi
