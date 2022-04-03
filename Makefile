@@ -27,7 +27,7 @@ $(STATIC_LIBS)/libdeflate.a:
 	$(WGET) 'https://github.com/ebiggers/libdeflate/archive/v1.8.tar.gz' | tar -xzf - -C $(STATIC_LIBS) && \
 	cd $(STATIC_LIBS)/libdeflate-*/ && $(MAKE) libdeflate.a && cp libdeflate.a libdeflate.h ..
 $(STATIC_LIBS)/libz.a:
-	$(WGET) 'https://zlib.net/zlib-1.2.11.tar.gz' | tar -xzf - -C $(STATIC_LIBS) && \
+	$(WGET) 'https://zlib.net/fossils/zlib-1.2.12.tar.gz' | tar -xzf - -C $(STATIC_LIBS) && \
 	cd $(STATIC_LIBS)/zlib-*/ && ./configure && $(MAKE) libz.a && cp zlib.h zconf.h libz.a ..
 $(STATIC_LIBS)/libbz2.a:
 	$(WGET) 'https://sourceware.org/pub/bzip2/bzip2-1.0.8.tar.gz' | tar -xzf - -C $(STATIC_LIBS) && \
