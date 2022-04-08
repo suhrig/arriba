@@ -115,7 +115,7 @@ Even when an unstranded library is processed, Arriba can often infer the strand 
 : Highly expressed genes are prone to produce artifacts during library preparation. Genes with an expression above the given quantile are eligible for filtering by the filter `in_vitro`. Default: `0.998`
 
 `-e EXONIC_FRACTION`
-: The breakpoints of false-positive predictions of intragenic events are often both in exons. True predictions are more likely to have at least one breakpoint in an intron, because introns are larger. If the fraction of exonic sequence between two breakpoints is smaller than the given fraction, the filter discards the event. Default: `0.2`
+: The breakpoints of false-positive predictions of intragenic events are often both in exons. True predictions are more likely to have at least one breakpoint in an intron, because introns are larger. If the fraction of exonic sequence between two breakpoints is smaller than the given fraction, the filter discards the event. Default: `0.33`
 
 `-T TOP_N`
 : If a tumor is truly infected with a virus, a substantial number of reads should map to the respective viral contig. Only report viral integration sites of the top N most highly expressed viral contigs. Default: `5`
