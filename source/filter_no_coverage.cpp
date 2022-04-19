@@ -5,7 +5,9 @@
 
 using namespace std;
 
-unsigned int filter_no_coverage(fusions_t& fusions, const coverage_t& coverage, const exon_annotation_index_t& exon_annotation_index, const int max_mate_gap) {
+unsigned int filter_no_coverage(fusions_t& fusions, const coverage_t& coverage, const exon_annotation_index_t& exon_annotation_index) {
+
+	const int scan_range = 200; // look for coverage in this range around the breakpoint
 
 	// for each fusion, check if there is any coverage around the breakpoint
 	unsigned int remaining = 0;
@@ -50,13 +52,13 @@ unsigned int filter_no_coverage(fusions_t& fusions, const coverage_t& coverage, 
 			if (fusion->second.direction1 == UPSTREAM) {
 				start = fusion->second.breakpoint1;
 				if (fusion->second.split_reads1 + fusion->second.split_reads2 == 0)
-					start -= max_mate_gap;
-				end = max(fusion->second.breakpoint1 + max_mate_gap, fusion->second.anchor_start1);
+					start -= scan_range;
+				end = max(fusion->second.breakpoint1 + scan_range, fusion->second.anchor_start1);
 			} else {
-				start = min(fusion->second.breakpoint1 - max_mate_gap, fusion->second.anchor_start1);
+				start = min(fusion->second.breakpoint1 - scan_range, fusion->second.anchor_start1);
 				end = fusion->second.breakpoint1;
 				if (fusion->second.split_reads1 + fusion->second.split_reads2 == 0)
-					end += max_mate_gap;
+					end += scan_range;
 			}
 			if (fusion->second.direction1 == UPSTREAM && !coverage.fragment_starts_here(fusion->second.contig1, start, end) ||
 			    fusion->second.direction1 == DOWNSTREAM && !coverage.fragment_ends_here(fusion->second.contig1, start, end)) {
@@ -78,13 +80,13 @@ unsigned int filter_no_coverage(fusions_t& fusions, const coverage_t& coverage, 
 			if (fusion->second.direction2 == UPSTREAM) {
 				start = fusion->second.breakpoint2;
 				if (fusion->second.split_reads1 + fusion->second.split_reads2 == 0)
-					start -= max_mate_gap;
-				end = max(fusion->second.breakpoint2 + max_mate_gap, fusion->second.anchor_start2);
+					start -= scan_range;
+				end = max(fusion->second.breakpoint2 + scan_range, fusion->second.anchor_start2);
 			} else {
-				start = min(fusion->second.breakpoint2 - max_mate_gap, fusion->second.anchor_start2);
+				start = min(fusion->second.breakpoint2 - scan_range, fusion->second.anchor_start2);
 				end = fusion->second.breakpoint2;
 				if (fusion->second.split_reads1 + fusion->second.split_reads2 == 0)
-					end += max_mate_gap;
+					end += scan_range;
 			}
 			if (fusion->second.direction2 == UPSTREAM && !coverage.fragment_starts_here(fusion->second.contig2, start, end) ||
 			    fusion->second.direction2 == DOWNSTREAM && !coverage.fragment_ends_here(fusion->second.contig2, start, end)) {

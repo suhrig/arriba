@@ -534,7 +534,7 @@ int main(int argc, char **argv) {
 
 	if (options.filters.at("no_coverage")) {
 		cout << get_time_string() << " Filtering fusions with no coverage around the breakpoints " << flush;
-		cout << "(remaining=" << filter_no_coverage(fusions, coverage, exon_annotation_index, max_mate_gap) << ")" << endl;
+		cout << "(remaining=" << filter_no_coverage(fusions, coverage, exon_annotation_index) << ")" << endl;
 	}
 
 	// make kmer indices from gene sequences
