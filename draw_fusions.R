@@ -26,7 +26,8 @@ parameters <- list(
 	fontFamily=list("fontFamily", "string", "Helvetica"),
 	showIntergenicVicinity=list("showIntergenicVicinity", "string", "0"),
 	transcriptSelection=list("transcriptSelection", "string", "coverage"),
-	fixedScale=list("fixedScale", "numeric", 0)
+	fixedScale=list("fixedScale", "numeric", 0),
+	coverageRange=list("coverageRange", "string", "0")
 )
 
 # print help if necessary
@@ -110,6 +111,9 @@ if (fixedScale < 0)
 	stop("Invalid argument to --fixedScale")
 if (!(fontFamily %in% names(pdfFonts())))
 	stop(paste0("Unknown font: ", fontFamily, ". Available fonts: ", paste(names(pdfFonts()), collapse=", ")))
+coverageRange <- suppressWarnings(as.numeric(unlist(strsplit(coverageRange, ",", fixed=T))))
+if (!(length(coverageRange) %in% 1:2) || any(is.na(coverageRange)) || any(coverageRange < 0))
+	stop("Invalid argument to --coverageRange")
 
 # check if required packages are installed
 if (!suppressPackageStartupMessages(require(GenomicRanges)))
@@ -938,21 +942,21 @@ for (fusion in 1:nrow(fusions)) {
 	coverage2 <- NULL
 	if (alignmentsFile != "") {
 		# determine range in which we need to compute the coverage
-		determineCoverageRange <- function(exons, geneID, contig, breakpoint, showVicinityLeft, showVicinityRight) {
+		determinePeakCoverage <- function(exons, geneID, contig, breakpoint, showVicinityLeft, showVicinityRight) {
 			closestGene <- findClosestGene(exons, contig, breakpoint, exons$geneID == geneID)
 			return(IRanges(min(start(closestGene), breakpoint-showVicinityLeft), max(end(closestGene), breakpoint+showVicinityRight)))
 		}
-		coverageRange1 <- determineCoverageRange(exons, fusions[fusion,"gene_id1"], fusions[fusion,"contig1"], fusions[fusion,"breakpoint1"], showVicinity[1], showVicinity[2])
-		coverageRange2 <- determineCoverageRange(exons, fusions[fusion,"gene_id2"], fusions[fusion,"contig2"], fusions[fusion,"breakpoint2"], showVicinity[3], showVicinity[4])
+		peakCoverage1 <- determinePeakCoverage(exons, fusions[fusion,"gene_id1"], fusions[fusion,"contig1"], fusions[fusion,"breakpoint1"], showVicinity[1], showVicinity[2])
+		peakCoverage2 <- determinePeakCoverage(exons, fusions[fusion,"gene_id2"], fusions[fusion,"contig2"], fusions[fusion,"breakpoint2"], showVicinity[3], showVicinity[4])
 		# function which reads alignments from BAM file with & without "chr" prefix
-		readCoverage <- function(alignmentsFile, contig, coverageRange) {
+		readCoverage <- function(alignmentsFile, contig, peakCoverage) {
 			coverageData <- tryCatch(
 				{
-					alignments <- readGAlignments(alignmentsFile, param=ScanBamParam(which=GRanges(contig, coverageRange)))
+					alignments <- readGAlignments(alignmentsFile, param=ScanBamParam(which=GRanges(contig, peakCoverage)))
 					coverage(alignments)[[contig]]
 				},
 				error=function(e) {
-					alignments <- readGAlignments(alignmentsFile, param=ScanBamParam(which=GRanges(addChr(contig), coverageRange)))
+					alignments <- readGAlignments(alignmentsFile, param=ScanBamParam(which=GRanges(addChr(contig), peakCoverage)))
 					coverage(alignments)[[addChr(contig)]]
 				}
 			)
@@ -960,11 +964,11 @@ for (fusion in 1:nrow(fusions)) {
 			return(coverageData)
 		}
 		# get coverage track
-		coverage1 <- readCoverage(alignmentsFile, fusions[fusion,"contig1"], coverageRange1)
-		coverage2 <- readCoverage(alignmentsFile, fusions[fusion,"contig2"], coverageRange2)
+		coverage1 <- readCoverage(alignmentsFile, fusions[fusion,"contig1"], peakCoverage1)
+		coverage2 <- readCoverage(alignmentsFile, fusions[fusion,"contig2"], peakCoverage2)
 		# shrink coverage range to chromosome boundaries to avoid subscript out of bounds errors
-		coverageRange1 <- IRanges(max(start(coverageRange1), min(start(coverage1))), min(end(coverageRange1), max(end(coverage1))))
-		coverageRange2 <- IRanges(max(start(coverageRange2), min(start(coverage2))), min(end(coverageRange2), max(end(coverage2))))
+		peakCoverage1 <- IRanges(max(start(peakCoverage1), min(start(coverage1))), min(end(peakCoverage1), max(end(coverage1))))
+		peakCoverage2 <- IRanges(max(start(peakCoverage2), min(start(coverage2))), min(end(peakCoverage2), max(end(coverage2))))
 	}
 
 	# find all exons belonging to the fused genes
@@ -1007,17 +1011,21 @@ for (fusion in 1:nrow(fusions)) {
 
 	# normalize coverage
 	if (alignmentsFile != "") {
-		coverageNormalization <- ifelse(
-			squishIntrons, # => ignore intronic coverage
-			max(
-				as.numeric(coverage1[IRanges(sapply(exons1$start,max,min(start(coverage1))),sapply(exons1$end,min,max(end(coverage1))))]),
-				as.numeric(coverage2[IRanges(sapply(exons2$start,max,min(start(coverage2))),sapply(exons2$end,min,max(end(coverage2))))])
-			),
-			round(quantile(c(coverage1[coverageRange1], coverage2[coverageRange2]), 0.9999)) # ignore coverage spikes from read-attracting regions
-		)
-		coverageNormalization <- max(1, coverageNormalization)
-		coverage1 <- coverage1/coverageNormalization
-		coverage2 <- coverage2/coverageNormalization
+		coverageNormalization <- function(coverage, peakCoverage, exons) {
+			max(1, ifelse(
+				squishIntrons, # => ignore intronic coverage
+				max(as.numeric(coverage[IRanges(sapply(exons$start,max,min(start(coverage))),sapply(exons$end,min,max(end(coverage))))])),
+				round(quantile(c(coverage[peakCoverage], 0.9999))) # ignore coverage spikes from read-attracting regions
+			))
+		}
+		coverageNormalization1 <- ifelse(head(coverageRange,1) == 0, coverageNormalization(coverage1, peakCoverage1, exons1), head(coverageRange,1))
+		coverageNormalization2 <- ifelse(tail(coverageRange,1) == 0, coverageNormalization(coverage2, peakCoverage2, exons2), tail(coverageRange,1))
+		if (length(coverageRange) == 1 && coverageRange == 0) { # harmonize scales of gene1 and gene2
+			coverageNormalization1 <- max(coverageNormalization1, coverageNormalization2)
+			coverageNormalization2 <- max(coverageNormalization1, coverageNormalization2)
+		}
+		coverage1 <- coverage1/coverageNormalization1
+		coverage2 <- coverage2/coverageNormalization2
 		coverage1[coverage1 > 1] <- 1
 		coverage2[coverage2 > 1] <- 1
 	}
@@ -1175,30 +1183,40 @@ for (fusion in 1:nrow(fusions)) {
 
 	# draw coverage axis
 	if (alignmentsFile != "") {
+		# left axis (gene1)
 		lines(c(-0.02, -0.01, -0.01, -0.02), c(yCoverage, yCoverage, yCoverage+0.1, yCoverage+0.1))
 		text(-0.025, yCoverage, "0", adj=c(1,0.5), cex=0.9*fontSize)
-		text(-0.025, yCoverage+0.1, coverageNormalization, adj=c(1,0.5), cex=0.9*fontSize)
+		text(-0.025, yCoverage+0.1, coverageNormalization1, adj=c(1,0.5), cex=0.9*fontSize)
 		text(-0.05, yCoverage+0.08, "Coverage", srt=90, cex=0.9*fontSize, adj=c(1,0.5))
+
+		# right axis (gene2)
+		if (length(coverageRange) == 2) { # separate axes for gene1 and gene2
+			rightCoverageAxisX <- gene2Offset+max(exons2$right)
+			lines(c(rightCoverageAxisX+0.02, rightCoverageAxisX+0.01, rightCoverageAxisX+0.01, rightCoverageAxisX+0.02), c(yCoverage, yCoverage, yCoverage+0.1, yCoverage+0.1))
+			text(rightCoverageAxisX+0.025, yCoverage, "0", adj=c(0,0.5), cex=0.9*fontSize)
+			text(rightCoverageAxisX+0.025, yCoverage+0.1, coverageNormalization2, adj=c(0,0.5), cex=0.9*fontSize)
+			text(rightCoverageAxisX+0.05, yCoverage+0.08, "Coverage", srt=90, cex=0.9*fontSize, adj=c(1,0.5))
+		}
+
+		# plot coverage 1
 		rect(min(exons1$left), yCoverage, max(exons1$right), yCoverage+0.1, col="#eeeeee", border=NA)
+		if (squishIntrons) {
+			for (exon in 1:nrow(exons1))
+				if (exons1[exon,"type"] != "CDS") # don't draw coverage twice for coding regions
+					drawCoverage(exons1[exon,"left"], exons1[exon,"right"], yCoverage, coverage1, exons1[exon,"start"], exons1[exon,"end"], color1)
+		} else {
+			drawCoverage(min(exons1$left), max(exons1$right), yCoverage, coverage1, min(exons1$start), max(exons1$end), color1)
+		}
+
+		# plot coverage 2
 		rect(gene2Offset+min(exons2$left), yCoverage, gene2Offset+max(exons2$right), yCoverage+0.1, col="#eeeeee", border=NA)
-	}
-
-	# plot coverage 1
-	if (squishIntrons) {
-		for (exon in 1:nrow(exons1))
-			if (exons1[exon,"type"] != "CDS") # don't draw coverage twice for coding regions
-				drawCoverage(exons1[exon,"left"], exons1[exon,"right"], yCoverage, coverage1, exons1[exon,"start"], exons1[exon,"end"], color1)
-	} else {
-		drawCoverage(min(exons1$left), max(exons1$right), yCoverage, coverage1, min(exons1$start), max(exons1$end), color1)
-	}
-
-	# plot coverage 2
-	if (squishIntrons) {
-		for (exon in 1:nrow(exons2))
-			if (exons2[exon,"type"] != "CDS") # don't draw coverage twice for coding regions
-				drawCoverage(gene2Offset+exons2[exon,"left"], gene2Offset+exons2[exon,"right"], yCoverage, coverage2, exons2[exon,"start"], exons2[exon,"end"], color2)
-	} else {
-		drawCoverage(gene2Offset+min(exons2$left), gene2Offset+max(exons2$right), yCoverage, coverage2, min(exons2$start), max(exons2$end), color2)
+		if (squishIntrons) {
+			for (exon in 1:nrow(exons2))
+				if (exons2[exon,"type"] != "CDS") # don't draw coverage twice for coding regions
+					drawCoverage(gene2Offset+exons2[exon,"left"], gene2Offset+exons2[exon,"right"], yCoverage, coverage2, exons2[exon,"start"], exons2[exon,"end"], color2)
+		} else {
+			drawCoverage(gene2Offset+min(exons2$left), gene2Offset+max(exons2$right), yCoverage, coverage2, min(exons2$start), max(exons2$end), color2)
+		}
 	}
 
 	# plot gene 1
