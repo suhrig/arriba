@@ -942,21 +942,21 @@ for (fusion in 1:nrow(fusions)) {
 	coverage2 <- NULL
 	if (alignmentsFile != "") {
 		# determine range in which we need to compute the coverage
-		determinePeakCoverage <- function(exons, geneID, contig, breakpoint, showVicinityLeft, showVicinityRight) {
+		determineCoverageRegion <- function(exons, geneID, contig, breakpoint, showVicinityLeft, showVicinityRight) {
 			closestGene <- findClosestGene(exons, contig, breakpoint, exons$geneID == geneID)
 			return(IRanges(min(start(closestGene), breakpoint-showVicinityLeft), max(end(closestGene), breakpoint+showVicinityRight)))
 		}
-		peakCoverage1 <- determinePeakCoverage(exons, fusions[fusion,"gene_id1"], fusions[fusion,"contig1"], fusions[fusion,"breakpoint1"], showVicinity[1], showVicinity[2])
-		peakCoverage2 <- determinePeakCoverage(exons, fusions[fusion,"gene_id2"], fusions[fusion,"contig2"], fusions[fusion,"breakpoint2"], showVicinity[3], showVicinity[4])
+		coverageRegion1 <- determineCoverageRegion(exons, fusions[fusion,"gene_id1"], fusions[fusion,"contig1"], fusions[fusion,"breakpoint1"], showVicinity[1], showVicinity[2])
+		coverageRegion2 <- determineCoverageRegion(exons, fusions[fusion,"gene_id2"], fusions[fusion,"contig2"], fusions[fusion,"breakpoint2"], showVicinity[3], showVicinity[4])
 		# function which reads alignments from BAM file with & without "chr" prefix
-		readCoverage <- function(alignmentsFile, contig, peakCoverage) {
+		readCoverage <- function(alignmentsFile, contig, coverageRegion) {
 			coverageData <- tryCatch(
 				{
-					alignments <- readGAlignments(alignmentsFile, param=ScanBamParam(which=GRanges(contig, peakCoverage)))
+					alignments <- readGAlignments(alignmentsFile, param=ScanBamParam(which=GRanges(contig, coverageRegion)))
 					coverage(alignments)[[contig]]
 				},
 				error=function(e) {
-					alignments <- readGAlignments(alignmentsFile, param=ScanBamParam(which=GRanges(addChr(contig), peakCoverage)))
+					alignments <- readGAlignments(alignmentsFile, param=ScanBamParam(which=GRanges(addChr(contig), coverageRegion)))
 					coverage(alignments)[[addChr(contig)]]
 				}
 			)
@@ -964,11 +964,11 @@ for (fusion in 1:nrow(fusions)) {
 			return(coverageData)
 		}
 		# get coverage track
-		coverage1 <- readCoverage(alignmentsFile, fusions[fusion,"contig1"], peakCoverage1)
-		coverage2 <- readCoverage(alignmentsFile, fusions[fusion,"contig2"], peakCoverage2)
+		coverage1 <- readCoverage(alignmentsFile, fusions[fusion,"contig1"], coverageRegion1)
+		coverage2 <- readCoverage(alignmentsFile, fusions[fusion,"contig2"], coverageRegion2)
 		# shrink coverage range to chromosome boundaries to avoid subscript out of bounds errors
-		peakCoverage1 <- IRanges(max(start(peakCoverage1), min(start(coverage1))), min(end(peakCoverage1), max(end(coverage1))))
-		peakCoverage2 <- IRanges(max(start(peakCoverage2), min(start(coverage2))), min(end(peakCoverage2), max(end(coverage2))))
+		coverageRegion1 <- IRanges(max(start(coverageRegion1), min(start(coverage1))), min(end(coverageRegion1), max(end(coverage1))))
+		coverageRegion2 <- IRanges(max(start(coverageRegion2), min(start(coverage2))), min(end(coverageRegion2), max(end(coverage2))))
 	}
 
 	# find all exons belonging to the fused genes
@@ -1011,15 +1011,15 @@ for (fusion in 1:nrow(fusions)) {
 
 	# normalize coverage
 	if (alignmentsFile != "") {
-		coverageNormalization <- function(coverage, peakCoverage, exons) {
+		coverageNormalization <- function(coverage, coverageRegion, exons) {
 			max(1, ifelse(
 				squishIntrons, # => ignore intronic coverage
 				max(as.numeric(coverage[IRanges(sapply(exons$start,max,min(start(coverage))),sapply(exons$end,min,max(end(coverage))))])),
-				round(quantile(c(coverage[peakCoverage], 0.9999))) # ignore coverage spikes from read-attracting regions
+				round(quantile(coverage[coverageRegion], 0.9999)) # ignore coverage spikes from read-attracting regions
 			))
 		}
-		coverageNormalization1 <- ifelse(head(coverageRange,1) == 0, coverageNormalization(coverage1, peakCoverage1, exons1), head(coverageRange,1))
-		coverageNormalization2 <- ifelse(tail(coverageRange,1) == 0, coverageNormalization(coverage2, peakCoverage2, exons2), tail(coverageRange,1))
+		coverageNormalization1 <- ifelse(head(coverageRange,1) == 0, coverageNormalization(coverage1, coverageRegion1, exons1), head(coverageRange,1))
+		coverageNormalization2 <- ifelse(tail(coverageRange,1) == 0, coverageNormalization(coverage2, coverageRegion2, exons2), tail(coverageRange,1))
 		if (length(coverageRange) == 1 && coverageRange == 0) { # harmonize scales of gene1 and gene2
 			coverageNormalization1 <- max(coverageNormalization1, coverageNormalization2)
 			coverageNormalization2 <- max(coverageNormalization1, coverageNormalization2)
