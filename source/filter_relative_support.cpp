@@ -108,6 +108,23 @@ void estimate_expected_fusions(fusions_t& fusions, const unsigned long int mappe
 		spliced_events_in_different_genes = 100;
 	}
 
+	// compute the fraction of genes that are involved in read-through fusions
+	// a high fraction produces many false-positive read-through fusions in the final fusion calls
+	// penalize accordingly
+	set<gene_t> genes_with_fusions;
+	set<gene_t> genes_with_read_through_fusions;
+	for (fusions_t::iterator fusion = fusions.begin(); fusion != fusions.end(); ++fusion) {
+		if (!fusion->second.gene1->is_dummy && !fusion->second.gene2->is_dummy && fusion->second.split_reads1 + fusion->second.split_reads2 > 0) {
+			genes_with_fusions.insert(fusion->second.gene1);
+			genes_with_fusions.insert(fusion->second.gene2);
+			if (fusion->second.is_read_through()) {
+				genes_with_read_through_fusions.insert(fusion->second.gene1);
+				genes_with_read_through_fusions.insert(fusion->second.gene2);
+			}
+		}
+	}
+	float fraction_of_genes_with_read_through_fusions = (genes_with_fusions.size() == 0) ? 0 : 1.0 * genes_with_read_through_fusions.size() / genes_with_fusions.size();
+
 	// for each fusion, check if the observed number of supporting reads cannot be explained by random chance,
 	// i.e. if the number is higher than expected given the number of fusion partners in both genes
 	for (fusions_t::iterator fusion = fusions.begin(); fusion != fusions.end(); ++fusion) {
@@ -182,6 +199,10 @@ void estimate_expected_fusions(fusions_t& fusions, const unsigned long int mappe
 			fusion->second.evalue *= max(spliced_breakpoints, intronic_breakpoints);
 		else
 			fusion->second.evalue *= max(spliced_breakpoints, exonic_intronic_breakpoints);
+
+		// read-through fusions get extra penalty when the sample has many
+		if (fraction_of_genes_with_read_through_fusions > 0.25 && fusion->second.is_read_through())
+			fusion->second.evalue *= 1 + pow((fraction_of_genes_with_read_through_fusions - 0.25) * 20, 2);
 	}
 }
 
