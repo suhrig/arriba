@@ -43,6 +43,7 @@
 #include "filter_in_vitro.hpp"
 #include "merge_adjacent_fusions.hpp"
 #include "select_best.hpp"
+#include "filter_marginal_read_through.hpp"
 #include "filter_end_to_end.hpp"
 #include "filter_short_anchor.hpp"
 #include "filter_homologs.hpp"
@@ -496,6 +497,12 @@ int main(int argc, char **argv) {
 	if (options.filters.at("select_best")) {
 		cout << get_time_string() << " Selecting best breakpoints from genes with multiple breakpoints " << flush;
 		cout << "(remaining=" << select_most_supported_breakpoints(fusions) << ")" << endl;
+	}
+
+	// this step should come after the 'select_best' filter and before the 'many_spliced' filter
+	if (options.filters.at("marginal_read_through")) {
+		cout << get_time_string() << " Filtering read-through fusions with breakpoints near the gene boundary " << flush;
+		cout << "(remaining=" << filter_marginal_read_through(fusions, coverage) << ")" << endl;
 	}
 
 	// this step must come after the 'select_best' filter, because it increases the chances of
