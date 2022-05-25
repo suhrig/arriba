@@ -196,7 +196,6 @@ void translate_reference_protein(const exon_t exon_with_start_codon, const assem
 		return;
 	bool forward_strand = exon_with_start_codon->gene->strand == FORWARD;
 	string codon;
-string foo;
 	bool already_reported_annotation_error = false;
 	for (exon_t exon = exon_with_start_codon; exon != NULL; exon = (forward_strand) ? exon->next_exon : exon->previous_exon) {
 		for (position_t position = (forward_strand) ? exon->coding_region_start : exon->coding_region_end; position != -1 && position >= exon->coding_region_start && position <= exon->coding_region_end; position += (forward_strand) ? +1 : -1) {
