@@ -1,5 +1,6 @@
 #include <algorithm>
 #include <cctype>
+#include <cmath>
 #include <fstream>
 #include <functional>
 #include <iostream>
@@ -764,8 +765,8 @@ void get_transcripts(const string& transcript_sequence, const vector<position_t>
 					if (position == breakpoint) {
 						if (transcribed_bases[position] >= (**exon).coding_region_start && transcribed_bases[position] <= (**exon).coding_region_end)
 							is_coding_at_breakpoint[(**exon).transcript] = true; // this gives a bonus later on
-						if (transcribed_bases[position] == (**exon).start && *exon != (**exon).transcript->first_exon ||
-						    transcribed_bases[position] == (**exon).end   && *exon != (**exon).transcript->last_exon)
+						if (abs(transcribed_bases[position] - (**exon).start) <= 2 && *exon != (**exon).transcript->first_exon ||
+						    abs(transcribed_bases[position] - (**exon).end)   <= 2 && *exon != (**exon).transcript->last_exon)
 							score[(**exon).transcript] += 10; // give a bonus when the breakpoint coincides with a splice site
 					}
 				}
