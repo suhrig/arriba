@@ -71,8 +71,10 @@ SJDBOVERHANG="${SJDBOVERHANG-250}"
 set -o pipefail
 set -e -u
 
+WGET=$(which wget 2> /dev/null && echo " -q -O -" || echo "curl -L -s -S")
+
 echo "Downloading assembly: ${ASSEMBLIES[$ASSEMBLY]}"
-wget -q -O - "${ASSEMBLIES[$ASSEMBLY]}" |
+$WGET "${ASSEMBLIES[$ASSEMBLY]}" |
 if [[ ${ASSEMBLIES[$ASSEMBLY]} =~ \.tar\.gz$ ]]; then
 	tar -x -O -z
 elif [[ ${ASSEMBLIES[$ASSEMBLY]} =~ \.gz$ ]]; then
@@ -102,7 +104,7 @@ if [[ $(samtools --version-only 2> /dev/null) =~ ^1\. ]]; then
 fi
 
 echo "Downloading annotation: ${ANNOTATIONS[$ANNOTATION]}"
-wget -q -O - "${ANNOTATIONS[$ANNOTATION]}" |
+$WGET -q -O - "${ANNOTATIONS[$ANNOTATION]}" |
 if [[ ${ANNOTATIONS[$ANNOTATION]} =~ \.gz$ ]]; then
 	gunzip -c
 else
