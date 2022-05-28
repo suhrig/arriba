@@ -54,7 +54,7 @@ done
 if [ $# -ne 1 ] || [ -z "$1" ] || [ -z "${COMBINATIONS[$1]}" ]; then
 	echo "Usage: $(basename $0) ASSEMBLY+ANNOTATION" 1>&2
 	echo "Available assemblies and annotations:" 1>&2
-	sed -e 's/ /\n/g' <<<"${!COMBINATIONS[@]}" | sort 1>&2
+	tr ' ' '\n' <<<"${!COMBINATIONS[@]}" | sort 1>&2
 	exit 1
 fi
 
@@ -104,7 +104,7 @@ if [[ $(samtools --version-only 2> /dev/null) =~ ^1\. ]]; then
 fi
 
 echo "Downloading annotation: ${ANNOTATIONS[$ANNOTATION]}"
-$WGET -q -O - "${ANNOTATIONS[$ANNOTATION]}" |
+$WGET "${ANNOTATIONS[$ANNOTATION]}" |
 if [[ ${ANNOTATIONS[$ANNOTATION]} =~ \.gz$ ]]; then
 	gunzip -c
 else
@@ -153,9 +153,9 @@ else
 	cat
 fi |
 if ! grep -q '^>chr' "$ASSEMBLY$VIRAL.fa"; then
-	sed -e 's/^chrM\t/MT\t/' -e 's/^chr//'
+	sed -e 's/^chrM	/MT	/' -e 's/^chr//'
 else
-	sed -e 's/^MT\t/chrM\t/' -e 's/^\([1-9XY]\|[12][0-9]\)\t/\1\t/'
+	sed -e 's/^MT	/chrM	/' -e 's/^\([1-9XY]\|[12][0-9]\)	/\1	/'
 fi > "$ANNOTATION.gtf"
 
 mkdir STAR_index_${ASSEMBLY}${VIRAL}_${ANNOTATION}
