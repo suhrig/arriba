@@ -96,6 +96,11 @@ if [ "$VIRAL" = "viral" ]; then
 	gunzip -c "$REFSEQ_VIRAL_GENOMES" >> "$ASSEMBLY$VIRAL.fa"
 fi
 
+if [[ $(samtools --version-only 2> /dev/null) =~ ^1\. ]]; then
+	echo "Indexing assembly"
+	samtools faidx "$ASSEMBLY$VIRAL.fa"
+fi
+
 echo "Downloading annotation: ${ANNOTATIONS[$ANNOTATION]}"
 wget -q -O - "${ANNOTATIONS[$ANNOTATION]}" |
 if [[ ${ANNOTATIONS[$ANNOTATION]} =~ \.gz$ ]]; then
