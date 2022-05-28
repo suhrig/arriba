@@ -153,9 +153,9 @@ else
 	cat
 fi |
 if ! grep -q '^>chr' "$ASSEMBLY$VIRAL.fa"; then
-	sed -e 's/^chrM	/MT	/' -e 's/^chr//'
+	sed -e 's/^chrM/MT/' -e 's/^chr//'
 else
-	sed -e 's/^MT	/chrM	/' -e 's/^\([1-9XY]\|[12][0-9]\)	/\1	/'
+	sed -e 's/^MT/chrM/' -e 's/^\([1-9XY]\|[12][0-9]\)/chr\1/'
 fi > "$ANNOTATION.gtf"
 
 mkdir STAR_index_${ASSEMBLY}${VIRAL}_${ANNOTATION}
