@@ -74,7 +74,8 @@ awk -F '\t' -v OFS='\t' -v kmer_length="$KMER_LENGTH" -v max_shared_kmers_pct="$
 			reference_pos = $4
 			for (cigar = 1; cigar < length(cigar_lens); cigar++) {
 				if (cigar_ops[cigar+1] ~ /[MX]/) {
-					for (i = 1; i <= cigar_lens[cigar]; i++) {
+					cigar_len = cigar_lens[cigar] # caching this value reduces memory consumption in awk on macOS
+					for (i = 1; i <= cigar_len; i++) {
 						if (!already_counted[id,reference_pos]++)
 							covered_genome[id]++
 						reference_pos++

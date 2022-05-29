@@ -1,5 +1,6 @@
 #include <algorithm>
 #include <cctype>
+#include <cmath>
 #include <fstream>
 #include <functional>
 #include <iostream>
@@ -748,6 +749,7 @@ void get_transcripts(const string& transcript_sequence, const vector<position_t>
 	unordered_map<transcript_t,unsigned int> score;
 	unordered_map<transcript_t,unsigned int> peak_score;
 	unordered_map<transcript_t,bool> is_coding_at_breakpoint;
+	unordered_map<transcript_t,unsigned int> transcribed_utr_bases;
 	size_t position = from;
 	for (auto exon_set = exon_annotation_index[gene->contig].lower_bound(transcribed_bases[from]); exon_set != exon_annotation_index[gene->contig].end() && position >= min(from, to) && position <= max(from, to); ++exon_set) {
 
@@ -758,11 +760,13 @@ void get_transcripts(const string& transcript_sequence, const vector<position_t>
 				if ((**exon).gene == gene && transcribed_bases[position] >= (**exon).start && transcribed_bases[position] <= (**exon).end) {
 					score[(**exon).transcript]++;
 					last_transcribed_base = transcribed_bases[position]; // remember for later to compute the number of exonic bases that are NOT transcribed
+					if (*exon == (**exon).transcript->first_exon || *exon == (**exon).transcript->last_exon)
+						transcribed_utr_bases[(**exon).transcript]++; // annotation of UTRs is inaccurate, so we keep track of transcription of UTRs to correct for this later
 					if (position == breakpoint) {
 						if (transcribed_bases[position] >= (**exon).coding_region_start && transcribed_bases[position] <= (**exon).coding_region_end)
-							is_coding_at_breakpoint[(**exon).transcript] = true;
-						if (transcribed_bases[position] == (**exon).start && *exon != (**exon).transcript->first_exon ||
-						    transcribed_bases[position] == (**exon).end   && *exon != (**exon).transcript->last_exon)
+							is_coding_at_breakpoint[(**exon).transcript] = true; // this gives a bonus later on
+						if (abs(transcribed_bases[position] - (**exon).start) <= 2 && *exon != (**exon).transcript->first_exon ||
+						    abs(transcribed_bases[position] - (**exon).end)   <= 2 && *exon != (**exon).transcript->last_exon)
 							score[(**exon).transcript] += 10; // give a bonus when the breakpoint coincides with a splice site
 					}
 				}
@@ -794,7 +798,8 @@ void get_transcripts(const string& transcript_sequence, const vector<position_t>
 		if (transcript->second == peak_score[best_transcripts[0]] && is_coding_at_breakpoint[best_transcripts[0]] == is_coding_at_breakpoint[transcript->first]) {
 			best_transcripts.push_back(transcript->first);
 		} else if (transcript->second > peak_score[best_transcripts[0]] ||
-		    transcript->second == peak_score[best_transcripts[0]] && !is_coding_at_breakpoint[best_transcripts[0]] && is_coding_at_breakpoint[transcript->first]) {
+		           !is_coding_at_breakpoint[best_transcripts[0]] && is_coding_at_breakpoint[transcript->first] &&
+		           (transcript->second == peak_score[best_transcripts[0]] || transcribed_utr_bases[transcript->first] > 0 && transcribed_utr_bases[best_transcripts[0]] > 0 && transcript->second - transcribed_utr_bases[transcript->first] >= peak_score[best_transcripts[0]] - transcribed_utr_bases[best_transcripts[0]])) {
 			best_transcripts.clear();
 			best_transcripts.push_back(transcript->first);
 		}
@@ -1137,7 +1142,7 @@ void write_fusions_to_file(fusions_t& fusions, const string& output_file, const 
 				if (t_5 != transcripts_5.end()) // possibly, we enter this loop when there aren't any 5' transcripts => leave transcript_5 as NULL in this case
 					transcript_5 = *t_5;
 				for (auto t_3 = transcripts_3.begin(); (transcripts_3.empty() || t_3 != transcripts_3.end()) && reading_frame != "in-frame"; ++t_3) {
-					if (t_3 != transcripts_3.end()) // possibly, we enter this loop when there aren't any 5' transcripts => leave transcript_3 as NULL in this case
+					if (t_3 != transcripts_3.end()) // possibly, we enter this loop when there aren't any 3' transcripts => leave transcript_3 as NULL in this case
 						transcript_3 = *t_3;
 					if (fill_sequence_gaps) { // if requested by the user, fill gaps in the transcript (as assembled from the fusion reads) with information from the reference genome
 						transcript_sequence = transcript_sequence_backup; // we may have to do this multiple times (in case of multiple transcripts) => restore the unfilled sequence first

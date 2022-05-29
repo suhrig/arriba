@@ -43,6 +43,7 @@
 #include "filter_in_vitro.hpp"
 #include "merge_adjacent_fusions.hpp"
 #include "select_best.hpp"
+#include "filter_marginal_read_through.hpp"
 #include "filter_end_to_end.hpp"
 #include "filter_short_anchor.hpp"
 #include "filter_homologs.hpp"
@@ -498,6 +499,12 @@ int main(int argc, char **argv) {
 		cout << "(remaining=" << select_most_supported_breakpoints(fusions) << ")" << endl;
 	}
 
+	// this step should come after the 'select_best' filter and before the 'many_spliced' filter
+	if (options.filters.at("marginal_read_through")) {
+		cout << get_time_string() << " Filtering read-through fusions with breakpoints near the gene boundary " << flush;
+		cout << "(remaining=" << filter_marginal_read_through(fusions, coverage) << ")" << endl;
+	}
+
 	// this step must come after the 'select_best' filter, because it increases the chances of
 	// an event to pass all filters by recovering multiple breakpoints which evidence the same event
 	// moreover, this step must come after all the filters the 'relative_support' and 'min_support' filters
@@ -534,7 +541,7 @@ int main(int argc, char **argv) {
 
 	if (options.filters.at("no_coverage")) {
 		cout << get_time_string() << " Filtering fusions with no coverage around the breakpoints " << flush;
-		cout << "(remaining=" << filter_no_coverage(fusions, coverage, exon_annotation_index, max_mate_gap) << ")" << endl;
+		cout << "(remaining=" << filter_no_coverage(fusions, coverage, exon_annotation_index) << ")" << endl;
 	}
 
 	// make kmer indices from gene sequences

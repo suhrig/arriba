@@ -15,12 +15,12 @@ declare -A ANNOTATIONS
 ANNOTATIONS[GENCODE19]="http://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_human/release_19/gencode.v19.annotation.gtf.gz"
 ANNOTATIONS[RefSeq_hg19]="http://hgdownload.cse.ucsc.edu/goldenpath/hg19/database/refGene.txt.gz"
 ANNOTATIONS[ENSEMBL87]="http://ftp.ensembl.org/pub/grch37/release-87/gtf/homo_sapiens/Homo_sapiens.GRCh37.87.chr.gtf.gz"
-ANNOTATIONS[GENCODE28]="http://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_human/release_28/gencode.v28.annotation.gtf.gz"
+ANNOTATIONS[GENCODE38]="http://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_human/release_38/gencode.v38.annotation.gtf.gz"
 ANNOTATIONS[RefSeq_hg38]="http://hgdownload.cse.ucsc.edu/goldenpath/hg38/database/refGene.txt.gz"
-ANNOTATIONS[ENSEMBL93]="http://ftp.ensembl.org/pub/release-93/gtf/homo_sapiens/Homo_sapiens.GRCh38.93.chr.gtf.gz"
+ANNOTATIONS[ENSEMBL104]="http://ftp.ensembl.org/pub/release-104/gtf/homo_sapiens/Homo_sapiens.GRCh38.104.chr.gtf.gz"
 ANNOTATIONS[GENCODEM25]="http://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_mouse/release_M25/gencode.vM25.annotation.gtf.gz"
 ANNOTATIONS[RefSeq_mm10]="http://hgdownload.cse.ucsc.edu/goldenpath/mm10/database/refGene.txt.gz"
-ANNOTATIONS[GENCODEM26]="http://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_mouse/release_M26/gencode.vM26.annotation.gtf.gz"
+ANNOTATIONS[GENCODEM27]="http://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_mouse/release_M27/gencode.vM27.annotation.gtf.gz"
 ANNOTATIONS[RefSeq_mm39]="http://hgdownload.cse.ucsc.edu/goldenpath/mm39/database/refGene.txt.gz"
 
 declare -A COMBINATIONS
@@ -33,19 +33,19 @@ COMBINATIONS["hg19+ENSEMBL87"]="hg19+ENSEMBL87"
 COMBINATIONS["GRCh37+GENCODE19"]="GRCh37+GENCODE19"
 COMBINATIONS["GRCh37+RefSeq"]="GRCh37+RefSeq_hg19"
 COMBINATIONS["GRCh37+ENSEMBL87"]="GRCh37+ENSEMBL87"
-COMBINATIONS["hg38+GENCODE28"]="hg38+GENCODE28"
+COMBINATIONS["hg38+GENCODE38"]="hg38+GENCODE38"
 COMBINATIONS["hg38+RefSeq"]="hg38+RefSeq_hg38"
-COMBINATIONS["hg38+ENSEMBL93"]="hg38+ENSEMBL93"
-COMBINATIONS["GRCh38+GENCODE28"]="GRCh38+GENCODE28"
+COMBINATIONS["hg38+ENSEMBL104"]="hg38+ENSEMBL104"
+COMBINATIONS["GRCh38+GENCODE38"]="GRCh38+GENCODE38"
 COMBINATIONS["GRCh38+RefSeq"]="GRCh38+RefSeq_hg38"
-COMBINATIONS["GRCh38+ENSEMBL93"]="GRCh38+ENSEMBL93"
+COMBINATIONS["GRCh38+ENSEMBL104"]="GRCh38+ENSEMBL104"
 COMBINATIONS["GRCm38+GENCODEM25"]="GRCm38+GENCODEM25"
 COMBINATIONS["GRCm38+RefSeq"]="GRCm38+RefSeq_mm10"
 COMBINATIONS["mm10+GENCODEM25"]="mm10+GENCODEM25"
 COMBINATIONS["mm10+RefSeq"]="mm10+RefSeq_mm10"
-COMBINATIONS["GRCm39+GENCODEM26"]="GRCm39+GENCODEM26"
+COMBINATIONS["GRCm39+GENCODEM27"]="GRCm39+GENCODEM27"
 COMBINATIONS["GRCm39+RefSeq"]="GRCm39+RefSeq_mm39"
-COMBINATIONS["mm39+GENCODEM26"]="mm39+GENCODEM26"
+COMBINATIONS["mm39+GENCODEM27"]="mm39+GENCODEM27"
 COMBINATIONS["mm39+RefSeq"]="mm39+RefSeq_mm39"
 for COMBINATION in ${!COMBINATIONS[@]}; do
 	COMBINATIONS["${COMBINATION%+*}viral+${COMBINATION#*+}"]="${COMBINATIONS[$COMBINATION]%+*}viral+${COMBINATIONS[$COMBINATION]#*+}"
@@ -54,7 +54,7 @@ done
 if [ $# -ne 1 ] || [ -z "$1" ] || [ -z "${COMBINATIONS[$1]}" ]; then
 	echo "Usage: $(basename $0) ASSEMBLY+ANNOTATION" 1>&2
 	echo "Available assemblies and annotations:" 1>&2
-	sed -e 's/ /\n/g' <<<"${!COMBINATIONS[@]}" | sort 1>&2
+	tr ' ' '\n' <<<"${!COMBINATIONS[@]}" | sort 1>&2
 	exit 1
 fi
 
@@ -71,8 +71,10 @@ SJDBOVERHANG="${SJDBOVERHANG-250}"
 set -o pipefail
 set -e -u
 
+WGET=$(which wget 2> /dev/null && echo " -q -O -" || echo "curl -L -s -S")
+
 echo "Downloading assembly: ${ASSEMBLIES[$ASSEMBLY]}"
-wget -q -O - "${ASSEMBLIES[$ASSEMBLY]}" |
+$WGET "${ASSEMBLIES[$ASSEMBLY]}" |
 if [[ ${ASSEMBLIES[$ASSEMBLY]} =~ \.tar\.gz$ ]]; then
 	tar -x -O -z
 elif [[ ${ASSEMBLIES[$ASSEMBLY]} =~ \.gz$ ]]; then
@@ -96,8 +98,13 @@ if [ "$VIRAL" = "viral" ]; then
 	gunzip -c "$REFSEQ_VIRAL_GENOMES" >> "$ASSEMBLY$VIRAL.fa"
 fi
 
+if [[ $(samtools --version-only 2> /dev/null) =~ ^1\. ]]; then
+	echo "Indexing assembly"
+	samtools faidx "$ASSEMBLY$VIRAL.fa"
+fi
+
 echo "Downloading annotation: ${ANNOTATIONS[$ANNOTATION]}"
-wget -q -O - "${ANNOTATIONS[$ANNOTATION]}" |
+$WGET "${ANNOTATIONS[$ANNOTATION]}" |
 if [[ ${ANNOTATIONS[$ANNOTATION]} =~ \.gz$ ]]; then
 	gunzip -c
 else
@@ -146,9 +153,9 @@ else
 	cat
 fi |
 if ! grep -q '^>chr' "$ASSEMBLY$VIRAL.fa"; then
-	sed -e 's/^chrM\t/MT\t/' -e 's/^chr//'
+	sed -e 's/^chrM/MT/' -e 's/^chr//'
 else
-	sed -e 's/^MT\t/chrM\t/' -e 's/^\([1-9XY]\|[12][0-9]\)\t/\1\t/'
+	sed -e 's/^MT/chrM/' -e 's/^\([1-9XY]\|[12][0-9]\)/chr\1/'
 fi > "$ANNOTATION.gtf"
 
 mkdir STAR_index_${ASSEMBLY}${VIRAL}_${ANNOTATION}

@@ -29,7 +29,14 @@ bool estimate_fragment_length(const chimeric_alignments_t& chimeric_alignments, 
 			alignment_t const* reverse_mate = &(chimeric_alignment->second[SPLIT_READ]);
 			if (forward_mate->strand == REVERSE)
 				swap(forward_mate, reverse_mate);
-			mate_gaps.push_back(get_spliced_distance(forward_mate->contig, forward_mate->end, reverse_mate->start, *forward_mate->genes.begin(), exon_annotation_index));
+			int distance = get_spliced_distance(forward_mate->contig, forward_mate->end, reverse_mate->start, *forward_mate->genes.begin(), exon_annotation_index);
+			if (forward_mate->end > reverse_mate->start)
+				distance *= -1;
+			if (distance < (int) -forward_mate->sequence.length())
+				distance = -forward_mate->sequence.length();
+			if (distance < (int) -reverse_mate->sequence.length())
+				distance = -reverse_mate->sequence.length();
+			mate_gaps.push_back(distance);
 			mate_gap_count++;
 			if (mate_gap_count > 100000)
 				break; // the sample size should be big enough

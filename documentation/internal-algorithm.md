@@ -94,6 +94,9 @@ Event-level filters
 `select_best`
 : If there are multiple breakpoints detected between the same pair of genes, this filter discards all but the most credible one. Events with split reads in both genes are preferred over events with only discordant mates, because in the latter case, the precise breakpoint is unknown. Moreover, events with a higher number of supporting reads are favored.
 
+`marginal_read_through`
+: Most fusions between neighboring genes on the same strand are read-through fusions and not a result of a genomic deletion. Read-through fusions are very abundant in normal tissue and mostly not associated with cancer. To select for fusions that really arise from focal deletions in the genome and not from read-through transcription, this filter discards events where the breakpoints are close to the margins of a gene. The rationale behind this filtering criterion is that read-through fusions mostly occur between the first/last exons of neighboring genes (thus the breakpoints are near the margins of the two genes) and, in contrast, fusions arising from genomic deletions mostly have their breakpoints in the center of a gene, because focal deletions usually knock out a big part of a gene rather than just the first/last exon.
+
 `many_spliced`
 : Occassionally, a genomic rearrangement produces multiple alternatively spliced transcripts, all of which are low expressed and therefore discarded by the filters `relative_support` or `min_support`. This filter recovers events that were discarded due to too few supporting reads, under the circumstances that there are many events between a pair of genes with at least one of the breakpoints at splice-sites. All events between the pair of genes with at least one spliced breakpoint are recovered.
 

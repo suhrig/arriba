@@ -25,8 +25,8 @@ fi
 echo '##fileformat=VCFv4.3
 ##INFO=<ID=SVTYPE,Number=1,Type=String,Description="Type of structural variant">
 ##INFO=<ID=MATEID,Number=.,Type=String,Description="ID of mate breakends">
-##INFO=<ID=GENE_NAME,Number=.,Type=String,Description="Name of gene hit by breakpoint.">
-##INFO=<ID=GENE_ID,Number=.,Type=String,Description="ID of gene hit by breakpoint.">
+##INFO=<ID=GENE_NAME,Number=.,Type=String,Description="Name of gene hit by breakpoint">
+##INFO=<ID=GENE_ID,Number=.,Type=String,Description="ID of gene hit by breakpoint">
 #CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO' > "$OUTPUT"
 
 # read TSV file and convert it to VCF line-by-line
@@ -42,9 +42,9 @@ tail -n +2 "$INPUT" | while read LINE; do
 	BREAKPOINT1=$(cut -f5 <<<"$LINE"); CHROMOSOME1="${BREAKPOINT1%:*}"; POSITION1="${BREAKPOINT1##*:}"
 	BREAKPOINT2=$(cut -f6 <<<"$LINE"); CHROMOSOME2="${BREAKPOINT2%:*}"; POSITION2="${BREAKPOINT2##*:}"
 	QUAL=$(cut -f15 <<<"$LINE" | sed -e 's/low/0.5/' -e 's/medium/2/' -e 's/high/5/')
-	REF1=$(samtools faidx "$ASSEMBLY" "$BREAKPOINT1-$POSITION1" | tail -n1 | sed 's/./\U&/g')
-	REF2=$(samtools faidx "$ASSEMBLY" "$BREAKPOINT2-$POSITION2" | tail -n1 | sed 's/./\U&/g')
-	NON_TEMPLATE_BASES=$(cut -f28 <<<"$LINE" | sed -n -e 's/./\U&/g' -e 's/.*|\([^|]*\)|.*/\1/p') # get bases between two pipes in transcript sequence
+	REF1=$(samtools faidx "$ASSEMBLY" "$BREAKPOINT1-$POSITION1" | tail -n1 | tr '[:lower:]' '[:upper:]')
+	REF2=$(samtools faidx "$ASSEMBLY" "$BREAKPOINT2-$POSITION2" | tail -n1 | tr '[:lower:]' '[:upper:]')
+	NON_TEMPLATE_BASES=$(cut -f28 <<<"$LINE" | tr '[:lower:]' '[:upper:]' | sed -n -e 's/.*|\([^|]*\)|.*/\1/p') # get bases between two pipes in transcript sequence
 	STRAND1=$(cut -f3 <<<"$LINE" | cut -f2 -d/)
 	if [ "$STRAND1" = "-" ]; then NON_TEMPLATE_BASES=$(tr ATCG TAGC <<<"$NON_TEMPLATE_BASES"); fi # complement bases on reverse strand
 	DIRECTION1=$(cut -f25 <<<"$LINE")

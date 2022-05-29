@@ -78,7 +78,7 @@ Please refer to the [user manual](http://arriba.readthedocs.io/en/latest/) for i
 8. [Utility scripts](https://arriba.readthedocs.io/en/latest/utility-scripts/)
 
    - [Extract fusion-supporting alignments](https://arriba.readthedocs.io/en/latest/utility-scripts/#extract-fusion-supporting-alignments)
-   - [Convert fusions.tsv to VCF format](https://arriba.readthedocs.io/en/latest/utility-scripts/#convert-fusionstsv-to-vcf-format)
+   - [Convert fusions.tsv to VCF](https://arriba.readthedocs.io/en/latest/utility-scripts/#convert-fusionstsv-to-vcf)
    - [Run Arriba on prealigned BAM file](https://arriba.readthedocs.io/en/latest/utility-scripts/#run-arriba-on-prealigned-bam-file)
    - [Quantify virus expression](https://arriba.readthedocs.io/en/latest/utility-scripts/#quantify-virus-expression)
 
@@ -90,6 +90,7 @@ Please refer to the [user manual](http://arriba.readthedocs.io/en/latest/) for i
    - [Adapter trimming](https://arriba.readthedocs.io/en/latest/current-limitations/#adapter-trimming)
    - [Viral detection](https://arriba.readthedocs.io/en/latest/current-limitations/#viral-detection)
    - [Targeted sequencing](https://arriba.readthedocs.io/en/latest/current-limitations/#targeted-sequencing)
+   - [Supporting read count vs. coverage](https://arriba.readthedocs.io/en/latest/current-limitations/#supporting-read-count-vs-coverage)
 
 10. [Internal algorithm](https://arriba.readthedocs.io/en/latest/internal-algorithm/)
 

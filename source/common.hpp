@@ -52,6 +52,7 @@ const filter_t FILTER_end_to_end = FILTERS.define("end_to_end");
 const filter_t FILTER_in_vitro = FILTERS.define("in_vitro");
 const filter_t FILTER_merge_adjacent = FILTERS.define("merge_adjacent");
 const filter_t FILTER_select_best = FILTERS.define("select_best");
+const filter_t FILTER_marginal_read_through = FILTERS.define("marginal_read_through");
 const filter_t FILTER_short_anchor = FILTERS.define("short_anchor");
 const filter_t FILTER_no_coverage = FILTERS.define("no_coverage");
 const filter_t FILTER_many_spliced = FILTERS.define("many_spliced");
