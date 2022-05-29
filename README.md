@@ -90,6 +90,7 @@ Please refer to the [user manual](http://arriba.readthedocs.io/en/latest/) for i
    - [Adapter trimming](https://arriba.readthedocs.io/en/latest/current-limitations/#adapter-trimming)
    - [Viral detection](https://arriba.readthedocs.io/en/latest/current-limitations/#viral-detection)
    - [Targeted sequencing](https://arriba.readthedocs.io/en/latest/current-limitations/#targeted-sequencing)
+   - [Supporting read count vs. coverage](https://arriba.readthedocs.io/en/latest/current-limitations/#supporting-read-count-vs-coverage)
 
 10. [Internal algorithm](https://arriba.readthedocs.io/en/latest/internal-algorithm/)
 
