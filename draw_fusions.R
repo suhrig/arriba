@@ -1311,7 +1311,7 @@ for (fusion in 1:nrow(fusions)) {
 			non_template_bases <- ""
 		# divide non-template bases half-and-half for centered alignment
 		non_template_bases1 <- substr(non_template_bases, 1, floor(nchar(non_template_bases)/2))
-		non_template_bases2 <- substr(non_template_bases, ceiling(nchar(non_template_bases)/2), nchar(non_template_bases))
+		non_template_bases2 <- substr(non_template_bases, ceiling(nchar(non_template_bases)/2+0.5), nchar(non_template_bases))
 		# transcript 1
 		text(fusionOffset2, yTranscript, bquote(.(fusion_transcript1) * phantom(.(non_template_bases1))), col=darkColor1, adj=c(1,0.5), cex=fontSize)
 		# transcript 2
