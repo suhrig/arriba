@@ -383,12 +383,12 @@ bool filter_exons_near_splice_site(const gene_t gene, const direction_t directio
 			if (direction == UPSTREAM &&
 			    abs((**exon).start - breakpoint) <= MAX_SPLICE_SITE_DISTANCE &&
 			    ((**exon).previous_exon != NULL || // exon is not a terminal one
-			     (**exon).previous_exon == NULL && (**exon).next_exon == NULL || // unless transcript has only one exon
+			     (**exon).previous_exon == NULL && (**exon).next_exon == NULL && (**exon).coding_region_start != -1 || // unless transcript has only one exon
 			     (**exon).start == (**exon).coding_region_start) || // or unless the first base of the exon is coding (=> gene is not annotated properly and misses preceeding exons (see TCR genes))
 			    direction == DOWNSTREAM &&
 			    abs((**exon).end - breakpoint) <= MAX_SPLICE_SITE_DISTANCE &&
 			    ((**exon).next_exon != NULL || // exon is not a terminal one
-			     (**exon).previous_exon == NULL && (**exon).next_exon == NULL || // unless transcript has only one exon
+			     (**exon).previous_exon == NULL && (**exon).next_exon == NULL && (**exon).coding_region_start != -1 || // unless transcript has only one exon
 			     (**exon).end == (**exon).coding_region_end)) // or unless the last base of the exon is coding (=> gene is not annotated properly and misses following exons (see TCR genes))
 				return true;
 	return false;
