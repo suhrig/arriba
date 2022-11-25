@@ -519,7 +519,7 @@ int main(int argc, char **argv) {
 
 		// this step must come after assigning confidence scores
 		cout << get_time_string() << " Filtering low-confidence events with no support from WGS " << flush;
-		cout << "(remaining=" << filter_no_genomic_support(fusions) << ")" << endl;
+		cout << "(remaining=" << filter_no_genomic_support(fusions, viral_contigs) << ")" << endl;
 	}
 
 	// this step must come after the 'select_best' filter, because the 'select_best' filter prefers

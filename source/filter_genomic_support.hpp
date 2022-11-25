@@ -2,6 +2,7 @@
 #define FILTER_GENOMIC_SUPPORT_H 1
 
 #include <string>
+#include <vector>
 #include "common.hpp"
 #include "read_stats.hpp"
 
@@ -11,7 +12,7 @@ unsigned int mark_genomic_support(fusions_t& fusions, const string& genomic_brea
 
 void assign_confidence(fusions_t& fusions, const coverage_t& coverage);
 
-unsigned int filter_no_genomic_support(fusions_t& fusions);
+unsigned int filter_no_genomic_support(fusions_t& fusions, const vector<bool>& viral_contigs);
 
 unsigned int recover_genomic_support(fusions_t& fusions);
 

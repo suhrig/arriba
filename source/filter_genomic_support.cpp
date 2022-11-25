@@ -401,13 +401,14 @@ void assign_confidence(fusions_t& fusions, const coverage_t& coverage) {
 }
 
 // filter speculative fusions without support from WGS
-unsigned int filter_no_genomic_support(fusions_t& fusions) {
+unsigned int filter_no_genomic_support(fusions_t& fusions, const vector<bool>& viral_contigs) {
 
 	unsigned int remaining = 0;
 	for (fusions_t::iterator fusion = fusions.begin(); fusion != fusions.end(); ++fusion) {
 		if (fusion->second.filter == FILTER_none) {
 			if (fusion->second.closest_genomic_breakpoint1 < 0 && // no genomic support
-			     fusion->second.confidence == CONFIDENCE_LOW)
+			     fusion->second.confidence == CONFIDENCE_LOW &&
+			     !viral_contigs[fusion->second.contig1] && !viral_contigs[fusion->second.contig2])
 				fusion->second.filter = FILTER_no_genomic_support;
 			else
 				remaining++;
