@@ -131,20 +131,16 @@ string annotate_retained_protein_domains(const contig_t contig, const position_t
 	if (contig >= protein_domain_annotation_index.size())
 		return "";
 
-	// determine part of gene that is retained in the fusion
-	position_t start = (direction == UPSTREAM) ? breakpoint : gene->start;
-	position_t end = (direction == UPSTREAM) ? gene->end : breakpoint;
-
 	// find all protein domains located in the retained part of gene
 	map< string/*domain name*/, pair<unsigned int/*length*/,unsigned int/*retained bases*/> > retained_protein_domains;
-	for (auto protein_domains = protein_domain_annotation_index[contig].lower_bound(start); protein_domains != protein_domain_annotation_index[contig].end() && protein_domains->first <= end; ++protein_domains)
+	for (auto protein_domains = protein_domain_annotation_index[contig].lower_bound(gene->start); protein_domains != protein_domain_annotation_index[contig].end() && protein_domains->first <= gene->end; ++protein_domains)
 		for (auto protein_domain = protein_domains->second.begin(); protein_domain != protein_domains->second.end(); ++protein_domain) {
 			if ((**protein_domain).gene == gene) {
 				unsigned int length = (**protein_domain).end - (**protein_domain).start + 1;
-				unsigned int retained_bases;
-				if (direction == UPSTREAM)
+				unsigned int retained_bases = 0;
+				if (direction == UPSTREAM && (**protein_domain).end >= breakpoint)
 					retained_bases = (**protein_domain).end - max((**protein_domain).start, breakpoint) + 1;
-				else
+				else if (direction == DOWNSTREAM && (**protein_domain).start <= breakpoint)
 					retained_bases = min((**protein_domain).end, breakpoint) - (**protein_domain).start + 1;
 				pair<unsigned int,unsigned int>& retained_protein_domain = retained_protein_domains[(**protein_domain).name];
 				retained_protein_domain.first += length;
@@ -155,9 +151,11 @@ string annotate_retained_protein_domains(const contig_t contig, const position_t
 	// concatenate tags to comma-separated string
 	string result;
 	for (auto protein_domain = retained_protein_domains.begin(); protein_domain != retained_protein_domains.end(); ++protein_domain) {
-		if (!result.empty())
-			result += ",";
-		result += protein_domain->first + "(" + to_string(static_cast<long long int>(protein_domain->second.second * 100 / protein_domain->second.first)) + "%)";
+		if (protein_domain->second.second > 0) {
+			if (!result.empty())
+				result += ",";
+			result += protein_domain->first + "(" + to_string(static_cast<long long int>(protein_domain->second.second * 100 / protein_domain->second.first)) + "%)";
+		}
 	}
 	return result;
 }
