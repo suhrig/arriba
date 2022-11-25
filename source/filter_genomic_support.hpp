@@ -7,7 +7,7 @@
 
 using namespace std;
 
-unsigned int mark_genomic_support(fusions_t& fusions, const string& genomic_breakpoints_file_path, const contigs_t& contigs, const int max_distance);
+unsigned int mark_genomic_support(fusions_t& fusions, const string& genomic_breakpoints_file_path, const contigs_t& contigs, const int max_distance, const int max_itd_length);
 
 void assign_confidence(fusions_t& fusions, const coverage_t& coverage);
 

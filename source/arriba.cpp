@@ -414,7 +414,7 @@ int main(int argc, char **argv) {
 
 	if (!options.genomic_breakpoints_file.empty()) {
 		cout << get_time_string() << " Marking fusions with support from whole-genome sequencing in '" << options.genomic_breakpoints_file << "' " << flush;
-		cout << "(marked=" << mark_genomic_support(fusions, options.genomic_breakpoints_file, contigs, options.max_genomic_breakpoint_distance) << ")" << endl;
+		cout << "(marked=" << mark_genomic_support(fusions, options.genomic_breakpoints_file, contigs, options.max_genomic_breakpoint_distance, options.max_itd_length) << ")" << endl;
 	}
 
 	if (options.filters.at("merge_adjacent")) {

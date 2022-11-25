@@ -77,7 +77,7 @@ bool is_genomic_breakpoint_close_enough(const direction_t direction, const posit
 	}
 }
 
-unsigned int mark_genomic_support(fusions_t& fusions, const string& genomic_breakpoints_file_path, const contigs_t& contigs, const int max_distance) {
+unsigned int mark_genomic_support(fusions_t& fusions, const string& genomic_breakpoints_file_path, const contigs_t& contigs, const int max_distance, const int max_itd_length) {
 
 	// make index structure for genomic breakpoints
 	unordered_map< tuple<contig_t, contig_t, direction_t, direction_t>, map< position_t/*breakpoint1*/, vector<position_t/*breakpoint2*/> > > genomic_breakpoints;
@@ -187,13 +187,12 @@ unsigned int mark_genomic_support(fusions_t& fusions, const string& genomic_brea
 
 				for (auto closeby_genomic_breakpoint2 = closeby_genomic_breakpoints->second.begin(); closeby_genomic_breakpoint2 != closeby_genomic_breakpoints->second.end(); ++closeby_genomic_breakpoint2) {
 					if (is_genomic_breakpoint_close_enough(fusion->second.direction2, *closeby_genomic_breakpoint2, fusion->second.breakpoint2, fusion->second.gene2, max_distance) &&
-					    (fusion->second.contig1 != fusion->second.contig2 || // we need to make extra checks for deletions and inversions:
-					     fusion->second.direction1 == UPSTREAM && fusion->second.direction2 == DOWNSTREAM || // (but not duplications)
+					    (fusion->second.contig1 != fusion->second.contig2 || // we need to make extra checks for deletions, duplications, and inversions to avoid false associations:
+					     fusion->second.direction1 == UPSTREAM && fusion->second.direction2 == DOWNSTREAM && (!fusion->second.is_internal_tandem_duplication(max_itd_length) || fusion->second.breakpoint1 - closeby_genomic_breakpoints->first < max_itd_length && *closeby_genomic_breakpoint2 - fusion->second.breakpoint2 < max_itd_length) || // for ITDs, the breakpoint distances must not be bigger than the ITD length
 					     fusion->second.direction1 == DOWNSTREAM && fusion->second.direction2 == UPSTREAM && closeby_genomic_breakpoints->first < fusion->second.breakpoint2 && *closeby_genomic_breakpoint2 > fusion->second.breakpoint1 || // for deletions, both genomic breakpoints must be between the transcriptomic breakpoints
 					     fusion->second.direction1 == UPSTREAM && fusion->second.direction2 == UPSTREAM && *closeby_genomic_breakpoint2 > fusion->second.breakpoint1 || // for inversions, one genomic breakpoint must be between the transcriptomic breakpoints
 					     fusion->second.direction1 == DOWNSTREAM && fusion->second.direction2 == DOWNSTREAM && closeby_genomic_breakpoints->first < fusion->second.breakpoint2)) { // for inversions, one genomic breakpoint must be between the transcriptomic breakpoints
-					                                                                                                                                      // (this avoids false associations in the case of small deletions/inversions)
-						// we consider a pair of genomic breakpoints to be closer than a given one,
+						// we consider a pair of genomic breakpoints to be closer than a given one
 						// if the sum of the distances between genomic and transcriptomic breakpoints is lower
 						if (fusion->second.closest_genomic_breakpoint1 < 0 || fusion->second.closest_genomic_breakpoint2 < 0 ||
 						    abs(fusion->second.breakpoint1 - fusion->second.closest_genomic_breakpoint1) + abs(fusion->second.breakpoint2 - fusion->second.closest_genomic_breakpoint2) > abs(closeby_genomic_breakpoints->first - fusion->second.breakpoint1) + abs(fusion->second.breakpoint2 - *closeby_genomic_breakpoint2)) {
