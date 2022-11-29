@@ -117,7 +117,7 @@ if (!(length(coverageRange) %in% 1:2) || any(is.na(coverageRange)) || any(covera
 
 # check if required packages are installed
 if (!suppressPackageStartupMessages(require(GenomicRanges)))
-	warning("Package 'GenomicRanges' is not installed. No circos plots will be drawn.")
+	warning("Package 'GenomicRanges' is not installed. No protein domains and circos plots will be drawn.")
 if (!suppressPackageStartupMessages(require(circlize)))
 	warning("Package 'circlize' is not installed. No circos plots will be drawn.")
 if (alignmentsFile != "")
@@ -1355,7 +1355,7 @@ for (fusion in 1:nrow(fusions)) {
 	# draw protein domains
 	plot(0, 0, type="l", xlim=c(-0.1, 1.1), ylim=c(0, 1), bty="n", xaxt="n", yaxt="n", xlab="", ylab="")
 	par(xpd=NA)
-	if (!is.null(proteinDomains))
+	if (!is.null(proteinDomains) && "GenomicRanges" %in% names(sessionInfo()$otherPkgs))
 		drawProteinDomains(fusions[fusion,], exons1, exons2, proteinDomains, color1, color2, mergeDomainsOverlappingBy, optimizeDomainColors)
 	par(xpd=F)
 
