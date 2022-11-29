@@ -841,7 +841,9 @@ findExons <- function(exons, contig, geneID, direction, breakpoint, coverage, tr
 			rownames(transcriptStart) <- transcriptStart[,1]
 			transcriptEnd <- aggregate(candidateExons$end, by=list(candidateExons$transcript), max)
 			rownames(transcriptEnd) <- transcriptEnd[,1]
-			candidateExons <- candidateExons[between(breakpoint, transcriptStart[candidateExons$transcript,2], transcriptEnd[candidateExons$transcript,2]),]
+			encompassingExons <- between(breakpoint, transcriptStart[candidateExons$transcript,2], transcriptEnd[candidateExons$transcript,2])
+			if (any(encompassingExons))
+				candidateExons <- candidateExons[encompassingExons,]
 		}
 	}
 
