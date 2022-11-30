@@ -25,7 +25,7 @@ parameters <- list(
 	fontSize=list("fontSize", "numeric", 1),
 	fontFamily=list("fontFamily", "string", "Helvetica"),
 	showIntergenicVicinity=list("showIntergenicVicinity", "string", "0"),
-	transcriptSelection=list("transcriptSelection", "string", "coverage"),
+	transcriptSelection=list("transcriptSelection", "string", "provided"),
 	fixedScale=list("fixedScale", "numeric", 0),
 	coverageRange=list("coverageRange", "string", "0")
 )
