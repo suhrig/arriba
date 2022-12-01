@@ -833,7 +833,8 @@ findExons <- function(exons, contig, geneID, direction, breakpoint, coverage, tr
 					lengthOfTranscriptWithHighestCoverage <- lengthOfTranscript
 				}
 			}
-			candidateExons <- candidateExons[candidateExons$transcript==transcriptWithHighestCoverage,]
+			if (highestCoverage > 0)
+				candidateExons <- candidateExons[candidateExons$transcript==transcriptWithHighestCoverage,]
 		}
 		# if the gene has multiple transcripts, search for transcripts which encompass the breakpoint
 		if (length(unique(candidateExons$transcript)) > 1) {
