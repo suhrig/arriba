@@ -389,7 +389,9 @@ unsigned int find_fusions(chimeric_alignments_t& chimeric_alignments, fusions_t&
 				     (fusion->second.direction1 == UPSTREAM   && get<0>(*discordant_mate) /*mate1 breakpoint*/ >= fusion_breakpoint1)) &&
 				    ((fusion->second.direction2 == DOWNSTREAM && get<1>(*discordant_mate) /*mate2 breakpoint*/ <= fusion_breakpoint2) ||
 				     (fusion->second.direction2 == UPSTREAM   && get<1>(*discordant_mate) /*mate2 breakpoint*/ >= fusion_breakpoint2)) &&
-				    (!fusion->second.is_intragenic() ||
+				    (!fusion->second.is_intragenic() &&
+				     !(get<0>(*discordant_mate) /*mate1 breakpoint*/ >= fusion->second.gene2->start && get<0>(*discordant_mate) /*mate1 breakpoint*/ <= fusion->second.gene2->end) &&
+				     !(get<1>(*discordant_mate) /*mate2 breakpoint*/ >= fusion->second.gene1->start && get<1>(*discordant_mate) /*mate2 breakpoint*/ <= fusion->second.gene1->end) ||
 				     abs(fusion->second.breakpoint1 - get<0>(*discordant_mate) /*mate1 breakpoint*/) <= max_mate_gap &&
 				     abs(fusion->second.breakpoint2 - get<1>(*discordant_mate) /*mate2 breakpoint*/) <= max_mate_gap)) {
 
