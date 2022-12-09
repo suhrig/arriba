@@ -81,6 +81,7 @@ Please refer to the [user manual](http://arriba.readthedocs.io/en/latest/) for i
    - [Convert fusions.tsv to VCF](https://arriba.readthedocs.io/en/latest/utility-scripts/#convert-fusionstsv-to-vcf)
    - [Run Arriba on prealigned BAM file](https://arriba.readthedocs.io/en/latest/utility-scripts/#run-arriba-on-prealigned-bam-file)
    - [Quantify virus expression](https://arriba.readthedocs.io/en/latest/utility-scripts/#quantify-virus-expression)
+   - [Annotate exon numbers](https://arriba.readthedocs.io/en/latest/utility-scripts/#annotate-exon-numbers)
 
 9. [Current limitations](https://arriba.readthedocs.io/en/latest/current-limitations/)
    
