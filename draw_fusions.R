@@ -543,6 +543,10 @@ drawProteinDomains <- function(fusion, exons1, exons2, proteinDomains, color1, c
 		text(0.5, 0.5, "No coding regions retained in fusion transcript.")
 		return(NULL)
 	}
+	if ((codingLength1 == 0 || grepl("\\.$", fusion$strand1)) && (codingLength2 == 0 || grepl("\\.$", fusion$strand2))) {
+		text(0.5, 0.5, "Failed to determine retained protein domains due to lack of strand information.")
+		return(NULL)
+	}
 	antisenseTranscription1 <- sub("/.*", "", fusion$strand1) != sub(".*/", "", fusion$strand1)
 	antisenseTranscription2 <- sub("/.*", "", fusion$strand2) != sub(".*/", "", fusion$strand2)
 	if ((codingLength1 == 0 || antisenseTranscription1) && (codingLength2 == 0 || antisenseTranscription2)) {
