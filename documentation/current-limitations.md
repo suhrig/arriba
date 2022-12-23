@@ -18,7 +18,7 @@ However, excessive memory consumption can indicate a user error. So before reduc
 Adapter trimming
 ----------------
 
-In most cases, it is not necessary to trim adapters, because STAR is capable of performing clipped alignments, such that reads with adapters will simply be aligned partially. For this reason, the demo script `run_arriba.sh` does not perform adapter trimming. However, if many reads contain a substantial fraction of adapter sequence, it can be beneficial to remove adapters for improved sensitivity, because STAR dismisses chimeric alignments when a big fraction of a read cannot be aligned (as controlled by the parameter `--outFilterMatchNminOverLread`). To this end, the STAR parameter `--clip3pAdapterSeq` can be used or a specialized adapter trimming tool.
+In most cases, it is not necessary to trim adapters, because STAR is capable of performing clipped alignments, such that reads with adapters will simply be aligned partially. For this reason, the demo script `run_arriba.sh` does not perform adapter trimming. However, if many reads contain a substantial fraction of adapter sequence, then these reads will not be aligned. Reads required for fusion detection will be affected in particular, because they are difficult to align anyway. This problem usually manifests as a high value for `% of reads unmapped: too short` in the log file of STAR. In this situation, it can be beneficial to remove adapters for improved sensitivity, because STAR dismisses chimeric alignments when a big fraction of a read cannot be aligned (as controlled by the parameter `--outFilterMatchNminOverLread`). To this end, the STAR parameter `--clip3pAdapterSeq` can be used or a specialized adapter trimming tool.
 
 Viral detection
 ---------------
