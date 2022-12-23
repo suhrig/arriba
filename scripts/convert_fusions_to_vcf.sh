@@ -34,7 +34,8 @@ awk -F '\t' '
 	FILENAME == "/dev/stdin" { contigs[$0] }
 	FILENAME != "/dev/stdin" && $1 in contigs { print "##contig=<ID="$1",length="$2">" }
 ' /dev/stdin "$ASSEMBLY.fai" >> "$OUTPUT"
-echo '##INFO=<ID=SVTYPE,Number=1,Type=String,Description="Type of structural variant">
+echo '##FILTER=<ID=PASS,Description="All filters passed">
+##INFO=<ID=SVTYPE,Number=1,Type=String,Description="Type of structural variant">
 ##INFO=<ID=MATEID,Number=.,Type=String,Description="ID of mate breakends">
 ##INFO=<ID=GENE_NAME,Number=.,Type=String,Description="Name of gene hit by breakpoint">
 ##INFO=<ID=GENE_ID,Number=.,Type=String,Description="ID of gene hit by breakpoint">
