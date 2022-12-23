@@ -9,7 +9,7 @@ if [ $# -ne 3 ]; then
 	exit 1
 fi 1>&2
 ASSEMBLY="$1"
-INPUT="$2"
+INPUT=$(cat "$2")
 OUTPUT="$3"
 
 # tell bash to abort on error
@@ -21,17 +21,28 @@ if ! [[ $(samtools --version-only 2> /dev/null) =~ ^1\. ]]; then
 	exit 1
 fi
 
+# create FastA index, if necessary
+if [ ! -e "$ASSEMBLY.fai" ]; then
+	echo "Indexing FastA file" 1>&2
+	samtools faidx "$ASSEMBLY"
+fi
+
 # print VCF header
-echo '##fileformat=VCFv4.3
-##INFO=<ID=SVTYPE,Number=1,Type=String,Description="Type of structural variant">
+echo '##fileformat=VCFv4.3' > "$OUTPUT"
+echo "$INPUT" | cut -f5-6 | tr '\t' '\n' | sed -e 's/:[0-9]*$//' | sort -u |
+awk -F '\t' '
+	FILENAME == "/dev/stdin" { contigs[$0] }
+	FILENAME != "/dev/stdin" && $1 in contigs { print "##contig=<ID="$1",length="$2">" }
+' /dev/stdin "$ASSEMBLY.fai" >> "$OUTPUT"
+echo '##INFO=<ID=SVTYPE,Number=1,Type=String,Description="Type of structural variant">
 ##INFO=<ID=MATEID,Number=.,Type=String,Description="ID of mate breakends">
 ##INFO=<ID=GENE_NAME,Number=.,Type=String,Description="Name of gene hit by breakpoint">
 ##INFO=<ID=GENE_ID,Number=.,Type=String,Description="ID of gene hit by breakpoint">
-#CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO' > "$OUTPUT"
+#CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO' >> "$OUTPUT"
 
 # read TSV file and convert it to VCF line-by-line
 FUSION=0
-tail -n +2 "$INPUT" | while read LINE; do
+tail -n +2 <<<"$INPUT" | while read LINE; do
 	FUSION=$((FUSION+1))
 	SITE1=$(cut -f7 <<<"$LINE")
 	SITE2=$(cut -f8 <<<"$LINE")
