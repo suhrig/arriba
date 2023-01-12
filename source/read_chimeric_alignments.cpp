@@ -447,6 +447,13 @@ unsigned int remove_malformed_alignments(chimeric_alignments_t& chimeric_alignme
 
 		}
 
+		// the anchor reads must not be hard-clipped, because we need the full sequence
+		if (chimeric_alignment->second[MATE1].cigar.operation(0) == BAM_CHARD_CLIP ||
+		    chimeric_alignment->second[MATE1].cigar.operation(chimeric_alignment->second[MATE1].cigar.size()-1) == BAM_CHARD_CLIP ||
+		    chimeric_alignment->second[MATE2].cigar.operation(0) == BAM_CHARD_CLIP ||
+		    chimeric_alignment->second[MATE2].cigar.operation(chimeric_alignment->second[MATE2].cigar.size()-1) == BAM_CHARD_CLIP)
+			goto malformed_alignment;
+
 		++chimeric_alignment;
 		continue;
 
