@@ -333,6 +333,43 @@ bool is_tandem_duplication(const bam1_t* bam_record, const assembly_t& assembly,
 	return false; // if we get here, no tandem duplication alignment was found
 }
 
+// the DRAGEN mapper produces split reads with overlapping segments, i.e., part of the read is aligned at both breakpoints
+// => clip the supplementary a bit more so that there is no overlap
+bool disjoin_split_read_segments(alignment_t& split_read, alignment_t& supplementary) {
+
+	const int min_remaining_supplementary_segment = 10; // don't trim the supplementary if it will be shorter than this after trimming
+
+	// check if the segments overlap
+	unsigned int clipped_bases_split_read = (split_read.strand == FORWARD) ? split_read.preclipping() : split_read.postclipping();
+	unsigned int clipped_bases_supplementary = (supplementary.strand == FORWARD) ? supplementary.postclipping() : supplementary.preclipping();
+	int overlap = (int) split_read.sequence.size() - clipped_bases_split_read - clipped_bases_supplementary;
+	if (overlap <= 0)
+		return true; // there is no overlap => nothing to fix
+
+	// find the clipped segment and the matching segment of the supplementary alignment,
+	// we need to make the clipped segment a bit longer and the matching segment a bit shorter
+	unsigned int clipped_cigar_op = (supplementary.strand == FORWARD) ? supplementary.cigar.size() - 1 : 0;
+	unsigned int matching_cigar_op = (supplementary.strand == FORWARD) ? clipped_cigar_op - 1 : 1;
+
+	// check if the matching segment is long enough to be trimmed some more
+	if (supplementary.cigar.size() < 2 ||
+	    supplementary.cigar.operation(matching_cigar_op) != BAM_CMATCH ||
+	    (int) supplementary.cigar.op_length(matching_cigar_op) < overlap + min_remaining_supplementary_segment)
+		return false; // there should be a matching segment, which we can clip some more, but strangely there isn't or it's not long enough
+
+	// make the clipped segment a bit longer and trim the matching segment
+	supplementary.cigar[clipped_cigar_op] = bam_cigar_gen(supplementary.cigar.op_length(clipped_cigar_op) + overlap, supplementary.cigar.operation(clipped_cigar_op));
+	supplementary.cigar[matching_cigar_op] = bam_cigar_gen(supplementary.cigar.op_length(matching_cigar_op) - overlap, supplementary.cigar.operation(matching_cigar_op));
+
+	// adjust mapping coordinate
+	if (supplementary.strand == FORWARD)
+		supplementary.end -= overlap;
+	else
+		supplementary.start += overlap;
+
+	return true; // disjoining was successful
+}
+
 // remove alignments when supplementary flags are missing or when there are too many/few alignment records
 // in addition, reformat single-end reads as if they were paired-end, such that the rest of Arriba does not need to care about single-end vs. paired-end
 unsigned int remove_malformed_alignments(chimeric_alignments_t& chimeric_alignments) {
@@ -365,6 +402,16 @@ unsigned int remove_malformed_alignments(chimeric_alignments_t& chimeric_alignme
 				}
 				chimeric_alignment->second[SUPPLEMENTARY].sequence.clear();
 
+				// by copying the sequence to MATE1 & SPLIT_READ, these are no longer hard-clipped, but soft-clipped
+				if (chimeric_alignment->second[MATE1].cigar.operation(0) == BAM_CHARD_CLIP)
+					chimeric_alignment->second[MATE1].cigar[0] = bam_cigar_gen(chimeric_alignment->second[MATE1].cigar.op_length(0), BAM_CSOFT_CLIP);
+				if (chimeric_alignment->second[MATE1].cigar.operation(chimeric_alignment->second[MATE1].cigar.size()-1) == BAM_CHARD_CLIP)
+					chimeric_alignment->second[MATE1].cigar[chimeric_alignment->second[MATE1].cigar.size()-1] = bam_cigar_gen(chimeric_alignment->second[MATE1].cigar.op_length(chimeric_alignment->second[MATE1].cigar.size()-1), BAM_CSOFT_CLIP);
+				if (chimeric_alignment->second[SPLIT_READ].cigar.operation(0) == BAM_CHARD_CLIP)
+					chimeric_alignment->second[SPLIT_READ].cigar[0] = bam_cigar_gen(chimeric_alignment->second[SPLIT_READ].cigar.op_length(0), BAM_CSOFT_CLIP);
+				if (chimeric_alignment->second[SPLIT_READ].cigar.operation(chimeric_alignment->second[SPLIT_READ].cigar.size()-1) == BAM_CHARD_CLIP)
+					chimeric_alignment->second[SPLIT_READ].cigar[chimeric_alignment->second[SPLIT_READ].cigar.size()-1] = bam_cigar_gen(chimeric_alignment->second[MATE1].cigar.op_length(chimeric_alignment->second[SPLIT_READ].cigar.size()-1), BAM_CSOFT_CLIP);
+
 				// set supplementary flag like it would be set if we had paired-end data
 				chimeric_alignment->second[SUPPLEMENTARY].supplementary = true;
 				chimeric_alignment->second[MATE1].supplementary = false;
@@ -388,12 +435,8 @@ unsigned int remove_malformed_alignments(chimeric_alignments_t& chimeric_alignme
 					}
 				}
 
-				// the split read must be clipped at the end, the supplementary alignment at the beginning
-				// and the clipped segment of the split read must encompass the supplementary and vice versa
-				unsigned int clipped_bases_split_read = (chimeric_alignment->second[SPLIT_READ].strand == FORWARD) ? chimeric_alignment->second[SPLIT_READ].preclipping() : chimeric_alignment->second[SPLIT_READ].postclipping();
-				unsigned int clipped_bases_supplementary = (chimeric_alignment->second[SUPPLEMENTARY].strand == FORWARD) ? chimeric_alignment->second[SUPPLEMENTARY].postclipping() : chimeric_alignment->second[SUPPLEMENTARY].preclipping();
-				if (clipped_bases_split_read < chimeric_alignment->second[SPLIT_READ].sequence.size() - clipped_bases_supplementary ||
-				    clipped_bases_supplementary < chimeric_alignment->second[SPLIT_READ].sequence.size() - clipped_bases_split_read)
+				// if possible, try to fix overlapping segments between split read and supplementary
+				if (!disjoin_split_read_segments(chimeric_alignment->second[SPLIT_READ], chimeric_alignment->second[SUPPLEMENTARY]))
 					goto malformed_alignment;
 
 			} else {
@@ -428,12 +471,8 @@ unsigned int remove_malformed_alignments(chimeric_alignments_t& chimeric_alignme
 				    chimeric_alignment->second[MATE1].strand == chimeric_alignment->second[SPLIT_READ].strand)
 					goto malformed_alignment;
 
-				// the split read must be clipped at the end, the supplementary alignment at the beginning
-				// and the clipped segment of the split read must encompass the supplementary and vice versa
-				unsigned int clipped_bases_split_read = (chimeric_alignment->second[SPLIT_READ].strand == FORWARD) ? chimeric_alignment->second[SPLIT_READ].preclipping() : chimeric_alignment->second[SPLIT_READ].postclipping();
-				unsigned int clipped_bases_supplementary = (chimeric_alignment->second[SUPPLEMENTARY].strand == FORWARD) ? chimeric_alignment->second[SUPPLEMENTARY].postclipping() : chimeric_alignment->second[SUPPLEMENTARY].preclipping();
-				if (clipped_bases_split_read < chimeric_alignment->second[SPLIT_READ].sequence.size() - clipped_bases_supplementary ||
-				    clipped_bases_supplementary < chimeric_alignment->second[SPLIT_READ].sequence.size() - clipped_bases_split_read)
+				// if possible, try to fix overlapping segments between split read and supplementary
+				if (!disjoin_split_read_segments(chimeric_alignment->second[SPLIT_READ], chimeric_alignment->second[SUPPLEMENTARY]))
 					goto malformed_alignment;
 
 			} else if (chimeric_alignment->second.size() == 2) { // discordant mate
