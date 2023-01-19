@@ -92,6 +92,8 @@ Please refer to the [user manual](http://arriba.readthedocs.io/en/latest/) for i
    - [Viral detection](https://arriba.readthedocs.io/en/latest/current-limitations/#viral-detection)
    - [Targeted sequencing](https://arriba.readthedocs.io/en/latest/current-limitations/#targeted-sequencing)
    - [Supporting read count vs. coverage](https://arriba.readthedocs.io/en/latest/current-limitations/#supporting-read-count-vs-coverage)
+   - [Supported organisms](https://arriba.readthedocs.io/en/latest/current-limitations/#supported-organisms)
+   - [Supported aligners](https://arriba.readthedocs.io/en/latest/current-limitations/#supported-aligners)
 
 10. [Internal algorithm](https://arriba.readthedocs.io/en/latest/internal-algorithm/)
 
