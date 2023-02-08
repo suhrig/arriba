@@ -75,5 +75,5 @@ annotate_exon_numbers.sh fusions.tsv annotation.gtf output.tsv
 
 **Description:**
 
-For each breakpoint, this script annotates the exon numbers in reference to the transcripts given in the columns 'transcript_id1' and 'transcript_id2'. It appends two columns 'exon_number1' and 'exon_number2'.
+For each breakpoint, this script annotates the exon numbers in reference to the transcripts given in the columns `transcript_id1` and `transcript_id2`. It appends two columns `exon_number1` and `exon_number2`.
 
