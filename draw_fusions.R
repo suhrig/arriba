@@ -25,7 +25,7 @@ parameters <- list(
 	fontSize=list("fontSize", "numeric", 1),
 	fontFamily=list("fontFamily", "string", "Helvetica"),
 	showIntergenicVicinity=list("showIntergenicVicinity", "string", "0"),
-	transcriptSelection=list("transcriptSelection", "string", "coverage"),
+	transcriptSelection=list("transcriptSelection", "string", "provided"),
 	fixedScale=list("fixedScale", "numeric", 0),
 	coverageRange=list("coverageRange", "string", "0")
 )
@@ -117,7 +117,7 @@ if (!(length(coverageRange) %in% 1:2) || any(is.na(coverageRange)) || any(covera
 
 # check if required packages are installed
 if (!suppressPackageStartupMessages(require(GenomicRanges)))
-	warning("Package 'GenomicRanges' is not installed. No circos plots will be drawn.")
+	warning("Package 'GenomicRanges' is not installed. No protein domains and circos plots will be drawn.")
 if (!suppressPackageStartupMessages(require(circlize)))
 	warning("Package 'circlize' is not installed. No circos plots will be drawn.")
 if (alignmentsFile != "")
@@ -543,6 +543,10 @@ drawProteinDomains <- function(fusion, exons1, exons2, proteinDomains, color1, c
 		text(0.5, 0.5, "No coding regions retained in fusion transcript.")
 		return(NULL)
 	}
+	if ((codingLength1 == 0 || grepl("\\.$", fusion$strand1)) && (codingLength2 == 0 || grepl("\\.$", fusion$strand2))) {
+		text(0.5, 0.5, "Failed to determine retained protein domains due to lack of strand information.")
+		return(NULL)
+	}
 	antisenseTranscription1 <- sub("/.*", "", fusion$strand1) != sub(".*/", "", fusion$strand1)
 	antisenseTranscription2 <- sub("/.*", "", fusion$strand2) != sub(".*/", "", fusion$strand2)
 	if ((codingLength1 == 0 || antisenseTranscription1) && (codingLength2 == 0 || antisenseTranscription2)) {
@@ -833,7 +837,8 @@ findExons <- function(exons, contig, geneID, direction, breakpoint, coverage, tr
 					lengthOfTranscriptWithHighestCoverage <- lengthOfTranscript
 				}
 			}
-			candidateExons <- candidateExons[candidateExons$transcript==transcriptWithHighestCoverage,]
+			if (highestCoverage > 0)
+				candidateExons <- candidateExons[candidateExons$transcript==transcriptWithHighestCoverage,]
 		}
 		# if the gene has multiple transcripts, search for transcripts which encompass the breakpoint
 		if (length(unique(candidateExons$transcript)) > 1) {
@@ -841,7 +846,9 @@ findExons <- function(exons, contig, geneID, direction, breakpoint, coverage, tr
 			rownames(transcriptStart) <- transcriptStart[,1]
 			transcriptEnd <- aggregate(candidateExons$end, by=list(candidateExons$transcript), max)
 			rownames(transcriptEnd) <- transcriptEnd[,1]
-			candidateExons <- candidateExons[between(breakpoint, transcriptStart[candidateExons$transcript,2], transcriptEnd[candidateExons$transcript,2]),]
+			encompassingExons <- between(breakpoint, transcriptStart[candidateExons$transcript,2], transcriptEnd[candidateExons$transcript,2])
+			if (any(encompassingExons))
+				candidateExons <- candidateExons[encompassingExons,]
 		}
 	}
 
@@ -1311,7 +1318,7 @@ for (fusion in 1:nrow(fusions)) {
 			non_template_bases <- ""
 		# divide non-template bases half-and-half for centered alignment
 		non_template_bases1 <- substr(non_template_bases, 1, floor(nchar(non_template_bases)/2))
-		non_template_bases2 <- substr(non_template_bases, ceiling(nchar(non_template_bases)/2), nchar(non_template_bases))
+		non_template_bases2 <- substr(non_template_bases, ceiling(nchar(non_template_bases)/2+0.5), nchar(non_template_bases))
 		# transcript 1
 		text(fusionOffset2, yTranscript, bquote(.(fusion_transcript1) * phantom(.(non_template_bases1))), col=darkColor1, adj=c(1,0.5), cex=fontSize)
 		# transcript 2
@@ -1355,7 +1362,7 @@ for (fusion in 1:nrow(fusions)) {
 	# draw protein domains
 	plot(0, 0, type="l", xlim=c(-0.1, 1.1), ylim=c(0, 1), bty="n", xaxt="n", yaxt="n", xlab="", ylab="")
 	par(xpd=NA)
-	if (!is.null(proteinDomains))
+	if (!is.null(proteinDomains) && "GenomicRanges" %in% names(sessionInfo()$otherPkgs))
 		drawProteinDomains(fusions[fusion,], exons1, exons2, proteinDomains, color1, color2, mergeDomainsOverlappingBy, optimizeDomainColors)
 	par(xpd=F)
 

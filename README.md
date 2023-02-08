@@ -81,6 +81,7 @@ Please refer to the [user manual](http://arriba.readthedocs.io/en/latest/) for i
    - [Convert fusions.tsv to VCF](https://arriba.readthedocs.io/en/latest/utility-scripts/#convert-fusionstsv-to-vcf)
    - [Run Arriba on prealigned BAM file](https://arriba.readthedocs.io/en/latest/utility-scripts/#run-arriba-on-prealigned-bam-file)
    - [Quantify virus expression](https://arriba.readthedocs.io/en/latest/utility-scripts/#quantify-virus-expression)
+   - [Annotate exon numbers](https://arriba.readthedocs.io/en/latest/utility-scripts/#annotate-exon-numbers)
 
 9. [Current limitations](https://arriba.readthedocs.io/en/latest/current-limitations/)
    
@@ -91,6 +92,8 @@ Please refer to the [user manual](http://arriba.readthedocs.io/en/latest/) for i
    - [Viral detection](https://arriba.readthedocs.io/en/latest/current-limitations/#viral-detection)
    - [Targeted sequencing](https://arriba.readthedocs.io/en/latest/current-limitations/#targeted-sequencing)
    - [Supporting read count vs. coverage](https://arriba.readthedocs.io/en/latest/current-limitations/#supporting-read-count-vs-coverage)
+   - [Supported organisms](https://arriba.readthedocs.io/en/latest/current-limitations/#supported-organisms)
+   - [Supported aligners](https://arriba.readthedocs.io/en/latest/current-limitations/#supported-aligners)
 
 10. [Internal algorithm](https://arriba.readthedocs.io/en/latest/internal-algorithm/)
 

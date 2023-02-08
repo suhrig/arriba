@@ -64,3 +64,16 @@ This script takes alignments in BAM format as input and counts the number of hig
 
 Note: When a BAM file index exists, only the relevant contigs are read from the BAM file and processing is substantially faster.
 
+Annotate exon numbers
+---------------------
+
+**Usage:**
+
+```
+annotate_exon_numbers.sh fusions.tsv annotation.gtf output.tsv
+```
+
+**Description:**
+
+For each breakpoint, this script annotates the exon numbers in reference to the transcripts given in the columns `transcript_id1` and `transcript_id2`. It appends two columns `exon_number1` and `exon_number2`.
+
