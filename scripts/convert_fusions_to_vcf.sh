@@ -27,6 +27,8 @@ if [ ! -e "$ASSEMBLY.fai" ]; then
 	samtools faidx "$ASSEMBLY"
 fi
 
+if [ $(head -n1 <<<"$INPUT" | cut -f31) = "exon_number1" ]; then HAS_EXONS=true; else HAS_EXONS=false; fi
+
 # print VCF header
 echo '##fileformat=VCFv4.3' > "$OUTPUT"
 echo "$INPUT" | cut -f5-6 | tr '\t' '\n' | sed -e 's/:[0-9]*$//' | sort -u |
@@ -72,7 +74,14 @@ tail -n +2 <<<"$INPUT" | while read LINE; do
 	FILTER="PASS"
 	INFO1="SVTYPE=BND;MATEID=${FUSION}b;GENE_NAME=$GENE_NAME1;GENE_ID=$GENE_ID1"
 	INFO2="SVTYPE=BND;MATEID=${FUSION}a;GENE_NAME=$GENE_NAME2;GENE_ID=$GENE_ID2"
-	echo "$CHROMOSOME1	$POSITION1	${FUSION}a	$REF1	$ALT1	$QUAL	$FILTER	$INFO1" >> "$OUTPUT"
-	echo "$CHROMOSOME2	$POSITION2	${FUSION}b	$REF2	$ALT2	$QUAL	$FILTER	$INFO2" >> "$OUTPUT"
+    if [ $HAS_EXONS = true ]; then
+        EXON_INFO1=";EXON=$(cut -f31 <<<"$LINE")"
+        EXON_INFO2=";EXON=$(cut -f32 <<<"$LINE")"
+    else
+        EXON_INFO1=""
+        EXON_INFO2=""
+    fi
+	echo "$CHROMOSOME1	$POSITION1	${FUSION}a	$REF1	$ALT1	$QUAL	$FILTER	$INFO1$EXON_INFO1" >> "$OUTPUT"
+	echo "$CHROMOSOME2	$POSITION2	${FUSION}b	$REF2	$ALT2	$QUAL	$FILTER	$INFO2$EXON_INFO2" >> "$OUTPUT"
 done
 
