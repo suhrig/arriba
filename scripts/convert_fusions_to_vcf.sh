@@ -40,8 +40,11 @@ echo '##FILTER=<ID=PASS,Description="All filters passed">
 ##INFO=<ID=SVTYPE,Number=1,Type=String,Description="Type of structural variant">
 ##INFO=<ID=MATEID,Number=.,Type=String,Description="ID of mate breakends">
 ##INFO=<ID=GENE_NAME,Number=.,Type=String,Description="Name of gene hit by breakpoint">
-##INFO=<ID=GENE_ID,Number=.,Type=String,Description="ID of gene hit by breakpoint">
-#CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO' >> "$OUTPUT"
+##INFO=<ID=GENE_ID,Number=.,Type=String,Description="ID of gene hit by breakpoint">' >> "$OUTPUT"
+if [ $HAS_EXONS = true ]; then
+	echo '##INFO=<ID=EXON,Number=1,Type=Integer,Description="Exon hit by breakpoint">' >> "$OUTPUT"
+fi
+echo '#CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO' >> "$OUTPUT"
 
 # read TSV file and convert it to VCF line-by-line
 FUSION=0
