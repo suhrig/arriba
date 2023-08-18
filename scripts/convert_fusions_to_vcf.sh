@@ -29,6 +29,8 @@ fi
 
 # print VCF header
 echo '##fileformat=VCFv4.3' > "$OUTPUT"
+ASSEMBLY_FULL_PATH=$(readlink -f "$ASSEMBLY")
+echo "##reference=file://$ASSEMBLY_FULL_PATH" >> "$OUTPUT"
 echo "$INPUT" | cut -f5-6 | tr '\t' '\n' | sed -e 's/:[0-9]*$//' | sort -u |
 awk -F '\t' '
 	FILENAME == "/dev/stdin" { contigs[$0] }
