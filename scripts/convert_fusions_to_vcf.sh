@@ -27,7 +27,8 @@ if [ ! -e "$ASSEMBLY.fai" ]; then
 	samtools faidx "$ASSEMBLY"
 fi
 
-if [ $(head -n1 <<<"$INPUT" | cut -f31) = "exon_number1" ]; then HAS_EXONS=true; else HAS_EXONS=false; fi
+# if columns with exon numbers are present, copy them to the VCF
+HAS_EXONS=$(head -n1 <<<"$INPUT" | grep -q "exon_number" && echo true || echo false)
 
 # print VCF header
 echo '##fileformat=VCFv4.3' > "$OUTPUT"
@@ -41,8 +42,8 @@ echo '##FILTER=<ID=PASS,Description="All filters passed">
 ##INFO=<ID=MATEID,Number=.,Type=String,Description="ID of mate breakends">
 ##INFO=<ID=GENE_NAME,Number=.,Type=String,Description="Name of gene hit by breakpoint">
 ##INFO=<ID=GENE_ID,Number=.,Type=String,Description="ID of gene hit by breakpoint">' >> "$OUTPUT"
-if [ $HAS_EXONS = true ]; then
-	echo '##INFO=<ID=EXON,Number=1,Type=Integer,Description="Exon hit by breakpoint">' >> "$OUTPUT"
+if $HAS_EXONS; then
+	echo '##INFO=<ID=EXON_NUMBER,Number=.,Type=Integer,Description="Exon hit by breakpoint">' >> "$OUTPUT"
 fi
 echo '#CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO' >> "$OUTPUT"
 
@@ -77,14 +78,10 @@ tail -n +2 <<<"$INPUT" | while read LINE; do
 	FILTER="PASS"
 	INFO1="SVTYPE=BND;MATEID=${FUSION}b;GENE_NAME=$GENE_NAME1;GENE_ID=$GENE_ID1"
 	INFO2="SVTYPE=BND;MATEID=${FUSION}a;GENE_NAME=$GENE_NAME2;GENE_ID=$GENE_ID2"
-    if [ $HAS_EXONS = true ]; then
-        EXON_INFO1=";EXON=$(cut -f31 <<<"$LINE")"
-        EXON_INFO2=";EXON=$(cut -f32 <<<"$LINE")"
-    else
-        EXON_INFO1=""
-        EXON_INFO2=""
-    fi
-	echo "$CHROMOSOME1	$POSITION1	${FUSION}a	$REF1	$ALT1	$QUAL	$FILTER	$INFO1$EXON_INFO1" >> "$OUTPUT"
-	echo "$CHROMOSOME2	$POSITION2	${FUSION}b	$REF2	$ALT2	$QUAL	$FILTER	$INFO2$EXON_INFO2" >> "$OUTPUT"
+	if $HAS_EXONS; then
+		EXON1=$(cut -f31 <<<"$LINE" | sed 's/^\.$//'); INFO1="$INFO1;EXON_NUMBER=$EXON1"
+		EXON2=$(cut -f32 <<<"$LINE" | sed 's/^\.$//'); INFO2="$INFO2;EXON_NUMBER=$EXON2"
+	fi
+	echo "$CHROMOSOME1	$POSITION1	${FUSION}a	$REF1	$ALT1	$QUAL	$FILTER	$INFO1" >> "$OUTPUT"
+	echo "$CHROMOSOME2	$POSITION2	${FUSION}b	$REF2	$ALT2	$QUAL	$FILTER	$INFO2" >> "$OUTPUT"
 done
-
