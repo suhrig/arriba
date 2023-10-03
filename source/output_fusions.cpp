@@ -152,7 +152,7 @@ void get_sequence_from_pileup(const pileup_t& pileup, const position_t breakpoin
 		// find out base in reference to mark SNPs/SNVs
 		string reference_base = "N";
 		assembly_t::const_iterator contig_sequence = assembly.find(gene->contig);
-		if (contig_sequence != assembly.end())
+		if (contig_sequence != assembly.end() && (unsigned int) position->first < contig_sequence->second.size())
 			reference_base = contig_sequence->second[position->first];
 
 		// find most frequent allele at current position and compute coverage
