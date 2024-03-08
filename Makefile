@@ -24,7 +24,7 @@ $(STATIC_LIBS)/tsl/htrie_map.h:
 	$(WGET) 'https://github.com/Tessil/hat-trie/archive/v0.6.0.tar.gz' | tar -xzf - -C $(STATIC_LIBS) && \
 	cp -r $(STATIC_LIBS)/hat-trie-*/include/tsl $(STATIC_LIBS)
 $(STATIC_LIBS)/libdeflate.a:
-	$(WGET) 'https://github.com/ebiggers/libdeflate/archive/v1.11.tar.gz' | tar -xzf - -C $(STATIC_LIBS) && \
+	$(WGET) 'https://github.com/ebiggers/libdeflate/archive/v1.14.tar.gz' | tar -xzf - -C $(STATIC_LIBS) && \
 	cd $(STATIC_LIBS)/libdeflate-*/ && $(MAKE) libdeflate.a && cp libdeflate.a libdeflate.h ..
 $(STATIC_LIBS)/libz.a:
 	$(WGET) 'https://zlib.net/fossils/zlib-1.2.12.tar.gz' | tar -xzf - -C $(STATIC_LIBS) && \
