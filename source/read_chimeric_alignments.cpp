@@ -68,17 +68,19 @@ void add_chimeric_alignment(mates_t& mates, const bam1_t* bam_record, const bool
 	if (clip == CLIP_START) {
 		alignment.start = bam_record->core.pos + bam_cigar2rlen(cigar_op, bam_get_cigar(bam_record));
 		alignment.end = bam_endpos(bam_record) - 1;
+		uint32_t clip_type = bam_cigar_op(bam_get_cigar(bam_record)[0]) == BAM_CHARD_CLIP ? BAM_CHARD_CLIP : BAM_CSOFT_CLIP;
 		alignment.cigar.resize(bam_record->core.n_cigar - cigar_op + 1);
-		alignment.cigar[0] = bam_cigar_gen(bam_cigar2qlen(cigar_op, bam_get_cigar(bam_record)), BAM_CSOFT_CLIP); // soft-clip start of read
+		alignment.cigar[0] = bam_cigar_gen(bam_cigar2qlen(cigar_op, bam_get_cigar(bam_record)), clip_type); // clip start of read
 		for (unsigned int i = cigar_op; i < bam_record->core.n_cigar; ++i) // copy cigar operations from <cigar_op> onwards
 			alignment.cigar[i-cigar_op+1] = bam_get_cigar(bam_record)[i];
 	} else if (clip == CLIP_END) {
 		alignment.start = bam_record->core.pos;
 		alignment.end = bam_record->core.pos + bam_cigar2rlen(cigar_op + 1, bam_get_cigar(bam_record)) - 1;
+		uint32_t clip_type = bam_cigar_op(bam_get_cigar(bam_record)[bam_record->core.n_cigar-1]) == BAM_CHARD_CLIP ? BAM_CHARD_CLIP : BAM_CSOFT_CLIP;
 		alignment.cigar.resize(cigar_op + 2);
 		for (unsigned int i = 0; i <= cigar_op; ++i) // copy cigar operations up until <cigar_op>
 			alignment.cigar[i] = bam_get_cigar(bam_record)[i];
-		alignment.cigar[cigar_op+1] = bam_cigar_gen(bam_record->core.l_qseq - bam_cigar2qlen(cigar_op+1, bam_get_cigar(bam_record)), BAM_CSOFT_CLIP); // soft-clip end of read
+		alignment.cigar[cigar_op+1] = bam_cigar_gen(bam_record->core.l_qseq - bam_cigar2qlen(cigar_op+1, bam_get_cigar(bam_record)), clip_type); // clip end of read
 	} else { // do not clip, i.e., alignment is already split into a split-read and a supplementary alignment
 		alignment.start = bam_record->core.pos;
 		alignment.end = bam_endpos(bam_record) - 1;
