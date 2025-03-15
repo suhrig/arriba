@@ -207,6 +207,10 @@ bool align_both_strands(const string& read_sequence, const int read_length, cons
 		     alignment_end   >= gene_start && alignment_end   <= gene_end))
 			continue;
 
+		// in very rare situations, there may be no kmer index for the given contig
+		if ((**gene).contig >= kmer_indices.size())
+			continue;
+
 		if (align(0, read_sequence, 0, assembly.at((**gene).contig), gene_start, gene_start, gene_end, kmer_indices[(**gene).contig], kmer_length, splice_sites_by_gene.at(*gene), min_score, 1)) { // align on forward strand
 			return true;
 		} else { // align on reverse strand
