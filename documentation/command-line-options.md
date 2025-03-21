@@ -209,6 +209,9 @@ draw_fusions.R --fusions=fusions.tsv --annotation=annotation.gtf --output=output
 `--render3dEffect=TRUE|FALSE`
 : Whether light and shadow should be rendered to give objects a 3D effect. Default: `TRUE`
 
+`--plotElements=ELEMENTS`
+: A comma-separated list of panels to plot. By removing items from the list, the respective panels will be omitted from the figures. Default: `fusion,circos,domains,readcounts`
+
 `--fontSize=SIZE`
 : Decimal value to scale the size of text. Default: `1`
 
