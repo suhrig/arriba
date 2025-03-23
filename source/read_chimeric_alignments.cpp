@@ -558,10 +558,12 @@ bool is_pristine_alignment(const bam1_t* bam_record) {
 	return true;
 }
 
-unsigned int read_chimeric_alignments(const string& bam_file_path, const assembly_t& assembly, const string& assembly_file_path, chimeric_alignments_t& chimeric_alignments, unsigned long int& mapped_reads, vector<unsigned long int>& mapped_viral_reads_by_contig, coverage_t& coverage, contigs_t& contigs, vector<string>& original_contig_names, const string& interesting_contigs, const string& viral_contigs, const gene_annotation_index_t& gene_annotation_index, const bool separate_chimeric_bam_file, const bool is_rna_bam_file, const bool external_duplicate_marking, const unsigned int max_itd_length) {
+unsigned int read_chimeric_alignments(const string& bam_file_path, const assembly_t& assembly, const string& assembly_file_path, chimeric_alignments_t& chimeric_alignments, unsigned long int& mapped_reads, vector<unsigned long int>& mapped_viral_reads_by_contig, coverage_t& coverage, contigs_t& contigs, vector<string>& original_contig_names, const string& interesting_contigs, const string& viral_contigs, const gene_annotation_index_t& gene_annotation_index, const bool separate_chimeric_bam_file, const bool is_rna_bam_file, const bool external_duplicate_marking, const unsigned int max_itd_length, const int threads) {
 
 	// open BAM file
 	samFile* bam_file = sam_open(bam_file_path.c_str(), "rb");
+	if (threads > 1)
+		hts_set_threads(bam_file, threads);
 	crash(bam_file == NULL, "failed to open SAM file");
 	if (bam_file->is_cram)
 		cram_set_option(bam_file->fp.cram, CRAM_OPT_REFERENCE, assembly_file_path.c_str());

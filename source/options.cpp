@@ -101,6 +101,7 @@ options_t get_default_options() {
 	options.max_itd_length = 100;
 	options.min_itd_allele_fraction = 0.07;
 	options.min_itd_support = 10;
+	options.threads = 1;
 
 	return options;
 }
@@ -257,6 +258,8 @@ void print_usage() {
 	     << wrap_help("-I", "If assembly of the fusion transcript sequence from the supporting "
 	                  "reads is incomplete (denoted as '...'), fill the gaps using the assembly "
 	                  "sequence wherever possible.")
+	     << wrap_help("-@", "Number of threads to use for BAM/CRAM file reading. Note that in most "
+	                  "situations 1 thread is optimal. Values >2 almost never show further speedup.")
 	     << wrap_help("-h", "Print help and exit.")
 	     << "         Code repository: " << CODE_REPOSITORY << endl
 	     << "    Get help/report bugs: " << HELP_CONTACT << endl
@@ -276,7 +279,7 @@ options_t parse_arguments(int argc, char **argv) {
 	int c;
 	string junction_suffix(".junction");
 	unordered_map<char,unsigned int> duplicate_arguments;
-	const string valid_arguments = "c:x:d:g:G:o:O:t:p:a:b:k:s:i:v:f:E:S:m:L:H:D:R:A:M:K:V:F:U:Q:e:T:C:l:z:Z:uXIh";
+	const string valid_arguments = "c:x:d:g:G:o:O:t:p:a:b:k:s:i:v:f:E:S:m:L:H:D:R:A:M:K:V:F:U:Q:e:T:C:l:z:Z:@:uXIh";
 	while ((c = getopt(argc, argv, valid_arguments.c_str())) != -1) {
 
 		// throw error if the same argument is specified more than once
@@ -439,6 +442,9 @@ options_t parse_arguments(int argc, char **argv) {
 				break;
 			case 'Z':
 				crash(!validate_int(optarg, options.min_itd_support, 1), "argument to -" + ((char) c) + " must be an integer greater than 0");
+				break;
+			case '@':
+				crash(!validate_int(optarg, options.threads, 1), "argument to -" + ((char) c) + " must be an integer greater than 0");
 				break;
 			case 'u':
 				options.external_duplicate_marking = true;
