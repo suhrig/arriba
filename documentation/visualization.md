@@ -1,3 +1,6 @@
+Visualization
+=============
+
 Publication-quality figures
 ---------------------------
 

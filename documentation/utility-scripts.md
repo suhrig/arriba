@@ -1,3 +1,6 @@
+Utility scripts
+===============
+
 The [folder `scripts`](https://github.com/suhrig/arriba/tree/master/scripts) contains small utility scripts for common tasks related to fusion detection.
 
 Extract fusion-supporting alignments

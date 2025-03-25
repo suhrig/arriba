@@ -1,3 +1,6 @@
+Input files
+===========
+
 Alignments
 ----------
 

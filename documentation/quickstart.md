@@ -1,3 +1,6 @@
+Quickstart
+==========
+
 Manual installation
 -------------------
 

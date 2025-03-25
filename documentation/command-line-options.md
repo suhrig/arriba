@@ -1,3 +1,6 @@
+Command-line options
+====================
+
 Arriba
 ------
 

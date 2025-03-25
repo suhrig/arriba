@@ -1,3 +1,6 @@
+Internal algorithm
+==================
+
 Conceptually, Arriba is nothing more than a collection of filters. The generation of fusion candidates is entirely handled by STAR, which collects all evidence about potential gene fusions in the chimeric alignments file (and the read-through alignments file). Most of the candidates in these files are alignment artifacts, in vitro-generated artifacts, or transcript variants that are also observed in healthy tissue. Arriba applies a set of filters which try to detect artifacts based on various features that are characteristic for artifacts. A subset of the filters recovers events that were discarded by previous filters, given that the event has convincing characteristics which suggest it was discarded erroneously. All filters are enabled by default. Filters can be turned off selectively using the option `-f`. The column `filters` in the output file lists the filters that discarded the event or part of the reads supporting an event.
 
 The filters are listed in the order in which they are applied. Read-level filters, which assess candidates based on information contained in a single read (pair), come first and are followed by event-level filters, which integrate information from multiple reads.

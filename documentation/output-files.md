@@ -1,3 +1,6 @@
+Output files
+============
+
 fusions.tsv
 -------------
 The file `fusions.tsv` (as specified by the parameter `-o`) contains fusions which pass all of Arriba's filters. It should be highly enriched for true predictions. The predictions are listed from highest to lowest confidence. The following paragraphs describe the columns in detail:
