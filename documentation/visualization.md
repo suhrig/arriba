@@ -5,22 +5,6 @@ Arriba comes with an R script `draw_fusions.R` that renders publication-quality 
 
 ![Example fusion figure](draw-fusions-example.png)
 
-If a gene has multiple transcript variants, the script picks a transcript in the following order of preference:
-
-- transcripts with splice-sites matching the breakpoints
-
-- if alignments are given: the highest expressed transcript as determined by the coverage
-
-- transcripts tagged as `appris_principal`
-
-- transcripts tagged as `appris_candidate`
-
-- transcripts tagged as `appris_alternative`
-
-- transcripts tagged as `CCDS`
-
-If there are still multiple eligible transcripts, then the one with the longest coding sequence or longest non-coding sequence is taken.
-
 **Manual execution**
 
 In order to use the script, [R Project](http://r-project.org/) must be installed. Optionally, a few additional R packages need to be installed if ideograms, circos plots, and coverage tracks should be drawn. Use the following R commands to install these packages:
