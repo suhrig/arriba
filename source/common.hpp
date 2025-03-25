@@ -166,6 +166,7 @@ struct transcript_annotation_record_t {
 	string name;
 	exon_t first_exon;
 	exon_t last_exon;
+	unsigned int coding_length;
 };
 typedef annotation_t<transcript_annotation_record_t> transcript_annotation_t;
 typedef transcript_annotation_record_t* transcript_t;

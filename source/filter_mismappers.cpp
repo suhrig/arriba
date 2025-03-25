@@ -188,6 +188,10 @@ bool align(int score, const string& read_sequence, int read_pos, const string& c
 
 bool align_both_strands(const string& read_sequence, const int read_length, const int max_mate_gap, const bool breakpoints_on_same_contig, const position_t alignment_start, const position_t alignment_end, const kmer_indices_t& kmer_indices, const assembly_t& assembly, const exon_annotation_index_t& exon_annotation_index, splice_sites_by_gene_t& splice_sites_by_gene, gene_set_t& genes, const char kmer_length, const float min_align_fraction) {
 
+	// make no attempt at aligning long reads, since this would take long and the read is likely mapped correctly already
+	if (read_sequence.size() >= 300)
+		return false;
+
 	int min_score = min_align_fraction * read_sequence.size() + 0.5;
 	for (gene_set_t::iterator gene = genes.begin(); gene != genes.end(); ++gene) {
 
@@ -207,6 +211,10 @@ bool align_both_strands(const string& read_sequence, const int read_length, cons
 		     alignment_end   >= gene_start && alignment_end   <= gene_end))
 			continue;
 
+		// in very rare situations, there may be no kmer index for the given contig
+		if ((**gene).contig >= kmer_indices.size())
+			continue;
+
 		if (align(0, read_sequence, 0, assembly.at((**gene).contig), gene_start, gene_start, gene_end, kmer_indices[(**gene).contig], kmer_length, splice_sites_by_gene.at(*gene), min_score, 1)) { // align on forward strand
 			return true;
 		} else { // align on reverse strand
@@ -217,6 +225,7 @@ bool align_both_strands(const string& read_sequence, const int read_length, cons
 				return true;
 		}
 	}
+
 	return false;
 }
 

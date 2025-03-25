@@ -233,6 +233,7 @@ void read_annotation_gtf(const string& filename, const string& gtf_features_stri
 					transcript_annotation_record.name = transcript_id;
 					transcript_annotation_record.first_exon = NULL; // is set once we have loaded all exons
 					transcript_annotation_record.last_exon = NULL; // is set once we have loaded all exons
+					transcript_annotation_record.coding_length = 0;
 					transcript_annotation.push_back(transcript_annotation_record);
 					transcript = &(*transcript_annotation.rbegin());
 				}
@@ -334,6 +335,11 @@ void read_annotation_gtf(const string& filename, const string& gtf_features_stri
 		if (exon->transcript->last_exon == NULL || exon->end > exon->transcript->last_exon->end)
 			exon->transcript->last_exon = &(*exon);
 	}
+
+	// compute sum of coding bases
+	for (exon_annotation_t::iterator exon = exon_annotation.begin(); exon != exon_annotation.end(); ++exon)
+		if (exon->coding_region_start != -1 && exon->coding_region_end != -1)
+			exon->transcript->coding_length += exon->coding_region_end - exon->coding_region_start + 1;
 
 	// fix some errors in the Gencode annotation
 	if (contigs.find("4") != contigs.end())

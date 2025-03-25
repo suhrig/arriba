@@ -122,12 +122,12 @@ int main(int argc, char **argv) {
 	coverage_t coverage;
 	if (!options.chimeric_bam_file.empty()) { // when STAR was run with --chimOutType SeparateSAMold, chimeric alignments must be read from a separate file named Chimeric.out.sam
 		cout << get_time_string() << " Reading chimeric alignments from '" << options.chimeric_bam_file << "' " << flush;
-		cout << "(total=" << read_chimeric_alignments(options.chimeric_bam_file, assembly, options.assembly_file, chimeric_alignments, mapped_reads, mapped_viral_reads_by_contig, coverage, contigs, original_contig_names, options.interesting_contigs, options.viral_contigs, gene_annotation_index, true, false, options.external_duplicate_marking, options.max_itd_length) << ")" << endl;
+		cout << "(total=" << read_chimeric_alignments(options.chimeric_bam_file, assembly, options.assembly_file, chimeric_alignments, mapped_reads, mapped_viral_reads_by_contig, coverage, contigs, original_contig_names, options.interesting_contigs, options.viral_contigs, gene_annotation_index, true, false, options.external_duplicate_marking, options.max_itd_length, options.threads) << ")" << endl;
 	}
 
 	// extract chimeric alignments and read-through alignments from Aligned.out.bam
 	cout << get_time_string() << " Reading chimeric alignments from '" << options.rna_bam_file << "' " << flush;
-	cout << "(total=" << read_chimeric_alignments(options.rna_bam_file, assembly, options.assembly_file, chimeric_alignments, mapped_reads, mapped_viral_reads_by_contig, coverage, contigs, original_contig_names, options.interesting_contigs, options.viral_contigs, gene_annotation_index, !options.chimeric_bam_file.empty(), true, options.external_duplicate_marking, options.max_itd_length) << ")" << endl;
+	cout << "(total=" << read_chimeric_alignments(options.rna_bam_file, assembly, options.assembly_file, chimeric_alignments, mapped_reads, mapped_viral_reads_by_contig, coverage, contigs, original_contig_names, options.interesting_contigs, options.viral_contigs, gene_annotation_index, !options.chimeric_bam_file.empty(), true, options.external_duplicate_marking, options.max_itd_length, options.threads) << ")" << endl;
 
 	// convert viral contigs to vector of booleans for faster lookup
 	vector<bool> viral_contigs(contigs.size());

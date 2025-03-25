@@ -68,17 +68,19 @@ void add_chimeric_alignment(mates_t& mates, const bam1_t* bam_record, const bool
 	if (clip == CLIP_START) {
 		alignment.start = bam_record->core.pos + bam_cigar2rlen(cigar_op, bam_get_cigar(bam_record));
 		alignment.end = bam_endpos(bam_record) - 1;
+		uint32_t clip_type = bam_cigar_op(bam_get_cigar(bam_record)[0]) == BAM_CHARD_CLIP ? BAM_CHARD_CLIP : BAM_CSOFT_CLIP;
 		alignment.cigar.resize(bam_record->core.n_cigar - cigar_op + 1);
-		alignment.cigar[0] = bam_cigar_gen(bam_cigar2qlen(cigar_op, bam_get_cigar(bam_record)), BAM_CSOFT_CLIP); // soft-clip start of read
+		alignment.cigar[0] = bam_cigar_gen(bam_cigar2qlen(cigar_op, bam_get_cigar(bam_record)), clip_type); // clip start of read
 		for (unsigned int i = cigar_op; i < bam_record->core.n_cigar; ++i) // copy cigar operations from <cigar_op> onwards
 			alignment.cigar[i-cigar_op+1] = bam_get_cigar(bam_record)[i];
 	} else if (clip == CLIP_END) {
 		alignment.start = bam_record->core.pos;
 		alignment.end = bam_record->core.pos + bam_cigar2rlen(cigar_op + 1, bam_get_cigar(bam_record)) - 1;
+		uint32_t clip_type = bam_cigar_op(bam_get_cigar(bam_record)[bam_record->core.n_cigar-1]) == BAM_CHARD_CLIP ? BAM_CHARD_CLIP : BAM_CSOFT_CLIP;
 		alignment.cigar.resize(cigar_op + 2);
 		for (unsigned int i = 0; i <= cigar_op; ++i) // copy cigar operations up until <cigar_op>
 			alignment.cigar[i] = bam_get_cigar(bam_record)[i];
-		alignment.cigar[cigar_op+1] = bam_cigar_gen(bam_record->core.l_qseq - bam_cigar2qlen(cigar_op+1, bam_get_cigar(bam_record)), BAM_CSOFT_CLIP); // soft-clip end of read
+		alignment.cigar[cigar_op+1] = bam_cigar_gen(bam_record->core.l_qseq - bam_cigar2qlen(cigar_op+1, bam_get_cigar(bam_record)), clip_type); // clip end of read
 	} else { // do not clip, i.e., alignment is already split into a split-read and a supplementary alignment
 		alignment.start = bam_record->core.pos;
 		alignment.end = bam_endpos(bam_record) - 1;
@@ -556,10 +558,12 @@ bool is_pristine_alignment(const bam1_t* bam_record) {
 	return true;
 }
 
-unsigned int read_chimeric_alignments(const string& bam_file_path, const assembly_t& assembly, const string& assembly_file_path, chimeric_alignments_t& chimeric_alignments, unsigned long int& mapped_reads, vector<unsigned long int>& mapped_viral_reads_by_contig, coverage_t& coverage, contigs_t& contigs, vector<string>& original_contig_names, const string& interesting_contigs, const string& viral_contigs, const gene_annotation_index_t& gene_annotation_index, const bool separate_chimeric_bam_file, const bool is_rna_bam_file, const bool external_duplicate_marking, const unsigned int max_itd_length) {
+unsigned int read_chimeric_alignments(const string& bam_file_path, const assembly_t& assembly, const string& assembly_file_path, chimeric_alignments_t& chimeric_alignments, unsigned long int& mapped_reads, vector<unsigned long int>& mapped_viral_reads_by_contig, coverage_t& coverage, contigs_t& contigs, vector<string>& original_contig_names, const string& interesting_contigs, const string& viral_contigs, const gene_annotation_index_t& gene_annotation_index, const bool separate_chimeric_bam_file, const bool is_rna_bam_file, const bool external_duplicate_marking, const unsigned int max_itd_length, const int threads) {
 
 	// open BAM file
 	samFile* bam_file = sam_open(bam_file_path.c_str(), "rb");
+	if (threads > 1)
+		hts_set_threads(bam_file, threads);
 	crash(bam_file == NULL, "failed to open SAM file");
 	if (bam_file->is_cram)
 		cram_set_option(bam_file->fp.cram, CRAM_OPT_REFERENCE, assembly_file_path.c_str());

@@ -16,6 +16,7 @@ parameters <- list(
 	squishIntrons=list("squishIntrons", "bool", T),
 	printExonLabels=list("printExonLabels", "bool", T),
 	render3dEffect=list("render3dEffect", "bool", T),
+	plotPanels=list("plotPanels", "string", "fusion,circos,domains,readcounts"),
 	pdfWidth=list("pdfWidth", "numeric", 11.692),
 	pdfHeight=list("pdfHeight", "numeric", 8.267),
 	color1=list("color1", "string", "#e5a5a5"),
@@ -114,6 +115,10 @@ if (!(fontFamily %in% names(pdfFonts())))
 coverageRange <- suppressWarnings(as.numeric(unlist(strsplit(coverageRange, ",", fixed=T))))
 if (!(length(coverageRange) %in% 1:2) || any(is.na(coverageRange)) || any(coverageRange < 0))
 	stop("Invalid argument to --coverageRange")
+plotPanels <- unlist(strsplit(plotPanels, split=","))
+invalidPlotPanels <- !(plotPanels %in% unlist(strsplit(parameters[["plotPanels"]][[3]], split=",")))
+if (any(invalidPlotPanels))
+	stop(paste("Invalid argument to --plotPanels:", paste(plotPanels[invalidPlotPanels], collapse=",")))
 
 # check if required packages are installed
 if (!suppressPackageStartupMessages(require(GenomicRanges)))
@@ -212,6 +217,8 @@ if (cytobandsFile != "") {
 	cytobands <- read.table(cytobandsFile, header=T, colClasses=c("character", "numeric", "numeric", "character", "character"))
 	cytobands <- cytobands[order(cytobands$contig, cytobands$start, cytobands$end),]
 }
+if (is.null(cytobands) || !("circlize" %in% names(sessionInfo()$otherPkgs)) || !("GenomicRanges" %in% names(sessionInfo()$otherPkgs)))
+	plotPanels <- setdiff(plotPanels, "circos")
 
 # read exon annotation
 message("Loading annotation")
@@ -246,6 +253,8 @@ if (proteinDomainsFile != "") {
 	proteinDomains$proteinDomainName <- sapply(parseGtfAttribute("Name", proteinDomains), URLdecode)
 	proteinDomains$proteinDomainID <- parseGtfAttribute("protein_domain_id", proteinDomains)
 }
+if (is.null(proteinDomains) && "GenomicRanges" %in% names(sessionInfo()$otherPkgs))
+	plotPanels <- setdiff(plotPanels, "domains")
 
 # insert dummy annotations for intergenic breakpoints
 if (any(fusions$site1 == "intergenic" | fusions$site2 == "intergenic")) {
@@ -1132,12 +1141,24 @@ for (fusion in 1:nrow(fusions)) {
 	fusionOffset2 <- fusionOffset1 + ifelse(fusions[fusion,"direction1"] == "downstream", breakpoint1, max(exons1$right)-breakpoint1)
 
 	# layout: fusion on top, circos plot on bottom left, protein domains on bottom center, statistics on bottom right
-	layout(matrix(c(1,1,1,2,4,5,3,4,5), 3, 3, byrow=TRUE), widths=c(1.1, 1.2, 0.7), heights=c(1.55, 1.2, 0.25))
+	topRowPresent <- "fusion" %in% plotPanels
+	bottomRowPresent <- any(c("circos","domains","readcounts") %in% plotPanels)
+	layoutWidths <- c(
+		ifelse("circos" %in% plotPanels, 1.1, 0.01),
+		ifelse("domains" %in% plotPanels, 1.2, 0.01),
+		ifelse("readcounts" %in% plotPanels, 0.7, 0.01)
+	)
+	layoutHeights <- c(
+		ifelse(topRowPresent, 1.55, 0.3),
+		ifelse(bottomRowPresent, 1.2, 0.01),
+		ifelse("circos" %in% plotPanels, 0.25, 0.01)
+	)
+	layout(matrix(c(1,1,1,2,4,5,3,4,5), 3, 3, byrow=TRUE), widths=layoutWidths, heights=layoutHeights)
 	par(mar=c(0, 0, 0, 0))
-	plot(0, 0, type="l", xlim=c(-0.12, 1.12), ylim=c(0.4, 1.1), bty="n", xaxt="n", yaxt="n", xlab="", ylab="")
+	plot(0, 0, type="l", xlim=c(-0.12, 1.12), ylim=ifelse(rep(bottomRowPresent,2), c(0.4,1.1), c(0.2,1.3)), bty="n", xaxt="n", yaxt="n", xlab="", ylab="")
 
 	# vertical coordinates of layers
-	ySampleName <- 1.04
+	ySampleName <- ifelse(topRowPresent, 1.04, 0.5)
 	yIdeograms <- ifelse(alignmentsFile != "", 0.94, 0.84)
 	yBreakpointLabels <- ifelse(alignmentsFile != "", 0.86, 0.76)
 	yCoverage <- 0.72
@@ -1154,203 +1175,207 @@ for (fusion in 1:nrow(fusions)) {
 	# print sample name (title of page)
 	text(0.5, ySampleName, sampleName, font=2, cex=fontSize*1.5, adj=c(0.5,0))
 
-	# draw ideograms
-	if (!is.null(cytobands)) {
-		drawIdeogram("left", min(exons1$left), max(exons1$right), yIdeograms, cytobands, fusions[fusion,"contig1"], fusions[fusion,"breakpoint1"])
-		drawIdeogram("right", gene2Offset, gene2Offset+max(exons2$right), yIdeograms, cytobands, fusions[fusion,"contig2"], fusions[fusion,"breakpoint2"])
-	}
+	if ("fusion" %in% plotPanels) {
 
-	# draw gene & transcript names
-	if (fusions[fusion,"gene1"] != ".")
-		text(max(exons1$right)/2, yGeneNames, fusions[fusion,"gene1"], font=2, cex=fontSize, adj=c(0.5,0))
-	if (fusions[fusion,"site1"] != "intergenic")
-		text(max(exons1$right)/2, yGeneNames-0.01, head(exons1$transcript,1), cex=0.9*fontSize, adj=c(0.5,1))
-	if (fusions[fusion,"gene2"] != ".")
-		text(gene2Offset+max(exons2$right)/2, yGeneNames, fusions[fusion,"gene2"], font=2, cex=fontSize, adj=c(0.5,0))
-	if (fusions[fusion,"site2"] != "intergenic")
-		text(gene2Offset+max(exons2$right)/2, yGeneNames-0.01, head(exons2$transcript,1), cex=0.9*fontSize, adj=c(0.5,1))
-
-	# if multiple genes in the vicinity are shown, label them
-	if (fusions[fusion,"site1"] == "intergenic")
-		for (gene in unique(exons1$geneName)) {
-			exonsOfGene <- exons1[exons1$geneName == gene & exons1$type != "dummy",]
-			if (any(exonsOfGene$type == "exon"))
-				text(mean(c(min(exonsOfGene$left), max(exonsOfGene$right))), yExons-0.04, gene, cex=0.9*fontSize, adj=c(0.5,1))
-		}
-	if (fusions[fusion,"site2"] == "intergenic")
-		for (gene in unique(exons2$geneName)) {
-			exonsOfGene <- exons2[exons2$geneName == gene & exons2$type != "dummy",]
-			if (any(exonsOfGene$type == "exon"))
-				text(gene2Offset+mean(c(min(exonsOfGene$left), max(exonsOfGene$right))), yExons-0.04, gene, cex=0.9*fontSize, adj=c(0.5,1))
+		# draw ideograms
+		if (!is.null(cytobands)) {
+			drawIdeogram("left", min(exons1$left), max(exons1$right), yIdeograms, cytobands, fusions[fusion,"contig1"], fusions[fusion,"breakpoint1"])
+			drawIdeogram("right", gene2Offset, gene2Offset+max(exons2$right), yIdeograms, cytobands, fusions[fusion,"contig2"], fusions[fusion,"breakpoint2"])
 		}
 
-	# label breakpoints
-	text(breakpoint1+0.01, yBreakpointLabels-0.03, paste0("breakpoint1\n", fusions[fusion,"display_contig1"], ":", fusions[fusion,"breakpoint1"]), adj=c(1,0), cex=fontSize)
-	text(gene2Offset+breakpoint2-0.01, yBreakpointLabels-0.03, paste0("breakpoint2\n", fusions[fusion,"display_contig2"], ":", fusions[fusion,"breakpoint2"]), adj=c(0,0), cex=fontSize)
+		# draw gene & transcript names
+		if (fusions[fusion,"gene1"] != ".")
+			text(max(exons1$right)/2, yGeneNames, fusions[fusion,"gene1"], font=2, cex=fontSize, adj=c(0.5,0))
+		if (fusions[fusion,"site1"] != "intergenic")
+			text(max(exons1$right)/2, yGeneNames-0.01, head(exons1$transcript,1), cex=0.9*fontSize, adj=c(0.5,1))
+		if (fusions[fusion,"gene2"] != ".")
+			text(gene2Offset+max(exons2$right)/2, yGeneNames, fusions[fusion,"gene2"], font=2, cex=fontSize, adj=c(0.5,0))
+		if (fusions[fusion,"site2"] != "intergenic")
+			text(gene2Offset+max(exons2$right)/2, yGeneNames-0.01, head(exons2$transcript,1), cex=0.9*fontSize, adj=c(0.5,1))
 
-	# draw coverage axis
-	if (alignmentsFile != "") {
-		# left axis (gene1)
-		lines(c(-0.02, -0.01, -0.01, -0.02), c(yCoverage, yCoverage, yCoverage+0.1, yCoverage+0.1))
-		text(-0.025, yCoverage, "0", adj=c(1,0.5), cex=0.9*fontSize)
-		text(-0.025, yCoverage+0.1, coverageNormalization1, adj=c(1,0.5), cex=0.9*fontSize)
-		text(-0.05, yCoverage+0.08, "Coverage", srt=90, cex=0.9*fontSize, adj=c(1,0.5))
+		# if multiple genes in the vicinity are shown, label them
+		if (fusions[fusion,"site1"] == "intergenic")
+			for (gene in unique(exons1$geneName)) {
+				exonsOfGene <- exons1[exons1$geneName == gene & exons1$type != "dummy",]
+				if (any(exonsOfGene$type == "exon"))
+					text(mean(c(min(exonsOfGene$left), max(exonsOfGene$right))), yExons-0.04, gene, cex=0.9*fontSize, adj=c(0.5,1))
+			}
+		if (fusions[fusion,"site2"] == "intergenic")
+			for (gene in unique(exons2$geneName)) {
+				exonsOfGene <- exons2[exons2$geneName == gene & exons2$type != "dummy",]
+				if (any(exonsOfGene$type == "exon"))
+					text(gene2Offset+mean(c(min(exonsOfGene$left), max(exonsOfGene$right))), yExons-0.04, gene, cex=0.9*fontSize, adj=c(0.5,1))
+			}
 
-		# right axis (gene2)
-		if (length(coverageRange) == 2) { # separate axes for gene1 and gene2
-			rightCoverageAxisX <- gene2Offset+max(exons2$right)
-			lines(c(rightCoverageAxisX+0.02, rightCoverageAxisX+0.01, rightCoverageAxisX+0.01, rightCoverageAxisX+0.02), c(yCoverage, yCoverage, yCoverage+0.1, yCoverage+0.1))
-			text(rightCoverageAxisX+0.025, yCoverage, "0", adj=c(0,0.5), cex=0.9*fontSize)
-			text(rightCoverageAxisX+0.025, yCoverage+0.1, coverageNormalization2, adj=c(0,0.5), cex=0.9*fontSize)
-			text(rightCoverageAxisX+0.05, yCoverage+0.08, "Coverage", srt=90, cex=0.9*fontSize, adj=c(1,0.5))
+		# label breakpoints
+		text(breakpoint1+0.01, yBreakpointLabels-0.03, paste0("breakpoint1\n", fusions[fusion,"display_contig1"], ":", fusions[fusion,"breakpoint1"]), adj=c(1,0), cex=fontSize)
+		text(gene2Offset+breakpoint2-0.01, yBreakpointLabels-0.03, paste0("breakpoint2\n", fusions[fusion,"display_contig2"], ":", fusions[fusion,"breakpoint2"]), adj=c(0,0), cex=fontSize)
+
+		# draw coverage axis
+		if (alignmentsFile != "") {
+			# left axis (gene1)
+			lines(c(-0.02, -0.01, -0.01, -0.02), c(yCoverage, yCoverage, yCoverage+0.1, yCoverage+0.1))
+			text(-0.025, yCoverage, "0", adj=c(1,0.5), cex=0.9*fontSize)
+			text(-0.025, yCoverage+0.1, coverageNormalization1, adj=c(1,0.5), cex=0.9*fontSize)
+			text(-0.05, yCoverage+0.08, "Coverage", srt=90, cex=0.9*fontSize, adj=c(1,0.5))
+
+			# right axis (gene2)
+			if (length(coverageRange) == 2) { # separate axes for gene1 and gene2
+				rightCoverageAxisX <- gene2Offset+max(exons2$right)
+				lines(c(rightCoverageAxisX+0.02, rightCoverageAxisX+0.01, rightCoverageAxisX+0.01, rightCoverageAxisX+0.02), c(yCoverage, yCoverage, yCoverage+0.1, yCoverage+0.1))
+				text(rightCoverageAxisX+0.025, yCoverage, "0", adj=c(0,0.5), cex=0.9*fontSize)
+				text(rightCoverageAxisX+0.025, yCoverage+0.1, coverageNormalization2, adj=c(0,0.5), cex=0.9*fontSize)
+				text(rightCoverageAxisX+0.05, yCoverage+0.08, "Coverage", srt=90, cex=0.9*fontSize, adj=c(1,0.5))
+			}
+
+			# plot coverage 1
+			rect(min(exons1$left), yCoverage, max(exons1$right), yCoverage+0.1, col="#eeeeee", border=NA)
+			if (squishIntrons) {
+				for (exon in 1:nrow(exons1))
+					if (exons1[exon,"type"] != "CDS") # don't draw coverage twice for coding regions
+						drawCoverage(exons1[exon,"left"], exons1[exon,"right"], yCoverage, coverage1, exons1[exon,"start"], exons1[exon,"end"], color1)
+			} else {
+				drawCoverage(min(exons1$left), max(exons1$right), yCoverage, coverage1, min(exons1$start), max(exons1$end), color1)
+			}
+
+			# plot coverage 2
+			rect(gene2Offset+min(exons2$left), yCoverage, gene2Offset+max(exons2$right), yCoverage+0.1, col="#eeeeee", border=NA)
+			if (squishIntrons) {
+				for (exon in 1:nrow(exons2))
+					if (exons2[exon,"type"] != "CDS") # don't draw coverage twice for coding regions
+						drawCoverage(gene2Offset+exons2[exon,"left"], gene2Offset+exons2[exon,"right"], yCoverage, coverage2, exons2[exon,"start"], exons2[exon,"end"], color2)
+			} else {
+				drawCoverage(gene2Offset+min(exons2$left), gene2Offset+max(exons2$right), yCoverage, coverage2, min(exons2$start), max(exons2$end), color2)
+			}
 		}
 
-		# plot coverage 1
-		rect(min(exons1$left), yCoverage, max(exons1$right), yCoverage+0.1, col="#eeeeee", border=NA)
-		if (squishIntrons) {
+		# plot gene 1
+		lines(c(min(exons1$left), max(exons1$right)), c(yExons, yExons), col=darkColor1)
+		for (gene in unique(exons1$geneName))
+			drawStrand(min(exons1[exons1$geneName == gene,"left"]), max(exons1[exons1$geneName == gene,"right"]), yExons, darkColor1, head(exons1[exons1$geneName == gene,"strand"],1))
+		for (exon in 1:nrow(exons1))
+			drawExon(exons1[exon,"left"], exons1[exon,"right"], yExons, color1, exons1[exon,"exonNumber"], exons1[exon,"type"])
+
+		# plot gene 2
+		lines(c(gene2Offset, gene2Offset+max(exons2$right)), c(yExons, yExons), col=darkColor2)
+		for (gene in unique(exons2$geneName))
+			drawStrand(gene2Offset+min(exons2[exons2$geneName == gene,"left"]), gene2Offset+max(exons2[exons2$geneName == gene,"right"]), yExons, darkColor2, head(exons2[exons2$geneName == gene,"strand"],1))
+		for (exon in 1:nrow(exons2))
+			drawExon(gene2Offset+exons2[exon,"left"], gene2Offset+exons2[exon,"right"], yExons, color2, exons2[exon,"exonNumber"], exons2[exon,"type"])
+
+		# plot gene1 of fusion
+		if (fusions[fusion,"direction1"] == "downstream") {
+			# plot strands
+			lines(c(fusionOffset1, fusionOffset1+breakpoint1), c(yFusion, yFusion), col=darkColor1)
+			for (gene in unique(exons1$geneName)) {
+				exonsOfGene <- exons1[exons1$geneName == gene,]
+				if (min(exonsOfGene$start) <= fusions[fusion,"breakpoint1"])
+					drawStrand(fusionOffset1+min(exonsOfGene$left), fusionOffset1+min(breakpoint1, max(exonsOfGene$right)), yFusion, col=darkColor1, exonsOfGene$strand[1])
+			}
+			# plot exons
 			for (exon in 1:nrow(exons1))
-				if (exons1[exon,"type"] != "CDS") # don't draw coverage twice for coding regions
-					drawCoverage(exons1[exon,"left"], exons1[exon,"right"], yCoverage, coverage1, exons1[exon,"start"], exons1[exon,"end"], color1)
-		} else {
-			drawCoverage(min(exons1$left), max(exons1$right), yCoverage, coverage1, min(exons1$start), max(exons1$end), color1)
+				if (exons1[exon,"start"] <= fusions[fusion,"breakpoint1"])
+					drawExon(fusionOffset1+exons1[exon,"left"], fusionOffset1+min(breakpoint1, exons1[exon,"right"]), yFusion, color1, exons1[exon,"exonNumber"], exons1[exon,"type"])
+			# plot trajectories
+			lines(c(0, 0, fusionOffset1), c(yTrajectoryExonTop, yTrajectoryExonBottom, yTrajectoryFusion), col="red", lty=2)
+			lines(c(breakpoint1, breakpoint1, fusionOffset1+breakpoint1), c(yTrajectoryBreakpointLabels, yTrajectoryExonBottom, yTrajectoryFusion), col="red", lty=2)
+		} else if (fusions[fusion,"direction1"] == "upstream") {
+			# plot strands
+			lines(c(fusionOffset1, fusionOffset2), c(yFusion, yFusion), col=darkColor1)
+			for (gene in unique(exons1$geneName)) {
+				exonsOfGene <- exons1[exons1$geneName == gene,]
+				if (max(exonsOfGene$end+1) >= fusions[fusion,"breakpoint1"])
+					drawStrand(fusionOffset2-max(exonsOfGene$right)+breakpoint1, min(fusionOffset2, fusionOffset2-min(exonsOfGene$left)+breakpoint1), yFusion, col=darkColor1, chartr("+-", "-+", exonsOfGene$strand[1]))
+			}
+			# plot exons
+			for (exon in 1:nrow(exons1))
+				if (exons1[exon,"end"]+1 >= fusions[fusion,"breakpoint1"])
+					drawExon(fusionOffset1+max(exons1$right)-exons1[exon,"right"], min(fusionOffset2, fusionOffset1+max(exons1$right)-exons1[exon,"left"]), yFusion, color1, exons1[exon,"exonNumber"], exons1[exon,"type"])
+			# plot trajectories
+			lines(c(max(exons1$right), max(exons1$right), fusionOffset1), c(yTrajectoryExonTop, yTrajectoryExonBottom, yTrajectoryFusion), col="red", lty=2)
+			lines(c(breakpoint1, breakpoint1, fusionOffset1+max(exons1$right)-breakpoint1), c(yTrajectoryBreakpointLabels, yTrajectoryExonBottom, yTrajectoryFusion), col="red", lty=2)
 		}
-
-		# plot coverage 2
-		rect(gene2Offset+min(exons2$left), yCoverage, gene2Offset+max(exons2$right), yCoverage+0.1, col="#eeeeee", border=NA)
-		if (squishIntrons) {
+	
+		# plot gene2 of fusion
+		if (fusions[fusion,"direction2"] == "downstream") {
+			# plot strands
+			lines(c(fusionOffset2, fusionOffset2+breakpoint2), c(yFusion, yFusion), col=darkColor2)
+			for (gene in unique(exons2$geneName)) {
+				exonsOfGene <- exons2[exons2$geneName == gene,]
+				if (min(exonsOfGene$start) <= fusions[fusion,"breakpoint2"])
+					drawStrand(max(fusionOffset2, fusionOffset2+breakpoint2-max(exonsOfGene$right)), fusionOffset2+breakpoint2-min(exonsOfGene$left), yFusion, col=darkColor2, chartr("+-", "-+", exonsOfGene$strand[1]))
+			}
+			# plot exons
 			for (exon in 1:nrow(exons2))
-				if (exons2[exon,"type"] != "CDS") # don't draw coverage twice for coding regions
-					drawCoverage(gene2Offset+exons2[exon,"left"], gene2Offset+exons2[exon,"right"], yCoverage, coverage2, exons2[exon,"start"], exons2[exon,"end"], color2)
-		} else {
-			drawCoverage(gene2Offset+min(exons2$left), gene2Offset+max(exons2$right), yCoverage, coverage2, min(exons2$start), max(exons2$end), color2)
+				if (exons2[exon,"start"] <= fusions[fusion,"breakpoint2"])
+					drawExon(max(fusionOffset2, fusionOffset2+breakpoint2-exons2[exon,"right"]), fusionOffset2+breakpoint2-exons2[exon,"left"], yFusion, color2, exons2[exon,"exonNumber"], exons2[exon,"type"])
+			# plot trajectories
+			lines(c(gene2Offset, gene2Offset, fusionOffset2+breakpoint2), c(yTrajectoryExonTop, yTrajectoryExonBottom, yTrajectoryFusion), col="red", lty=2)
+			lines(c(gene2Offset+breakpoint2, gene2Offset+breakpoint2, fusionOffset2), c(yTrajectoryBreakpointLabels, yTrajectoryExonBottom, yTrajectoryFusion), col="red", lty=2)
+		} else if (fusions[fusion,"direction2"] == "upstream") {
+			# plot strands
+			lines(c(fusionOffset2, fusionOffset2+max(exons2$right)-breakpoint2), c(yFusion, yFusion), col=darkColor2)
+			for (gene in unique(exons2$geneName)) {
+				exonsOfGene <- exons2[exons2$geneName == gene,]
+				if (max(exonsOfGene$end+1) >= fusions[fusion,"breakpoint2"])
+					drawStrand(max(fusionOffset2, fusionOffset2+min(exonsOfGene$left)-breakpoint2), fusionOffset2+max(exonsOfGene$right)-breakpoint2, yFusion, col=darkColor2, exonsOfGene$strand[1])
+			}
+			# plot exons
+			for (exon in 1:nrow(exons2))
+				if (exons2[exon,"end"]+1 >= fusions[fusion,"breakpoint2"])
+					drawExon(max(fusionOffset2, fusionOffset2+exons2[exon,"left"]-breakpoint2), fusionOffset2+exons2[exon,"right"]-breakpoint2, yFusion, color2, exons2[exon,"exonNumber"], exons2[exon,"type"])
+			# plot trajectories
+			lines(c(gene2Offset+max(exons2$right), gene2Offset+max(exons2$right), fusionOffset2+max(exons2$right)-breakpoint2), c(yTrajectoryExonTop, yTrajectoryExonBottom, yTrajectoryFusion), col="red", lty=2)
+			lines(c(gene2Offset+breakpoint2, gene2Offset+breakpoint2, fusionOffset2), c(yTrajectoryBreakpointLabels, yTrajectoryExonBottom, yTrajectoryFusion), col="red", lty=2)
 		}
-	}
-
-	# plot gene 1
-	lines(c(min(exons1$left), max(exons1$right)), c(yExons, yExons), col=darkColor1)
-	for (gene in unique(exons1$geneName))
-		drawStrand(min(exons1[exons1$geneName == gene,"left"]), max(exons1[exons1$geneName == gene,"right"]), yExons, darkColor1, head(exons1[exons1$geneName == gene,"strand"],1))
-	for (exon in 1:nrow(exons1))
-		drawExon(exons1[exon,"left"], exons1[exon,"right"], yExons, color1, exons1[exon,"exonNumber"], exons1[exon,"type"])
-
-	# plot gene 2
-	lines(c(gene2Offset, gene2Offset+max(exons2$right)), c(yExons, yExons), col=darkColor2)
-	for (gene in unique(exons2$geneName))
-		drawStrand(gene2Offset+min(exons2[exons2$geneName == gene,"left"]), gene2Offset+max(exons2[exons2$geneName == gene,"right"]), yExons, darkColor2, head(exons2[exons2$geneName == gene,"strand"],1))
-	for (exon in 1:nrow(exons2))
-		drawExon(gene2Offset+exons2[exon,"left"], gene2Offset+exons2[exon,"right"], yExons, color2, exons2[exon,"exonNumber"], exons2[exon,"type"])
-
-	# plot gene1 of fusion
-	if (fusions[fusion,"direction1"] == "downstream") {
-		# plot strands
-		lines(c(fusionOffset1, fusionOffset1+breakpoint1), c(yFusion, yFusion), col=darkColor1)
-		for (gene in unique(exons1$geneName)) {
-			exonsOfGene <- exons1[exons1$geneName == gene,]
-			if (min(exonsOfGene$start) <= fusions[fusion,"breakpoint1"])
-				drawStrand(fusionOffset1+min(exonsOfGene$left), fusionOffset1+min(breakpoint1, max(exonsOfGene$right)), yFusion, col=darkColor1, exonsOfGene$strand[1])
-		}
-		# plot exons
-		for (exon in 1:nrow(exons1))
-			if (exons1[exon,"start"] <= fusions[fusion,"breakpoint1"])
-				drawExon(fusionOffset1+exons1[exon,"left"], fusionOffset1+min(breakpoint1, exons1[exon,"right"]), yFusion, color1, exons1[exon,"exonNumber"], exons1[exon,"type"])
-		# plot trajectories
-		lines(c(0, 0, fusionOffset1), c(yTrajectoryExonTop, yTrajectoryExonBottom, yTrajectoryFusion), col="red", lty=2)
-		lines(c(breakpoint1, breakpoint1, fusionOffset1+breakpoint1), c(yTrajectoryBreakpointLabels, yTrajectoryExonBottom, yTrajectoryFusion), col="red", lty=2)
-	} else if (fusions[fusion,"direction1"] == "upstream") {
-		# plot strands
-		lines(c(fusionOffset1, fusionOffset2), c(yFusion, yFusion), col=darkColor1)
-		for (gene in unique(exons1$geneName)) {
-			exonsOfGene <- exons1[exons1$geneName == gene,]
-			if (max(exonsOfGene$end+1) >= fusions[fusion,"breakpoint1"])
-				drawStrand(fusionOffset2-max(exonsOfGene$right)+breakpoint1, min(fusionOffset2, fusionOffset2-min(exonsOfGene$left)+breakpoint1), yFusion, col=darkColor1, chartr("+-", "-+", exonsOfGene$strand[1]))
-		}
-		# plot exons
-		for (exon in 1:nrow(exons1))
-			if (exons1[exon,"end"]+1 >= fusions[fusion,"breakpoint1"])
-				drawExon(fusionOffset1+max(exons1$right)-exons1[exon,"right"], min(fusionOffset2, fusionOffset1+max(exons1$right)-exons1[exon,"left"]), yFusion, color1, exons1[exon,"exonNumber"], exons1[exon,"type"])
-		# plot trajectories
-		lines(c(max(exons1$right), max(exons1$right), fusionOffset1), c(yTrajectoryExonTop, yTrajectoryExonBottom, yTrajectoryFusion), col="red", lty=2)
-		lines(c(breakpoint1, breakpoint1, fusionOffset1+max(exons1$right)-breakpoint1), c(yTrajectoryBreakpointLabels, yTrajectoryExonBottom, yTrajectoryFusion), col="red", lty=2)
-	}
 	
-	# plot gene2 of fusion
-	if (fusions[fusion,"direction2"] == "downstream") {
-		# plot strands
-		lines(c(fusionOffset2, fusionOffset2+breakpoint2), c(yFusion, yFusion), col=darkColor2)
-		for (gene in unique(exons2$geneName)) {
-			exonsOfGene <- exons2[exons2$geneName == gene,]
-			if (min(exonsOfGene$start) <= fusions[fusion,"breakpoint2"])
-				drawStrand(max(fusionOffset2, fusionOffset2+breakpoint2-max(exonsOfGene$right)), fusionOffset2+breakpoint2-min(exonsOfGene$left), yFusion, col=darkColor2, chartr("+-", "-+", exonsOfGene$strand[1]))
+		if (fusions[fusion,"fusion_transcript"] != ".") {
+			# print fusion transcript colored by gene of origin
+			fusion_transcript1 <- gsub("\\|.*", "", fusions[fusion,"fusion_transcript"], perl=T)
+			fusion_transcript1 <- substr(fusion_transcript1, max(1, nchar(fusion_transcript1)-30), nchar(fusion_transcript1))
+			fusion_transcript2 <- gsub(".*\\|", "", fusions[fusion,"fusion_transcript"], perl=T)
+			fusion_transcript2 <- substr(fusion_transcript2, 1, min(nchar(fusion_transcript2), 30))
+			# check for non-template bases
+			non_template_bases <- gsub(".*\\|([^|]*)\\|.*", "\\1", fusions[fusion,"fusion_transcript"], perl=T)
+			if (non_template_bases == fusions[fusion,"fusion_transcript"]) # no non-template bases found
+				non_template_bases <- ""
+			# divide non-template bases half-and-half for centered alignment
+			non_template_bases1 <- substr(non_template_bases, 1, floor(nchar(non_template_bases)/2))
+			non_template_bases2 <- substr(non_template_bases, ceiling(nchar(non_template_bases)/2+0.5), nchar(non_template_bases))
+			# transcript 1
+			text(fusionOffset2, yTranscript, bquote(.(fusion_transcript1) * phantom(.(non_template_bases1))), col=darkColor1, adj=c(1,0.5), cex=fontSize)
+			# transcript 2
+			text(fusionOffset2, yTranscript, bquote(phantom(.(non_template_bases2)) * .(fusion_transcript2)), col=darkColor2, adj=c(0,0.5), cex=fontSize)
+			# non-template bases
+			text(fusionOffset2, yTranscript, non_template_bases1, adj=c(1,0.5), cex=fontSize)
+			text(fusionOffset2, yTranscript, non_template_bases2, adj=c(0,0.5), cex=fontSize)
 		}
-		# plot exons
-		for (exon in 1:nrow(exons2))
-			if (exons2[exon,"start"] <= fusions[fusion,"breakpoint2"])
-				drawExon(max(fusionOffset2, fusionOffset2+breakpoint2-exons2[exon,"right"]), fusionOffset2+breakpoint2-exons2[exon,"left"], yFusion, color2, exons2[exon,"exonNumber"], exons2[exon,"type"])
-		# plot trajectories
-		lines(c(gene2Offset, gene2Offset, fusionOffset2+breakpoint2), c(yTrajectoryExonTop, yTrajectoryExonBottom, yTrajectoryFusion), col="red", lty=2)
-		lines(c(gene2Offset+breakpoint2, gene2Offset+breakpoint2, fusionOffset2), c(yTrajectoryBreakpointLabels, yTrajectoryExonBottom, yTrajectoryFusion), col="red", lty=2)
-	} else if (fusions[fusion,"direction2"] == "upstream") {
-		# plot strands
-		lines(c(fusionOffset2, fusionOffset2+max(exons2$right)-breakpoint2), c(yFusion, yFusion), col=darkColor2)
-		for (gene in unique(exons2$geneName)) {
-			exonsOfGene <- exons2[exons2$geneName == gene,]
-			if (max(exonsOfGene$end+1) >= fusions[fusion,"breakpoint2"])
-				drawStrand(max(fusionOffset2, fusionOffset2+min(exonsOfGene$left)-breakpoint2), fusionOffset2+max(exonsOfGene$right)-breakpoint2, yFusion, col=darkColor2, exonsOfGene$strand[1])
-		}
-		# plot exons
-		for (exon in 1:nrow(exons2))
-			if (exons2[exon,"end"]+1 >= fusions[fusion,"breakpoint2"])
-				drawExon(max(fusionOffset2, fusionOffset2+exons2[exon,"left"]-breakpoint2), fusionOffset2+exons2[exon,"right"]-breakpoint2, yFusion, color2, exons2[exon,"exonNumber"], exons2[exon,"type"])
-		# plot trajectories
-		lines(c(gene2Offset+max(exons2$right), gene2Offset+max(exons2$right), fusionOffset2+max(exons2$right)-breakpoint2), c(yTrajectoryExonTop, yTrajectoryExonBottom, yTrajectoryFusion), col="red", lty=2)
-		lines(c(gene2Offset+breakpoint2, gene2Offset+breakpoint2, fusionOffset2), c(yTrajectoryBreakpointLabels, yTrajectoryExonBottom, yTrajectoryFusion), col="red", lty=2)
-	}
-	
-	if (fusions[fusion,"fusion_transcript"] != ".") {
-		# print fusion transcript colored by gene of origin
-		fusion_transcript1 <- gsub("\\|.*", "", fusions[fusion,"fusion_transcript"], perl=T)
-		fusion_transcript1 <- substr(fusion_transcript1, max(1, nchar(fusion_transcript1)-30), nchar(fusion_transcript1))
-		fusion_transcript2 <- gsub(".*\\|", "", fusions[fusion,"fusion_transcript"], perl=T)
-		fusion_transcript2 <- substr(fusion_transcript2, 1, min(nchar(fusion_transcript2), 30))
-		# check for non-template bases
-		non_template_bases <- gsub(".*\\|([^|]*)\\|.*", "\\1", fusions[fusion,"fusion_transcript"], perl=T)
-		if (non_template_bases == fusions[fusion,"fusion_transcript"]) # no non-template bases found
-			non_template_bases <- ""
-		# divide non-template bases half-and-half for centered alignment
-		non_template_bases1 <- substr(non_template_bases, 1, floor(nchar(non_template_bases)/2))
-		non_template_bases2 <- substr(non_template_bases, ceiling(nchar(non_template_bases)/2+0.5), nchar(non_template_bases))
-		# transcript 1
-		text(fusionOffset2, yTranscript, bquote(.(fusion_transcript1) * phantom(.(non_template_bases1))), col=darkColor1, adj=c(1,0.5), cex=fontSize)
-		# transcript 2
-		text(fusionOffset2, yTranscript, bquote(phantom(.(non_template_bases2)) * .(fusion_transcript2)), col=darkColor2, adj=c(0,0.5), cex=fontSize)
-		# non-template bases
-		text(fusionOffset2, yTranscript, non_template_bases1, adj=c(1,0.5), cex=fontSize)
-		text(fusionOffset2, yTranscript, non_template_bases2, adj=c(0,0.5), cex=fontSize)
-	}
 
-	# draw scale
-	realScale <- max(exons1$end - exons1$start, exons2$end - exons2$start)
-	mapScale <- max(exons1$right - exons1$left, exons2$right - exons2$left)
-	# choose scale which is closest to desired scale length
-	desiredScaleSize <- 0.2
-	realScale <- desiredScaleSize / mapScale * realScale
-	mapScale <- desiredScaleSize
-	realScaleOptimalFit <- signif(realScale, 1) # round to most significant digit
-	mapScaleOptimalFit <- realScaleOptimalFit / realScale * mapScale
-	# draw scale line
-	lines(c(1-mapScaleOptimalFit, 1), c(yScale, yScale)) # scale line
-	lines(c(1-mapScaleOptimalFit, 1-mapScaleOptimalFit), c(yScale-0.007, yScale+0.007)) # left whisker
-	lines(c(1, 1), c(yScale-0.007, yScale+0.007)) # right whisker
-	# draw units above scale line
-	realScaleThousands <- max(0, min(3, floor(log10(realScaleOptimalFit)/3)))
-	scaleUnits <- c("bp", "kbp", "Mbp", "Gbp")
-	scaleLabel <- paste(realScaleOptimalFit/max(1,1000^realScaleThousands), scaleUnits[realScaleThousands+1])
-	text(1-mapScaleOptimalFit/2, yScale+0.005, scaleLabel, adj=c(0.5,0), cex=fontSize*0.9)
-	if (squishIntrons)
-		text(1-mapScaleOptimalFit/2, yScale-0.005, "introns not to scale", adj=c(0.5,1), cex=fontSize*0.9, font=3)
+		# draw scale
+		realScale <- max(exons1$end - exons1$start, exons2$end - exons2$start)
+		mapScale <- max(exons1$right - exons1$left, exons2$right - exons2$left)
+		# choose scale which is closest to desired scale length
+		desiredScaleSize <- 0.2
+		realScale <- desiredScaleSize / mapScale * realScale
+		mapScale <- desiredScaleSize
+		realScaleOptimalFit <- signif(realScale, 1) # round to most significant digit
+		mapScaleOptimalFit <- realScaleOptimalFit / realScale * mapScale
+		# draw scale line
+		lines(c(1-mapScaleOptimalFit, 1), c(yScale, yScale)) # scale line
+		lines(c(1-mapScaleOptimalFit, 1-mapScaleOptimalFit), c(yScale-0.007, yScale+0.007)) # left whisker
+		lines(c(1, 1), c(yScale-0.007, yScale+0.007)) # right whisker
+		# draw units above scale line
+		realScaleThousands <- max(0, min(3, floor(log10(realScaleOptimalFit)/3)))
+		scaleUnits <- c("bp", "kbp", "Mbp", "Gbp")
+		scaleLabel <- paste(realScaleOptimalFit/max(1,1000^realScaleThousands), scaleUnits[realScaleThousands+1])
+		text(1-mapScaleOptimalFit/2, yScale+0.005, scaleLabel, adj=c(0.5,0), cex=fontSize*0.9)
+		if (squishIntrons)
+			text(1-mapScaleOptimalFit/2, yScale-0.005, "introns not to scale", adj=c(0.5,1), cex=fontSize*0.9, font=3)
+
+	}
 
 	# draw circos plot
-	if (is.null(cytobands) || !("circlize" %in% names(sessionInfo()$otherPkgs)) || !("GenomicRanges" %in% names(sessionInfo()$otherPkgs))) {
+	if (!("circos" %in% plotPanels)) {
 		plot(0, 0, type="l", xlim=c(0, 1), ylim=c(0, 1), bty="n", xaxt="n", yaxt="n", xlab="", ylab="")
 		plot(0, 0, type="l", xlim=c(0, 1), ylim=c(0, 1), bty="n", xaxt="n", yaxt="n", xlab="", ylab="")
 	} else {
@@ -1362,25 +1387,27 @@ for (fusion in 1:nrow(fusions)) {
 	# draw protein domains
 	plot(0, 0, type="l", xlim=c(-0.1, 1.1), ylim=c(0, 1), bty="n", xaxt="n", yaxt="n", xlab="", ylab="")
 	par(xpd=NA)
-	if (!is.null(proteinDomains) && "GenomicRanges" %in% names(sessionInfo()$otherPkgs))
+	if ("domains" %in% plotPanels)
 		drawProteinDomains(fusions[fusion,], exons1, exons2, proteinDomains, color1, color2, mergeDomainsOverlappingBy, optimizeDomainColors)
 	par(xpd=F)
 
 	# print statistics about supporting alignments
-	plot(0, 0, type="l", xlim=c(0, 1), ylim=c(0, 1), bty="n", xaxt="n", yaxt="n", xlab="", ylab="")
-	text(0, 0.575, "SUPPORTING READ COUNT", font=2, adj=c(0,0), cex=fontSize)
-	if ("split_reads" %in% colnames(fusions)) { # STAR-Fusion reports split reads from both breakpoints combined
-		text(0, 0.525, paste0("Split reads = ", fusions[fusion,"split_reads"], "\n", "Discordant mates = ", fusions[fusion,"discordant_mates"]), adj=c(0,1), cex=fontSize)
-	} else { # Arriba reports split reads separately for the two breakpoints
-		text(
-			0, 0.525,
-			paste0(
-				"Split reads at breakpoint1 = ", fusions[fusion,"split_reads1"], "\n",
-				"Split reads at breakpoint2 = ", fusions[fusion,"split_reads2"], "\n",
-				"Discordant mates = ", fusions[fusion,"discordant_mates"]
-			),
-			adj=c(0,1), cex=fontSize
-		)
+	if ("readcounts" %in% plotPanels) {
+		plot(0, 0, type="l", xlim=c(0, 1), ylim=c(0, 1), bty="n", xaxt="n", yaxt="n", xlab="", ylab="")
+		text(0, 0.575, "SUPPORTING READ COUNT", font=2, adj=c(0,0), cex=fontSize)
+		if ("split_reads" %in% colnames(fusions)) { # STAR-Fusion reports split reads from both breakpoints combined
+			text(0, 0.525, paste0("Split reads = ", fusions[fusion,"split_reads"], "\n", "Discordant mates = ", fusions[fusion,"discordant_mates"]), adj=c(0,1), cex=fontSize)
+		} else { # Arriba reports split reads separately for the two breakpoints
+			text(
+				0, 0.525,
+				paste0(
+					"Split reads at breakpoint1 = ", fusions[fusion,"split_reads1"], "\n",
+					"Split reads at breakpoint2 = ", fusions[fusion,"split_reads2"], "\n",
+					"Discordant mates = ", fusions[fusion,"discordant_mates"]
+				),
+				adj=c(0,1), cex=fontSize
+			)
+		}
 	}
 
 }

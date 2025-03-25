@@ -63,6 +63,7 @@ struct options_t {
 	unsigned int max_itd_length;
 	float min_itd_allele_fraction;
 	unsigned int min_itd_support;
+	int threads;
 };
 
 options_t parse_arguments(int argc, char **argv);

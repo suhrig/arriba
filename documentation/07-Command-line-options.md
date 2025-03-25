@@ -30,25 +30,25 @@ arriba [-c Chimeric.out.sam] -x Aligned.out.sam \
 : FastA file with genome sequence (assembly). The file may be gzip-compressed. An index with the file extension `.fai` must exist only if CRAM data is processed.
 
 `-b FILE`
-: File containing blacklisted ranges. Refer to section [Blacklist](input-files.md#blacklist) for a description of the expected file format. The file may be gzip-compressed.
+: File containing blacklisted ranges. Refer to section [Blacklist](04-Input-files#blacklist) for a description of the expected file format. The file may be gzip-compressed.
 
 `-k FILE`
-: File containing known/recurrent fusions. Some cancer entities are often characterized by fusions between the same pair of genes. In order to boost sensitivity, a list of known fusions can be supplied using this parameter. Refer to section [Known fusions](input-files.md#known-fusions) for a description of the expected file format. The file may be gzip-compressed.
+: File containing known/recurrent fusions. Some cancer entities are often characterized by fusions between the same pair of genes. In order to boost sensitivity, a list of known fusions can be supplied using this parameter. Refer to section [Known fusions](04-Input-files#known-fusions) for a description of the expected file format. The file may be gzip-compressed.
 
 `-o FILE`
-: Output file with fusions that have passed all filters. Refer to section [fusions.tsv](output-files.md#fusionstsv) for a description of the columns.
+: Output file with fusions that have passed all filters. Refer to section [fusions.tsv](05-Output-files#fusionstsv) for a description of the columns.
 
 `-O FILE`
 : Output file with fusions that were discarded due to filtering. The format is the same as for parameter `-o`.
 
 `-t FILE`
-: Tab-separated file containing fusions to annotate with tags in the `tags` column. The first two columns specify the genes; the third column specifies the tag. See section [Tags file](input-files.md#tags) for a detailed description of the format.
+: Tab-separated file containing fusions to annotate with tags in the `tags` column. The first two columns specify the genes; the third column specifies the tag. See section [Tags file](04-Input-files#tags) for a detailed description of the format.
 
 `-p FILE`
-: File in GFF3 format containing coordinates of the protein domains of genes. The detailed format is described in the section [Protein domains](input-files.md#protein-domains). The protein domains retained in a fusion are listed in the column `retained_protein_domains` of Arriba's output file. The file may be gzip-compressed.
+: File in GFF3 format containing coordinates of the protein domains of genes. The detailed format is described in the section [Protein domains](04-Input-files#protein-domains). The protein domains retained in a fusion are listed in the column `retained_protein_domains` of Arriba's output file. The file may be gzip-compressed.
  
 `-d FILE`
-: Tab-separated file with coordinates of structural variants found using whole-genome sequencing data. These coordinates serve to increase sensitivity towards weakly expressed fusions and to eliminate fusions with low confidence. Refer to section [Structural variant calls from WGS](input-files.md#structural-variant-calls-from-wgs) for a description of the expected file format. The file may be gzip-compressed.
+: Tab-separated file with coordinates of structural variants found using whole-genome sequencing data. These coordinates serve to increase sensitivity towards weakly expressed fusions and to eliminate fusions with low confidence. Refer to section [Structural variant calls from WGS](04-Input-files#structural-variant-calls-from-wgs) for a description of the expected file format. The file may be gzip-compressed.
 
 `-D MAX_GENOMIC_BREAKPOINT_DISTANCE`
 : When a file with genomic breakpoints obtained from whole-genome sequencing is supplied via the parameter `-d`, this parameter determines how far a genomic breakpoint may be away from a transcriptomic breakpoint to still consider it as a related event. For events inside genes, the distance is added to the end of the gene; for intergenic events, the distance threshold is applied as is. Default: `100000`
@@ -132,6 +132,9 @@ Even when an unstranded library is processed, Arriba can often infer the strand 
 `-Z MIN_ITD_SUPPORTING_READS`
 : Required absolute number of supporting reads to report an internal tandem duplication. Default: `10`
 
+`-@ THREADS`
+: Number of threads to use for BAM/CRAM file reading. This parameter only affects BAM/CRAM file reading and not the subsequent filters, which do not support multi-threading. Note that in most situations a single thread already reaches peak performance. Adding more threads only creates additional overhead. For example, when piping alignments directly from STAR to Arriba, there is no point in using more than one thread, because Arriba can process the alignments much faster than STAR can produce them. Multi-threading only makes sense in situations where Arriba reads from an existing BAM/CRAM file and only when the file is attached via fast storage. In all other situations, there is usually another bottleneck which precludes a speedup. Even in situations where a speedup is possible, it is typically not more than ~30% due to bottlenecks internal to Arriba. Using more than two threads is also not sensible, since it almost never improves performance further.
+
 `-u`
 : Arriba performs marking of duplicates internally based on identical mapping coordinates. When this switch is set, internal marking of duplicates is disabled and Arriba assumes that duplicates have been marked by a preceding program. In this case, Arriba only discards alignments flagged with the `BAM_FDUP` flag. This makes sense when duplicates cannot be reliably identified solely based on their mapping coordinates, e.g. when unique molecular identifiers (UMIs) are used or when independently generated libraries are merged in a single BAM file and the read group must be interrogated to distinguish duplicates from reads that map to the same coordinates by chance. In addition, when this switch is set, duplicate reads are not considered for the calculation of the coverage at fusion breakpoints (columns `coverage1` and `coverage2` in the output file).
 
@@ -209,6 +212,9 @@ draw_fusions.R --fusions=fusions.tsv --annotation=annotation.gtf --output=output
 `--render3dEffect=TRUE|FALSE`
 : Whether light and shadow should be rendered to give objects a 3D effect. Default: `TRUE`
 
+`--plotPanels=PANELS`
+: A comma-separated list of panels to plot. By removing items from the list, the respective panels will be omitted from the figures. Default: `fusion,circos,domains,readcounts`
+
 `--fontSize=SIZE`
 : Decimal value to scale the size of text. Default: `1`
 
@@ -219,7 +225,7 @@ draw_fusions.R --fusions=fusions.tsv --annotation=annotation.gtf --output=output
 : This option only applies to intergenic breakpoints. If it is set to a value greater than 0, then the script draws the genes which are no more than the given distance away from an intergenic breakpoint. The keywords `closestGene` and `closestProteinCodingGene` instruct the script to dynamically determine the distance to the next (protein-coding) gene for each breakpoint. Alternatively, instead of specifying a single distance that is applied upstream and downstream of both breakpoints alike, more fine-grained control over the region to be shown is possible by specifying four comma-separated values. The first two values determine the region to the left and to the right of breakpoint 1; the third and fourth values determine the region to the left and to the right of breakpoint 2. Note that this option is incompatible with `--squishIntrons`. Default: `0`
 
 `--transcriptSelection=coverage|provided|canonical`
-: By default, the transcript isoform with the highest coverage is drawn. Alternatively, the transcript isoform that is provided in the columns `transcript_id1` and `transcript_id2` in the given fusions file can be drawn. Selecting the isoform with the highest coverage usually produces nicer plots, in the sense that the coverage track is smooth and shows a visible increase in coverage after the fusion breakpoint. However, the isoform with the highest coverage may not be the one that is involved in the fusion. Often, genomic rearrangements lead to non-canonical isoforms being transcribed. For this reason, it can make sense to rely on the transcript selection provided by the columns `transcript_id1/2`, which reflect the actual isoforms involved in a fusion. As a third option, the transcripts that are annotated as canonical can be drawn. Transcript isoforms tagged with `appris_principal`, `appris_candidate`, or `CCDS` are considered canonical. Default: `provided`
+: By default, the transcript isoform that is provided in the columns `transcript_id1` and `transcript_id2` in the given fusions file is drawn. Alternatively, `draw_fusions.R` can perform its own transcript selection. For example, it can choose the isoform with the highest coverage.  Selecting the isoform with the highest coverage usually produces nicer plots, in the sense that the coverage track is smooth and shows a visible increase in coverage after the fusion breakpoint. However, the isoform with the highest coverage may not be the one that is involved in the fusion. Often, genomic rearrangements lead to non-canonical isoforms being transcribed. For this reason, it can make sense to rely on the transcript selection provided by the columns `transcript_id1/2`, which reflect the actual isoforms involved in a fusion. As a third option, the transcripts that are annotated as canonical can be drawn. Transcript isoforms tagged with `appris_principal`, `appris_candidate`, or `CCDS` are considered canonical. Default: `provided`
 
 `--fixedScale=BASES`
 : By default, transcripts are scaled automatically to fill the entire page. This parameter enforces a fixed scale to be applied to all fusions, which is useful when a collection of fusions should be visualized and the sizes of all transcripts should be comparable. A common use case is the visualization of a gene that is found to be fused to multiple partners. By forcing all fusion plots to use the same scale, the fusions can be summarized as a collage in a single plot one above the other with matching scales. Note: The scale must be bigger than the sum of the biggest pair of transcripts to be drawn, or else dynamic scaling is applied, because display errors would occur otherwise. The default value is `0`, which means that no fixed scale should be used and that the scale should be adapted dynamically for each fusion. Default: `0`

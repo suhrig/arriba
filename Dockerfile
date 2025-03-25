@@ -1,15 +1,11 @@
-FROM ubuntu:focal
+FROM ubuntu:noble
 MAINTAINER Sebastian Uhrig @ DKFZ
 
 # install dependencies
 RUN export DEBIAN_FRONTEND=noninteractive && \
 apt-get update -y && \
-apt-get install -y --no-install-recommends wget ca-certificates samtools r-base r-cran-circlize r-bioc-genomicalignments r-bioc-genomicranges libxml2 && \
+apt-get install -y --no-install-recommends wget ca-certificates rna-star samtools r-base r-cran-circlize r-bioc-genomicalignments r-bioc-genomicranges libxml2 && \
 apt-get clean && rm -rf /var/lib/apt/lists/*
-
-# install version of STAR that supports --chimMultimapNmax and --chimOutType WithinBAM
-RUN wget -qO - 'https://github.com/alexdobin/STAR/archive/2.7.10a.tar.gz' | \
-tar --strip-components=3 -C /usr/local/bin -xzf - 'STAR-2.7.10a/bin/Linux_x86_64/STAR'
 
 # install arriba
 RUN wget -qO - 'https://github.com/suhrig/arriba/releases/download/v2.4.0/arriba_v2.4.0.tar.gz' | tar -xzf - --exclude='arriba*/.git'

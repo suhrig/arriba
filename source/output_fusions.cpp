@@ -152,7 +152,7 @@ void get_sequence_from_pileup(const pileup_t& pileup, const position_t breakpoin
 		// find out base in reference to mark SNPs/SNVs
 		string reference_base = "N";
 		assembly_t::const_iterator contig_sequence = assembly.find(gene->contig);
-		if (contig_sequence != assembly.end())
+		if (contig_sequence != assembly.end() && (unsigned int) position->first < contig_sequence->second.size())
 			reference_base = contig_sequence->second[position->first];
 
 		// find most frequent allele at current position and compute coverage
@@ -711,8 +711,9 @@ string get_fusion_site(const gene_t gene, const bool spliced, const bool exonic,
 bool sort_best_transcripts_by_size(const transcript_annotation_record_t* x, const transcript_annotation_record_t* y) {
 	int length_x = x->last_exon->end - x->first_exon->start;
 	int length_y = y->last_exon->end - y->first_exon->start;
-	return (length_x > length_y ||
-	        length_x == length_y && x->id < y->id); // IDs as tie breaker ensures deterministic behavior
+	return (x->coding_length > y->coding_length ||
+	        x->coding_length == y->coding_length && length_x > length_y ||
+	        x->coding_length == y->coding_length && length_x == length_y && x->id < y->id); // IDs as tie breaker ensures deterministic behavior
 }
 
 // find transcripts whose exons match the splice pattern of the fusion transcript sequence well
