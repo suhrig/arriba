@@ -1,6 +1,3 @@
-Visualization
-=============
-
 Publication-quality figures
 ---------------------------
 
@@ -31,7 +28,7 @@ The script takes the following inputs:
 
 - (optionally) a file with cytobands if ideograms or circos plots should be drawn
 
-The following command demonstrates the usage. Please refer to section [Command-line options](command-line-options.md#draw_fusionsr) for a complete list of options.
+The following command demonstrates the usage. Please refer to section [Command-line options](07-Command-line-options#draw_fusionsr) for a complete list of options.
 
 ```bash
 ./draw_fusions.R \

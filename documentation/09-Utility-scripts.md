@@ -1,6 +1,3 @@
-Utility scripts
-===============
-
 The [folder `scripts`](https://github.com/suhrig/arriba/tree/master/scripts) contains small utility scripts for common tasks related to fusion detection.
 
 Extract fusion-supporting alignments
@@ -50,7 +47,7 @@ Note: It is not possible to mix assemblies with incompatible coordinates. For ex
 
 Note: There can be slight differences in the fusion calls when using this script compared to using the main script `run_arriba.sh`. For optimal fusion detection results, it is not recommended to use this script, but to realign all reads as is done by the main script. This script is provided as a convenience to users with a focus on computational efficiency.
 
-Note: This script should not be used if you have generated a BAM file according to Arriba's [recommended workflow](workflow.md). In this case, you can run Arriba directly on the BAM file. There is no need to realign any reads, because they are already aligned optimally.
+Note: This script should not be used if you have generated a BAM file according to Arriba's [recommended workflow](03-Workflow). In this case, you can run Arriba directly on the BAM file. There is no need to realign any reads, because they are already aligned optimally.
 
 Quantify virus expression
 -------------------------

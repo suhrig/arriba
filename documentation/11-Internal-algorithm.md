@@ -1,6 +1,3 @@
-Internal algorithm
-==================
-
 Conceptually, Arriba is nothing more than a collection of filters. The generation of fusion candidates is entirely handled by STAR, which collects all evidence about potential gene fusions in the chimeric alignments file (and the read-through alignments file). Most of the candidates in these files are alignment artifacts, in vitro-generated artifacts, or transcript variants that are also observed in healthy tissue. Arriba applies a set of filters which try to detect artifacts based on various features that are characteristic for artifacts. A subset of the filters recovers events that were discarded by previous filters, given that the event has convincing characteristics which suggest it was discarded erroneously. All filters are enabled by default. Filters can be turned off selectively using the option `-f`. The column `filters` in the output file lists the filters that discarded the event or part of the reads supporting an event.
 
 The filters are listed in the order in which they are applied. Read-level filters, which assess candidates based on information contained in a single read (pair), come first and are followed by event-level filters, which integrate information from multiple reads.
@@ -107,7 +104,7 @@ Event-level filters
 : This filter removes events with low confidence if they are not confirmed by structural variant calls obtained from whole-genome sequencing. A file with structural variant calls can be supplied via the parameter `-d`.
 
 `blacklist`
-: This filter removes events with breakpoint coordinates matching entries in the [blacklist](input-files.md#blacklist). If an event has no split-reads (but only discordant mates), the precise breakpoint coordinates are unknown. In this case, the event is discarded if the breakpoints are within a range of the insert size around the blacklisted coordinates.
+: This filter removes events with breakpoint coordinates matching entries in the [blacklist](04-Input-files#blacklist). If an event has no split-reads (but only discordant mates), the precise breakpoint coordinates are unknown. In this case, the event is discarded if the breakpoints are within a range of the insert size around the blacklisted coordinates.
 
 `short_anchor`
 : A chimeric read aligns to some part in one of the fused genes and to some part to the other gene. The anchor of a read is the longer aligned segment. It is more likely to be aligned correctly. True positives often have anchors in both fused genes, whereas alignment artifacts are frequently characterized by only a small segment aligning to one of the genes and all anchors to the other. If the cumulative length of aligned segments is short in one of the genes, the event is discarded. The minimum length can be set using the parameter `-A` (default 23 bp).

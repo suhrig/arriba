@@ -1,6 +1,3 @@
-Workflow
-========
-
 Fusion detection with Arriba is based on the STAR aligner. It is an extension of the regular alignment workflow, which can be incorporated with few modifications. The addition of Arriba does not affect the normal alignments. The workflow yields fusion predictions as well as normal alignments that can be used for other downstream analyses such as expression quantification or variant calling. Like so, fusion detection incurs negligible computational overhead, since it adds only a few minutes of runtime to the regular alignment workflow.
 
 ![workflow](workflow.png)
@@ -9,7 +6,7 @@ Implementing Arriba is done in two steps:
 
 1. Detection of chimeric reads must be enabled in STAR by specifying the parameter `--chimSegmentMin`. In addition, the parameter `--chimOutType WithinBAM` must be specified to cause STAR to report chimeric reads as supplementary alignments in the main output file `Aligned.out.sam`. Old versions of STAR (or when STAR is run with `--chimOutType SeparateSAMold`) wrote supplementary alignments to a separate file named `Chimeric.out.sam`. Arriba is compatible with this mode of use (see parameter `-c`), but it is deprecated, because STAR might not support it anymore in the future.
 
-2. Arriba extracts the supplementary alignments from the given input file(s). The supplementary alignments represent evidence about translocations, inversions, duplications, and deletions larger than the usual intron size (as defined by the parameter `--alignIntronMax`). In order to find fusions arising from deletions smaller than the maximum intron size, Arriba also extracts alignments which cross the boundaries of annotated genes. Once all alignments have been extracted, it applies a set of [filters](internal-algorithm.md) to remove artifacts and transcripts observed in healthy tissue. The final [output](output-files.md) is a list of fusion predictions which pass all of Arriba's filters.
+2. Arriba extracts the supplementary alignments from the given input file(s). The supplementary alignments represent evidence about translocations, inversions, duplications, and deletions larger than the usual intron size (as defined by the parameter `--alignIntronMax`). In order to find fusions arising from deletions smaller than the maximum intron size, Arriba also extracts alignments which cross the boundaries of annotated genes. Once all alignments have been extracted, it applies a set of [filters](11-Internal-algorithm) to remove artifacts and transcripts observed in healthy tissue. The final [output](05-Output-files) is a list of fusion predictions which pass all of Arriba's filters.
 
 Demo script
 -----------
@@ -55,5 +52,5 @@ arriba \
 
 Note: In this example, the same file is passed to the parameters `-k` and `-t`, because it is used for two purposes: applying sensitive filtering parameters to known fusions (`-k`) and tagging known fusions in the `tags` column (`-t`). However, it is possible to use different files for these two parameters if a user wants to separate the two tasks.
 
-For a comprehensive list of the parameters, please refer to section [Command-line options](command-line-options.md).
+For a comprehensive list of the parameters, please refer to section [Command-line options](07-Command-line-options).
 

@@ -1,10 +1,7 @@
-Quickstart
-==========
-
 Manual installation
 -------------------
 
-Arriba has only a single prerequisite: [STAR](https://github.com/alexdobin/STAR) (version >=2.7.10a recommended). Download and install the tool according to the developers' instructions and make it available in your `$PATH`. If you want to make use of Arriba's [visualization tools](visualization.md), a few additional software components [need to be installed](visualization.md#publication-quality-figures).
+Arriba has only a single prerequisite: [STAR](https://github.com/alexdobin/STAR) (version >=2.7.10a recommended). Download and install the tool according to the developers' instructions and make it available in your `$PATH`. If you want to make use of Arriba's [visualization tools](06-Visualization), a few additional software components [need to be installed](06-Visualization#publication-quality-figures).
 
 Compile the latest stable version of Arriba or use the precompiled binaries in the download file. **Note: You should not use `git clone` to download Arriba, because the git repository does not include the blacklist! Instead, download the latest tarball from the [releases page](https://github.com/suhrig/arriba/releases/) as shown here:**
 
@@ -20,7 +17,7 @@ Arriba requires an assembly in FastA format, gene annotation in GTF format, and 
 ./download_references.sh hs37d5viral+GENCODE19
 ```
 
-The download file contains a script `run_arriba.sh`, which demonstrates the usage of Arriba (see also section [Workflow](workflow.md#demo-script)). We recommend that you use this as a guide to integrate Arriba into your existing STAR-based RNA-Seq pipeline. When Arriba is integrated properly, fusion detection only adds a few minutes to the regular alignment workflow, since Arriba utilizes the alignments produced by STAR during a standard RNA-Seq workflow and does not require alignment solely for the sake of fusion detection.
+The download file contains a script `run_arriba.sh`, which demonstrates the usage of Arriba (see also section [Workflow](03-Workflow#demo-script)). We recommend that you use this as a guide to integrate Arriba into your existing STAR-based RNA-Seq pipeline. When Arriba is integrated properly, fusion detection only adds a few minutes to the regular alignment workflow, since Arriba utilizes the alignments produced by STAR during a standard RNA-Seq workflow and does not require alignment solely for the sake of fusion detection.
 
 Run the demo script with 8 threads. In case of single-end data, the second FastQ file is omitted.
 
@@ -108,4 +105,4 @@ Arriba creates two output files:
 
 - `fusions.discarded.tsv`: This file lists all events which were classified as artifacts or which are observed in healthy tissue (e.g., read-through transcripts and non-canonically spliced transcripts).
 
-For a detailed description of the columns, refer to section [Output files](output-files.md).
+For a detailed description of the columns, refer to section [Output files](05-Output-files).

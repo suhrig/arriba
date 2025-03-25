@@ -1,6 +1,3 @@
-Command-line options
-====================
-
 Arriba
 ------
 
@@ -33,25 +30,25 @@ arriba [-c Chimeric.out.sam] -x Aligned.out.sam \
 : FastA file with genome sequence (assembly). The file may be gzip-compressed. An index with the file extension `.fai` must exist only if CRAM data is processed.
 
 `-b FILE`
-: File containing blacklisted ranges. Refer to section [Blacklist](input-files.md#blacklist) for a description of the expected file format. The file may be gzip-compressed.
+: File containing blacklisted ranges. Refer to section [Blacklist](04-Input-files#blacklist) for a description of the expected file format. The file may be gzip-compressed.
 
 `-k FILE`
-: File containing known/recurrent fusions. Some cancer entities are often characterized by fusions between the same pair of genes. In order to boost sensitivity, a list of known fusions can be supplied using this parameter. Refer to section [Known fusions](input-files.md#known-fusions) for a description of the expected file format. The file may be gzip-compressed.
+: File containing known/recurrent fusions. Some cancer entities are often characterized by fusions between the same pair of genes. In order to boost sensitivity, a list of known fusions can be supplied using this parameter. Refer to section [Known fusions](04-Input-files#known-fusions) for a description of the expected file format. The file may be gzip-compressed.
 
 `-o FILE`
-: Output file with fusions that have passed all filters. Refer to section [fusions.tsv](output-files.md#fusionstsv) for a description of the columns.
+: Output file with fusions that have passed all filters. Refer to section [fusions.tsv](05-Output-files#fusionstsv) for a description of the columns.
 
 `-O FILE`
 : Output file with fusions that were discarded due to filtering. The format is the same as for parameter `-o`.
 
 `-t FILE`
-: Tab-separated file containing fusions to annotate with tags in the `tags` column. The first two columns specify the genes; the third column specifies the tag. See section [Tags file](input-files.md#tags) for a detailed description of the format.
+: Tab-separated file containing fusions to annotate with tags in the `tags` column. The first two columns specify the genes; the third column specifies the tag. See section [Tags file](04-Input-files#tags) for a detailed description of the format.
 
 `-p FILE`
-: File in GFF3 format containing coordinates of the protein domains of genes. The detailed format is described in the section [Protein domains](input-files.md#protein-domains). The protein domains retained in a fusion are listed in the column `retained_protein_domains` of Arriba's output file. The file may be gzip-compressed.
+: File in GFF3 format containing coordinates of the protein domains of genes. The detailed format is described in the section [Protein domains](04-Input-files#protein-domains). The protein domains retained in a fusion are listed in the column `retained_protein_domains` of Arriba's output file. The file may be gzip-compressed.
  
 `-d FILE`
-: Tab-separated file with coordinates of structural variants found using whole-genome sequencing data. These coordinates serve to increase sensitivity towards weakly expressed fusions and to eliminate fusions with low confidence. Refer to section [Structural variant calls from WGS](input-files.md#structural-variant-calls-from-wgs) for a description of the expected file format. The file may be gzip-compressed.
+: Tab-separated file with coordinates of structural variants found using whole-genome sequencing data. These coordinates serve to increase sensitivity towards weakly expressed fusions and to eliminate fusions with low confidence. Refer to section [Structural variant calls from WGS](04-Input-files#structural-variant-calls-from-wgs) for a description of the expected file format. The file may be gzip-compressed.
 
 `-D MAX_GENOMIC_BREAKPOINT_DISTANCE`
 : When a file with genomic breakpoints obtained from whole-genome sequencing is supplied via the parameter `-d`, this parameter determines how far a genomic breakpoint may be away from a transcriptomic breakpoint to still consider it as a related event. For events inside genes, the distance is added to the end of the gene; for intergenic events, the distance threshold is applied as is. Default: `100000`
