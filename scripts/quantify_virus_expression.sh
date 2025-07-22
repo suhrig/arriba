@@ -15,6 +15,7 @@ KMER_LENGTH="${MAX_LENGTH-12}" # identify related viral strains by looking for c
 MAX_SHARED_KMERS_PCT="${MAX_SHARED_KMERS-10}" # consider two viral strains to be related when they share this fraction (%) of kmers
 MIN_COVERED_GENOME_PCT="${MIN_COVERED_GENOME_PCT-5}" # ignore viruses with only a small fraction (%) of their genome covered
 MIN_COVERED_GENOME_BASES="${MIN_COVERED_GENOME_BASES-100}" # ignore viruses with only few bases of their genome covered
+TANDEM_REPEAT_REGEX='AA.?AA.?AA.?AA.?AA.?AA.?AA.?AA|AC.?AC.?AC.?AC.?AC.?AC.?AC.?AC.?|AG.?AG.?AG.?AG.?AG.?AG.?AG.?AG.?|AT.?AT.?AT.?AT.?AT.?AT.?AT.?AT.?|CA.?CA.?CA.?CA.?CA.?CA.?CA.?CA.?|CC.?CC.?CC.?CC.?CC.?CC.?CC.?CC.?|CG.?CG.?CG.?CG.?CG.?CG.?CG.?CG.?|CT.?CT.?CT.?CT.?CT.?CT.?CT.?CT.?|GA.?GA.?GA.?GA.?GA.?GA.?GA.?GA.?|GC.?GC.?GC.?GC.?GC.?GC.?GC.?GC.?|GG.?GG.?GG.?GG.?GG.?GG.?GG.?GG.?|GT.?GT.?GT.?GT.?GT.?GT.?GT.?GT.?|TA.?TA.?TA.?TA.?TA.?TA.?TA.?TA.?|TC.?TC.?TC.?TC.?TC.?TC.?TC.?TC.?|TG.?TG.?TG.?TG.?TG.?TG.?TG.?TG.?|TT.?TT.?TT.?TT.?TT.?TT.?TT.?TT.?'
 
 # tell bash to abort on error
 set -e -u -o pipefail
@@ -36,7 +37,7 @@ echo "${EXPRESSED_VIRAL_CONTIGS-}" |
 samtools view -F 4 -h ${EXAMINE_ONLY_VIRAL_CONTIGS-} "$INPUT" |
 
 # quantify expression of viral contigs
-awk -F '\t' -v OFS='\t' -v kmer_length="$KMER_LENGTH" -v max_shared_kmers_pct="$MAX_SHARED_KMERS_PCT" -v viral_contigs="$VIRAL_CONTIGS" -v min_covered_genome_pct="$MIN_COVERED_GENOME_PCT" -v min_covered_genome_bases="$MIN_COVERED_GENOME_BASES" -v total_mapped_reads="${TOTAL_MAPPED_READS-0}" '
+awk -F '\t' -v OFS='\t' -v kmer_length="$KMER_LENGTH" -v max_shared_kmers_pct="$MAX_SHARED_KMERS_PCT" -v viral_contigs="$VIRAL_CONTIGS" -v min_covered_genome_pct="$MIN_COVERED_GENOME_PCT" -v min_covered_genome_bases="$MIN_COVERED_GENOME_BASES" -v total_mapped_reads="${TOTAL_MAPPED_READS-0}" -v TANDEM_REPEAT_REGEX="$TANDEM_REPEAT_REGEX" '
 {
 	if (/^@SQ\t/) { # this is a header line => remember sizes of viral genomes
 
@@ -53,7 +54,7 @@ awk -F '\t' -v OFS='\t' -v kmer_length="$KMER_LENGTH" -v max_shared_kmers_pct="$
 		if (($2 % 4 >= 2 || $2 % 2 == 0) && # reads must be aligned in proper pair, unless they are single-end
 		    match($3, viral_contigs) && # read must map to a viral contig
 		    $6 ~ /^[0-9NMX]+$/ && # only count fully aligned reads (i.e., CIGAR string contains only N, M, or X)
-		    $10 !~ /(AA.?){8}|(AC.?){8}|(AG.?){8}|(AT.?){8}|(CC.?){8}|(CG.?){8}|(CT.?){8}|(GG.?){8}|(GT.?){8}|(TT.?){8}/) { # ignore tandem repeat regions
+		    !match($10, TANDEM_REPEAT_REGEX)) { # ignore tandem repeat regions
 
 			id = ids[$3]
 			viral_mapped_reads[id]++
