@@ -427,18 +427,14 @@ unsigned int remove_malformed_alignments(chimeric_alignments_t& chimeric_alignme
 				} else {
 					flip_mate1_strand = chimeric_alignment->second[SPLIT_READ].strand == REVERSE;
 				}
-				if (flip_mate1_strand) {
-					chimeric_alignment->second[MATE1].strand = complement_strand(chimeric_alignment->second[MATE1].strand);
-					chimeric_alignment->second[MATE1].first_in_pair = false;
-					chimeric_alignment->second[SPLIT_READ].first_in_pair = true;
-					chimeric_alignment->second[SUPPLEMENTARY].first_in_pair = true;
-				} else {
-					chimeric_alignment->second[SPLIT_READ].strand = complement_strand(chimeric_alignment->second[SPLIT_READ].strand);
-					chimeric_alignment->second[SUPPLEMENTARY].strand = complement_strand(chimeric_alignment->second[SUPPLEMENTARY].strand);
-					chimeric_alignment->second[MATE1].first_in_pair = true;
-					chimeric_alignment->second[SPLIT_READ].first_in_pair = false;
-					chimeric_alignment->second[SUPPLEMENTARY].first_in_pair = false;
-				}
+				chimeric_alignment->second[MATE1].strand = complement_strand_if(chimeric_alignment->second[MATE1].strand, flip_mate1_strand);
+				chimeric_alignment->second[SPLIT_READ].strand = complement_strand_if(chimeric_alignment->second[SPLIT_READ].strand, !flip_mate1_strand);
+				chimeric_alignment->second[SUPPLEMENTARY].strand = complement_strand_if(chimeric_alignment->second[SUPPLEMENTARY].strand, !flip_mate1_strand);
+
+				// set first-in-pair flag like it would be set if we had paired-end data
+				chimeric_alignment->second[MATE1].first_in_pair = !flip_mate1_strand;
+				chimeric_alignment->second[SPLIT_READ].first_in_pair = flip_mate1_strand;
+				chimeric_alignment->second[SUPPLEMENTARY].first_in_pair = flip_mate1_strand;
 
 				// if possible, try to fix overlapping segments between split read and supplementary
 				if (!disjoin_split_read_segments(chimeric_alignment->second[SPLIT_READ], chimeric_alignment->second[SUPPLEMENTARY]))
