@@ -36,8 +36,8 @@ The following command demonstrates the usage. Please refer to section [Command-l
     --alignments=Aligned.sortedByCoord.out.bam \
     --output=fusions.pdf \
     --annotation=GENCODE19.gtf \
-    --cytobands=database/cytobands_hg19_hs37d5_GRCh37_v2.5.0.tsv \
-    --proteinDomains=database/protein_domains_hg19_hs37d5_GRCh37_v2.5.0.gff3
+    --cytobands=database/cytobands_hg19_hs37d5_GRCh37_v2.5.1.tsv \
+    --proteinDomains=database/protein_domains_hg19_hs37d5_GRCh37_v2.5.1.gff3
 ```
 
 **Execution via Docker**
@@ -51,7 +51,7 @@ docker run --rm \
        -v /path/to/fusions.tsv:/fusions.tsv:ro \
        -v /path/to/Aligned.sortedByCoord.out.bam:/Aligned.sortedByCoord.out.bam:ro \
        -v /path/to/Aligned.sortedByCoord.out.bam.bai:/Aligned.sortedByCoord.out.bam.bai:ro \
-       uhrigs/arriba:2.5.0 \
+       uhrigs/arriba:2.5.1 \
        draw_fusions.sh
 ```
 
@@ -66,7 +66,7 @@ singularity exec \
        -B /path/to/fusions.tsv:/fusions.tsv:ro \
        -B /path/to/Aligned.sortedByCoord.out.bam:/Aligned.sortedByCoord.out.bam:ro \
        -B /path/to/Aligned.sortedByCoord.out.bam.bai:/Aligned.sortedByCoord.out.bam.bai:ro \
-       docker://uhrigs/arriba:2.5.0 \
+       docker://uhrigs/arriba:2.5.1 \
        draw_fusions.sh
 ```
 
