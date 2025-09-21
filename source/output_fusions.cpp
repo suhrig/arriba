@@ -586,7 +586,7 @@ string get_fusion_type(const fusion_t& fusion, const unsigned int max_itd_length
 				return "inversion";
 			} else {
 				if (fusion.direction1 == UPSTREAM && fusion.gene1->strand == REVERSE ||
-				    fusion.direction1 == UPSTREAM && fusion.gene1->strand == REVERSE) {
+				    fusion.direction1 == DOWNSTREAM && fusion.gene1->strand == FORWARD) {
 					return "inversion/5'-5'";
 				} else {
 					return "inversion/3'-3'";
