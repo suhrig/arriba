@@ -6,6 +6,7 @@ TSL_INCLUDE ?= $(STATIC_LIBS)/tsl
 # installation directories
 PREFIX ?= /usr/local
 BINDIR ?= $(PREFIX)/bin
+DATADIR ?= $(PREFIX)/share/arriba
 
 # compiler flags
 CXXFLAGS := -Wall -Wno-parentheses -pthread -std=c++0x -O2
@@ -48,10 +49,12 @@ $(STATIC_LIBS)/libhts.a: $(STATIC_LIBS)/libdeflate.a $(STATIC_LIBS)/libz.a $(STA
 	$(WGET) 'https://github.com/samtools/htslib/releases/download/1.22.1/htslib-1.22.1.tar.bz2' | $(STATIC_LIBS)/bzip2-*/bzip2 -d -c - | tar -xf - -C $(STATIC_LIBS) && \
 	cd $(STATIC_LIBS)/htslib-*/ && $(MAKE) config.h && sed -i -e 's/CURL/DEFLATE/' config.h && $(MAKE) NONCONFIGURE_OBJS="" CPPFLAGS="$(CPPFLAGS) -I.." libhts.a && cp -r libhts.a htslib ..
 
-# install the executable (run after `make` or `make shared`)
+# install the executable and the scripts (run after `make` or `make shared`)
 install:
-	install -d $(DESTDIR)$(BINDIR)
-	install -m 0755 arriba $(DESTDIR)$(BINDIR)/
+	install -d $(DESTDIR)$(BINDIR) $(DESTDIR)$(DATADIR)/scripts
+	install -m 0755 arriba draw_fusions.R run_arriba.sh $(DESTDIR)$(BINDIR)/
+	install -m 0755 download_references.sh $(DESTDIR)$(DATADIR)/
+	install -m 0755 scripts/* $(DESTDIR)$(DATADIR)/scripts/
 
 # cleanup routine
 clean:
